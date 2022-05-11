@@ -1,3 +1,12 @@
+## README
+
+This is the client of [NewPipeWithMoreServices](https://github.com/InfinityLoop1309/NewPipeWithMoreServices), an unofficial fork of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractore).
+
+The following is the `README.MD` of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor).
+
+##
+
+
 # NewPipe Extractor
 
 [![CI](https://github.com/TeamNewPipe/NewPipeExtractor/actions/workflows/ci.yml/badge.svg?branch=dev&event=schedule)](https://github.com/TeamNewPipe/NewPipeExtractor/actions/workflows/ci.yml) [![JIT Pack Badge](https://jitpack.io/v/TeamNewPipe/NewPipeExtractor.svg)](https://jitpack.io/#TeamNewPipe/NewPipeExtractor) [JDoc](https://teamnewpipe.github.io/NewPipeExtractor/javadoc/) • [Documentation](https://teamnewpipe.github.io/documentation/)
