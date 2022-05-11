@@ -1,6 +1,6 @@
 ## README
 
-This is the client of [NewPipeWithMoreServices](https://github.com/InfinityLoop1309/NewPipeWithMoreServices-client), an unofficial fork of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractore).
+This is the client of [NewPipeWithMoreServices](https://github.com/InfinityLoop1309/NewPipeWithMoreServices), an unofficial fork of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractore).
 
 The following is the `README.MD` of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor).
 
