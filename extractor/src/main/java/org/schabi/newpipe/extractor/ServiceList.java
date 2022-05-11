@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor;
 
 import org.schabi.newpipe.extractor.services.bandcamp.BandcampService;
+import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.media_ccc.MediaCCCService;
 import org.schabi.newpipe.extractor.services.peertube.PeertubeService;
 import org.schabi.newpipe.extractor.services.soundcloud.SoundcloudService;
@@ -43,6 +44,7 @@ public final class ServiceList {
     public static final PeertubeService PeerTube;
     public static final BandcampService Bandcamp;
 
+    public static final BilibiliService Bilibili;
     /**
      * When creating a new service, put this service in the end of this list,
      * and give it the next free id.
@@ -53,7 +55,8 @@ public final class ServiceList {
                     SoundCloud = new SoundcloudService(1),
                     MediaCCC = new MediaCCCService(2),
                     PeerTube = new PeertubeService(3),
-                    Bandcamp = new BandcampService(4)
+                    Bandcamp = new BandcampService(4),
+                    Bilibili = new BilibiliService(5)
             ));
 
     /**
