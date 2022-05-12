@@ -183,7 +183,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 return collector;
             }
             for(int i=0;i<relatedArray.size();i++){
-                collector.commit(new BilibiliRelatedInfoItemExtractor(relatedArray.getObject(i), getId()));
+                collector.commit(new BilibiliRelatedInfoItemExtractor(relatedArray.getObject(i), getId(), getThumbnailUrl()));
             }
         } catch (JsonParserException | ParsingException e) {
             e.printStackTrace();

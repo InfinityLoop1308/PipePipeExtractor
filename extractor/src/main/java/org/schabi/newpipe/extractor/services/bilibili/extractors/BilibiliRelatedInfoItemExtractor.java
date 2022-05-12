@@ -20,9 +20,11 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     protected final JsonObject item;
     String id = "";
-    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id) {
+    String pic = "";
+    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id, String pic) {
         item = json;
         this.id = id;
+        this.pic = pic;
     }
     @Override
     public String getName() throws ParsingException {
@@ -36,7 +38,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return null;
+        return pic;
     }
 
     @Override
