@@ -1,6 +1,9 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -97,7 +100,8 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor{
 
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return null;
+        return new DateWrapper(LocalDateTime.parse(
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
 }

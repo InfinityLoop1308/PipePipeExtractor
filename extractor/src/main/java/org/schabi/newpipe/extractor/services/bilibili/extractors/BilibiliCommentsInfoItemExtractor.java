@@ -8,6 +8,10 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 import javax.annotation.Nullable;
@@ -92,5 +96,10 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Override
     public Page getReplies() throws ParsingException {
         return null;
+    }
+    @Override
+    public DateWrapper getUploadDate() throws ParsingException {
+       return new DateWrapper(LocalDateTime.parse(
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 }
