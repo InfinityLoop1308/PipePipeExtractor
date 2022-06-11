@@ -33,7 +33,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://api.bilibili.com/x/web-interface/view?cid="+item.getLong("cid")+"&duration="+getDuration() + "&bvid="+id;
+        return "https://bilibili.com/" +id + "?"+ item.getLong("cid")+"&duration="+getDuration();
     }
 
     @Override

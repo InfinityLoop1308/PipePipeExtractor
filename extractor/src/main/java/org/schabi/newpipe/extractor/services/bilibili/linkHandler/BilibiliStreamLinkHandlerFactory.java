@@ -21,18 +21,21 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
             cid = url.split("cid=")[1].split("&")[0];
             duration = url.split("duration=")[1].split("&")[0];
         }
-        if (url.contains("BV")) {
+        if (url.split("/")[url.split("/").length-1].startsWith("BV")) {
             String  parseResult = url.split(Pattern.quote("BV"))[1];
             return "BV"+parseResult;
         } else if (url.contains("bvid=")) {
             String  parseResult = url.split(Pattern.quote("bvid="))[1];
             return parseResult;
-        } else if (url.contains("av")) {
+        } else if (url.split("/")[url.split("/").length-1].startsWith("av")) {
             String  parseResult = url.split(Pattern.quote("av"))[1];
             return new utils().av2bv(Long.parseLong(parseResult));
         }else if (url.contains("aid=")) {
             String  parseResult = url.split(Pattern.quote("aid="))[1];
             return new utils().av2bv(Long.parseLong(parseResult));
+        }
+        else if(url.contains("live.bilibili.com")){
+            return url.split("/")[url.split("/").length-1].split("\\?")[0];
         }
         else{
             throw new ParsingException("Not a bilibili video link.");
@@ -42,12 +45,16 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
     @Override
     public String getUrl(final String id) {
 //        if(id.length() >8){
-            if(cid.length()>0){
-                return "https://api.bilibili.com/x/web-interface/view?cid="+cid+"&duration="+duration+"&bvid="+ id ;
-            }
-            else return "https://api.bilibili.com/x/web-interface/view?bvid="+ id;
+//            if(cid.length()>0){
+//                return "https://api.bilibili.com/x/web-interface/view?cid="+cid+"&duration="+duration+"&bvid="+ id ;
+//            }
+//            else return "https://api.bilibili.com/x/web-interface/view?bvid="+ id;
 //        }
 //        return "https://api.bilibili.com/x/web-interface/view?aid="+ id;
+        if(id.startsWith("BV")) {
+            return "https://bilibili.com/"+id;
+        }
+        else return "https://live.bilibili.com/"+id;
     }
 
     @Override

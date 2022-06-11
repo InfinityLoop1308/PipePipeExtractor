@@ -33,4 +33,18 @@ public class utils {
         }
         return result;
     }
+    public static String getUrl(String url, String id){
+        String cid = "", duration = "";
+        if(url.contains("cid=")){
+            cid = url.split("cid=")[1].split("&")[0];
+            duration = url.split("duration=")[1].split("&")[0];
+        }
+        if(id.length() >8){
+            if(cid.length()>0){
+                return "https://api.bilibili.com/x/web-interface/view?cid="+cid+"&duration="+duration+"&bvid="+ id ;
+            }
+            else return "https://api.bilibili.com/x/web-interface/view?bvid="+ id;
+        }
+        return "https://api.bilibili.com/x/web-interface/view?aid="+ id;
+    }
 }
