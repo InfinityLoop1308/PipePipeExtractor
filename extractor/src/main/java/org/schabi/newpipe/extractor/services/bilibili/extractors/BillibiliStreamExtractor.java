@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
@@ -73,7 +74,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
          }
          JsonArray audioArray =responseJson.getObject("data").getObject("dash").getArray("audio") ;
          String url = audioArray.getObject(0).getString("baseUrl");
-         audioStreams.add(new AudioStream(url, MediaFormat.M4A, 192000));
+         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio").setContent(url,true).setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
          return audioStreams;
     }
 
@@ -107,7 +108,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
              }
             url = videoArray.getObject(i).getString("baseUrl");
          }
-         videoStreams.add(new VideoStream(url, MediaFormat.MPEG_4, "720P",true));
+         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video").setIsVideoOnly(true).setResolution("720p").build());
         return videoStreams;
     }
 
@@ -119,11 +120,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
-        final String url = getLinkHandler().getUrl();
+        String url = getLinkHandler().getOriginalUrl();
         if(url.contains("cid=")){
             cid = url.split("cid=")[1].split("&")[0];
             duration = url.split("duration=")[1].split("&")[0];
         }
+        url = utils.getUrl(url, getId());
         final String response = downloader.get(url).responseBody();
         try {
             watch = JsonParser.object().from(response).getObject("data");
