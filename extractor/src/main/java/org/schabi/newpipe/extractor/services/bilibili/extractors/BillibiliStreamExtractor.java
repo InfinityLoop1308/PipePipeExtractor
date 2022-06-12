@@ -133,7 +133,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public String getName() throws ParsingException {
         String title = watch.getString("title");
-        if(page.size() > 1){
+        if(watch.getArray("pages").size() > 1){
             title += " | P" + page.getInt("page") + " "+ page.getString("part");
         }
         return title;
