@@ -14,7 +14,15 @@ import java.util.List;
 public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException {
-        return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));
+        try {
+            return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));
+        } catch (ParsingException e) {
+            e.printStackTrace();
+        }
+        if(!url.contains("https://api.bilibili.com/x/v2/reply") && url.contains("oid=")){
+            throw new ParsingException("not a bilibili comment link");
+        }
+        return url.split("oid=")[1].split("&")[0];
     }
 
     @Override

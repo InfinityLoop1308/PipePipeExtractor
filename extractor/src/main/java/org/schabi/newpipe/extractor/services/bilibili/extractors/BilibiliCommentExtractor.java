@@ -63,7 +63,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         } catch (JsonParserException e) {
             e.printStackTrace();
         }
-        JsonArray results = json.getArray("replies");
+        JsonArray results = json.getObject("data").getArray("replies");
         if(results.size() == 0){
             return new InfoItemsPage<>(new CommentsInfoItemsCollector(getServiceId()), null);
         }
