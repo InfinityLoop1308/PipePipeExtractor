@@ -14,7 +14,7 @@ import java.util.List;
 public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException {
-        return new BilibiliStreamLinkHandlerFactory().getId(url);
+        return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));
     }
 
     @Override

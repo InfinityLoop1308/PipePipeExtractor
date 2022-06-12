@@ -12,27 +12,25 @@ General form of stream link url: https://m.bilibili.com/video/<ID> (mobile) and 
 public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
     
     public static final String baseUrl = "https://www.bilibili.com/video/";
-    String cid = "";
-    String duration = "";
+    public String p = "1";
 
     @Override
     public String getId(final String url) throws ParsingException {
-        if(url.contains("cid=")){
-            cid = url.split("cid=")[1].split("&")[0];
-            duration = url.split("duration=")[1].split("&")[0];
+        if(url.contains("p=")){
+            p = url.split("p=")[1].split("&")[0];
         }
         if (url.split("/")[url.split("/").length-1].startsWith("BV")) {
-            String  parseResult = url.split(Pattern.quote("BV"))[1];
-            return "BV"+parseResult;
+            String  parseResult = url.split(Pattern.quote("BV"))[1].split("\\?")[0];
+            return "BV"+parseResult + "?p="+p;
         } else if (url.contains("bvid=")) {
-            String  parseResult = url.split(Pattern.quote("bvid="))[1];
-            return parseResult;
+            String  parseResult = url.split(Pattern.quote("bvid="))[1].split("&")[0];
+            return parseResult+ "?p="+p;
         } else if (url.split("/")[url.split("/").length-1].startsWith("av")) {
-            String  parseResult = url.split(Pattern.quote("av"))[1];
-            return new utils().av2bv(Long.parseLong(parseResult));
+            String  parseResult = url.split(Pattern.quote("av"))[1].split("\\?")[0];
+            return new utils().av2bv(Long.parseLong(parseResult))+ "?p="+p;
         }else if (url.contains("aid=")) {
-            String  parseResult = url.split(Pattern.quote("aid="))[1];
-            return new utils().av2bv(Long.parseLong(parseResult));
+            String  parseResult = url.split(Pattern.quote("aid="))[1].split("&")[0];
+            return new utils().av2bv(Long.parseLong(parseResult))+ "?p="+p;
         }
         else if(url.contains("live.bilibili.com")){
             return url.split("/")[url.split("/").length-1].split("\\?")[0];

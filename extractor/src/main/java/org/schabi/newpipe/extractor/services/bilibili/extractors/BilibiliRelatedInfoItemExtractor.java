@@ -1,6 +1,9 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -13,6 +16,7 @@ import com.grack.nanojson.JsonParserException;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
@@ -21,19 +25,31 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
     protected final JsonObject item;
     String id = "";
     String pic = "";
-    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id, String pic) {
+    String p = "1";
+    String type = "multiP";
+    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id, String pic, String p) {
         item = json;
         this.id = id;
         this.pic = pic;
+        this.p = p;
+    }
+    public BilibiliRelatedInfoItemExtractor(final JsonObject json){
+        item = json;
+        type = "related";
+        id = item.getString("bvid").equals("")? new utils().av2bv(item.getLong("aid")):item.getString("bvid");
+        pic = item.getString("pic").replace("http", "https");
     }
     @Override
     public String getName() throws ParsingException {
+        if(type.equals("related")){
+            return item.getString("title");
+        }
             return item.getString("part");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://bilibili.com/" +id + "?"+ item.getLong("cid")+"&duration="+getDuration();
+        return "https://bilibili.com/" +id + "?p="+ p ;
     }
 
     @Override
@@ -58,12 +74,14 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public long getViewCount() throws ParsingException {
-        return 0;
+        if(type.equals("multiP"))return 0;
+        return item.getObject("stat").getLong("view");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return null;
+        if(type.equals("multiP"))return null;
+        return item.getObject("owner").getString("name");
     }
 
     @Override
@@ -73,7 +91,8 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return null;
+        if(type.equals("multiP"))return null;
+        return item.getObject("owner").getString("face").replace("http", "https");
     }
 
     @Override
@@ -83,12 +102,13 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return null;
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(item.getInt("pubdate") * 1000L));
     }
 
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return null;
+        return new DateWrapper(LocalDateTime.parse(
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
 }
