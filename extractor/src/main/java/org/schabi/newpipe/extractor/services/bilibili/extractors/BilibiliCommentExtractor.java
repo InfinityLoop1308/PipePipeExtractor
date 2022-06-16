@@ -72,7 +72,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliCommentsInfoItemExtractor(results.getObject(i), getUrl()));
         }
-        String currentPageString = page.getUrl().split("pn=")[page.getUrl().split("pn=").length-1];
+        String currentPageString = page.getUrl().split("pn=")[page.getUrl().split("pn=").length-1].split("&")[0];
         int currentPage = Integer.parseInt(currentPageString);
         String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(collector, new Page(nextPage));

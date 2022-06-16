@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -95,7 +96,13 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Nullable
     @Override
     public Page getReplies() throws ParsingException {
-        return null;
+        if(json.getArray("replies") == null || json.getArray("replies").size() == 0){
+            return null;
+        }
+        if(json.getLong("root") == json.getLong("parent") && json.getLong("root")== json.getLong("rpid")){
+            return null;
+        }
+        return new Page("https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=" + json.getLong("oid") + "&root=" + json.getLong("rpid"));
     }
     @Override
     public DateWrapper getUploadDate() throws ParsingException {

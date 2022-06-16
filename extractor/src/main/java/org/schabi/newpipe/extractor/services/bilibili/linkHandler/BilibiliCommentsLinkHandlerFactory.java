@@ -22,6 +22,9 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
         if(!url.contains("https://api.bilibili.com/x/v2/reply") && url.contains("oid=")){
             throw new ParsingException("not a bilibili comment link");
         }
+        if(url.contains("api.bilibili.com/x/v2/reply/reply")){
+            return url.split("oid=")[1];
+        }
         return url.split("oid=")[1].split("&")[0];
     }
 
@@ -38,6 +41,9 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getUrl(String id, List<String> contentFilter, String sortFilter) throws ParsingException {
         id = id.startsWith("BV")? String.valueOf(new utils().bv2av(id)) :id;
+        if(id.contains("&root")){
+            return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id;
+        }
         return "https://api.bilibili.com/x/v2/reply?type=1&sort=1&oid="+ id + "&pn=1";
     }
 }
