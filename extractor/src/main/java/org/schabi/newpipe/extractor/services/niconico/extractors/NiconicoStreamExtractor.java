@@ -110,33 +110,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         final List<VideoStream> videoStreams = new ArrayList<>();
-
-        final JsonObject session
-                = watch.getObject("media").getObject("delivery").getObject("movie");
-
-        final String dmc
-                = session.getObject("session").getArray("urls")
-                .getObject(0).getString("url") + "?_format=json";
-
-        final String s = NiconicoDMCPayloadBuilder.buildJSON(session.getObject("session"));
-
-        final Map<String, List<String>> headers = new HashMap<>();
-        headers.put("Content-Type", Collections.singletonList("application/json"));
-
-        final Response response = getDownloader().post(
-                dmc, headers, s.getBytes(StandardCharsets.UTF_8), NiconicoService.LOCALE);
-
-        try {
-            final JsonObject content = JsonParser.object().from(response.responseBody());
-
-            final String contentURL = content.getObject("data").getObject("session")
-                    .getString("content_uri");
-            videoStreams.add(new VideoStream.Builder().setContent(contentURL,  true).setId("Niconico-"+getId()).setIsVideoOnly(false).setMediaFormat(MediaFormat.MPEG_4).setResolution("360p").build());
-
-        } catch (final JsonParserException e) {
-            throw new ExtractionException("could not get video contents.");
-        }
-
+        videoStreams.add(new VideoStream.Builder().setContent("https://www.nicovideo.jp/watch/"+ getLinkHandler().getId(),  true).setId("Niconico-"+getId()).setIsVideoOnly(false).setMediaFormat(MediaFormat.MPEG_4).setResolution("360p").build());
         return  videoStreams;
     }
 
