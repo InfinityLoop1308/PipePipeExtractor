@@ -13,7 +13,7 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
 
     @Override
     public String getUrl(final String id) throws ParsingException {
-        return "https://www.nicovideo.jp/watch/" + id;
+        return "https://sp.nicovideo.jp/watch/" + id;
     }
 
     @Override

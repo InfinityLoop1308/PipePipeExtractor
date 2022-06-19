@@ -185,7 +185,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(final @Nonnull Downloader downloader)
             throws IOException, ExtractionException {
-        final String url = getLinkHandler().getUrl();
+        final String url = "https://www.nicovideo.jp/watch/"+ getLinkHandler().getId();
         final Response response = downloader.get(url, null, NiconicoService.LOCALE);
         final Document page = Jsoup.parse(response.responseBody());
         try {
