@@ -238,7 +238,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     public List<String> getTags() throws ParsingException {
         List<String> tags = new ArrayList<>();
         if(getStreamType() == StreamType.LIVE_STREAM){
-            tags = Arrays.asList(watch.getString("tag_name").split(","));
+            tags = Arrays.asList((watch.getString("tag_name")+","+watch.getString("tags")).split(","));
         }
         try {
             JsonArray respArray = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/tag/archive/tags?bvid=" + utils.getPureBV(getId())).responseBody()).getArray("data");
