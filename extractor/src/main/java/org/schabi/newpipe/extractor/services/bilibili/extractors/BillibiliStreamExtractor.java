@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.grack.nanojson.JsonArray;
@@ -96,7 +97,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId()).responseBody();
         try {
             String url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
-            videoStreams.add(new VideoStream.Builder().setContent(url,true).setId("bilibili-"+watch.getLong("uid") +"-live").setIsVideoOnly(true).setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build());
+            videoStreams.add(new VideoStream.Builder().setContent(url,true).setId("bilibili-"+watch.getLong("uid") +"-live").setIsVideoOnly(false).setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build());
         } catch (JsonParserException e) {
             e.printStackTrace();
         }
@@ -231,6 +232,29 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         return watch.getObject("stat").getLong("coin");
     }
+
+    @Nonnull
+    @Override
+    public List<String> getTags() throws ParsingException {
+        List<String> tags = new ArrayList<>();
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            tags = Arrays.asList(watch.getString("tag_name").split(","));
+        }
+        try {
+            JsonArray respArray = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/tag/archive/tags?bvid=" + utils.getPureBV(getId())).responseBody()).getArray("data");
+            for(int i = 0; i< respArray.size(); i++){
+                tags.add(respArray.getObject(i).getString("tag_name"));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ReCaptchaException e) {
+            e.printStackTrace();
+        } catch (JsonParserException e) {
+            e.printStackTrace();
+        }
+        return tags;
+    }
+
     @Override
     public InfoItemsCollector<? extends InfoItem, ? extends InfoItemExtractor>getRelatedItems() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
