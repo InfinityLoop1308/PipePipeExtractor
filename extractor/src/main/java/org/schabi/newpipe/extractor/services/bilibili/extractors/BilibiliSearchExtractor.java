@@ -19,6 +19,7 @@ import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemsCollector;
+import org.schabi.newpipe.extractor.comments.CommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -53,6 +54,9 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+        if(searchCollection.getObject("data").getArray("result").size() == 0){
+            return new InfoItemsPage<>(new MultiInfoItemsCollector(getServiceId()), null);
+        }
         int currentPage = 1;
         String nextPage = getUrl().replace(String.format("page=%s", 1), String.format("page=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(getCommittedCollector(), new Page(nextPage));
@@ -85,6 +89,10 @@ public class BilibiliSearchExtractor extends SearchExtractor{
             searchCollection = JsonParser.object().from(html);
         } catch (JsonParserException e) {
             e.printStackTrace();
+        }
+
+        if(searchCollection.getObject("data").getArray("result").size() == 0){
+            return new InfoItemsPage<>(new MultiInfoItemsCollector(getServiceId()), null);
         }
 
         String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
