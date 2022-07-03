@@ -17,6 +17,7 @@ import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannel
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliCommentExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliFeedExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSearchExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliCommentsLinkHandlerFactory;
@@ -68,14 +69,12 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public SearchExtractor getSearchExtractor(SearchQueryHandler queryHandler) {
-        // TODO Auto-generated method stub
         return new BilibiliSearchExtractor(this, queryHandler);
     }
 
     @Override
     public SuggestionExtractor getSuggestionExtractor() {
-        // TODO Auto-generated method stub
-        return null;
+        return new BilibiliSuggestionExtractor(this);
     }
 
     @Override
@@ -94,7 +93,6 @@ public class BilibiliService extends StreamingService{
             kioskList.addKioskEntry(kioskFactory, h, "Trending");
             kioskList.setDefaultKiosk("Trending");
         } catch (Exception e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
         return kioskList;
@@ -102,7 +100,6 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public ChannelExtractor getChannelExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        // TODO Auto-generated method stub
         return new BilibiliChannelExtractor(this, linkHandler);
     }
 
@@ -114,19 +111,16 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public StreamExtractor getStreamExtractor(LinkHandler linkHandler) throws ExtractionException {
-        // TODO Auto-generated method stub
         return new BillibiliStreamExtractor(this, linkHandler);
     }
 
     @Override
     public CommentsExtractor getCommentsExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        // TODO Auto-generated method stub
         return new BilibiliCommentExtractor(this, linkHandler);
     }
 
     @Override
     public ListLinkHandlerFactory getCommentsLHFactory() {
-        // TODO Auto-generated method stub
         return new BilibiliCommentsLinkHandlerFactory();
     }
 
