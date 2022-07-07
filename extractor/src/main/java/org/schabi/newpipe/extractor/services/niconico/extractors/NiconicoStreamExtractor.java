@@ -40,6 +40,9 @@ import javax.annotation.Nullable;
 
 public class NiconicoStreamExtractor extends StreamExtractor {
     private JsonObject watch;
+    private int type = 0;
+
+    private Document page = null;
 
     public NiconicoStreamExtractor(final StreamingService service,
                                    final LinkHandler linkHandler) {
@@ -48,34 +51,52 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public long getViewCount() throws ParsingException {
+        if(type == 1){
+            return watch.getLong("view_counter");
+        }
         return watch.getObject("video").getObject("count").getLong("view");
     }
 
     @Override
     public long getLength() throws ParsingException {
+        if(type == 1){
+            return watch.getLong("length_seconds");
+        }
         return watch.getObject("video").getLong("duration");
     }
 
     @Override
     public long getLikeCount() throws ParsingException {
+        if(type == 1){
+            return watch.getLong("mylist_counter");
+        }
         return  watch.getObject("video").getObject("count").getLong("like");
     }
 
     @Nonnull
     @Override
     public Description getDescription() throws ParsingException {
+        if(type == 1){
+            return new Description(watch.getString("description"), 1);
+        }
         return new Description(watch.getObject("video").getString("description"), 1);
     }
 
     @Nonnull
     @Override
     public String getThumbnailUrl() throws ParsingException {
+        if(type == 1){
+            return page.getElementsByClass("thumbnail").attr("src");
+        }
         return watch.getObject("video").getObject("thumbnail").getString("url");
     }
 
     @Nonnull
     @Override
     public String getUploaderUrl() throws ParsingException {
+        if(type == 1){
+            return "";
+        }
         if (isChannel()) {
             return NiconicoService.CHANNEL_URL
                     + watch.getObject("channel").getString("id");
@@ -86,6 +107,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderName() throws ParsingException {
+        if(type == 1){
+            return getName();
+        }
         if (isChannel()) {
             return watch.getObject("channel").getString("name");
         }
@@ -95,6 +119,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
+        if(type == 1){
+            return getThumbnailUrl();
+        }
         if (isChannel()) {
             return  watch.getObject("channel")
                     .getObject("thumbnail").getString("url");
@@ -128,6 +155,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public List<String> getTags() throws ParsingException {
         final List<String> tags = new ArrayList<>();
+        if(type == 1){
+            return tags;
+        }
         final JsonArray items = watch.getObject("tag").getArray("items");
         for (int i = 0; i < items.size(); i++) {
             tags.add(items.getObject(i).getString("name"));
@@ -161,10 +191,19 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             throws IOException, ExtractionException {
         final String url = "https://www.nicovideo.jp/watch/"+ getLinkHandler().getId();
         final Response response = downloader.get(url, null, NiconicoService.LOCALE);
-        final Document page = Jsoup.parse(response.responseBody());
+        page = Jsoup.parse(response.responseBody());
         try {
-            watch = JsonParser.object().from(
-                    page.getElementById("js-initial-watch-data").attr("data-api-data"));
+            Element element = page.getElementById("js-initial-watch-data");
+            if(element == null){
+                type = 1; //need login
+            }
+            if(type == 1){
+                watch = JsonParser.object().from(page.getElementsByClass("content WatchAppContainer").attr("data-video"));
+            }
+            else{
+                watch = JsonParser.object().from(
+                        page.getElementById("js-initial-watch-data").attr("data-api-data"));
+            }
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not extract watching page");
         }
@@ -173,6 +212,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getName() throws ParsingException {
+        if(type == 1){
+            return watch.getString("title");
+        }
         return watch.getObject("video").getString("title");
     }
 
