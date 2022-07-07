@@ -52,10 +52,10 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         JsonArray results = json.getObject("data").getObject("list").getArray("vlist");
-        if(results.size() == 0){
-            return null;
-        }
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
+        if(results.size() == 0){
+            return new InfoItemsPage<>(collector, null);
+        }
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliChannelInfoItemExtractor(results.getObject(i)));
         }
