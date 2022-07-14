@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
@@ -31,7 +32,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        final String url = getLinkHandler().getUrl();
+        final String url = utils.getChannelApiUrl(getUrl(), getLinkHandler().getId());
         String response = downloader.get(url).responseBody();
         String userResponse = downloader.get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId()).responseBody();
         try {
@@ -60,13 +61,17 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             collector.commit(new BilibiliChannelInfoItemExtractor(results.getObject(i)));
         }
         int currentPage = 1;
-        String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
+        String currentUrl = getUrl();
+        if(!currentUrl.contains("pn=")){
+            currentUrl += "?pn=1";
+        }
+        String nextPage = currentUrl.replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(collector, new Page(nextPage));
     }
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        String response = getDownloader().get(page.getUrl()).responseBody();
+        String response = getDownloader().get(utils.getChannelApiUrl(page.getUrl(), page.getId())).responseBody();
         String userResponse = getDownloader().get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId()).responseBody();
         try {
             json = JsonParser.object().from(response);
@@ -84,7 +89,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
         String currentPageString = page.getUrl().split("pn=")[1].split("&")[0];
         int currentPage = Integer.parseInt(currentPageString);
-        String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
+        String nextPage = page.getUrl().replace(String.format("pn=%s", currentPage), String.format("pn=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(collector, new Page(nextPage));
     }
 
@@ -131,5 +136,11 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public boolean isVerified() throws ParsingException {
         return false;
+    }
+
+    @Nonnull
+    @Override
+    public String getUrl() throws ParsingException {
+        return super.getUrl();
     }
 }

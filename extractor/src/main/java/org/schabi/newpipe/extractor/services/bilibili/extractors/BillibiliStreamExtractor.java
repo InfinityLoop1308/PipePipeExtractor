@@ -21,6 +21,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -55,9 +56,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public String getUploaderUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM) {
-            return "https://api.bilibili.com/x/space/arc/search?pn=1&ps=10&mid=" + watch.getLong("uid");
+            return BilibiliChannelLinkHandlerFactory.baseUrl + watch.getLong("uid");
         }
-        return "https://api.bilibili.com/x/space/arc/search?pn=1&ps=10&mid="  +watch.getObject("owner").getLong("mid");
+        return BilibiliChannelLinkHandlerFactory.baseUrl  +watch.getObject("owner").getLong("mid");
     }
 
     @Override

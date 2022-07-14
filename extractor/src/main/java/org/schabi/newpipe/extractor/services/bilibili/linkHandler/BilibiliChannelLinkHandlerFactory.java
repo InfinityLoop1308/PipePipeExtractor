@@ -14,7 +14,11 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
     public String getId(final String url) throws ParsingException {
         if (url.contains("mid=")) {
             return url.split("mid=")[1];
-        } else {
+        }
+        else if(url.contains(baseUrl)){
+            return url.split(baseUrl)[1].split("\\?")[0];
+        }
+        else {
             throw new ParsingException("Not a bilibili channel link.");
         }
     }
@@ -31,8 +35,9 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
 
     @Override
     public String getUrl(String id, List<String> contentFilter, String sortFilter) throws ParsingException {
-        return "https://api.bilibili.com/x/space/arc/search?pn=1&ps=10&mid=" + id;
+        return baseUrl + id;
     }
+
 
 }
  

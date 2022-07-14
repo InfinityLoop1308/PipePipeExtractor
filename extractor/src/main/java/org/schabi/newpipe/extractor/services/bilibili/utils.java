@@ -43,4 +43,11 @@ public class utils {
     public static String getPureBV(String id){
         return id.split("\\?")[0];
     }
+    public static String getChannelApiUrl(String url, String id){
+        String pn = "1";
+        if(url.contains("pn=")){
+            pn = url.split("pn=")[1].split("&")[0];
+        }
+        return "https://api.bilibili.com/x/space/arc/search?pn="+ pn +"&ps=10&mid=" + id;
+    }
 }

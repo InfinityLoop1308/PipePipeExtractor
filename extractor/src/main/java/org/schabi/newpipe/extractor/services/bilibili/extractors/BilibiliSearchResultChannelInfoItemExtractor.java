@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 
 public class BilibiliSearchResultChannelInfoItemExtractor implements ChannelInfoItemExtractor {
     JsonObject json = new JsonObject();
@@ -18,7 +19,7 @@ public class BilibiliSearchResultChannelInfoItemExtractor implements ChannelInfo
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://api.bilibili.com/x/space/arc/search?pn=1&ps=10&mid="  +json.getLong("mid");
+        return BilibiliChannelLinkHandlerFactory.baseUrl  +json.getLong("mid");
     }
 
     @Override
