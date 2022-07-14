@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,8 +23,12 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor{
 
     protected final JsonObject item;
-    public BilibiliChannelInfoItemExtractor(final JsonObject json) {
+    public String name;
+    public String face;
+    public BilibiliChannelInfoItemExtractor(final JsonObject json, String name, String face) {
         item = json;
+        this.name = name;
+        this.face = face;
     }
     @Override
     public String getName() throws ParsingException {
@@ -52,6 +57,9 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public long getDuration() throws ParsingException {
+        if(item.getLong("duration") != 0){
+            return item.getLong("duration");
+        }
         String duration = item.getString("length");
         long result = 0;
         int len = duration.split(":").length;
@@ -69,12 +77,12 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public long getViewCount() throws ParsingException {
-        return item.getLong("play");
+        return Optional.of(item.getLong("play")).orElse(item.getObject("stat").getLong("view"));
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return item.getString("author");
+        return name;
     }
 
     @Override
@@ -84,7 +92,7 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return item.getObject("owner").getString("face");
+        return face;
     }
 
     @Override
@@ -94,7 +102,10 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(item.getInt("created") * 1000L));
+        if(item.getInt("created") == 0){
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date((item.getInt("pubdate") )*1000L));
+        }
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date((item.getInt("created") )*1000L));
     }
 
     @Override
