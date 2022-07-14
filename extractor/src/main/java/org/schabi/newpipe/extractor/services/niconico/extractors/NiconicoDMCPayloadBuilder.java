@@ -1,11 +1,14 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonParserException;
+import com.grack.nanojson.JsonStringWriter;
 import com.grack.nanojson.JsonWriter;
 
 public class NiconicoDMCPayloadBuilder {
-    public static String buildJSON(final JsonObject obj) {
-        return JsonWriter.string()
+    public static String buildJSON(final JsonObject obj, final JsonObject encryption) throws JsonParserException {
+        JsonStringWriter temp = JsonWriter.string()
                 .object()
                 .object("session")
                 .value("recipe_id", obj.getString("recipeId"))
@@ -30,14 +33,24 @@ public class NiconicoDMCPayloadBuilder {
                 .end()
                 .end()
                 .object("protocol")
-                .value("name", obj.getArray("protocols").getString(0))
+                .value("name", "http")
                 .object("parameters")
                 .object("http_parameters")
                 .object("parameters")
-                .object("http_output_download_parameters")
+                .object(obj.getArray("protocols").getString(0).equals("hls") ? "hls_parameters" : "http_output_download_parameters")
                 .value("use_well_known_port", "yes")
                 .value("use_ssl", "yes")
                 .value("transfer_preset", "")
+                .value("segment_duration", 6000);
+        JsonObject parsedToken = JsonParser.object().from(obj.getString("token"));
+        if(parsedToken.containsKey("hls_encryption") && encryption != null){
+            temp = temp.object("encryption")
+                    .object(parsedToken.getString("hls_encryption"))
+                    .value("encrypted_key", encryption.getString("encryptedKey"))
+                    .value("key_uri", encryption.getString("keyUri"))
+                    .end().end();
+        }
+        return  temp
                 .end()
                 .end()
                 .end()
