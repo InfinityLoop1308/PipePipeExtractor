@@ -14,11 +14,13 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliSearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import java.io.IOException;
+import java.util.Collections;
 
 import javax.annotation.Nonnull;
 
@@ -26,6 +28,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     JsonObject json = new JsonObject();
     JsonObject userJson = new JsonObject();
     JsonObject recordJson = new JsonObject();
+    JsonObject liveJson = new JsonObject();
     boolean isRecordChannel = false;
     int recordId = -1;
 
@@ -54,6 +57,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         try {
             json = JsonParser.object().from(response);
             userJson = JsonParser.object().from(userResponse);
+            String liveResponse = downloader.get(new BilibiliSearchQueryHandlerFactory().getUrl(getName(), Collections.singletonList("live_room"), "")).responseBody();
+            liveJson = JsonParser.object().from(liveResponse);
             String recordResponse = downloader.get("https://api.bilibili.com/x/polymer/space/seasons_series_list?mid=" +getId() +"&page_num=1&page_size=10").responseBody();
             JsonArray series_list = JsonParser.object().from(recordResponse).getObject("data").getObject("items_lists").getArray("series_list");
             if(series_list.size() != 0){
@@ -87,6 +92,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         if(results.size() == 0){
             return new InfoItemsPage<>(collector, null);
+        }
+        if(!isRecordChannel){
+            collector.commit(new BilibiliLiveInfoItemExtractor(liveJson.getObject("data").getArray("result").getObject(0)));
         }
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliChannelInfoItemExtractor(results.getObject(i), getName(),getAvatarUrl()));
