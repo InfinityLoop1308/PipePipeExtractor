@@ -17,6 +17,7 @@ public final class YoutubeSearchQueryHandlerFactory extends SearchQueryHandlerFa
     public static final String VIDEOS = "videos";
     public static final String CHANNELS = "channels";
     public static final String PLAYLISTS = "playlists";
+    public static final String LIVES = "lives";
 
     public static final String MUSIC_SONGS = "music_songs";
     public static final String MUSIC_VIDEOS = "music_videos";
@@ -52,6 +53,9 @@ public final class YoutubeSearchQueryHandlerFactory extends SearchQueryHandlerFa
                     case PLAYLISTS:
                         return SEARCH_URL + URLEncoder.encode(searchString, UTF_8)
                                 + "&sp=EgIQAw%253D%253D";
+                    case LIVES:
+                        return SEARCH_URL + URLEncoder.encode(searchString, UTF_8)
+                                + "&sp=EgJAAQ%253D%253D";
                     case MUSIC_SONGS:
                     case MUSIC_VIDEOS:
                     case MUSIC_ALBUMS:
@@ -73,6 +77,7 @@ public final class YoutubeSearchQueryHandlerFactory extends SearchQueryHandlerFa
                 ALL,
                 VIDEOS,
                 CHANNELS,
+                LIVES,
                 PLAYLISTS,
                 MUSIC_SONGS,
                 MUSIC_VIDEOS,
@@ -95,6 +100,8 @@ public final class YoutubeSearchQueryHandlerFactory extends SearchQueryHandlerFa
                     return "EgIQAg%3D%3D";
                 case PLAYLISTS:
                     return "EgIQAw%3D%3D";
+                case LIVES:
+                    return "EgJAAQ%3D%3D";
                 case ALL:
                 case MUSIC_SONGS:
                 case MUSIC_VIDEOS:
