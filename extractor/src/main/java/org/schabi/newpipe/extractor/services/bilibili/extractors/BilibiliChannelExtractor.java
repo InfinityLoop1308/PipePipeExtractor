@@ -93,7 +93,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         if(results.size() == 0){
             return new InfoItemsPage<>(collector, null);
         }
-        if(!isRecordChannel){
+        if(!isRecordChannel && liveJson.getObject("data").getArray("result").size() > 0){
             collector.commit(new BilibiliLiveInfoItemExtractor(liveJson.getObject("data").getArray("result").getObject(0)));
         }
         for (int i = 0; i< results.size(); i++){
