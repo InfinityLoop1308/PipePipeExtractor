@@ -26,7 +26,7 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
             String  parseResult = url.split(Pattern.quote("bvid="))[1].split("&")[0];
             return parseResult+ "?p="+p;
         } else if (url.split("/")[url.split("/").length-1].startsWith("av")) {
-            String  parseResult = url.split(Pattern.quote("av"))[1].split("\\?")[0];
+            String  parseResult = url.split(Pattern.quote("/av"))[1].split("\\?")[0];
             return new utils().av2bv(Long.parseLong(parseResult))+ "?p="+p;
         }else if (url.contains("aid=")) {
             String  parseResult = url.split(Pattern.quote("aid="))[1].split("&")[0];
