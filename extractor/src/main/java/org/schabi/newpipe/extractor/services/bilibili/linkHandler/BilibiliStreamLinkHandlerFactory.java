@@ -19,8 +19,8 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
         if(url.contains("p=")){
             p = url.split("p=")[1].split("&")[0];
         }
-        if (url.split("/")[url.split("/").length-1].startsWith("BV")) {
-            String  parseResult = url.split(Pattern.quote("/BV"))[1].split("\\?")[0];
+        if (url.split("/")[url.split("/").length-1].startsWith("BV")) {// TODO: https...../BV....../(see slash)
+            String  parseResult = url.split(Pattern.quote("/BV"))[1].split("\\?")[0].split("/")[0];
             return "BV"+parseResult + "?p="+p;
         } else if (url.contains("bvid=")) {
             String  parseResult = url.split(Pattern.quote("bvid="))[1].split("&")[0];
