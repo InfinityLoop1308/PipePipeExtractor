@@ -89,7 +89,7 @@ public abstract class StreamingService {
         PLAYLIST
     }
 
-    private final int serviceId;
+    public final int serviceId;
     private final ServiceInfo serviceInfo;
 
     /**

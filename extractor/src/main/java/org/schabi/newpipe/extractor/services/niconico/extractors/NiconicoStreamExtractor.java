@@ -18,6 +18,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -133,11 +134,39 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
         return Collections.emptyList();
     }
+    public String getNicoUrl(String url){
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", Collections.singletonList("application/json"));
+        Downloader downloader = getDownloader();
+        Response response;
+        try {
+            response = downloader.get(String.valueOf(url), null, NiconicoService.LOCALE); // NiconicoService.LOCALE = Localization.fromLocalizationCode("ja-JP")
+            final Document page = Jsoup.parse(response.responseBody());
+            JsonObject watch = JsonParser.object().from(
+                    page.getElementById("js-initial-watch-data").attr("data-api-data"));
+            final JsonObject session
+                    = watch.getObject("media").getObject("delivery").getObject("movie");
+
+            final JsonObject encryption = watch.getObject("media").getObject("delivery").getObject("encryption");
+            final String s = NiconicoDMCPayloadBuilder.buildJSON(session.getObject("session"), encryption);
+            response = downloader.post("https://api.dmc.nico/api/sessions?_format=json", headers, s.getBytes(StandardCharsets.UTF_8), NiconicoService.LOCALE);
+            final JsonObject content = JsonParser.object().from(response.responseBody());
+            final String contentURL = content.getObject("data").getObject("session")
+                    .getString("content_uri");
+            return String.valueOf(contentURL);
+        } catch (ReCaptchaException | JsonParserException | IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         final List<VideoStream> videoStreams = new ArrayList<>();
-        videoStreams.add(new VideoStream.Builder().setContent("https://www.nicovideo.jp/watch/"+ getLinkHandler().getId(),  true).setId("Niconico-"+getId()).setIsVideoOnly(false).setMediaFormat(MediaFormat.MPEG_4).setResolution("360p").build());
+        String content = "https://www.nicovideo.jp/watch/" + getLinkHandler().getId();
+        VideoStream videoStream = new VideoStream.Builder().setContent(content, true).setId("Niconico-" + getId()).setIsVideoOnly(false).setMediaFormat(MediaFormat.MPEG_4).setResolution("360p").build();
+        videoStream.setNicoDownloadUrl(getNicoUrl(content));
+        videoStreams.add(videoStream);
         return  videoStreams;
     }
 

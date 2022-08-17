@@ -33,6 +33,7 @@ public abstract class Stream implements Serializable {
     private final boolean isUrl;
     private final DeliveryMethod deliveryMethod;
     @Nullable private final String manifestUrl;
+    public String nicoDownloadUrl;
 
     /**
      * Instantiates a new {@code Stream} object.
@@ -59,6 +60,14 @@ public abstract class Stream implements Serializable {
         this.mediaFormat = format;
         this.deliveryMethod = deliveryMethod;
         this.manifestUrl = manifestUrl;
+    }
+
+    public void setNicoDownloadUrl(String nicoDownloadUrl) {
+        this.nicoDownloadUrl = nicoDownloadUrl;
+    }
+
+    public String getNicoDownloadUrl() {
+        return nicoDownloadUrl;
     }
 
     /**
