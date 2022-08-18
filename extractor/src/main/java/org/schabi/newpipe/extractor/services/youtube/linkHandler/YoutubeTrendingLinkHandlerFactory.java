@@ -20,6 +20,8 @@ package org.schabi.newpipe.extractor.services.youtube.linkHandler;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isInvidioURL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isYoutubeURL;
 
@@ -33,8 +35,8 @@ import java.util.List;
 public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
 
     public String getUrl(final String id,
-                         final List<String> contentFilters,
-                         final String sortFilter) {
+                         final List<FilterItem> contentFilters,
+                         final List<FilterItem> sortFilter) {
         return "https://www.youtube.com/feed/trending";
     }
 

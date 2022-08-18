@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import org.schabi.newpipe.extractor.exceptions.FoundAdException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
@@ -43,8 +45,8 @@ public final class YoutubeCommentsLinkHandlerFactory extends ListLinkHandlerFact
 
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilter,
-                         final String sortFilter) throws ParsingException {
+                         final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) throws ParsingException {
         return getUrl(id);
     }
 }

@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import java.util.regex.Pattern;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
@@ -48,12 +50,13 @@ public final class YoutubeChannelLinkHandlerFactory extends ListLinkHandlerFacto
      * Returns URL to channel from an ID
      *
      * @param id Channel ID including e.g. 'channel/'
+     * @param searchFilter
      * @return URL to channel
      */
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilters,
-                         final String searchFilter) {
+                         final List<FilterItem> contentFilters,
+                         final List<FilterItem> searchFilter) {
         return "https://www.youtube.com/" + id;
     }
 

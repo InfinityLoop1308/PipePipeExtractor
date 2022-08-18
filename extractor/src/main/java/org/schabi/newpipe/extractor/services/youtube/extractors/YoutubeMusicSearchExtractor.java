@@ -14,6 +14,7 @@ import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
+import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -32,7 +33,6 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
@@ -47,12 +47,21 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class YoutubeMusicSearchExtractor extends SearchExtractor {
+public class YoutubeMusicSearchExtractor extends YoutubeBaseSearchExtractor {
     private JsonObject initialData;
 
     public YoutubeMusicSearchExtractor(final StreamingService service,
                                        final SearchQueryHandler linkHandler) {
         super(service, linkHandler);
+    }
+
+    private String getSearchType() {
+        final YoutubeFilters.MusicYoutubeContentFilterItem contentFilterItem =
+                getSelectedContentFilterItem();
+        if (contentFilterItem.getName() != null) {
+            return contentFilterItem.getName();
+        }
+        return "";
     }
 
     @Override
@@ -63,28 +72,11 @@ public class YoutubeMusicSearchExtractor extends SearchExtractor {
         final String url = "https://music.youtube.com/youtubei/v1/search?alt=json&key="
                 + youtubeMusicKeys[0] + DISABLE_PRETTY_PRINT_PARAMETER;
 
-        final String params;
 
-        switch (getLinkHandler().getContentFilters().get(0)) {
-            case MUSIC_SONGS:
-                params = "Eg-KAQwIARAAGAAgACgAMABqChAEEAUQAxAKEAk%3D";
-                break;
-            case MUSIC_VIDEOS:
-                params = "Eg-KAQwIABABGAAgACgAMABqChAEEAUQAxAKEAk%3D";
-                break;
-            case MUSIC_ALBUMS:
-                params = "Eg-KAQwIABAAGAEgACgAMABqChAEEAUQAxAKEAk%3D";
-                break;
-            case MUSIC_PLAYLISTS:
-                params = "Eg-KAQwIABAAGAAgACgBMABqChAEEAUQAxAKEAk%3D";
-                break;
-            case MUSIC_ARTISTS:
-                params = "Eg-KAQwIABAAGAAgASgAMABqChAEEAUQAxAKEAk%3D";
-                break;
-            default:
-                params = null;
-                break;
-        }
+        final YoutubeFilters.MusicYoutubeContentFilterItem contentFilterItem =
+            getSelectedContentFilterItem();
+        // if params be null (which never should happen), JsonWriter.string() can handle it
+        final String params = contentFilterItem.getParams();
 
         // @formatter:off
         final byte[] json = JsonWriter.string()
@@ -300,7 +292,7 @@ public class YoutubeMusicSearchExtractor extends SearchExtractor {
                         .getObject("musicResponsiveListItemFlexColumnRenderer");
                 final JsonArray descriptionElements = flexColumnRenderer.getObject("text")
                         .getArray("runs");
-                final String searchType = getLinkHandler().getContentFilters().get(0);
+                final String searchType = getSearchType();
                 if (searchType.equals(MUSIC_SONGS) || searchType.equals(MUSIC_VIDEOS)) {
                     collector.commit(new YoutubeStreamInfoItemExtractor(info, timeAgoParser) {
                         @Override

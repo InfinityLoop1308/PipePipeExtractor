@@ -1,5 +1,8 @@
 package org.schabi.newpipe.extractor.services.youtube;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
+
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
@@ -120,9 +123,15 @@ public class YoutubeService extends StreamingService {
 
     @Override
     public SearchExtractor getSearchExtractor(final SearchQueryHandler query) {
-        final List<String> contentFilters = query.getContentFilters();
+        final List<FilterItem> contentFilters = query.getContentFilters();
 
-        if (!contentFilters.isEmpty() && contentFilters.get(0).startsWith("music_")) {
+        if (contentFilters.isEmpty()) {
+            // something is odd
+            throw new RuntimeException("contentFilters is empty. WHY?");
+        }
+
+        final FilterItem filterItem = contentFilters.get(0);
+        if (filterItem instanceof YoutubeFilters.MusicYoutubeContentFilterItem) {
             return new YoutubeMusicSearchExtractor(this, query);
         } else {
             return new YoutubeSearchExtractor(this, query);

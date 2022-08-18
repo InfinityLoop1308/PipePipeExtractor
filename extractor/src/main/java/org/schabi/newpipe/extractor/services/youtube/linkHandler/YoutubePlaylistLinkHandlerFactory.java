@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
@@ -24,8 +26,8 @@ public final class YoutubePlaylistLinkHandlerFactory extends ListLinkHandlerFact
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilters,
-                         final String sortFilter) {
+    public String getUrl(final String id, final List<FilterItem> contentFilters,
+                         final List<FilterItem> sortFilter) {
         return "https://www.youtube.com/playlist?list=" + id;
     }
 
