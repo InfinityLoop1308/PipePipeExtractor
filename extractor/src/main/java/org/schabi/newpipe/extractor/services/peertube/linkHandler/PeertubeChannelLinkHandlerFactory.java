@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.peertube.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
@@ -28,15 +30,15 @@ public final class PeertubeChannelLinkHandlerFactory extends ListLinkHandlerFact
 
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilters,
-                         final String searchFilter) throws ParsingException {
+                         final List<FilterItem> contentFilters,
+                         final List<FilterItem> searchFilter) throws ParsingException {
         return getUrl(id, contentFilters, searchFilter, ServiceList.PeerTube.getBaseUrl());
     }
 
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilter,
-                         final String sortFilter,
+                         final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter,
                          final String baseUrl)
             throws ParsingException {
         if (id.matches(ID_PATTERN)) {
