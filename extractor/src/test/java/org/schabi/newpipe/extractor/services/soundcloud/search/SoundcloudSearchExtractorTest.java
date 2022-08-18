@@ -57,7 +57,7 @@ public class SoundcloudSearchExtractorTest {
         @BeforeAll
         public static void setUp() throws Exception {
             NewPipe.init(DownloaderTestImpl.getInstance());
-            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(TRACKS), "");
+            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(TRACKS), null);
             extractor.fetchPage();
         }
 
@@ -81,7 +81,7 @@ public class SoundcloudSearchExtractorTest {
         @BeforeAll
         public static void setUp() throws Exception {
             NewPipe.init(DownloaderTestImpl.getInstance());
-            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(USERS), "");
+            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(USERS), null);
             extractor.fetchPage();
         }
 
@@ -105,7 +105,7 @@ public class SoundcloudSearchExtractorTest {
         @BeforeAll
         public static void setUp() throws Exception {
             NewPipe.init(DownloaderTestImpl.getInstance());
-            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(PLAYLISTS), "");
+            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(PLAYLISTS), null);
             extractor.fetchPage();
         }
 
@@ -126,7 +126,7 @@ public class SoundcloudSearchExtractorTest {
         @Test
         public void duplicatedItemsCheck() throws Exception {
             NewPipe.init(DownloaderTestImpl.getInstance());
-            final SearchExtractor extractor = SoundCloud.getSearchExtractor("cirque du soleil", singletonList(TRACKS), "");
+            final SearchExtractor extractor = SoundCloud.getSearchExtractor("cirque du soleil", singletonList(TRACKS), null);
             extractor.fetchPage();
 
             final InfoItemsPage<InfoItem> page1 = extractor.getInitialPage();
@@ -151,7 +151,7 @@ public class SoundcloudSearchExtractorTest {
         @BeforeAll
         public static void setUp() throws Exception {
             NewPipe.init(DownloaderTestImpl.getInstance());
-            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(USERS), "");
+            extractor = SoundCloud.getSearchExtractor(QUERY, singletonList(USERS), null);
             extractor.fetchPage();
         }
 
