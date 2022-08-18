@@ -1,17 +1,27 @@
 package org.schabi.newpipe.extractor.services.youtube.search;
 
 import org.junit.jupiter.api.Test;
+import org.schabi.newpipe.extractor.search.filter.FilterContainer;
+import org.schabi.newpipe.extractor.search.filter.FilterGroup;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.DefaultSearchExtractorTest;
+import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 
-import static java.util.Arrays.asList;
+import java.util.List;
+
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.schabi.newpipe.extractor.ServiceList.YouTube;
-import static org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.CHANNELS;
-import static org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.MUSIC_SONGS;
-import static org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.PLAYLISTS;
-import static org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.VIDEOS;
-import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 
 public class YoutubeSearchQHTest {
+
+    public static int getNoOfFilterItems(final List<FilterContainer> filterContainers) {
+        return filterContainers.stream()
+                .mapToInt(filterContainer -> filterContainer.getFilterGroups().stream()
+                        .map(FilterGroup::getFilterItems)
+                        .mapToInt(filterItems -> filterItems.size())
+                        .sum()).sum();
+    }
 
     @Test
     public void testRegularValues() throws Exception {
@@ -21,56 +31,72 @@ public class YoutubeSearchQHTest {
         assertEquals("https://www.youtube.com/results?search_query=G%C3%BCl%C3%BCm", YouTube.getSearchQHFactory().fromQuery("Gülüm").getUrl());
         assertEquals("https://www.youtube.com/results?search_query=%3Fj%24%29H%C2%A7B", YouTube.getSearchQHFactory().fromQuery("?j$)H§B").getUrl());
 
-        assertEquals("https://music.youtube.com/search?q=asdf", YouTube.getSearchQHFactory().fromQuery("asdf", asList(new String[]{MUSIC_SONGS}), null).getUrl());
-        assertEquals("https://music.youtube.com/search?q=hans", YouTube.getSearchQHFactory().fromQuery("hans", asList(new String[]{MUSIC_SONGS}), null).getUrl());
-        assertEquals("https://music.youtube.com/search?q=Poifj%26jaijf", YouTube.getSearchQHFactory().fromQuery("Poifj&jaijf", asList(new String[]{MUSIC_SONGS}), null).getUrl());
-        assertEquals("https://music.youtube.com/search?q=G%C3%BCl%C3%BCm", YouTube.getSearchQHFactory().fromQuery("Gülüm", asList(new String[]{MUSIC_SONGS}), null).getUrl());
-        assertEquals("https://music.youtube.com/search?q=%3Fj%24%29H%C2%A7B", YouTube.getSearchQHFactory().fromQuery("?j$)H§B", asList(new String[]{MUSIC_SONGS}), null).getUrl());
+        final FilterItem item = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_SONGS);
+        assertEquals("https://music.youtube.com/search?q=asdf", YouTube.getSearchQHFactory().fromQuery("asdf", singletonList(item), null).getUrl());
+        assertEquals("https://music.youtube.com/search?q=hans", YouTube.getSearchQHFactory().fromQuery("hans", singletonList(item), null).getUrl());
+        assertEquals("https://music.youtube.com/search?q=Poifj%26jaijf", YouTube.getSearchQHFactory().fromQuery("Poifj&jaijf", singletonList(item), null).getUrl());
+        assertEquals("https://music.youtube.com/search?q=G%C3%BCl%C3%BCm", YouTube.getSearchQHFactory().fromQuery("Gülüm", singletonList(item), null).getUrl());
+        assertEquals("https://music.youtube.com/search?q=%3Fj%24%29H%C2%A7B", YouTube.getSearchQHFactory().fromQuery("?j$)H§B", singletonList(item), null).getUrl());
     }
 
     @Test
     public void testGetContentFilter() throws Exception {
-        assertEquals(VIDEOS, YouTube.getSearchQHFactory()
-                .fromQuery(EMPTY_STRING, asList(new String[]{VIDEOS}), null).getContentFilters().get(0));
-        assertEquals(CHANNELS, YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{CHANNELS}), null).getContentFilters().get(0));
+        final FilterItem videoFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_VIDEOS);
+        final FilterItem channelsFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_CHANNELS);
+        assertEquals(YoutubeFilters.ID_CF_MAIN_VIDEOS, YouTube.getSearchQHFactory()
+                .fromQuery("", singletonList(videoFilterItem), null).getContentFilters().get(0).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_CHANNELS, YouTube.getSearchQHFactory()
+                .fromQuery("asdf", singletonList(channelsFilterItem), null).getContentFilters().get(0).getIdentifier());
 
-        assertEquals(MUSIC_SONGS, YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{MUSIC_SONGS}), null).getContentFilters().get(0));
+        final FilterItem musicSongsFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_SONGS);
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_SONGS, YouTube.getSearchQHFactory()
+                .fromQuery("asdf", singletonList(musicSongsFilterItem), null).getContentFilters().get(0).getIdentifier());
     }
 
     @Test
     public void testWithContentfilter() throws Exception {
-        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAQ%253D%253D", YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{VIDEOS}), null).getUrl());
-        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAg%253D%253D", YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{CHANNELS}), null).getUrl());
-        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAw%253D%253D", YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{PLAYLISTS}), null).getUrl());
+        final FilterItem videoFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_VIDEOS);
+        final FilterItem channelsFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_CHANNELS);
+        final FilterItem playlistsFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_PLAYLISTS);
+        final FilterItem musicSongsFilterItem = DefaultSearchExtractorTest.getFilterItem(YouTube, YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_SONGS);
+        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAQ%3D%3D", YouTube.getSearchQHFactory()
+                .fromQuery("asdf", singletonList(videoFilterItem), null).getUrl());
+        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAg%3D%3D", YouTube.getSearchQHFactory()
+                .fromQuery("asdf", singletonList(channelsFilterItem), null).getUrl());
+        assertEquals("https://www.youtube.com/results?search_query=asdf&sp=EgIQAw%3D%3D", YouTube.getSearchQHFactory()
+                .fromQuery("asdf", singletonList(playlistsFilterItem), null).getUrl());
         assertEquals("https://www.youtube.com/results?search_query=asdf", YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{"fjiijie"}), null).getUrl());
+                .fromQuery("asdf", singletonList(null), null).getUrl());
 
         assertEquals("https://music.youtube.com/search?q=asdf", YouTube.getSearchQHFactory()
-                .fromQuery("asdf", asList(new String[]{MUSIC_SONGS}), null).getUrl());
+                .fromQuery("asdf", singletonList(musicSongsFilterItem), null).getUrl());
     }
 
     @Test
     public void testGetAvailableContentFilter() {
-        final String[] contentFilter = YouTube.getSearchQHFactory().getAvailableContentFilter();
-        assertEquals(8, contentFilter.length);
-        assertEquals("all", contentFilter[0]);
-        assertEquals("videos", contentFilter[1]);
-        assertEquals("channels", contentFilter[2]);
-        assertEquals("playlists", contentFilter[3]);
-        assertEquals("music_songs", contentFilter[4]);
-        assertEquals("music_videos", contentFilter[5]);
-        assertEquals("music_albums", contentFilter[6]);
-        assertEquals("music_playlists", contentFilter[7]);
+        final FilterContainer contentFilter =
+                YouTube.getSearchQHFactory().getAvailableContentFilter();
+
+        final int noOfContentFilters = DefaultSearchExtractorTest.getNoOfFilterItems(contentFilter);
+        final List<FilterItem> filterItems = contentFilter.getFilterGroups().get(0).getFilterItems();
+        assertEquals(9, noOfContentFilters);
+        assertEquals(YoutubeFilters.ID_CF_MAIN_ALL, filterItems.get(0).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_VIDEOS, filterItems.get(1).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_CHANNELS, filterItems.get(2).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_PLAYLISTS, filterItems.get(3).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_SONGS, filterItems.get(4).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_VIDEOS, filterItems.get(5).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_ALBUMS, filterItems.get(6).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_PLAYLISTS, filterItems.get(7).getIdentifier());
+        assertEquals(YoutubeFilters.ID_CF_MAIN_YOUTUBE_MUSIC_ARTISTS, filterItems.get(8).getIdentifier());
     }
 
     @Test
     public void testGetAvailableSortFilter() {
-        // TODO evermind-zz final String[] contentFilter = YouTube.getSearchQHFactory().getAvailableSortFilter();
-        // TODO evermind-zz assertEquals(0, contentFilter.length);
+        final FilterContainer contentFilterContainer =
+                YouTube.getSearchQHFactory().getAvailableContentFilter();
+        final int noOfSortFilters =
+                DefaultSearchExtractorTest.getNoOfSortFilterItems(contentFilterContainer);
+        assertEquals(24, noOfSortFilters);
     }
 }

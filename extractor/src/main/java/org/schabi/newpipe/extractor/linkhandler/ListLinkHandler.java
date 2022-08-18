@@ -32,7 +32,7 @@ public class ListLinkHandler extends LinkHandler {
                 handler.url,
                 handler.id,
                 Collections.emptyList(),
-                null);
+                Collections.emptyList());
     }
 
     public List<FilterItem> getContentFilters() {

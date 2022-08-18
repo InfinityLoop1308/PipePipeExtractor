@@ -1,3 +1,5 @@
+// Created by evermind-zz 2022, licensed GNU GPL version 3 or later
+
 package org.schabi.newpipe.extractor.services.peertube;
 
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
@@ -7,20 +9,12 @@ import java.util.List;
 import java.util.Optional;
 
 public final class PeertubeHelpers {
-    private PeertubeHelpers() { }
-    public static Optional<FilterItem> getSepiaFilter(final List<FilterItem> selectedFilters) {
-        final Optional<FilterItem> sepiaFilter = selectedFilters.stream()
-                .filter(filterItem -> filterItem instanceof PeertubeFilters.PeertubeSepiaFilterItem)
-                .findFirst();
-
-        return sepiaFilter;
+    private PeertubeHelpers() {
     }
 
-    public static Optional<FilterItem> getSpecificFilter(final List<FilterItem> selectedFilters, final Class clazz) {
-        final Optional<FilterItem> sepiaFilter = selectedFilters.stream()
-                .filter(filterItem -> filterItem.getClass().isInstance(clazz))
+    public static Optional<FilterItem> getSepiaFilter(final List<FilterItem> selectedFilters) {
+        return selectedFilters.stream()
+                .filter(PeertubeFilters.PeertubeSepiaFilterItem.class::isInstance)
                 .findFirst();
-
-        return sepiaFilter;
     }
 }

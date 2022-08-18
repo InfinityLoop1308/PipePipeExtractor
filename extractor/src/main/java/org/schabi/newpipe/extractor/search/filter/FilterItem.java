@@ -1,55 +1,53 @@
+// Created by evermind-zz 2022, licensed GNU GPL version 3 or later
+
 package org.schabi.newpipe.extractor.search.filter;
 
-import java.io.Serializable;
+import javax.annotation.Nonnull;
 
-public class FilterItem implements Serializable {
-    private final String name;
-    private int identifier;
+/**
+ * This class represents a single filter option.
+ * <p>
+ * <b>More in detail:</b>
+ * For example youtube offers the filter group 'Sort order'. This group
+ * consists of filter options like 'Relevance', 'Views', 'Rating' etc.
+ * -> for each filter option a FilterItem has to be created.
+ */
+public class FilterItem {
+
     /**
-     * check if a {@link #FilterItem} was build using the {@link Builder}
+     * The name id of the filter group.
+     *
+     * The id has to be translated to an actual string that the user will see in the UI.
      */
-    private boolean isBuild = false;
+    private final LibraryStringIds nameId;
 
-    public FilterItem(final int identifier, final String name) {
+    /**
+     * A sequential unique number identifier.
+     *
+     * <b>Note:</b>
+     * - the uniqueness applies only to each service.
+     * - Never reuse a previously unique number for another filter option/group
+     * (Otherwise implementation in the client that may implement to store some user
+     * specified defaults could have an undefined behaviour while loading).
+     */
+    private final int identifier;
+
+    public FilterItem(final int identifier, @Nonnull final LibraryStringIds nameId) {
         this.identifier = identifier;
-        this.name = name;
+        this.nameId = nameId;
     }
 
-    public static Builder builder(final FilterItem filterItem) {
-        return new Builder(filterItem);
-    }
-
+    /**
+     * @return {@link #identifier}
+     */
     public int getIdentifier() {
         return this.identifier;
     }
 
-    public String getName() {
-        return this.name;
-    }
-
-    public static class Builder implements Serializable{
-
-        private final FilterItem filterItem;
-
-        public Builder(final FilterItem filterItem) {
-            this.filterItem = filterItem;
-        }
-
-        public Builder setIdentifier(final int itemIdentifier) {
-            filterItem.identifier = itemIdentifier;
-            return this;
-        }
-
-        public FilterItem build() {
-            if (filterItem.isBuild) {
-                throw new RuntimeException("filter is already build()");
-            }
-            if (filterItem.identifier == Filter.ITEM_IDENTIFIER_UNKNOWN) {
-                throw new RuntimeException("itemIdentifier is not set");
-            }
-
-            filterItem.isBuild = true;
-            return filterItem;
-        }
+    /**
+     * @return {@link #nameId}
+     */
+    public LibraryStringIds getNameId() {
+        return this.nameId;
     }
 }

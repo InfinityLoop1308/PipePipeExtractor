@@ -8,12 +8,9 @@ import static java.util.Arrays.asList;
 
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
-import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
-import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
@@ -23,9 +20,7 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeAccountExtractor;
-import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeAccountTabExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeChannelExtractor;
-import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeChannelTabExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeCommentsExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubePlaylistExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeSearchExtractor;
@@ -33,7 +28,6 @@ import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeStreamE
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeTrendingExtractor;
 import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeChannelLinkHandlerFactory;
-import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubePlaylistLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeSearchQueryHandlerFactory;
@@ -70,11 +64,6 @@ public class PeertubeService extends StreamingService {
     }
 
     @Override
-    public ListLinkHandlerFactory getChannelTabLHFactory() {
-        return PeertubeChannelTabLinkHandlerFactory.getInstance();
-    }
-
-    @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
         return PeertubePlaylistLinkHandlerFactory.getInstance();
     }
@@ -91,9 +80,9 @@ public class PeertubeService extends StreamingService {
 
     @Override
     public SearchExtractor getSearchExtractor(final SearchQueryHandler queryHandler) {
-        final List<FilterItem> selectedSortFilter = queryHandler.getSortFilter();
+        final List<FilterItem> contentFilters = queryHandler.getContentFilters();
 
-        final Optional<FilterItem> sepiaFilter = PeertubeHelpers.getSepiaFilter(selectedSortFilter);
+        final Optional<FilterItem> sepiaFilter = PeertubeHelpers.getSepiaFilter(contentFilters);
         return new PeertubeSearchExtractor(this, queryHandler, sepiaFilter.isPresent());
     }
 
@@ -116,19 +105,6 @@ public class PeertubeService extends StreamingService {
         } else {
             return new PeertubeAccountExtractor(this, linkHandler);
         }
-    }
-
-    @Override
-    public ChannelTabExtractor getChannelTabExtractor(final ListLinkHandler linkHandler)
-            throws ExtractionException {
-        final String tab = linkHandler.getContentFilters().get(0).getName();
-        switch (tab) {
-            case ChannelTabs.CHANNELS:
-                return new PeertubeAccountTabExtractor(this, linkHandler);
-            case ChannelTabs.PLAYLISTS:
-                return new PeertubeChannelTabExtractor(this, linkHandler);
-        }
-        throw new ParsingException("tab " + tab + " not supported");
     }
 
     @Override

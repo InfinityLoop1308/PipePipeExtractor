@@ -7,9 +7,9 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
-import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
+import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonBuilder;
@@ -20,6 +20,7 @@ import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.MetaInfo;
+import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -28,11 +29,12 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
+import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 
@@ -58,7 +60,7 @@ import javax.annotation.Nonnull;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
+public class YoutubeSearchExtractor extends SearchExtractor {
     private JsonObject initialData;
 
     public YoutubeSearchExtractor(final StreamingService service,
@@ -72,10 +74,11 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
         final String query = super.getSearchString();
         final Localization localization = getExtractorLocalization();
 
-        // Get the search parameter for the request
         final YoutubeFilters.YoutubeContentFilterItem contentFilterItem =
-                getSelectedContentFilterItem();
-        final String params = contentFilterItem.getParams();
+                Utils.getFirstContentFilterItem(getLinkHandler());
+        // Get the search parameter for the request. If getParams() be null
+        // (which should never happen - only in test cases), JsonWriter.string() can handle it
+        final String params = (contentFilterItem != null) ? contentFilterItem.getParams() : null;
 
         final JsonBuilder<JsonObject> jsonBody = prepareDesktopJsonBuilder(localization,
                 getExtractorContentCountry())
@@ -84,7 +87,7 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
             jsonBody.value("params", params);
         }
 
-        final byte[] body = JsonWriter.string(jsonBody.done()).getBytes(UTF_8);
+        final byte[] body = JsonWriter.string(jsonBody.done()).getBytes(StandardCharsets.UTF_8);
 
         initialData = getJsonPostResponse("search", body, localization);
     }
@@ -178,7 +181,7 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                 getExtractorContentCountry())
                 .value("continuation", page.getId())
                 .done())
-                .getBytes(UTF_8);
+                .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
         final String responseBody = getValidJsonResponseBody(getDownloader().post(

@@ -1,21 +1,31 @@
 package org.schabi.newpipe.extractor.linkhandler;
 
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
-
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.search.filter.BaseSearchFilters;
+import org.schabi.newpipe.extractor.search.filter.FilterContainer;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public abstract class SearchQueryHandlerFactory extends ListLinkHandlerFactory {
+    protected final BaseSearchFilters searchFilters;
+
+    protected SearchQueryHandlerFactory(final BaseSearchFilters searchFilters) {
+        this.searchFilters = searchFilters;
+    }
 
     ///////////////////////////////////
     // To Override
     ///////////////////////////////////
 
     @Override
-    public abstract String getUrl(String query, List<FilterItem> selectedContentFilter,
-                                  List<FilterItem> selectedSortFilter) throws ParsingException;
+    public abstract String getUrl(String query, @Nonnull List<FilterItem> selectedContentFilter,
+                                  @Nullable List<FilterItem> selectedSortFilter)
+            throws ParsingException;
 
     @SuppressWarnings("unused")
     public String getSearchString(final String url) {
@@ -39,7 +49,7 @@ public abstract class SearchQueryHandlerFactory extends ListLinkHandlerFactory {
     }
 
     public SearchQueryHandler fromQuery(final String query) throws ParsingException {
-        return fromQuery(query, Collections.emptyList(), null);
+        return fromQuery(query, Collections.emptyList(), Collections.emptyList());
     }
 
     /**
@@ -48,5 +58,26 @@ public abstract class SearchQueryHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public boolean onAcceptUrl(final String url) {
         return false;
+    }
+
+    /**
+     * {@link BaseSearchFilters#getContentFilters()}
+     */
+    public FilterContainer getAvailableContentFilter() {
+        return searchFilters.getContentFilters();
+    }
+
+    /**
+     * {@link BaseSearchFilters#getContentFilterSortFilterVariant(int)}
+     */
+    public FilterContainer getContentFilterSortFilterVariant(final int contentFilterId) {
+        return searchFilters.getContentFilterSortFilterVariant(contentFilterId);
+    }
+
+    /**
+     * {@link BaseSearchFilters#getFilterItem(int)}
+     */
+    public FilterItem getFilterItem(final int filterId) {
+        return searchFilters.getFilterItem(filterId);
     }
 }

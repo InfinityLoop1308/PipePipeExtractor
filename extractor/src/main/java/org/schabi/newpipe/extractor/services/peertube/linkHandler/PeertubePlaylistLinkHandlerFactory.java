@@ -10,6 +10,9 @@ import org.schabi.newpipe.extractor.utils.Parser;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public final class PeertubePlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
 
     private static final PeertubePlaylistLinkHandlerFactory INSTANCE
@@ -25,8 +28,8 @@ public final class PeertubePlaylistLinkHandlerFactory extends ListLinkHandlerFac
 
     @Override
     public String getUrl(final String id,
-                         final List<FilterItem> contentFilters,
-                         final List<FilterItem> sortFilter) {
+                         @Nonnull final List<FilterItem> contentFilters,
+                         @Nullable final List<FilterItem> sortFilter) {
         return getUrl(id, contentFilters, sortFilter, ServiceList.PeerTube.getBaseUrl());
     }
 

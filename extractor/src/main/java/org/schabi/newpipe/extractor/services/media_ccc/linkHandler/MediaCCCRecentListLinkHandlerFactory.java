@@ -7,6 +7,9 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public class MediaCCCRecentListLinkHandlerFactory extends ListLinkHandlerFactory {
     private static final String PATTERN = "^(https?://)?media\\.ccc\\.de/recent/?$";
 
@@ -22,8 +25,8 @@ public class MediaCCCRecentListLinkHandlerFactory extends ListLinkHandlerFactory
 
     @Override
     public String getUrl(final String id,
-                         final List<FilterItem> contentFilter,
-                         final List<FilterItem> sortFilter) {
+                         @Nonnull final List<FilterItem> contentFilter,
+                         @Nullable final List<FilterItem> sortFilter) {
         return "https://media.ccc.de/recent";
     }
 }

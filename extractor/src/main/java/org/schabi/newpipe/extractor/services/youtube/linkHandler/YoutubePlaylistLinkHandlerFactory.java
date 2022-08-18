@@ -1,10 +1,5 @@
 package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.List;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
@@ -12,6 +7,15 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.Utils;
+
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.List;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class YoutubePlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
 
@@ -26,8 +30,8 @@ public final class YoutubePlaylistLinkHandlerFactory extends ListLinkHandlerFact
     }
 
     @Override
-    public String getUrl(final String id, final List<FilterItem> contentFilters,
-                         final List<FilterItem> sortFilter) {
+    public String getUrl(final String id, @Nonnull final List<FilterItem> contentFilters,
+                         @Nullable final List<FilterItem> sortFilter) {
         return "https://www.youtube.com/playlist?list=" + id;
     }
 
@@ -37,7 +41,7 @@ public final class YoutubePlaylistLinkHandlerFactory extends ListLinkHandlerFact
             final URL urlObj = Utils.stringToURL(url);
 
             if (!Utils.isHTTP(urlObj) || !(YoutubeParsingHelper.isYoutubeURL(urlObj)
-                    || YoutubeParsingHelper.isInvidioURL(urlObj))) {
+                    || YoutubeParsingHelper.isInvidiousURL(urlObj))) {
                 throw new ParsingException("the url given is not a YouTube-URL");
             }
 

@@ -1,13 +1,15 @@
 package org.schabi.newpipe.extractor.linkhandler;
 
-import org.schabi.newpipe.extractor.search.filter.Filter;
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
-
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.utils.Utils;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public abstract class ListLinkHandlerFactory extends LinkHandlerFactory {
 
@@ -15,7 +17,9 @@ public abstract class ListLinkHandlerFactory extends LinkHandlerFactory {
     // To Override
     ///////////////////////////////////
 
-    public abstract String getUrl(String id, List<FilterItem> contentFilter, List<FilterItem> sortFilter)
+    public abstract String getUrl(String id,
+                                  @Nonnull List<FilterItem> contentFilter,
+                                  @Nullable List<FilterItem> sortFilter)
             throws ParsingException;
 
     public String getUrl(final String id,
@@ -38,10 +42,7 @@ public abstract class ListLinkHandlerFactory extends LinkHandlerFactory {
 
     @Override
     public ListLinkHandler fromUrl(final String url, final String baseUrl) throws ParsingException {
-        if (url == null) {
-            throw new IllegalArgumentException("url may not be null");
-        }
-
+        Objects.requireNonNull(url, "URL may not be null");
         return new ListLinkHandler(super.fromUrl(url, baseUrl));
     }
 
@@ -78,39 +79,11 @@ public abstract class ListLinkHandlerFactory extends LinkHandlerFactory {
      * @return the url corresponding to id without any filters applied
      */
     public String getUrl(final String id) throws ParsingException {
-        return getUrl(id, new ArrayList<>(0), null);
+        return getUrl(id, Collections.emptyList(), Collections.emptyList());
     }
 
     @Override
     public String getUrl(final String id, final String baseUrl) throws ParsingException {
-        return getUrl(id, new ArrayList<>(0), null, baseUrl);
-    }
-
-    /**
-     * Will returns content filter the corresponding extractor can handle like "channels", "videos",
-     * "music", etc.
-     *
-     * @return filter that can be applied when building a query for getting a list
-     */
-    public Filter getAvailableContentFilter() {
-        return null;
-    }
-
-    /**
-     * Will returns sort filter the corresponding extractor can handle like "A-Z", "oldest first",
-     * "size", etc.
-     *
-     * @return filter that can be applied when building a query for getting a list
-     */
-    public Filter getAvailableSortFilter() {
-        return null;
-    }
-
-    public Filter getContentFilterSortFilterVariant(final int contentFilterId) {
-        return null;
-    }
-
-    public FilterItem getFilterItem(final int filterId) {
-        return null;
+        return getUrl(id, Collections.emptyList(), Collections.emptyList(), baseUrl);
     }
 }

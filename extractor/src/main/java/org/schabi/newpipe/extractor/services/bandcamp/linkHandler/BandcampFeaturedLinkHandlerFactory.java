@@ -10,6 +10,9 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import static org.schabi.newpipe.extractor.services.bandcamp.extractors.BandcampFeaturedExtractor.FEATURED_API_URL;
 import static org.schabi.newpipe.extractor.services.bandcamp.extractors.BandcampFeaturedExtractor.KIOSK_FEATURED;
 import static org.schabi.newpipe.extractor.services.bandcamp.extractors.BandcampRadioExtractor.KIOSK_RADIO;
@@ -19,8 +22,8 @@ public class BandcampFeaturedLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public String getUrl(final String id,
-                         final List<FilterItem> contentFilter,
-                         final List<FilterItem> sortFilter) {
+                         @Nonnull final List<FilterItem> contentFilter,
+                         @Nullable final List<FilterItem> sortFilter) {
         if (id.equals(KIOSK_FEATURED)) {
             return FEATURED_API_URL; // doesn't have a website
         } else if (id.equals(KIOSK_RADIO)) {

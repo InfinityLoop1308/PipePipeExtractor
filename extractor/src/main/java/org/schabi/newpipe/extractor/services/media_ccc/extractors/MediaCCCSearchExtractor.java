@@ -1,6 +1,5 @@
 package org.schabi.newpipe.extractor.services.media_ccc.extractors;
 
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -8,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.MetaInfo;
+import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
@@ -15,20 +15,18 @@ import org.schabi.newpipe.extractor.channel.ChannelInfoItemExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.media_ccc.extractors.infoItems.MediaCCCStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.media_ccc.linkHandler.MediaCCCConferencesListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.media_ccc.search.filter.MediaCCCFilters;
+import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nonnull;
-
-import static org.schabi.newpipe.extractor.services.media_ccc.search.filter.MediaCCCFilters.ALL;
-import static org.schabi.newpipe.extractor.services.media_ccc.search.filter.MediaCCCFilters.CONFERENCES;
-import static org.schabi.newpipe.extractor.services.media_ccc.search.filter.MediaCCCFilters.EVENTS;
 
 public class MediaCCCSearchExtractor extends SearchExtractor {
     private JsonObject doc;
@@ -63,27 +61,26 @@ public class MediaCCCSearchExtractor extends SearchExtractor {
         return Collections.emptyList();
     }
 
-    private FilterItem getContentFilter() {
-        // TODO check if getLinkHandler().getContentFilters() not empty
-        final FilterItem filterItem = getLinkHandler().getContentFilters().get(0);
-
-        return filterItem;
-    }
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() {
         final MultiInfoItemsCollector searchItems = new MultiInfoItemsCollector(getServiceId());
 
 
-        final FilterItem filterItem = getContentFilter();
+        final FilterItem filterItem =
+                Utils.getFirstContentFilterItem(getLinkHandler());
 
-        if (filterItem.getName().contains(CONFERENCES) || filterItem.getName().equals(ALL)) {
+        if (filterItem == null
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_CONFERENCES
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_ALL) {
             searchConferences(getSearchString(),
                     conferenceKiosk.getInitialPage().getItems(),
                     searchItems);
         }
 
-        if (filterItem.getName().equals(EVENTS) || filterItem.getName().equals(ALL)) {
+        if (filterItem == null
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_EVENTS
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_ALL) {
             final JsonArray events = doc.getArray("events");
             for (int i = 0; i < events.size(); i++) {
                 // Ensure only uploaded talks are shown in the search results.
@@ -107,9 +104,12 @@ public class MediaCCCSearchExtractor extends SearchExtractor {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
 
-        final FilterItem filterItem = getContentFilter();
+        final FilterItem filterItem =
+                Utils.getFirstContentFilterItem(getLinkHandler());
 
-        if (filterItem.getName().contains(EVENTS) || filterItem.getName().equals(ALL)) {
+        if (filterItem == null
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_EVENTS
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_ALL) {
             final String site;
             final String url = getUrl();
             site = downloader.get(url, getExtractorLocalization()).responseBody();
@@ -120,7 +120,9 @@ public class MediaCCCSearchExtractor extends SearchExtractor {
             }
         }
 
-        if (filterItem.getName().contains(CONFERENCES) || filterItem.getName().equals(ALL)) {
+        if (filterItem == null
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_CONFERENCES
+                || filterItem.getIdentifier() == MediaCCCFilters.ID_CF_MAIN_ALL) {
             conferenceKiosk.fetchPage();
         }
     }

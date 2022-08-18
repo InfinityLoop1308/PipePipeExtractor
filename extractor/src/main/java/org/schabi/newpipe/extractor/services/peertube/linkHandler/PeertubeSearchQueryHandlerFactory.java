@@ -1,37 +1,38 @@
 package org.schabi.newpipe.extractor.services.peertube.linkHandler;
 
-import org.schabi.newpipe.extractor.search.filter.Filter;
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
-import org.schabi.newpipe.extractor.services.peertube.search.filter.PeertubeFilters;
-
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
+import org.schabi.newpipe.extractor.utils.Utils;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.peertube.PeertubeHelpers;
+import org.schabi.newpipe.extractor.services.peertube.search.filter.PeertubeFilters;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.List;
 import java.util.Optional;
 
-import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class PeertubeSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
 
     public static final String VIDEOS = "videos";
-    public static final String SEPIA_VIDEOS = "sepia_videos"; // sepia is the global index
+    // sepia is the global index
     public static final String SEPIA_BASE_URL = "https://sepiasearch.org";
     public static final String SEARCH_ENDPOINT = "/api/v1/search/videos";
 
     private static PeertubeSearchQueryHandlerFactory instance = null;
-    private final PeertubeFilters searchFilters = new PeertubeFilters();
 
-    private PeertubeSearchQueryHandlerFactory() { }
+    private PeertubeSearchQueryHandlerFactory() {
+        super(new PeertubeFilters());
+    }
 
     /**
      * Singleton to get the same objects of filters during search.
-     *
+     * <p>
      * The sort filter holds a variable search parameter: (filter.getQueryData())
+     *
      * @return
      */
     public static synchronized PeertubeSearchQueryHandlerFactory getInstance() {
@@ -43,12 +44,13 @@ public final class PeertubeSearchQueryHandlerFactory extends SearchQueryHandlerF
 
     @Override
     public String getUrl(final String searchString,
-                         final List<FilterItem> selectedContentFilter,
-                         final List<FilterItem> selectedSortFilters) throws ParsingException {
+                         @Nonnull final List<FilterItem> selectedContentFilter,
+                         @Nullable final List<FilterItem> selectedSortFilters)
+            throws ParsingException {
 
         final String baseUrl;
         final Optional<FilterItem> sepiaFilter =
-                PeertubeHelpers.getSepiaFilter(selectedSortFilters);
+                PeertubeHelpers.getSepiaFilter(selectedContentFilter);
         if (sepiaFilter.isPresent()) {
             baseUrl = SEPIA_BASE_URL;
         } else {
@@ -69,30 +71,10 @@ public final class PeertubeSearchQueryHandlerFactory extends SearchQueryHandlerF
 
             final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
-            return baseUrl + SEARCH_ENDPOINT + "?search=" + URLEncoder.encode(searchString, UTF_8)
+            return baseUrl + SEARCH_ENDPOINT + "?search=" + Utils.encodeUrlUtf8(searchString)
                     + filterQuery;
         } catch (final UnsupportedEncodingException e) {
             throw new ParsingException("Could not encode query", e);
         }
-    }
-
-    @Override
-    public Filter getAvailableContentFilter() {
-        return searchFilters.getContentFilters();
-    }
-
-    @Override
-    public Filter getAvailableSortFilter() {
-        return searchFilters.getSortFilters();
-    }
-
-    @Override
-    public Filter getContentFilterSortFilterVariant(final int contentFilterId) {
-        return searchFilters.getContentFilterSortFilterVariant(contentFilterId);
-    }
-
-    @Override
-    public FilterItem getFilterItem(final int filterId) {
-        return searchFilters.getFilterItem(filterId);
     }
 }

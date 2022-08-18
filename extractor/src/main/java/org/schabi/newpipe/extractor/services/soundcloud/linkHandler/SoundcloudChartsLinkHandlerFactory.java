@@ -7,6 +7,9 @@ import org.schabi.newpipe.extractor.utils.Parser;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public class SoundcloudChartsLinkHandlerFactory extends ListLinkHandlerFactory {
     private static final String TOP_URL_PATTERN =
             "^https?://(www\\.|m\\.)?soundcloud.com/charts(/top)?/?([#?].*)?$";
@@ -24,8 +27,8 @@ public class SoundcloudChartsLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public String getUrl(final String id,
-                         final List<FilterItem> contentFilter,
-                         final List<FilterItem> sortFilter) {
+                         @Nonnull final List<FilterItem> contentFilter,
+                         @Nullable final List<FilterItem> sortFilter) {
         if (id.equals("Top 50")) {
             return "https://soundcloud.com/charts/top";
         } else {

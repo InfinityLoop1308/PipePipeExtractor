@@ -15,6 +15,9 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import java.io.IOException;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 /**
  * Artist do have IDs that are useful
  */
@@ -49,8 +52,8 @@ public final class BandcampChannelLinkHandlerFactory extends ListLinkHandlerFact
      * Uses the mobile endpoint as a "translator" from id to url
      */
     @Override
-    public String getUrl(final String id, final List<FilterItem> contentFilter,
-                         final List<FilterItem> sortFilter)
+    public String getUrl(final String id, @Nonnull final List<FilterItem> contentFilter,
+                         @Nullable final List<FilterItem> sortFilter)
             throws ParsingException {
         try {
             return BandcampExtractorHelper.getArtistDetails(id)
