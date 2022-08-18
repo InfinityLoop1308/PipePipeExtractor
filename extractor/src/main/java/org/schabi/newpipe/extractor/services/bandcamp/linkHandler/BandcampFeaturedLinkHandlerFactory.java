@@ -2,6 +2,8 @@
 
 package org.schabi.newpipe.extractor.services.bandcamp.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bandcamp.extractors.BandcampExtractorHelper;
 import org.schabi.newpipe.extractor.utils.Utils;
@@ -17,8 +19,8 @@ public class BandcampFeaturedLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilter,
-                         final String sortFilter) {
+                         final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) {
         if (id.equals(KIOSK_FEATURED)) {
             return FEATURED_API_URL; // doesn't have a website
         } else if (id.equals(KIOSK_RADIO)) {
