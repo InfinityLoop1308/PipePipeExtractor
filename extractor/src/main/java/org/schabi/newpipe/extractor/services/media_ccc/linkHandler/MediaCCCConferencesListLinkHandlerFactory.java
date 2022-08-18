@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.media_ccc.linkHandler;
 
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 
@@ -12,8 +14,8 @@ public class MediaCCCConferencesListLinkHandlerFactory extends ListLinkHandlerFa
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter,
-                         final String sortFilter) throws ParsingException {
+    public String getUrl(final String id, final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) throws ParsingException {
         return "https://media.ccc.de/public/conferences";
     }
 
