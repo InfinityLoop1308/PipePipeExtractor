@@ -26,9 +26,21 @@ public final class YoutubeSearchQueryHandlerFactory extends SearchQueryHandlerFa
 
     private final YoutubeFilters searchFilters = new YoutubeFilters();
 
+    private static YoutubeSearchQueryHandlerFactory instance = null;
+
+    /**
+     * Singleton to get the same objects of filters during search.
+     *
+     * The content filter holds a variable search parameter: (filter.getParams())
+     *
+     * @return
+     */
     @Nonnull
-    public static YoutubeSearchQueryHandlerFactory getInstance() {
-        return new YoutubeSearchQueryHandlerFactory();
+    public static synchronized YoutubeSearchQueryHandlerFactory getInstance() {
+        if (instance == null) {
+            instance = new YoutubeSearchQueryHandlerFactory();
+        }
+        return instance;
     }
 
     @Override
