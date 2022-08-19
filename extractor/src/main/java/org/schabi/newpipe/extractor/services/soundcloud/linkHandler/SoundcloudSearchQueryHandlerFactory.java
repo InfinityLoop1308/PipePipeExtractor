@@ -21,9 +21,16 @@ import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 public class SoundcloudSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
 
     public static final int ITEMS_PER_PAGE = 10;
+    private static SoundcloudSearchQueryHandlerFactory instance = null;
 
     private final SoundcloudFilters searchFilters = new SoundcloudFilters();
 
+    public static synchronized SoundcloudSearchQueryHandlerFactory getInstance() {
+        if (instance == null) {
+            instance = new SoundcloudSearchQueryHandlerFactory();
+        }
+        return instance;
+    }
     @Override
     public String getUrl(final String id,
                          final List<FilterItem> selectedContentFilter,
