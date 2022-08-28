@@ -1,8 +1,12 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -83,7 +87,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
-        final String html = getDownloader().get(page.getUrl()).responseBody();
+        final String html = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
 
         try {
             searchCollection = JsonParser.object().from(html);
@@ -103,8 +107,9 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
+
         final String response = getDownloader().get(
-            getLinkHandler().getUrl()).responseBody();
+            getLinkHandler().getUrl(), getHeaders()).responseBody();
         try {
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {

@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import java.io.IOException;
 
 import com.grack.nanojson.JsonArray;
@@ -53,7 +55,7 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
         // TODO Auto-generated method stub
 
         try {
-            response = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3").responseBody());
+            response = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3", getHeaders()).responseBody());
         } catch (JsonParserException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();

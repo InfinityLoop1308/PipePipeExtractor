@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -21,7 +23,7 @@ public class BilibiliSuggestionExtractor extends SuggestionExtractor {
 
     @Override
     public List<String> suggestionList(String query) throws IOException, ExtractionException {
-        final String response = NewPipe.getDownloader().get("https://s.search.bilibili.com/main/suggest?term=" + query).responseBody();
+        final String response = NewPipe.getDownloader().get("https://s.search.bilibili.com/main/suggest?term=" + query, getHeaders()).responseBody();
         List<String> resultList = new ArrayList<>();
         try {
             JsonObject respObject = JsonParser.object().from(response);

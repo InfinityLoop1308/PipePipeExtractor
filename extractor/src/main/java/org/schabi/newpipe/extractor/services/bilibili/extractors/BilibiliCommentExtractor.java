@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -57,7 +59,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
 
     @Override
     public InfoItemsPage<CommentsInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        final String html = getDownloader().get(page.getUrl()).responseBody();
+        final String html = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
         try {
             json = JsonParser.object().from(html);
         } catch (JsonParserException e) {

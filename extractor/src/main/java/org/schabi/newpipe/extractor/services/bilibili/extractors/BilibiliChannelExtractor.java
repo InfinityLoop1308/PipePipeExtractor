@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -119,14 +121,14 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        String response = getDownloader().get(utils.getChannelApiUrl(page.getUrl(), getId())).responseBody();
-        String userResponse = getDownloader().get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId()).responseBody();
+        String response = getDownloader().get(utils.getChannelApiUrl(page.getUrl(), getId()), getHeaders()).responseBody();
+        String userResponse = getDownloader().get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId(), getHeaders()).responseBody();
         isRecordChannel = getUrl().contains("seriesdetail");
         try {
             if(isRecordChannel){
                 final String url = utils.getRecordApiUrl(page.getUrl());
-                recordJson = JsonParser.object().from(getDownloader().get(url).responseBody());
-                userResponse = getDownloader().get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+utils.getMidFromRecordApiUrl(url)).responseBody();
+                recordJson = JsonParser.object().from(getDownloader().get(url, getHeaders()).responseBody());
+                userResponse = getDownloader().get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+utils.getMidFromRecordApiUrl(url), getHeaders()).responseBody();
             }
             else{
                 json = JsonParser.object().from(response);

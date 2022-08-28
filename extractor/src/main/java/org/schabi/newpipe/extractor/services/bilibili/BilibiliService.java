@@ -35,8 +35,18 @@ import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCap
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class BilibiliService extends StreamingService{
+
+    static public Map<String, List<String>> getHeaders(){
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Cookie", Collections.singletonList("buvid3=C17989F9-9E34-6949-F6B9-19E02F3DC4B734983infoc;"));
+        return headers;
+    }
 
     public BilibiliService(int id){
         super(id, "Bilibili", Arrays.asList(VIDEO, COMMENTS));

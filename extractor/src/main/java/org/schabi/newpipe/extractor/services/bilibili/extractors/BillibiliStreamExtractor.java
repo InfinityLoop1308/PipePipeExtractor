@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -76,7 +78,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
          final List<AudioStream> audioStreams = new ArrayList<>();
          String bvid = watch.getString("bvid");
-         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16").responseBody();
+         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
          JsonObject responseJson = new JsonObject();
          try {
              responseJson =  JsonParser.object().from(response);
@@ -95,7 +97,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return null;
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
-        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId()).responseBody();
+        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
         try {
             String url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
             videoStreams.add(new VideoStream.Builder().setContent(url,true).setId("bilibili-"+watch.getLong("uid") +"-live").setIsVideoOnly(false).setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build());
@@ -113,7 +115,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         String url = "";
         try {
-        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=80&platform=h5&cid=" + getId()).responseBody();
+        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=80&platform=h5&cid=" + getId(), getHeaders()).responseBody();
 
             url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
         } catch (JsonParserException e) {
@@ -133,7 +135,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
          String bvid = watch.getString("bvid");
-         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16").responseBody();
+         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
          JsonObject responseJson = new JsonObject();
          try {
              responseJson =  JsonParser.object().from(response);
@@ -242,7 +244,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             tags = Arrays.asList((watch.getString("tag_name")+","+watch.getString("tags")).split(","));
         }
         try {
-            JsonArray respArray = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/tag/archive/tags?bvid=" + utils.getPureBV(getId())).responseBody()).getArray("data");
+            JsonArray respArray = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/tag/archive/tags?bvid=" + utils.getPureBV(getId()), getHeaders()).responseBody()).getArray("data");
             for(int i = 0; i< respArray.size(); i++){
                 tags.add(respArray.getObject(i).getString("tag_name"));
             }
@@ -264,7 +266,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         String response = null;
         try {
-            response = getDownloader().get("https://api.bilibili.com/x/player/pagelist?bvid="+id).responseBody();
+            response = getDownloader().get("https://api.bilibili.com/x/player/pagelist?bvid="+id, getHeaders()).responseBody();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ReCaptchaException e) {
@@ -274,7 +276,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             JsonObject relatedJson = JsonParser.object().from(response);
             JsonArray relatedArray = relatedJson.getArray("data");
             if(relatedArray.size()== 1){
-                response = getDownloader().get("https://api.bilibili.com/x/web-interface/archive/related?bvid="+ id).responseBody();
+                response = getDownloader().get("https://api.bilibili.com/x/web-interface/archive/related?bvid="+ id, getHeaders()).responseBody();
                 relatedJson = JsonParser.object().from(response);
                 relatedArray = relatedJson.getArray("data");
                 for(int i=0;i<relatedArray.size();i++){
