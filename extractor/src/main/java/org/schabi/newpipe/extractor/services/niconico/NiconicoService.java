@@ -33,7 +33,7 @@ import java.util.Collections;
 
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
-        super(id, "Niconico", Collections.singletonList(VIDEO));
+        super(id, "NicoNico", Collections.singletonList(VIDEO));
     }
     public static final String BASE_URL = "https://www.nicovideo.jp";
     public static final String USER_URL = "https://www.nicovideo.jp/user/";

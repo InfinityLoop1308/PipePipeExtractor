@@ -49,7 +49,7 @@ public class BilibiliService extends StreamingService{
     }
 
     public BilibiliService(int id){
-        super(id, "Bilibili", Arrays.asList(VIDEO, COMMENTS));
+        super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS));
     }
 
     @Override

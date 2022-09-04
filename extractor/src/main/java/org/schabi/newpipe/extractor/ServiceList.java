@@ -44,8 +44,8 @@ public final class ServiceList {
     public static final MediaCCCService MediaCCC;
     public static final PeertubeService PeerTube;
     public static final BandcampService Bandcamp;
-    public static final NiconicoService Niconico;
-    public static final BilibiliService Bilibili;
+    public static final NiconicoService NicoNico;
+    public static final BilibiliService BiliBili;
     /**
      * When creating a new service, put this service in the end of this list,
      * and give it the next free id.
@@ -57,8 +57,8 @@ public final class ServiceList {
                     MediaCCC = new MediaCCCService(2),
                     PeerTube = new PeertubeService(3),
                     Bandcamp = new BandcampService(4),
-                    Bilibili = new BilibiliService(5),
-                    Niconico = new NiconicoService(6)
+                    BiliBili = new BilibiliService(5),
+                    NicoNico = new NiconicoService(6)
             ));
 
     /**
