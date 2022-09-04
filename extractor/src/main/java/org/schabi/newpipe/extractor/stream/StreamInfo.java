@@ -121,7 +121,8 @@ public class StreamInfo extends Info {
                 || isNullOrEmpty(id)
                 || name == null /* but it can be empty of course */
                 || ageLimit == -1) {
-            throw new ExtractionException("Some important stream information was not given.");
+            throw new ExtractionException(String.format("Some important stream information was not given. " +
+                    "streamType: %s, url: %s, id: %s, name: %s, ageLimit: %d", streamType, url, id, name, ageLimit));
         }
 
         return new StreamInfo(extractor.getServiceId(), url, extractor.getOriginalUrl(),

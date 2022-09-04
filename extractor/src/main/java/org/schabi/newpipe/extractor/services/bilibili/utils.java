@@ -1,5 +1,8 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
+
+import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -22,15 +25,26 @@ public class utils {
         }
         return (r - add) ^ xor;
     }
-    public String av2bv(Long x){
+    public String av2bv(Long x) throws ParsingException {
+        String result = av2bvImpl(x, false);
+        return result.contains(" ")?av2bvImpl(x, true):result;
+    }
+    /*
+        for unknown reason, some devices resolve the index as index - 1
+        flag is set to true that case
+     */
+    private String av2bvImpl(Long x, boolean flag) throws ParsingException {
         x = (x^xor) + add;
         String[] r = "BV1  4 1 7  ".split("");
         for(int i=0;i<6;i++){
-            r[s[i]] = String.valueOf(table.charAt((int) ((x / Math.pow(58, i)) % 58)));
+            r[s[i] + (flag?1:0)] = String.valueOf(table.charAt((int) ((x / Math.pow(58, i)) % 58)));
         }
         String result = "";
         for(String i: r){
             result += i;
+        }
+        if(flag && result.contains(" ")){
+            throw new ParsingException(String.format("Failed to convert av to bv. av number: %s", x));
         }
         return result;
     }

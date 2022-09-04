@@ -33,7 +33,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
         this.pic = pic;
         this.p = p;
     }
-    public BilibiliRelatedInfoItemExtractor(final JsonObject json){
+    public BilibiliRelatedInfoItemExtractor(final JsonObject json) throws ParsingException {
         item = json;
         type = "related";
         id = item.getString("bvid").equals("")? new utils().av2bv(item.getLong("aid")):item.getString("bvid");
