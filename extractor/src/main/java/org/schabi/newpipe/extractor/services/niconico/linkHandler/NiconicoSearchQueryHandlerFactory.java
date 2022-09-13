@@ -12,22 +12,42 @@ import java.util.List;
 
 public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
     public static final int ITEMS_PER_PAGE = 10;
-    private static final String SEARCH_URL
-            = "https://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
+    public static final String ALL = "all";
+    public static final String TAGS = "Tags";
 
+    private static final String SEARCH_URL = "https://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
+
+    // https://site.nicovideo.jp/search-api-docs/snapshot
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilter,
-                         final String sortFilter) throws ParsingException {
+            final List<String> contentFilters,
+            final String sortFilter) throws ParsingException {
         try {
-            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8)
-                    + "&targets=title,description,tags"
-                    + "&fields=contentId,title,userId,channelId"
+            String url = SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8);
+
+            url += "&targets=";
+            if (contentFilters.isEmpty()) {
+                url += "title,description,tags";
+            } else {
+                switch (contentFilters.get(0)) {
+                    case TAGS:
+                        url += "tagsExact";
+                        break;
+                    case ALL:
+                    default:
+                        url += "title,description,tags";
+                        break;
+                }
+            }
+
+            url += "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
-                    + "&_sort=-viewCounter"
+                    + "&_sort=" + "-viewCounter"
                     + "&_offset=0"
                     + "&_limit=" + ITEMS_PER_PAGE
                     + "&_context=" + URLEncoder.encode(NiconicoService.APP_NAME, UTF_8);
+
+            return url;
         } catch (final UnsupportedEncodingException e) {
             throw new ParsingException("could not encode query.");
         }
@@ -36,7 +56,8 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     @Override
     public String[] getAvailableContentFilter() {
         return new String[] {
-                "all"
+                ALL,
+                TAGS
         };
     }
 }
