@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
     public static final int ITEMS_PER_PAGE = 10;
     public static final String ALL = "all";
-    public static final String TAGS = "Tags";
+    public static final String TAGS = "tags";
     public static final String VIEW_COUNTER = "view_count";
     public static final String MYLIST_COUNTER = "mylist_count";
     public static final String LIKE_COUNTER = "like_count";
