@@ -23,6 +23,6 @@ public class NiconicoServiceParsingHelper {
         final LocalDateTime localDateTime = LocalDateTime.parse(
                 textDateTime, DateTimeFormatter.ofPattern("uuuu'年'MM'月'dd'日' HH'：'mm'：'ss"));
         // given datetime is
-        return new DateWrapper(localDateTime.atOffset(ZoneOffset.ofHours(-9)));
+        return new DateWrapper(localDateTime.atOffset(ZoneOffset.ofHours(9)));
     }
 }
