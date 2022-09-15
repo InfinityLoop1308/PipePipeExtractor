@@ -29,6 +29,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
     public static final String CHANNELS = "channels";
     public static final String PLAYLISTS = "playlists";
     public static final String MOVIES = "movies";
+    public static final String LIVES = "Lives";
 
     public static final String MUSIC_SONGS = "music_songs";
     public static final String MUSIC_VIDEOS = "music_videos";

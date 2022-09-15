@@ -4,7 +4,10 @@ import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
+import org.schabi.newpipe.extractor.services.niconico.search.filter.NiconicoFilters;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -15,13 +18,20 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     private static final String SEARCH_URL
             = "https://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
 
+    private final NiconicoFilters searchFilters = new NiconicoFilters();
+
     @Override
     public String getUrl(final String id,
-                         final List<String> contentFilter,
-                         final String sortFilter) throws ParsingException {
+                         final List<FilterItem> selectedContentFilter,
+                         final List<FilterItem> selectedSortFilter) throws ParsingException {
+
+        searchFilters.setSelectedSortFilter(selectedSortFilter);
+        searchFilters.setSelectedContentFilter(selectedContentFilter);
+
+        final String filterQuery = searchFilters.evaluateSelectedContentFilters();
+
         try {
-            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8)
-                    + "&targets=title,description,tags"
+            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery
                     + "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
                     + "&_sort=-viewCounter"
@@ -34,9 +44,12 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     }
 
     @Override
-    public String[] getAvailableContentFilter() {
-        return new String[] {
-                "all"
-        };
+    public Filter getAvailableContentFilter() {
+        return searchFilters.getContentFilters();
+    }
+
+    @Override
+    public FilterItem getFilterItem(final int filterId) {
+        return searchFilters.getFilterItem(filterId);
     }
 }

@@ -17,6 +17,7 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliSearchQueryHandlerFactory;
+import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -59,7 +60,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         try {
             json = JsonParser.object().from(response);
             userJson = JsonParser.object().from(userResponse);
-            String liveResponse = downloader.get(new BilibiliSearchQueryHandlerFactory().getUrl(getName(), Collections.singletonList("live_room"), "")).responseBody();
+            String liveResponse = downloader.get(new BilibiliSearchQueryHandlerFactory().getUrl(getName(),
+                    Collections.singletonList(new BilibiliFilters.BilibiliContentFilterItem("live_room", "search_type=live_room")), null)).responseBody();
             liveJson = JsonParser.object().from(liveResponse);
             String recordResponse = downloader.get("https://api.bilibili.com/x/polymer/space/seasons_series_list?mid=" +getId() +"&page_num=1&page_size=10").responseBody();
             JsonArray series_list = JsonParser.object().from(recordResponse).getObject("data").getObject("items_lists").getArray("series_list");

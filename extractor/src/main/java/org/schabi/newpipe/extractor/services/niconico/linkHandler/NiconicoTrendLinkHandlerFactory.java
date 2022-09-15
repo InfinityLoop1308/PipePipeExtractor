@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.niconico.linkHandler;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.util.List;
@@ -18,8 +19,8 @@ public class NiconicoTrendLinkHandlerFactory extends ListLinkHandlerFactory {
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter,
-                         final String sortFilter) throws ParsingException {
+    public String getUrl(final String id, final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) throws ParsingException {
         return NiconicoService.DAILY_TREND_URL;
     }
 }
