@@ -30,7 +30,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
             if (selectedContentFilter != null && !selectedContentFilter.isEmpty()) {
                 final NiconicoFilters.NiconicoContentFilterItem contentItem =
                         // we assume that there is just one content filter
-                        (NiconicoFilters.NiconicoContentFilterItem ) selectedContentFilter.get(0);
+                        (NiconicoFilters.NiconicoContentFilterItem) selectedContentFilter.get(0);
                 if (contentItem != null) {
                     if (!contentItem.query.isEmpty()) {
                         sortQuery = "&" + contentItem.query;
@@ -115,11 +115,11 @@ public final class NiconicoFilters extends SearchFiltersBase {
             super(Filter.ITEM_IDENTIFIER_UNKNOWN, name);
             this.query = query;
         }
+
         public String getQueryData(boolean isAscending) {
             if (isAscending) {
                 return query.replace("=", "=+");
-            }
-            else {
+            } else {
                 return query.replace("=", "=-");
             }
         }
@@ -134,8 +134,8 @@ public final class NiconicoFilters extends SearchFiltersBase {
         }
     }
 
-    private static class NiconicoSortOrderFilterItem extends FilterItem{
-        NiconicoSortOrderFilterItem(final String name){
+    private static class NiconicoSortOrderFilterItem extends FilterItem {
+        NiconicoSortOrderFilterItem(final String name) {
             super(Filter.ITEM_IDENTIFIER_UNKNOWN, name);
         }
     }
