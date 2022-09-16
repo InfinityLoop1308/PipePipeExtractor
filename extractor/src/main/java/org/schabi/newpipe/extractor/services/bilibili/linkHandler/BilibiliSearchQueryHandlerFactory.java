@@ -9,7 +9,6 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
-import org.schabi.newpipe.extractor.services.niconico.search.filter.NiconicoFilters;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -18,9 +17,6 @@ import java.util.List;
 public class BilibiliSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
 
 
-    private static final String VIDEOS = "video";
-    private static final String LIVE = "live_room";
-    private static final String USER = "bili_user";
     private static final String SEARCH_URL = "https://api.bilibili.com/x/web-interface/search/type?";
 
     private final BilibiliFilters searchFilters = new BilibiliFilters();
@@ -48,7 +44,17 @@ public class BilibiliSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     }
 
     @Override
+    public Filter getAvailableSortFilter() {
+        return searchFilters.getSortFilters();
+    }
+
+    @Override
     public FilterItem getFilterItem(final int filterId) {
         return searchFilters.getFilterItem(filterId);
+    }
+
+    @Override
+    public Filter getContentFilterSortFilterVariant(final int contentFilterId) {
+        return searchFilters.getContentFilterSortFilterVariant(contentFilterId);
     }
 }
