@@ -5,6 +5,7 @@ import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsing
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.services.soundcloud.linkHandler.SoundcloudStreamLinkHandlerFactory;
 
@@ -42,7 +43,8 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     }
 
     @Override
-    public String getUrl(String id, List<String> contentFilter, String sortFilter) throws ParsingException {
+    public String getUrl(String id, final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) throws ParsingException {
         id = id.startsWith("BV")? String.valueOf(new utils().bv2av(id)) :id;
         if(id.contains("&root")){
             return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id;

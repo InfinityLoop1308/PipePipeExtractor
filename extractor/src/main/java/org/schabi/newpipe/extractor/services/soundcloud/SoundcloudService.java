@@ -50,7 +50,7 @@ public class SoundcloudService extends StreamingService {
 
     @Override
     public SearchQueryHandlerFactory getSearchQHFactory() {
-        return new SoundcloudSearchQueryHandlerFactory();
+        return SoundcloudSearchQueryHandlerFactory.getInstance();
     }
 
     @Override

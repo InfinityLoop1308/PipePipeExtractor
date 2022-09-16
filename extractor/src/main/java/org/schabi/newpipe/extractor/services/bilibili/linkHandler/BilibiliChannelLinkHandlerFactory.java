@@ -5,6 +5,7 @@ import java.util.regex.Pattern;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
     
@@ -34,7 +35,8 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
     }
 
     @Override
-    public String getUrl(String id, List<String> contentFilter, String sortFilter) throws ParsingException {
+    public String getUrl(String id, final List<FilterItem> contentFilter,
+                         final List<FilterItem> sortFilter) throws ParsingException {
         return baseUrl + id;
     }
 

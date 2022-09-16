@@ -6,6 +6,10 @@ import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
+import org.schabi.newpipe.extractor.services.niconico.search.filter.NiconicoFilters;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -17,39 +21,34 @@ public class BilibiliSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     private static final String VIDEOS = "video";
     private static final String LIVE = "live_room";
     private static final String USER = "bili_user";
-    private static final String SEARCH_URL = "https://api.bilibili.com/x/web-interface/search/type?search_type=";
+    private static final String SEARCH_URL = "https://api.bilibili.com/x/web-interface/search/type?";
+
+    private final BilibiliFilters searchFilters = new BilibiliFilters();
 
     @Override
-    public String getUrl(final String query, final List<String> contentFilters, final String sortFilter)
+    public String getUrl(final String query, final List<FilterItem> selectedContentFilter,
+                         final List<FilterItem> selectedSortFilter)
             throws ParsingException {
+
+        searchFilters.setSelectedSortFilter(selectedSortFilter);
+        searchFilters.setSelectedContentFilter(selectedContentFilter);
+
+        final String filterQuery = searchFilters.evaluateSelectedContentFilters();
+
         try {
-            if (!contentFilters.isEmpty()) {
-                final String contentFilter = contentFilters.get(0);
-                final String searchString = query;
-                switch (contentFilter) {
-                    case VIDEOS:
-                    default:
-                        return SEARCH_URL + VIDEOS + "&keyword=" + URLEncoder.encode(searchString, UTF_8) + "&page=1";
-                    case LIVE:
-                        return SEARCH_URL + LIVE + "&keyword=" + URLEncoder.encode(searchString, UTF_8) + "&page=1";
-                    case USER:
-                        return SEARCH_URL + USER + "&keyword=" + URLEncoder.encode(searchString, UTF_8) + "&page=1";
-                }
-            }
-
-            return SEARCH_URL + VIDEOS + "&keyword=" + URLEncoder.encode(query, UTF_8) + "&page=1";
-
+            return SEARCH_URL + filterQuery + "&keyword=" + URLEncoder.encode(query, UTF_8) + "&page=1";
         } catch (final UnsupportedEncodingException e) {
             throw new ParsingException("query \"" + query + "\" could not be encoded", e);
         }
     }
 
     @Override
-    public String[] getAvailableContentFilter() {
-        return new String[]{
-                VIDEOS,
-                LIVE,
-                USER
-        };
+    public Filter getAvailableContentFilter() {
+        return searchFilters.getContentFilters();
+    }
+
+    @Override
+    public FilterItem getFilterItem(final int filterId) {
+        return searchFilters.getFilterItem(filterId);
     }
 }

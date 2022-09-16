@@ -1,6 +1,6 @@
 package org.schabi.newpipe.extractor.linkhandler;
 
-import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
@@ -14,8 +14,8 @@ public abstract class SearchQueryHandlerFactory extends ListLinkHandlerFactory {
     ///////////////////////////////////
 
     @Override
-    public abstract String getUrl(String query, List<String> contentFilter, String sortFilter)
-            throws ParsingException;
+    public abstract String getUrl(String query, List<FilterItem> selectedContentFilter,
+                                  List<FilterItem> selectedSortFilter) throws ParsingException;
 
     @SuppressWarnings("unused")
     public String getSearchString(final String url) {
@@ -33,13 +33,13 @@ public abstract class SearchQueryHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public SearchQueryHandler fromQuery(final String query,
-                                        final List<String> contentFilter,
-                                        final String sortFilter) throws ParsingException {
+                                        final List<FilterItem> contentFilter,
+                                        final List<FilterItem> sortFilter) throws ParsingException {
         return new SearchQueryHandler(super.fromQuery(query, contentFilter, sortFilter));
     }
 
     public SearchQueryHandler fromQuery(final String query) throws ParsingException {
-        return fromQuery(query, Collections.emptyList(), EMPTY_STRING);
+        return fromQuery(query, Collections.emptyList(), null);
     }
 
     /**
