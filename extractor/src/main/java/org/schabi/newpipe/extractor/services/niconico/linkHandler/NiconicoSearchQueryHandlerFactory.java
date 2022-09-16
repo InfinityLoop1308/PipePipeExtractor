@@ -31,7 +31,7 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
-            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery
+            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery.replace("+","%2b")
                     + "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
                     + "&_offset=0"
