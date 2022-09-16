@@ -28,13 +28,12 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         searchFilters.setSelectedSortFilter(selectedSortFilter);
         searchFilters.setSelectedContentFilter(selectedContentFilter);
 
-        final String filterQuery = searchFilters.evaluateSelectedContentFilters();
+        final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
             return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery
                     + "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
-                    + "&_sort=-viewCounter"
                     + "&_offset=0"
                     + "&_limit=" + ITEMS_PER_PAGE
                     + "&_context=" + URLEncoder.encode(NiconicoService.APP_NAME, UTF_8);
@@ -51,5 +50,14 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
     @Override
     public FilterItem getFilterItem(final int filterId) {
         return searchFilters.getFilterItem(filterId);
+    }
+    @Override
+    public Filter getAvailableSortFilter() {
+        return searchFilters.getSortFilters();
+    }
+
+    @Override
+    public Filter getContentFilterSortFilterVariant(final int contentFilterId) {
+        return searchFilters.getContentFilterSortFilterVariant(contentFilterId);
     }
 }
