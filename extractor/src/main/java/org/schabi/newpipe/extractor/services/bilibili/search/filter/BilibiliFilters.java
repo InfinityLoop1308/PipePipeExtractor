@@ -17,7 +17,7 @@ public class BilibiliFilters extends SearchFiltersBase {
 
     public String evaluateSelectedContentFilters() {
         if (selectedSortFilter != null) {
-            String sortQuery = "";
+            StringBuilder sortQuery = new StringBuilder();
 
             if (selectedContentFilter != null && !selectedContentFilter.isEmpty()) {
                 final BilibiliFilters.BilibiliContentFilterItem contentItem =
@@ -25,21 +25,16 @@ public class BilibiliFilters extends SearchFiltersBase {
                         (BilibiliFilters.BilibiliContentFilterItem) selectedContentFilter.get(0);
                 if (contentItem != null) {
                     if (!contentItem.query.isEmpty()) {
-                        sortQuery = "&" + contentItem.query;
+                        sortQuery = new StringBuilder("&" + contentItem.query);
                     }
                 }
             }
-            if (!selectedSortFilter.isEmpty()) {
-                final BilibiliSortFilterItem sortItem =
-                        // we assume that there is just one content filter
-                        (BilibiliSortFilterItem) selectedSortFilter.get(0);
-                if (sortItem != null) {
-                    if (!sortItem.query.isEmpty()) {
-                        sortQuery += "&" + sortItem.query;
-                    }
+            for (FilterItem sortItem : selectedSortFilter) {
+                if (!((BilibiliSortFilterItem) sortItem).query.isEmpty()) {
+                    sortQuery.append("&").append(((BilibiliSortFilterItem) sortItem).query);
                 }
             }
-            return sortQuery;
+            return sortQuery.toString();
         }
         return "";
     }
@@ -81,6 +76,21 @@ public class BilibiliFilters extends SearchFiltersBase {
         final int filterBookmarkCount = builder.addSortItem(
                 new BilibiliSortFilterItem("Bookmarks", "order=stow")
         );
+        final int filterDuartionAll = builder.addSortItem(
+                new BilibiliSortFilterItem("All", "duration=0")
+        );
+        final int filterDuartionShort = builder.addSortItem(
+                new BilibiliSortFilterItem("< 10 min", "duration=1")
+        );
+        final int filterDuartionMedium = builder.addSortItem(
+                new BilibiliSortFilterItem("10-30 min", "duration=2")
+        );
+        final int filterDuartionLong = builder.addSortItem(
+                new BilibiliSortFilterItem("30-60 min", "duration=3")
+        );
+        final int filterDuartionExtraLong = builder.addSortItem(
+                new BilibiliSortFilterItem("> 60 min", "duration=4")
+        );
         final Filter videoSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup("Sort by", true, new FilterItem[]{
                         builder.getFilterForId(filterOverallScore),
@@ -89,6 +99,13 @@ public class BilibiliFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterBulletCommentCount),
                         builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
+                }),
+                builder.createSortGroup("Duration", true, new FilterItem[]{
+                        builder.getFilterForId(filterDuartionAll),
+                        builder.getFilterForId(filterDuartionShort),
+                        builder.getFilterForId(filterDuartionMedium),
+                        builder.getFilterForId(filterDuartionLong),
+                        builder.getFilterForId(filterDuartionExtraLong),
                 })
         }).build();
         addContentFilterSortVariant(contentFilterVideos, videoSortFilters);
