@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterGroup;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.search.filter.SearchFiltersBase;
+import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
 
 import java.util.Optional;
 
@@ -20,7 +21,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
     @Override
     public String evaluateSelectedFilters(final String searchString) {
         if (selectedSortFilter != null) {
-            String sortQuery = "";
+            StringBuilder sortQuery = new StringBuilder();
 
             final Optional<FilterItem> ascendingFilter = selectedSortFilter.stream()
                     .filter(filterItem -> filterItem instanceof NiconicoSortOrderFilterItem)
@@ -33,22 +34,16 @@ public final class NiconicoFilters extends SearchFiltersBase {
                         (NiconicoFilters.NiconicoContentFilterItem) selectedContentFilter.get(0);
                 if (contentItem != null) {
                     if (!contentItem.query.isEmpty()) {
-                        sortQuery = "&" + contentItem.query;
+                        sortQuery = new StringBuilder("&" + contentItem.query);
                     }
                 }
             }
-            // only 1 sort filter
-            if (!selectedSortFilter.isEmpty()) {
-                final NiconicoFilters.NiconicoSortFilterItem sortItem =
-                        // we assume that there is just one content filter
-                        (NiconicoFilters.NiconicoSortFilterItem) selectedSortFilter.get(0);
-                if (sortItem != null) {
-                    if (!sortItem.query.isEmpty()) {
-                        sortQuery += "&" + sortItem.getQueryData(isAscending);
-                    }
+            for (FilterItem sortItem : selectedSortFilter) {
+                if (sortItem instanceof NiconicoSortFilterItem && !((NiconicoFilters.NiconicoSortFilterItem) sortItem).query.isEmpty()) {
+                    sortQuery.append("&").append(((NiconicoSortFilterItem) sortItem).getQueryData(isAscending));
                 }
             }
-            return sortQuery;
+            return sortQuery.toString();
         }
         return "";
     }
