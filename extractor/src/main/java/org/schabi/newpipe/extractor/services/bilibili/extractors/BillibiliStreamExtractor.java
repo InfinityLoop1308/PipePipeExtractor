@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -117,7 +118,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         try {
         String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=80&platform=h5&cid=" + getId(), getHeaders()).responseBody();
 
-            url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+            url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url").split(Pattern.quote("?"))[0];
         } catch (JsonParserException e) {
             e.printStackTrace();
         } catch (IOException e) {
