@@ -6,6 +6,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import okhttp3.ResponseBody;
+
+
 /**
  * A Data class used to hold the results from requests made by the Downloader implementation.
  */
@@ -14,6 +17,8 @@ public class Response {
     private final String responseMessage;
     private final Map<String, List<String>> responseHeaders;
     private final String responseBody;
+    
+    private final ResponseBody rawResponseBody;
 
     private final String latestUrl;
 
@@ -21,13 +26,18 @@ public class Response {
                     final String responseMessage,
                     @Nullable final Map<String, List<String>> responseHeaders,
                     @Nullable final String responseBody,
+                    final ResponseBody rawResponseBody,
                     @Nullable final String latestUrl) {
         this.responseCode = responseCode;
         this.responseMessage = responseMessage;
         this.responseHeaders = responseHeaders == null ? Collections.emptyMap() : responseHeaders;
-
+        this.rawResponseBody = rawResponseBody;
         this.responseBody = responseBody == null ? "" : responseBody;
         this.latestUrl = latestUrl;
+    }
+
+    public ResponseBody rawResponseBody() {
+        return rawResponseBody;
     }
 
     public int responseCode() {

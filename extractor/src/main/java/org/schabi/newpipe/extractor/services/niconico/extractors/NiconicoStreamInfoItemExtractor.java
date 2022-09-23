@@ -24,7 +24,7 @@ public class NiconicoStreamInfoItemExtractor implements StreamInfoItemExtractor 
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://sp.nicovideo.jp" + "/watch/" + item.getString("contentId");
+        return NiconicoService.SP_WATCH_URL + item.getString("contentId");
     }
 
     @Override
@@ -93,9 +93,6 @@ public class NiconicoStreamInfoItemExtractor implements StreamInfoItemExtractor 
     }
 
     private boolean isChannel() {
-        if (item.has("channelId") && item.getLong("channelId") != 0) {
-            return true;
-        }
-        return false;
+        return item.has("channelId") && item.getLong("channelId") != 0;
     }
 }

@@ -56,7 +56,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
             uploaderName = infoObj.getString("nickname");
             uploaderUrl = getLinkHandler().getUrl();
             uploaderAvatarUrl = infoObj.getObject("icons").getString("large");
-        } catch (final JsonParserException e) {
+        } catch (final JsonParserException | NullPointerException e) {
             throw new ExtractionException("could not parse user information.");
         }
     }
@@ -79,7 +79,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
             streamInfoItemsCollector.commit(new NiconicoTrendRSSExtractor(e, uploaderName,
                     uploaderUrl, uploaderAvatarUrl));
         }
-        if(arrays.size() == 0){
+        if (arrays.size() == 0) {
             return new InfoItemsPage<>(streamInfoItemsCollector,
                     null);
         }
@@ -94,7 +94,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
     public InfoItemsPage<StreamInfoItem> getPage(final Page page)
             throws IOException, ExtractionException {
         if (page == null || isNullOrEmpty(page.getUrl())) {
-            throw  new IllegalArgumentException("page does not contain an URL.");
+            throw new IllegalArgumentException("page does not contain an URL.");
         }
 
         final StreamInfoItemsCollector streamInfoItemsCollector =
@@ -108,7 +108,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
             streamInfoItemsCollector.commit(new NiconicoTrendRSSExtractor(e, uploaderName,
                     uploaderUrl, uploaderAvatarUrl));
         }
-        if(arrays.size() == 0){
+        if (arrays.size() == 0) {
             return new InfoItemsPage<>(streamInfoItemsCollector,
                     null);
         }

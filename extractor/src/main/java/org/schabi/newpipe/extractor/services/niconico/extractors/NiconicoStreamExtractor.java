@@ -35,24 +35,28 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class NiconicoStreamExtractor extends StreamExtractor {
     private JsonObject watch;
-    private int type = 0;
-
+    private NiconicoWatchDataCache.WatchDataType type;
+    private final NiconicoWatchDataCache niconicoWatchDataCache;
     private Document page = null;
+    private Response response = null;
 
     public NiconicoStreamExtractor(final StreamingService service,
-                                   final LinkHandler linkHandler) {
+            final LinkHandler linkHandler,
+            final NiconicoWatchDataCache niconicoWatchDataCache) {
         super(service, linkHandler);
+        this.niconicoWatchDataCache = niconicoWatchDataCache;
     }
 
     @Override
     public long getViewCount() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getLong("view_counter");
         }
         return watch.getObject("video").getObject("count").getLong("view");
@@ -60,7 +64,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public long getLength() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getLong("length_seconds");
         }
         return watch.getObject("video").getLong("duration");
@@ -68,16 +72,16 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public long getLikeCount() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getLong("mylist_counter");
         }
-        return  watch.getObject("video").getObject("count").getLong("like");
+        return watch.getObject("video").getObject("count").getLong("like");
     }
 
     @Nonnull
     @Override
     public Description getDescription() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return new Description(watch.getString("description"), 1);
         }
         return new Description(watch.getObject("video").getString("description"), 1);
@@ -86,7 +90,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return page.getElementsByClass("thumbnail").attr("src");
         }
         return watch.getObject("video").getObject("thumbnail").getString("url");
@@ -95,7 +99,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderUrl() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return "";
         }
         if (isChannel()) {
@@ -108,7 +112,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderName() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return getName();
         }
         if (isChannel()) {
@@ -120,11 +124,11 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return getThumbnailUrl();
         }
         if (isChannel()) {
-            return  watch.getObject("channel")
+            return watch.getObject("channel")
                     .getObject("thumbnail").getString("url");
         }
         return watch.getObject("owner").getString("iconUrl");
@@ -134,22 +138,19 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
         return Collections.emptyList();
     }
-    public String getNicoUrl(String url){
+
+    public String getNicoUrl(final String url) {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Content-Type", Collections.singletonList("application/json"));
-        Downloader downloader = getDownloader();
-        Response response;
+        final Downloader downloader = getDownloader();
         try {
-            response = downloader.get(String.valueOf(url), null, NiconicoService.LOCALE); // NiconicoService.LOCALE = Localization.fromLocalizationCode("ja-JP")
-            final Document page = Jsoup.parse(response.responseBody());
-            JsonObject watch = JsonParser.object().from(
-                    page.getElementById("js-initial-watch-data").attr("data-api-data"));
-            final JsonObject session
-                    = watch.getObject("media").getObject("delivery").getObject("movie");
-
-            final JsonObject encryption = watch.getObject("media").getObject("delivery").getObject("encryption");
-            final String s = NiconicoDMCPayloadBuilder.buildJSON(session.getObject("session"), encryption);
-            response = downloader.post("https://api.dmc.nico/api/sessions?_format=json", headers, s.getBytes(StandardCharsets.UTF_8), NiconicoService.LOCALE);
+            final JsonObject session = watch.getObject("media").getObject("delivery").getObject("movie");
+            final JsonObject encryption = watch.getObject("media")
+                    .getObject("delivery").getObject("encryption");
+            final String s = NiconicoDMCPayloadBuilder
+                    .buildJSON(session.getObject("session"), encryption);
+            response = downloader.post("https://api.dmc.nico/api/sessions?_format=json",
+                    headers, s.getBytes(StandardCharsets.UTF_8), NiconicoService.LOCALE);
             final JsonObject content = JsonParser.object().from(response.responseBody());
             final String contentURL = content.getObject("data").getObject("session")
                     .getString("content_uri");
@@ -163,11 +164,16 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         final List<VideoStream> videoStreams = new ArrayList<>();
-        String content = "https://www.nicovideo.jp/watch/" + getLinkHandler().getId();
-        VideoStream videoStream = new VideoStream.Builder().setContent(content, true).setId("Niconico-" + getId()).setIsVideoOnly(false).setMediaFormat(MediaFormat.MPEG_4).setResolution("360p").build();
+        final String content = NiconicoService.WATCH_URL + getLinkHandler().getId();
+        final VideoStream videoStream = new VideoStream.Builder()
+                .setContent(content, true).setId("Niconico-" + getId())
+                .setIsVideoOnly(false)
+                .setMediaFormat(MediaFormat.MPEG_4)
+                .setResolution("360p")
+                .build();
         videoStream.setNicoDownloadUrl(getNicoUrl(content));
         videoStreams.add(videoStream);
-        return  videoStreams;
+        return videoStreams;
     }
 
     @Override
@@ -184,15 +190,15 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public List<String> getTags() throws ParsingException {
         final List<String> tags = new ArrayList<>();
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return tags;
         }
         final JsonArray items = watch.getObject("tag").getArray("items");
-        for (int i = 0; i < items.size(); i++) {
-            tags.add(items.getObject(i).getString("name"));
-        }
-
-        return tags;
+        return items.stream()
+                .filter(s -> s instanceof JsonObject)
+                .map(s -> (JsonObject) s)
+                .map(s -> s.getString("name"))
+                .collect(Collectors.toList());
     }
 
     @Nullable
@@ -208,7 +214,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
         final Elements videos = response.getElementsByTag("video");
 
-        for (final Element e: videos) {
+        for (final Element e : videos) {
             collector.commit(new NiconicoRelationVideoExtractor(e));
         }
 
@@ -218,30 +224,16 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(final @Nonnull Downloader downloader)
             throws IOException, ExtractionException {
-        final String url = "https://www.nicovideo.jp/watch/"+ getLinkHandler().getId();
-        final Response response = downloader.get(url, null, NiconicoService.LOCALE);
-        page = Jsoup.parse(response.responseBody());
-        try {
-            Element element = page.getElementById("js-initial-watch-data");
-            if(element == null){
-                type = 1; //need login
-            }
-            if(type == 1){
-                watch = JsonParser.object().from(page.getElementsByClass("content WatchAppContainer").attr("data-video"));
-            }
-            else{
-                watch = JsonParser.object().from(
-                        page.getElementById("js-initial-watch-data").attr("data-api-data"));
-            }
-        } catch (final JsonParserException e) {
-            throw new ExtractionException("could not extract watching page");
-        }
+        watch = niconicoWatchDataCache.refreshAndGetWatchData(downloader, getId());
+        page = niconicoWatchDataCache.getLastPage();
+        type = niconicoWatchDataCache.getLastWatchDataType();
+        response = niconicoWatchDataCache.getLastResponse();
     }
 
     @Nonnull
     @Override
     public String getName() throws ParsingException {
-        if(type == 1){
+        if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getString("title");
         }
         return watch.getObject("video").getString("title");

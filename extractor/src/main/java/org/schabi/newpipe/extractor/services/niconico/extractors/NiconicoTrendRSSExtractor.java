@@ -38,8 +38,7 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
     @Override
     public String getName() throws ParsingException {
         final String title = item.select("title").text();
-        if (Parser.isMatch(NiconicoService.TRENDING_RSS_STR, title))
-        {
+        if (Parser.isMatch(NiconicoService.TRENDING_RSS_STR, title)) {
             return Parser.matchGroup1(NiconicoService.TRENDING_RSS_STR, title);
         }
         return title;
@@ -91,8 +90,7 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getUploaderName() throws ParsingException {
-        if (uploaderName == null || uploaderName.isEmpty())
-        {
+        if (uploaderName == null || uploaderName.isEmpty()) {
             return "";
         }
         return uploaderName;
@@ -100,8 +98,7 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        if (uploaderUrl == null || uploaderUrl.isEmpty())
-        {
+        if (uploaderUrl == null || uploaderUrl.isEmpty()) {
             return "";
         }
         return uploaderUrl;
@@ -122,8 +119,7 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
     @Override
     public String getTextualUploadDate() throws ParsingException {
         // pubDate returns wrong date, and it should parse from nico-info-date.
-        final String strDate = cdata.getElementsByClass("nico-info-date").text();
-        return strDate;
+        return cdata.getElementsByClass("nico-info-date").text();
     }
 
     @Nullable

@@ -2,17 +2,16 @@ package org.schabi.newpipe.extractor.services.niconico;
 
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 
-import jdk.vm.ci.meta.Local;
+public final class NiconicoServiceParsingHelper {
+    private NiconicoServiceParsingHelper() {
 
-public class NiconicoServiceParsingHelper {
+    }
+
     public static DateWrapper parseSnapshotDateTime(final String textDateTime) {
         final ZonedDateTime zonedDateTime = ZonedDateTime.parse(
                 textDateTime, DateTimeFormatter.ISO_ZONED_DATE_TIME);

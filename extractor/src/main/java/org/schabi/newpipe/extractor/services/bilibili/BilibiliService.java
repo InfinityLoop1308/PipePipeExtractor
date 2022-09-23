@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
 import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -13,12 +14,14 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliBulletCommentsExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannelExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliCommentExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliFeedExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSearchExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliBulletCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliFeedLinkHandlerFactory;
@@ -30,6 +33,7 @@ import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
 import static java.util.Arrays.asList;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
@@ -41,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 
 public class BilibiliService extends StreamingService{
+    private WatchDataCache watchDataCache;
 
     static public Map<String, List<String>> getHeaders(){
         final Map<String, List<String>> headers = new HashMap<>();
@@ -50,6 +55,7 @@ public class BilibiliService extends StreamingService{
 
     public BilibiliService(int id){
         super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS));
+        watchDataCache = new WatchDataCache();
     }
 
     @Override
@@ -121,7 +127,7 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public StreamExtractor getStreamExtractor(LinkHandler linkHandler) throws ExtractionException {
-        return new BillibiliStreamExtractor(this, linkHandler);
+        return new BillibiliStreamExtractor(this, linkHandler, watchDataCache);
     }
 
     @Override
@@ -134,4 +140,19 @@ public class BilibiliService extends StreamingService{
         return new BilibiliCommentsLinkHandlerFactory();
     }
 
+    @Override
+    public ListLinkHandlerFactory getBulletCommentsLHFactory(){
+        return new BilibiliBulletCommentsLinkHandlerFactory(watchDataCache);
+    }
+
+    @Override
+    public BulletCommentsExtractor getBulletCommentsExtractor(ListLinkHandler linkHandler) throws ExtractionException {
+        return new BilibiliBulletCommentsExtractor(this, linkHandler);
+    }
+
+    @Override
+    public BulletCommentsExtractor getBulletCommentsExtractor(final String url)
+            throws ExtractionException {
+        return getBulletCommentsExtractor(getBulletCommentsLHFactory().fromUrl(url));
+    }
 }

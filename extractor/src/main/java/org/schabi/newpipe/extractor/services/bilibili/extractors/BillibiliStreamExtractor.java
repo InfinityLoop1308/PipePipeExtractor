@@ -16,7 +16,6 @@ import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.InfoItemsCollector;
-import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -24,8 +23,8 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
-import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.DeliveryMethod;
@@ -44,8 +43,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     int duration = 0;
     String id = "";
     JsonObject page = null;
-    public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler) {
+
+    WatchDataCache watchDataCache;
+    public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
+        this.watchDataCache = watchDataCache;
     }
 
     @Override
@@ -188,6 +190,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         page = watch.getArray("pages").getObject(Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0])-1);
         cid = page.getInt("cid");
+        watchDataCache.setCid(cid);
         duration = page.getInt("duration");
     }
 

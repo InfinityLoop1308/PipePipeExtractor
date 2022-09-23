@@ -35,8 +35,7 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
                     + "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
                     + "&_offset=0"
-                    + "&_limit=" + ITEMS_PER_PAGE
-                    + "&_context=" + URLEncoder.encode(NiconicoService.APP_NAME, UTF_8);
+                    + "&_limit=" + ITEMS_PER_PAGE;
         } catch (final UnsupportedEncodingException e) {
             throw new ParsingException("could not encode query.");
         }

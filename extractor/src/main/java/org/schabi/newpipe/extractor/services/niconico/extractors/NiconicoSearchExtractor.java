@@ -20,7 +20,6 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
-import org.schabi.newpipe.extractor.utils.Parser;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -51,7 +50,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
-        if(searchCollection.getArray("data").size() == 0){
+        if (searchCollection.getArray("data").size() == 0) {
             return new InfoItemsPage<>(collectItems(searchCollection),
                     null);
         }
@@ -63,7 +62,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     public InfoItemsPage<InfoItem> getPage(final Page page)
             throws IOException, ExtractionException {
         if (page == null || isNullOrEmpty(page.getUrl())) {
-            throw  new IllegalArgumentException("page does not contain an URL.");
+            throw new IllegalArgumentException("page does not contain an URL.");
         }
 
         final String response = getDownloader().get(
@@ -71,7 +70,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
 
         try {
             searchCollection = JsonParser.object().from(response);
-            if(searchCollection.getArray("data").size() == 0){
+            if (searchCollection.getArray("data").size() == 0) {
                 return new InfoItemsPage<>(collectItems(searchCollection),
                         null);
             }
@@ -117,7 +116,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     private Page getNextPageFromCurrentUrl(final String currentUrl)
             throws ParsingException {
         final String offset = currentUrl.split("&_offset=")[1].split("&")[0];
-        return new Page(currentUrl.replace("&_offset=" + offset+"&", "&_offset="
-                + String.valueOf(Integer.parseInt(offset) + ITEMS_PER_PAGE)+"&"));
+        return new Page(currentUrl.replace("&_offset=" + offset + "&", "&_offset="
+                + (Integer.parseInt(offset) + ITEMS_PER_PAGE) + "&"));
     }
 }

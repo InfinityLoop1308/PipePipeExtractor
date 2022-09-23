@@ -2,10 +2,13 @@ package org.schabi.newpipe.extractor.services.bilibili;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.zip.Inflater;
 
 public class utils {
     int[] s = {11, 10, 3, 8, 4, 6};
@@ -79,5 +82,34 @@ public class utils {
     }
     public static String getMidFromRecordApiUrl(String url){
         return url.split("mid=")[1].split("&")[0];
+    }
+    public static byte[] decompress(byte[] data) {
+        byte[] output;
+
+        Inflater decompresser = new Inflater(true);//这个true是关键
+        decompresser.reset();
+        decompresser.setInput(data);
+
+        ByteArrayOutputStream o = new ByteArrayOutputStream(data.length);
+        try {
+            byte[] buf = new byte[1024];
+            while (!decompresser.finished()) {
+                int i = decompresser.inflate(buf);
+                o.write(buf, 0, i);
+            }
+            output = o.toByteArray();
+        } catch (Exception e) {
+            output = data;
+            e.printStackTrace();
+        } finally {
+            try {
+                o.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        decompresser.end();
+        return output;
     }
 }

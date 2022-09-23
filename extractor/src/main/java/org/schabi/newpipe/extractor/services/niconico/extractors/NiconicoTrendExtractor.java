@@ -35,7 +35,8 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
 
     @Nonnull
     @Override
-    public InfoItemsPage<StreamInfoItem> getInitialPage()throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getInitialPage()
+            throws IOException, ExtractionException {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         final Elements arrays = rss.getElementsByTag("item");
         final String uploaderName = rss.getElementsByTag("dc:creator").text();

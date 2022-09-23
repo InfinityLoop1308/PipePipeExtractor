@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
@@ -16,11 +17,16 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoBulletCommentsExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsCache;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSearchExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoStreamExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoTrendExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoUserExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoWatchDataCache;
+import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoSearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoTrendLinkHandlerFactory;
@@ -29,28 +35,40 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
-import java.util.Collections;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
+
+import java.util.Arrays;
 
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
-        super(id, "NicoNico", Collections.singletonList(VIDEO));
+        //super(id, "NicoNico", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
+        super(id, "NicoNico", Arrays.asList(VIDEO));
     }
+
     public static final String BASE_URL = "https://www.nicovideo.jp";
-    public static final String USER_URL = "https://www.nicovideo.jp/user/";
-    public static final String CHANNEL_URL = "https://ch.nicovideo.jp/";
+    public static final String SP_BASE_URL = "https://sp.nicovideo.jp";
+    public static final String USER_URL
+            = "https://www.nicovideo.jp/user/";
+    public static final String WATCH_URL
+            = "https://www.nicovideo.jp/watch/";
+    public static final String SP_WATCH_URL
+            = "https://sp.nicovideo.jp/watch/";
+    public static final String CHANNEL_URL
+            = "https://ch.nicovideo.jp/";
     public static final String DAILY_TREND_URL
             = "https://www.nicovideo.jp/ranking/genre/all?term=24h&rss=2.0";
     public static final String SUGGESTION_URL
             = "https://sug.search.nicovideo.jp/suggestion/expand/";
-    public static final String RELATION_URL
-            = "https://flapi.nicovideo.jp/api/getrelation?video=";
+    public static final String RELATION_URL =
+            "https://flapi.nicovideo.jp/api/getrelation?video=";
     public static final String TRENDING_RSS_STR = "^第\\d+位：(.*)$";
     public static final String SMILEVIDEO
             = "(nicovideo\\.jp\\/watch|nico\\.ms)\\/((?:sm|so)\\d+)(.+)?";
     public static final String USER_UPLOAD_LIST
             = "(?:www|sp).nicovideo.jp/user/(\\d+)(?:/video)?";
-    public static final String APP_NAME = "NewPipe";
-    // generally, Niconico uses Japanese, but some videos have multiple language texts.
+    // generally, Niconico uses Japanese, but some videos have multiple language
+    // texts.
     // Use ja-JP locale to get original information of video.
     public static final Localization LOCALE = Localization.fromLocalizationCode("ja-JP");
 
@@ -81,7 +99,7 @@ public class NiconicoService extends StreamingService {
 
     @Override
     public ListLinkHandlerFactory getCommentsLHFactory() {
-        return null;
+        return new NiconicoCommentsLinkHandlerFactory(new NiconicoStreamLinkHandlerFactory());
     }
 
     @Override
@@ -101,9 +119,10 @@ public class NiconicoService extends StreamingService {
 
     @Override
     public KioskList getKioskList() throws ExtractionException {
-        final KioskList.KioskExtractorFactory kioskFactory = (streamingService, url, id) ->
-                new NiconicoTrendExtractor(this,
-                        new NiconicoTrendLinkHandlerFactory().fromUrl(url), id);
+        final KioskList.KioskExtractorFactory kioskFactory = (streamingService, url, id)
+                -> new NiconicoTrendExtractor(
+                this,
+                new NiconicoTrendLinkHandlerFactory().fromUrl(url), id);
 
         final KioskList kioskList = new KioskList(this);
 
@@ -131,15 +150,53 @@ public class NiconicoService extends StreamingService {
         return null;
     }
 
+
     @Override
     public StreamExtractor getStreamExtractor(final LinkHandler linkHandler)
             throws ExtractionException {
-        return new NiconicoStreamExtractor(this, linkHandler);
+        return new NiconicoStreamExtractor(this, linkHandler, getWatchDataCache());
     }
 
     @Override
     public CommentsExtractor getCommentsExtractor(final ListLinkHandler linkHandler)
             throws ExtractionException {
-        return null;
+        return new NiconicoCommentsExtractor(this, linkHandler,
+                getWatchDataCache(),
+                getCommentsCache());
+    }
+
+    private NiconicoCommentsCache commentsCache = null;
+
+    private NiconicoCommentsCache getCommentsCache() {
+        if (commentsCache == null) {
+            commentsCache = new NiconicoCommentsCache();
+        }
+        return commentsCache;
+    }
+
+    private NiconicoWatchDataCache watchDataCache;
+
+    private NiconicoWatchDataCache getWatchDataCache() {
+        if (watchDataCache == null) {
+            watchDataCache = new NiconicoWatchDataCache();
+        }
+        return watchDataCache;
+    }
+
+    @Override
+    public BulletCommentsExtractor getBulletCommentsExtractor(final ListLinkHandler linkHandler)
+            throws ExtractionException {
+        return new NiconicoBulletCommentsExtractor(this,
+                linkHandler, getWatchDataCache(), getCommentsCache());
+    }
+
+    public ListLinkHandlerFactory getBulletCommentsLHFactory() {
+        return new NiconicoCommentsLinkHandlerFactory(new NiconicoStreamLinkHandlerFactory());
+    }
+
+    @Override
+    public BulletCommentsExtractor getBulletCommentsExtractor(final String url)
+            throws ExtractionException {
+        return getBulletCommentsExtractor(getBulletCommentsLHFactory().fromUrl(url));
     }
 }

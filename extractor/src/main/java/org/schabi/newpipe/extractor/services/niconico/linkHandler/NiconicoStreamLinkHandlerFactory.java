@@ -5,7 +5,10 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.utils.Parser;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
+    @NonNull
     @Override
     public String getId(final String url) throws ParsingException {
         return Parser.matchGroup(NiconicoService.SMILEVIDEO, url, 2);
@@ -13,7 +16,7 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
 
     @Override
     public String getUrl(final String id) throws ParsingException {
-        return "https://sp.nicovideo.jp/watch/" + id;
+        return NiconicoService.SP_WATCH_URL + id;
     }
 
     @Override

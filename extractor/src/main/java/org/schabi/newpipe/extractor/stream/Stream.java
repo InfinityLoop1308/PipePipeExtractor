@@ -62,7 +62,7 @@ public abstract class Stream implements Serializable {
         this.manifestUrl = manifestUrl;
     }
 
-    public void setNicoDownloadUrl(String nicoDownloadUrl) {
+    public void setNicoDownloadUrl(final String nicoDownloadUrl) {
         this.nicoDownloadUrl = nicoDownloadUrl;
     }
 
