@@ -44,8 +44,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         if(getUrl().contains("seriesdetail")){
             isRecordChannel = true;
             final String url = utils.getRecordApiUrl(getLinkHandler().getOriginalUrl());
-            String response = downloader.get(url).responseBody();
-            String userResponse = downloader.get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+utils.getMidFromRecordApiUrl(url)).responseBody();
+            String response = downloader.get(url, getHeaders()).responseBody();
+            String userResponse = downloader.get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+utils.getMidFromRecordApiUrl(url), getHeaders()).responseBody();
             try {
                 recordJson = JsonParser.object().from(response);
                 userJson = JsonParser.object().from(userResponse);
@@ -55,13 +55,13 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             return ;
         }
         final String url = utils.getChannelApiUrl(getUrl(), getLinkHandler().getId());
-        String response = downloader.get(url).responseBody();
-        String userResponse = downloader.get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId()).responseBody();
+        String response = downloader.get(url, getHeaders()).responseBody();
+        String userResponse = downloader.get("https://api.bilibili.com/x/web-interface/card?photo=true&mid="+getId(), getHeaders()).responseBody();
         try {
             json = JsonParser.object().from(response);
             userJson = JsonParser.object().from(userResponse);
             String liveResponse = downloader.get(new BilibiliSearchQueryHandlerFactory().getUrl(getName(),
-                    Collections.singletonList(new BilibiliFilters.BilibiliContentFilterItem("live_room", "search_type=live_room")), null)).responseBody();
+                    Collections.singletonList(new BilibiliFilters.BilibiliContentFilterItem("live_room", "search_type=live_room")), null), getHeaders()).responseBody();
             liveJson = JsonParser.object().from(liveResponse);
             String recordResponse = downloader.get("https://api.bilibili.com/x/polymer/space/seasons_series_list?mid=" +getId() +"&page_num=1&page_size=10").responseBody();
             JsonArray series_list = JsonParser.object().from(recordResponse).getObject("data").getObject("items_lists").getArray("series_list");

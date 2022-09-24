@@ -16,19 +16,19 @@ public class BilibiliFilters extends SearchFiltersBase {
     }
 
     public String evaluateSelectedContentFilters() {
-        if (selectedSortFilter != null) {
-            StringBuilder sortQuery = new StringBuilder();
+        StringBuilder sortQuery = new StringBuilder();
 
-            if (selectedContentFilter != null && !selectedContentFilter.isEmpty()) {
-                final BilibiliFilters.BilibiliContentFilterItem contentItem =
-                        // we assume that there is just one content filter
-                        (BilibiliFilters.BilibiliContentFilterItem) selectedContentFilter.get(0);
-                if (contentItem != null) {
-                    if (!contentItem.query.isEmpty()) {
-                        sortQuery = new StringBuilder("&" + contentItem.query);
-                    }
+        if (selectedContentFilter != null && !selectedContentFilter.isEmpty()) {
+            final BilibiliFilters.BilibiliContentFilterItem contentItem =
+                    // we assume that there is just one content filter
+                    (BilibiliFilters.BilibiliContentFilterItem) selectedContentFilter.get(0);
+            if (contentItem != null) {
+                if (!contentItem.query.isEmpty()) {
+                    sortQuery = new StringBuilder("&" + contentItem.query);
                 }
             }
+        }
+        if(selectedSortFilter != null){
             for (FilterItem sortItem : selectedSortFilter) {
                 if (!((BilibiliSortFilterItem) sortItem).query.isEmpty()) {
                     sortQuery.append("&").append(((BilibiliSortFilterItem) sortItem).query);
@@ -36,7 +36,8 @@ public class BilibiliFilters extends SearchFiltersBase {
             }
             return sortQuery.toString();
         }
-        return "";
+
+        return null;
     }
 
     @Override
