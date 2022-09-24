@@ -79,4 +79,9 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(collector, new Page(nextPage));
     }
+
+    @Override
+    public boolean isCommentsDisabled() throws ExtractionException {
+        return getId().equals("LIVE");
+    }
 }

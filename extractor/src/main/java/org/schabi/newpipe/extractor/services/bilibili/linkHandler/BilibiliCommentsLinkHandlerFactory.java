@@ -16,7 +16,7 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException {
         if(url.contains("live.bilibili.com")){
-            throw new ParsingException("not a bilibili comment link");
+            return "LIVE";
         }
         try {
             return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));
