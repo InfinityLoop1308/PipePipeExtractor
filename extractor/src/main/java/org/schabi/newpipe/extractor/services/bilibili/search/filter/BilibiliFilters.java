@@ -34,10 +34,8 @@ public class BilibiliFilters extends SearchFiltersBase {
                     sortQuery.append("&").append(((BilibiliSortFilterItem) sortItem).query);
                 }
             }
-            return sortQuery.toString();
         }
-
-        return null;
+        return sortQuery.toString();
     }
 
     @Override
