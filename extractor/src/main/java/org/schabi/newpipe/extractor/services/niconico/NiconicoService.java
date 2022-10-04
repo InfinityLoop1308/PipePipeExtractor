@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoBulletCommentsExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsCache;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoPlaylistExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSearchExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoStreamExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSuggestionExtractor;
@@ -27,6 +28,7 @@ import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoTrendEx
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoUserExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoWatchDataCache;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoCommentsLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoPlaylistLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoSearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoTrendLinkHandlerFactory;
@@ -35,10 +37,11 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
-
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
@@ -62,6 +65,12 @@ public class NiconicoService extends StreamingService {
             = "https://sug.search.nicovideo.jp/suggestion/expand/";
     public static final String RELATION_URL =
             "https://flapi.nicovideo.jp/api/getrelation?video=";
+
+    public static final String MYLIST_URL =
+            "https://nvapi.nicovideo.jp/v2/mylists/";
+
+    public static final String MYLIST_PAGE_URL =
+            "https://www.nicovideo.jp/mylist/";
     public static final String TRENDING_RSS_STR = "^第\\d+位：(.*)$";
     public static final String SMILEVIDEO
             = "(nicovideo\\.jp\\/watch|nico\\.ms)\\/((?:sm|so)\\d+)(.+)?";
@@ -77,6 +86,15 @@ public class NiconicoService extends StreamingService {
         return BASE_URL;
     }
 
+    static public Map<String, List<String>> getMylistHeaders(){
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("X-Frontend-Id", Collections.singletonList("6"));
+        headers.put("X-Frontend-Version", Collections.singletonList("0"));
+        headers.put("Referer", Collections.singletonList("https://www.nicovideo.jp/"));
+        headers.put("Origin", Collections.singletonList("https://www.nicovideo.jp"));
+        return headers;
+    }
+
     @Override
     public LinkHandlerFactory getStreamLHFactory() {
         return new NiconicoStreamLinkHandlerFactory();
@@ -89,7 +107,7 @@ public class NiconicoService extends StreamingService {
 
     @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
-        return null;
+        return new NiconicoPlaylistLinkHandlerFactory();
     }
 
     @Override
@@ -147,7 +165,7 @@ public class NiconicoService extends StreamingService {
     @Override
     public PlaylistExtractor getPlaylistExtractor(final ListLinkHandler linkHandler)
             throws ExtractionException {
-        return null;
+        return new NiconicoPlaylistExtractor(this, linkHandler);
     }
 
 

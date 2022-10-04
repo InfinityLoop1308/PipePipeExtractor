@@ -25,7 +25,7 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
             getId(url);
             return true;
         } catch (final ParsingException e) {
-            throw new ParsingException(e.getMessage());
+            return false;
         }
     }
 }

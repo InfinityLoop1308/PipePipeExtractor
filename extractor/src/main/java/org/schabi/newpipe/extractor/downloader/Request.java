@@ -201,6 +201,12 @@ public class Request {
             return this;
         }
 
+        public Builder options(final String urlToSet) {
+            this.httpMethod = "OPTIONS";
+            this.url = urlToSet;
+            return this;
+        }
+
         public Builder post(final String urlToSet, @Nullable final byte[] dataToSendToSet) {
             this.httpMethod = "POST";
             this.url = urlToSet;
