@@ -154,7 +154,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
              }
             url = videoArray.getObject(i).getString("baseUrl");
          }
-         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video").setIsVideoOnly(true).setResolution("720p").build());
+         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video").setIsVideoOnly(true).setResolution("Best").build());
         return videoStreams;
     }
 

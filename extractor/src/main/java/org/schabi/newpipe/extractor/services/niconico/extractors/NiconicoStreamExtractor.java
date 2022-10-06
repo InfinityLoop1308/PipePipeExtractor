@@ -169,7 +169,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 .setContent(content, true).setId("Niconico-" + getId())
                 .setIsVideoOnly(false)
                 .setMediaFormat(MediaFormat.MPEG_4)
-                .setResolution("360p")
+                .setResolution("Best")
                 .build();
         videoStream.setNicoDownloadUrl(getNicoUrl(content));
         videoStreams.add(videoStream);
