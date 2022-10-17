@@ -44,6 +44,7 @@ public class StreamInfoItem extends InfoItem {
     private boolean uploaderVerified = false;
     private boolean isRoundPlayStream = false;
     private long startAt = -1;
+    private boolean shortFormContent = false;
 
     public StreamInfoItem(final int serviceId,
                           final String url,
@@ -131,6 +132,15 @@ public class StreamInfoItem extends InfoItem {
     public void setUploaderVerified(final boolean uploaderVerified) {
         this.uploaderVerified = uploaderVerified;
     }
+
+    public boolean isShortFormContent() {
+        return shortFormContent;
+    }
+
+    public void setShortFormContent(final boolean shortFormContent) {
+        this.shortFormContent = shortFormContent;
+    }
+
 
     @Override
     public String toString() {

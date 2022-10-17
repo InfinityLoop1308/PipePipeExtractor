@@ -139,4 +139,14 @@ public interface StreamInfoItemExtractor extends InfoItemExtractor {
     default boolean isRoundPlayStream() {
         return false;
     }
+
+    /**
+     * Check if the stream is a short-form content
+     *
+     * @return {@code true} if the stream is a short-form content
+     * @throws ParsingException thrown if there is an error in the extraction
+     */
+    default boolean isShortFormContent() throws ParsingException {
+        return false;
+    }
 }
