@@ -364,6 +364,11 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+        try {
+            streamInfo.setShortFormContent(extractor.isShortFormContent());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
         if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
                     extractor));
@@ -418,6 +423,7 @@ public class StreamInfo extends Info {
     private boolean supportRelatedItems;
     private boolean isRoundPlayStream;
     private long startAt = -1;
+    private boolean shortFormContent = false;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -816,5 +822,13 @@ public class StreamInfo extends Info {
 
     public int getStreamsLength(){
         return videoOnlyStreams.size() + audioStreams.size() + videoStreams.size();
+    }
+
+    public boolean isShortFormContent() {
+        return shortFormContent;
+    }
+
+    public void setShortFormContent(final boolean isShortFormContent) {
+        this.shortFormContent = isShortFormContent;
     }
 }

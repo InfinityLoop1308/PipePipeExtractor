@@ -571,6 +571,16 @@ public abstract class StreamExtractor extends Extractor {
         return -1;
     }
 
+    /**
+     * Whether the stream is a short-form content. These are content in the style of TikTok,
+     * YouTube Shorts, or Instagram Reels videos.
+     *
+     * @return whether the stream is a short-form content
+     */
+    public boolean isShortFormContent() throws ParsingException {
+        return false;
+    }
+
     public enum Privacy {
         PUBLIC,
         UNLISTED,
