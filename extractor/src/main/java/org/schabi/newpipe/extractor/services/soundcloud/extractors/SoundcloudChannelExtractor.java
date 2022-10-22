@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabHandler;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
@@ -16,9 +17,10 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.SOUNDCLOUD_API_V2_URL;
-import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 public class SoundcloudChannelExtractor extends ChannelExtractor {
@@ -82,7 +84,7 @@ public class SoundcloudChannelExtractor extends ChannelExtractor {
 
     @Override
     public String getDescription() {
-        return user.getString("description", EMPTY_STRING);
+        return user.getString("description", "");
     }
 
     @Override
@@ -103,6 +105,13 @@ public class SoundcloudChannelExtractor extends ChannelExtractor {
     @Override
     public boolean isVerified() throws ParsingException {
         return user.getBoolean("verified");
+    }
+
+    @Nonnull
+    @Override
+    public List<ChannelTabHandler> getTabs() throws ParsingException {
+        // TODO: implement soundcloud playlist tab
+        return Collections.emptyList();
     }
 
     @Nonnull
