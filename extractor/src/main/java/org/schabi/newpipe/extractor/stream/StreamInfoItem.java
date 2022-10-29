@@ -141,7 +141,6 @@ public class StreamInfoItem extends InfoItem {
         this.shortFormContent = shortFormContent;
     }
 
-
     @Override
     public String toString() {
         return "StreamInfoItem{"
