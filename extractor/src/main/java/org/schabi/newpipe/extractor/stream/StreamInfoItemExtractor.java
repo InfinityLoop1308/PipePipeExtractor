@@ -144,7 +144,8 @@ public interface StreamInfoItemExtractor extends InfoItemExtractor {
      * Whether the stream is a short-form content.
      *
      * <p>
-     * Short-form contents are contents in the style of TikTok, YouTube Shorts, or Instagram Reels videos.
+     * Short-form contents are contents in the style of TikTok, YouTube Shorts, or Instagram Reels
+     * videos.
      * </p>
      *
      * @return whether the stream is a short-form content
