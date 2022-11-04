@@ -16,7 +16,6 @@ import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.feed.FeedExtractor;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
-import org.schabi.newpipe.extractor.linkhandler.ChannelTabHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
@@ -40,6 +39,7 @@ import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeSubscript
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeTrendingExtractor;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubePlaylistLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory;
@@ -100,6 +100,11 @@ public class YoutubeService extends StreamingService {
     }
 
     @Override
+    public ListLinkHandlerFactory getChannelTabLHFactory() {
+        return YoutubeChannelTabLinkHandlerFactory.getInstance();
+    }
+
+    @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
         return YoutubePlaylistLinkHandlerFactory.getInstance();
     }
@@ -120,7 +125,7 @@ public class YoutubeService extends StreamingService {
     }
 
     @Override
-    public ChannelTabExtractor getChannelTabExtractor(final ChannelTabHandler linkHandler) {
+    public ChannelTabExtractor getChannelTabExtractor(final ListLinkHandler linkHandler) {
         return new YoutubeChannelTabExtractor(this, linkHandler);
     }
 
