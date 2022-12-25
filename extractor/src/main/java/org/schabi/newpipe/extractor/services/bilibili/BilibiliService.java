@@ -17,8 +17,10 @@ import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliBulletCommentsExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannelExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannelTabExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliCommentExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliFeedExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliPlaylistExtrator;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSearchExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
@@ -26,6 +28,7 @@ import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliBullet
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliFeedLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliPlaylistLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliSearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
@@ -81,7 +84,7 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
-        return null;
+        return new BilibiliPlaylistLinkHandlerFactory();
     }
 
     @Override
@@ -127,13 +130,12 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public ChannelTabExtractor getChannelTabExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        return null;
+        return new BilibiliChannelTabExtractor(this, linkHandler);
     }
 
     @Override
     public PlaylistExtractor getPlaylistExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        // TODO Auto-generated method stub
-        return null;
+        return new BilibiliPlaylistExtrator(this, linkHandler);
     }
 
     @Override
