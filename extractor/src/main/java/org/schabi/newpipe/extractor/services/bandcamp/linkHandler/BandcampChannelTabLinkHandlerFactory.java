@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.bandcamp.linkHandler;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 import java.util.List;
 
@@ -27,9 +28,9 @@ public final class BandcampChannelTabLinkHandlerFactory extends ListLinkHandlerF
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter, final String sortFilter)
+    public String getUrl(final String id, final List<FilterItem> contentFilter, final List<FilterItem> sortFilter)
             throws ParsingException {
-        final String tab = contentFilter.get(0);
+        final String tab = contentFilter.get(0).getName();
         if (!tab.equals(ChannelTabs.ALBUMS)) {
             throw new ParsingException("tab " + tab + " not supported");
         }
@@ -42,10 +43,5 @@ public final class BandcampChannelTabLinkHandlerFactory extends ListLinkHandlerF
         return BandcampChannelLinkHandlerFactory.getInstance().onAcceptUrl(url);
     }
 
-    @Override
-    public String[] getAvailableContentFilter() {
-        return new String[] {
-                ChannelTabs.ALBUMS,
-        };
-    }
+
 }

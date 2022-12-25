@@ -13,7 +13,7 @@ import java.io.IOException;
 
 public class ChannelTabInfo extends ListInfo<InfoItem> {
     public ChannelTabInfo(final int serviceId, final ListLinkHandler linkHandler) {
-        super(serviceId, linkHandler, linkHandler.getContentFilters().get(0));
+        super(serviceId, linkHandler, linkHandler.getContentFilters().get(0).getName());
     }
 
     public static ChannelTabInfo getInfo(final StreamingService service,

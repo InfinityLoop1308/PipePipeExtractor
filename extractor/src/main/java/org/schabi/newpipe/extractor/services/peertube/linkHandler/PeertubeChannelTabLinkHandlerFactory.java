@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.peertube.linkHandler;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 import java.util.List;
 
@@ -33,17 +34,17 @@ public final class PeertubeChannelTabLinkHandlerFactory extends ListLinkHandlerF
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter, final String sortFilter)
+    public String getUrl(final String id, final List<FilterItem> contentFilter, final List<FilterItem> sortFilter)
             throws ParsingException {
         return PeertubeChannelLinkHandlerFactory.getInstance().getUrl(id)
-                + getUrlSuffix(contentFilter.get(0));
+                + getUrlSuffix(contentFilter.get(0).getName());
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter, final String sortFilter,
+    public String getUrl(final String id,  final List<FilterItem> contentFilter, final List<FilterItem> sortFilter,
                          final String baseUrl) throws ParsingException {
         return PeertubeChannelLinkHandlerFactory.getInstance().getUrl(id, null, null, baseUrl)
-                + getUrlSuffix(contentFilter.get(0));
+                + getUrlSuffix(contentFilter.get(0).getName());
     }
 
     @Override
@@ -51,11 +52,4 @@ public final class PeertubeChannelTabLinkHandlerFactory extends ListLinkHandlerF
         return PeertubeChannelLinkHandlerFactory.getInstance().onAcceptUrl(url);
     }
 
-    @Override
-    public String[] getAvailableContentFilter() {
-        return new String[] {
-                ChannelTabs.PLAYLISTS,
-                ChannelTabs.CHANNELS,
-        };
-    }
 }

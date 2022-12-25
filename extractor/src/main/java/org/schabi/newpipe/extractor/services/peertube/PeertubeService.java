@@ -121,7 +121,7 @@ public class PeertubeService extends StreamingService {
     @Override
     public ChannelTabExtractor getChannelTabExtractor(final ListLinkHandler linkHandler)
             throws ExtractionException {
-        final String tab = linkHandler.getContentFilters().get(0);
+        final String tab = linkHandler.getContentFilters().get(0).getName();
         switch (tab) {
             case ChannelTabs.CHANNELS:
                 return new PeertubeAccountTabExtractor(this, linkHandler);

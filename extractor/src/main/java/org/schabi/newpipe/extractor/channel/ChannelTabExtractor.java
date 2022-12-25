@@ -17,7 +17,7 @@ public abstract class ChannelTabExtractor extends ListExtractor<InfoItem> {
 
     @Nonnull
     public String getTab() {
-        return getLinkHandler().getContentFilters().get(0);
+        return getLinkHandler().getContentFilters().get(0).getName();
     }
 
     @Nonnull

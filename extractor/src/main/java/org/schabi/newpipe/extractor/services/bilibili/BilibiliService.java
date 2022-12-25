@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.bilibili;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
+import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
@@ -74,6 +75,11 @@ public class BilibiliService extends StreamingService{
     }
 
     @Override
+    public ListLinkHandlerFactory getChannelTabLHFactory() {
+        return null;
+    }
+
+    @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
         return null;
     }
@@ -117,6 +123,11 @@ public class BilibiliService extends StreamingService{
     @Override
     public ChannelExtractor getChannelExtractor(ListLinkHandler linkHandler) throws ExtractionException {
         return new BilibiliChannelExtractor(this, linkHandler);
+    }
+
+    @Override
+    public ChannelTabExtractor getChannelTabExtractor(ListLinkHandler linkHandler) throws ExtractionException {
+        return null;
     }
 
     @Override

@@ -3,12 +3,17 @@ package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 
 import java.util.List;
+
+import javax.annotation.Nonnull;
 
 public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFactory {
     private static final YoutubeChannelTabLinkHandlerFactory INSTANCE =
             new YoutubeChannelTabLinkHandlerFactory();
+    private final YoutubeFilters searchFilters = new YoutubeFilters();
 
     private YoutubeChannelTabLinkHandlerFactory() {
     }
@@ -32,9 +37,10 @@ public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFa
     }
 
     @Override
-    public String getUrl(final String id, final List<String> contentFilter, final String sortFilter)
+    public String getUrl(final String id,@Nonnull final List<FilterItem> selectedContentFilter,
+                         final List<FilterItem> selectedSortFilter)
             throws ParsingException {
-        return "https://www.youtube.com/" + id + getUrlSuffix(contentFilter.get(0));
+        return "https://www.youtube.com/" + id + getUrlSuffix(selectedContentFilter.get(0).getName());
     }
 
     @Override
@@ -52,13 +58,5 @@ public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFa
         return true;
     }
 
-    @Override
-    public String[] getAvailableContentFilter() {
-        return new String[] {
-                ChannelTabs.SHORTS,
-                ChannelTabs.LIVESTREAMS,
-                ChannelTabs.CHANNELS,
-                ChannelTabs.PLAYLISTS,
-        };
-    }
+
 }

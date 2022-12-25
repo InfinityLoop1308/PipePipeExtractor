@@ -14,6 +14,8 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelTabLinkHandlerFactory;
@@ -394,7 +396,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
         final Consumer<String> addTab = tab -> {
             try {
                 tabs.add(YoutubeChannelTabLinkHandlerFactory.getInstance().fromQuery(
-                        redirectedChannelId, Collections.singletonList(tab), ""));
+                        redirectedChannelId, Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, tab)), null));
             } catch (final ParsingException ignored) {
             }
         };

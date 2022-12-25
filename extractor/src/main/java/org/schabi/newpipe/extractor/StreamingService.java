@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor;
 
+import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
@@ -288,14 +289,14 @@ public abstract class StreamingService {
     public ChannelTabExtractor getChannelTabExtractorFromId(final String id, final String tab)
             throws ExtractionException {
         return getChannelTabExtractor(getChannelTabLHFactory().fromQuery(
-                id, Collections.singletonList(tab), ""));
+                id, Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, tab)), null));
     }
 
     public ChannelTabExtractor getChannelTabExtractorFromId(final String id, final String tab,
                                                             final String baseUrl)
             throws ExtractionException {
         return getChannelTabExtractor(getChannelTabLHFactory().fromQuery(
-                id, Collections.singletonList(tab), "", baseUrl));
+                id, Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, tab)), null, baseUrl));
     }
 
     public PlaylistExtractor getPlaylistExtractor(final String id,

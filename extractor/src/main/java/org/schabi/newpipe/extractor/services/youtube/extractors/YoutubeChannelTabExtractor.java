@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
@@ -85,7 +86,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     public String getUrl() throws ParsingException {
         try {
             return YoutubeChannelTabLinkHandlerFactory.getInstance().getUrl("channel/" + getId(),
-                    Collections.singletonList(getTab()), "");
+                    Collections.singletonList(new FilterItem(-1, getTab())), null);
         } catch (final ParsingException e) {
             return super.getUrl();
         }

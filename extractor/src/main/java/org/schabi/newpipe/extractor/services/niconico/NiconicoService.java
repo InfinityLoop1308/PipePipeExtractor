@@ -4,6 +4,7 @@ import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCap
 
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
+import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
@@ -106,6 +107,11 @@ public class NiconicoService extends StreamingService {
     }
 
     @Override
+    public ListLinkHandlerFactory getChannelTabLHFactory() {
+        return null;
+    }
+
+    @Override
     public ListLinkHandlerFactory getPlaylistLHFactory() {
         return new NiconicoPlaylistLinkHandlerFactory();
     }
@@ -160,6 +166,11 @@ public class NiconicoService extends StreamingService {
     public ChannelExtractor getChannelExtractor(final ListLinkHandler linkHandler)
             throws ExtractionException {
         return new NiconicoUserExtractor(this, linkHandler);
+    }
+
+    @Override
+    public ChannelTabExtractor getChannelTabExtractor(ListLinkHandler linkHandler) throws ExtractionException {
+        return null;
     }
 
     @Override

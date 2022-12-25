@@ -11,6 +11,8 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper;
 import org.schabi.newpipe.extractor.services.soundcloud.linkHandler.SoundcloudChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
@@ -119,9 +121,9 @@ public class SoundcloudChannelExtractor extends ChannelExtractor {
 
         return Arrays.asList(
                 new ListLinkHandler(urlPlaylists, urlPlaylists, getId(),
-                        Collections.singletonList(ChannelTabs.PLAYLISTS), ""),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN,ChannelTabs.PLAYLISTS)), null),
                 new ListLinkHandler(urlAlbums, urlAlbums, getId(),
-                        Collections.singletonList(ChannelTabs.ALBUMS), "")
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN,ChannelTabs.ALBUMS)), null)
         );
     }
 

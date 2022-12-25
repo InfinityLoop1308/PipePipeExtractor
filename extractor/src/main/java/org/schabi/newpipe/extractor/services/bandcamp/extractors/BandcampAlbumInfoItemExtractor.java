@@ -39,15 +39,6 @@ public class BandcampAlbumInfoItemExtractor implements PlaylistInfoItemExtractor
         return albumInfoItem.getString("band_name");
     }
 
-    @Override
-    public String getUploaderUrl() {
-        return uploaderUrl;
-    }
-
-    @Override
-    public boolean isUploaderVerified() {
-        return false;
-    }
 
     @Override
     public long getStreamCount() {

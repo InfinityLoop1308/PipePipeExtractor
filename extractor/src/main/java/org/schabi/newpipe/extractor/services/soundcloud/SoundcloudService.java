@@ -113,7 +113,6 @@ public class SoundcloudService extends StreamingService {
     public SoundcloudSuggestionExtractor getSuggestionExtractor() {
         return new SoundcloudSuggestionExtractor(this);
     }
-
     @Override
     public KioskList getKioskList() throws ExtractionException {
         final KioskList.KioskExtractorFactory chartsFactory = (streamingService, url, id) ->
