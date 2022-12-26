@@ -61,10 +61,14 @@ public class NiconicoService extends StreamingService {
             = "https://www.nicovideo.jp/watch/";
     public static final String SP_WATCH_URL
             = "https://sp.nicovideo.jp/watch/";
+    public static final String LIVE_URL
+            = "https://live.nicovideo.jp/watch/";
     public static final String CHANNEL_URL
             = "https://ch.nicovideo.jp/";
     public static final String DAILY_TREND_URL
             = "https://www.nicovideo.jp/ranking/genre/all?term=24h&rss=2.0";
+    public static final String RECOMMEND_LIVES_URL
+            = "https://live.nicovideo.jp/front/api/v1/recommend-contents?recipe=live_top_guest&v=2&site=nicolive&content_meta=true&frontend_id=9";
     public static final String SUGGESTION_URL
             = "https://sug.search.nicovideo.jp/suggestion/expand/";
     public static final String RELATION_URL =
@@ -158,6 +162,7 @@ public class NiconicoService extends StreamingService {
 
         try {
             kioskList.addKioskEntry(kioskFactory, h, "Trending");
+            kioskList.addKioskEntry(kioskFactory, h, "Recommend Lives");
             kioskList.setDefaultKiosk("Trending");
         } catch (final Exception e) {
             throw new ExtractionException(e);

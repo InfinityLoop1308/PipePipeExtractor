@@ -301,7 +301,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                     "https://live.nicovideo.jp/front/api/v1/recommend-contents" +
                             "?recipe=live_watch_related_contents_user&v=1&site=nicolive&content_meta=true&frontend_id=9&tags=&user_id=";
             JsonObject author = liveData.getObject("author");
-            if(author.getString("url") == null){
+            if(author.getString("url") == null || author.getString("url").contains("/ch")){
                 try {
                     url = url.replace("live_watch_related_contents_user", "live_watch_related_contents_channel").replace("user_id", "channel_id");
                     url += JsonParser.object().from(liveResponse

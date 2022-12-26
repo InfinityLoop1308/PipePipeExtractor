@@ -10,17 +10,22 @@ import java.util.List;
 public class NiconicoTrendLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(final String url) throws ParsingException {
-        return "Trending";
+        if(url.equals(NiconicoService.DAILY_TREND_URL)){
+            return "Trending";
+        }else return "Recommend Lives";
     }
 
     @Override
     public boolean onAcceptUrl(final String url) throws ParsingException {
-        return NiconicoService.DAILY_TREND_URL.equals(url);
+        return NiconicoService.DAILY_TREND_URL.equals(url) || NiconicoService.RECOMMEND_LIVES_URL.equals(url);
     }
 
     @Override
     public String getUrl(final String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
-        return NiconicoService.DAILY_TREND_URL;
+        if(id.equals("Trending")){
+            return NiconicoService.DAILY_TREND_URL;
+        }
+        else return NiconicoService.RECOMMEND_LIVES_URL;
     }
 }
