@@ -46,6 +46,9 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
             throws IOException, ExtractionException {
         final BulletCommentsInfoItemsCollector collector =
                 new BulletCommentsInfoItemsCollector(getServiceId());
+        if(getId().contains("live.nicovideo.jp")){
+            return new InfoItemsPage<>(collector, null);
+        }
         for (final JsonObject comment : commentsCache
                 .getComments(watch, getDownloader(), getId())) {
             collector.commit(new NiconicoBulletCommentsInfoItemExtractor(comment, getUrl()));

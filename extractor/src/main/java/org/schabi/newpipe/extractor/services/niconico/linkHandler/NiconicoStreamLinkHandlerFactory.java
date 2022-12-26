@@ -11,11 +11,17 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
     @NonNull
     @Override
     public String getId(final String url) throws ParsingException {
+        if(url.contains("live.nicovideo.jp")){
+            return url;
+        }
         return Parser.matchGroup(NiconicoService.SMILEVIDEO, url, 2);
     }
 
     @Override
     public String getUrl(final String id) throws ParsingException {
+        if(id.contains("live.nicovideo.jp")){
+            return id;
+        }
         return NiconicoService.SP_WATCH_URL + id;
     }
 

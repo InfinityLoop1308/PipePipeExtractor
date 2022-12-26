@@ -45,7 +45,10 @@ public class NiconicoWatchDataCache {
             return watchData;
         }
 
-        final String url = NiconicoService.WATCH_URL + id;
+        String url = NiconicoService.WATCH_URL + id;
+        if(id.contains("live.nicovideo.jp")){
+            url = id;
+        }
         try {
             response = downloader.get(url, null, NiconicoService.LOCALE);
         } catch (final IOException | ReCaptchaException e) {

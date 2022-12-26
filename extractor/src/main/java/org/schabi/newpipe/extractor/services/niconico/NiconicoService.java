@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico;
 
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
 import org.schabi.newpipe.extractor.StreamingService;
@@ -49,7 +50,7 @@ import java.util.Map;
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
         //super(id, "NicoNico", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
-        super(id, "NicoNico", Arrays.asList(VIDEO));
+        super(id, "NicoNico", Arrays.asList(VIDEO, BULLET_COMMENTS));
     }
 
     public static final String BASE_URL = "https://www.nicovideo.jp";
