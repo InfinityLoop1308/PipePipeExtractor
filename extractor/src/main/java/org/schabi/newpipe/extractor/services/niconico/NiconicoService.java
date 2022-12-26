@@ -18,11 +18,13 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoChannelTabExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoBulletCommentsExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoCommentsCache;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoPlaylistExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSearchExtractor;
+import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSeriesExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoStreamExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.niconico.extractors.NiconicoTrendExtractor;
@@ -171,12 +173,15 @@ public class NiconicoService extends StreamingService {
 
     @Override
     public ChannelTabExtractor getChannelTabExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        return null;
+        return new NiconicoChannelTabExtractor(this, linkHandler);
     }
 
     @Override
     public PlaylistExtractor getPlaylistExtractor(final ListLinkHandler linkHandler)
             throws ExtractionException {
+        if(linkHandler.getUrl().contains("/series/")){
+            return new NiconicoSeriesExtractor(this, linkHandler);
+        }
         return new NiconicoPlaylistExtractor(this, linkHandler);
     }
 

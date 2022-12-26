@@ -17,15 +17,23 @@ import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 import org.schabi.newpipe.extractor.utils.Parser;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import javax.annotation.Nonnull;
+
 
 public class NiconicoUserExtractor extends ChannelExtractor {
     private Document rss;
@@ -196,5 +204,26 @@ public class NiconicoUserExtractor extends ChannelExtractor {
         } catch (final Parser.RegexException e) {
             throw new ParsingException("could not parse pager.");
         }
+    }
+
+    @Nonnull
+    @Override
+    public List<ListLinkHandler> getTabs() throws ParsingException {
+        if(type == 1){
+            return Collections.emptyList();
+        }
+        String id = getLinkHandler().getId().split("user/")[1];
+        String mylists = String.format("https://nvapi.nicovideo.jp/v1/users/%s/mylists?sampleItemCount=3",id);
+        String series = String.format("https://nvapi.nicovideo.jp/v1/users/%s/series?page=1&pageSize=100&name=%s",id, uploaderName);
+        String lives = String.format("https://live.nicovideo.jp/front/api/v1/user-broadcast-history?providerId=%s&providerType=user&isIncludeNonPublic=false&offset=0&limit=10&withTotalCount=true"
+        , id);
+        return Arrays.asList(
+                new ListLinkHandler(mylists, mylists, getLinkHandler().getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null),
+                new ListLinkHandler(series, series, getLinkHandler().getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.ALBUMS)), null),
+                new ListLinkHandler(lives, lives, getLinkHandler().getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.LIVESTREAMS)), null)
+        );
     }
 }

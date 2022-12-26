@@ -12,24 +12,16 @@ import java.util.regex.Pattern;
 public class NiconicoPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException {
-        if(url.contains("/mylist/")) {
-            return url.split("/mylist/")[1].split(Pattern.quote("?"))[0];
-        }
-        throw new ParsingException("failed to extract ID from mylist.");
+        return url;
     }
 
     @Override
     public String getUrl(String id, List<FilterItem> contentFilter, List<FilterItem> sortFilter) throws ParsingException {
-        return MYLIST_PAGE_URL + id;
+        return id;
     }
 
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
-        try {
-            getId(url);
-            return true;
-        }catch (Exception e){
-            return false;
-        }
+        return url.contains("/mylist/") || url.contains("/series/");
     }
 }

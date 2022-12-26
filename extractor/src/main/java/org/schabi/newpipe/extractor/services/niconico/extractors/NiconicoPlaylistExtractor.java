@@ -1,6 +1,5 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.MYLIST_URL;
 import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.getMylistHeaders;
 
@@ -21,6 +20,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import java.io.IOException;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
@@ -33,7 +33,7 @@ public class NiconicoPlaylistExtractor extends PlaylistExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        String playlistId = getLinkHandler().getId();
+        String playlistId = getLinkHandler().getUrl().split("/mylist/")[1].split(Pattern.quote("?"))[0];
         final String apiUrl = MYLIST_URL + playlistId + "?pageSize=100&page=1";
         String response = downloader.get(apiUrl, getMylistHeaders()).responseBody();
         try {
@@ -53,7 +53,7 @@ public class NiconicoPlaylistExtractor extends PlaylistExtractor {
         final StreamInfoItemsCollector collector
                 = new StreamInfoItemsCollector(getServiceId());
         for (int i = 0; i< items.size(); i++) {
-            collector.commit(new NiconicoPlaylistItemExtractor(items.getObject(i)));
+            collector.commit(new NiconicoPlaylistContentItemExtractor(items.getObject(i)));
         }
         return collector;
     }
@@ -64,7 +64,7 @@ public class NiconicoPlaylistExtractor extends PlaylistExtractor {
         if(items.size() == 0){
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
         }
-        String playlistId = getLinkHandler().getId();
+        String playlistId = getLinkHandler().getUrl().split("/mylist/")[1].split(Pattern.quote("?"))[0];
         final String nextPage = MYLIST_URL + playlistId + "?pageSize=100&page=2";
         return new InfoItemsPage<>(getCommittedCollector(items), new Page(nextPage));
     }

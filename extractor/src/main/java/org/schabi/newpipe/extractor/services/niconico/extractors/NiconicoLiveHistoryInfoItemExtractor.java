@@ -16,26 +16,25 @@ import java.util.Date;
 
 import javax.annotation.Nullable;
 
-public class NiconicoPlaylistItemExtractor implements StreamInfoItemExtractor {
-    protected final JsonObject item;
+public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtractor {
+    private JsonObject data;
 
-    public NiconicoPlaylistItemExtractor(JsonObject item) {
-        this.item = item.getObject("video");
+    public NiconicoLiveHistoryInfoItemExtractor(JsonObject data){
+        this.data = data;
     }
-
     @Override
     public String getName() throws ParsingException {
-        return item.getString("title");
+        return data.getObject("program").getString("title");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return NiconicoService.SP_WATCH_URL + item.getString("id");
+        return NiconicoService.WATCH_URL + data.getObject("linkedContent").getString("contentId");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return item.getObject("thumbnail").getString("url");
+        return data.getObject("thumbnail").getObject("huge").getString("s352x198");
     }
 
     @Override
@@ -50,28 +49,30 @@ public class NiconicoPlaylistItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public long getDuration() throws ParsingException {
-        return item.getLong("duration");
+        JsonObject schedule = data.getObject("program").getObject("schedule");
+        return schedule.getObject("endTime").getLong("seconds")
+                - schedule.getObject("beginTime").getLong("seconds");
     }
 
     @Override
     public long getViewCount() throws ParsingException {
-        return item.getObject("count").getLong("view");
+        return data.getObject("statistics").getObject("viewers").getLong("value");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return item.getObject("owner").getString("name");
+        return data.getObject("programProvider").getString("name");
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return NiconicoService.USER_URL + item.getObject("owner").getString("id");
+        return data.getObject("programProvider").getString("profileUrl");
     }
 
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return item.getObject("owner").getString("iconUrl");
+        return data.getObject("programProvider").getObject("icons").getString("uri150x150");
     }
 
     @Override
@@ -82,14 +83,13 @@ public class NiconicoPlaylistItemExtractor implements StreamInfoItemExtractor {
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return item.getString("registeredAt").replace("T", " ").split("\\+")[0];
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(data.getObject("program").getObject("schedule").getObject("endTime").getLong("seconds") * 1000L));
     }
 
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
         return new DateWrapper(LocalDateTime.parse(
-                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+9)));
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(9)));
     }
-
 }
