@@ -76,7 +76,17 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
 
     @Override
     public long getDuration() throws ParsingException {
-        return -1;
+        String duration = cdata.getElementsByClass("nico-info-length").text();
+        long result = 0;
+        int len = duration.split(":").length;
+        try {
+            result += Integer.parseInt(duration.split(":")[len-1]);
+            result += Integer.parseInt(duration.split(":")[len-2]) * 60;
+            result += Integer.parseInt(duration.split(":")[len-3]) * 3600;
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return  result;
     }
 
     @Override
