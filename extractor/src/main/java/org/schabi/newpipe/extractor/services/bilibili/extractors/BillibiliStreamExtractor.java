@@ -44,6 +44,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     String id = "";
     JsonObject page = null;
 
+    String url;
+
     WatchDataCache watchDataCache;
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -100,9 +102,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return null;
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
-        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+
         try {
-            String url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+            if(url == null){
+                String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+                url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+            }
             videoStreams.add(new VideoStream.Builder().setContent(url,true).setId("bilibili-"+watch.getLong("uid") +"-live").setIsVideoOnly(false).setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build());
         } catch (JsonParserException e) {
             e.printStackTrace();
@@ -116,16 +121,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() != StreamType.LIVE_STREAM){
             return null;
         }
-        String url = "";
         try {
-        String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=80&platform=h5&cid=" + getId(), getHeaders()).responseBody();
-
-            url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url").split(Pattern.quote("?"))[0];
-        } catch (JsonParserException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ReCaptchaException e) {
+            if(url == null){
+                String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+                url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+            }
+        } catch (JsonParserException | IOException | ReCaptchaException e) {
             e.printStackTrace();
         }
         return url;
