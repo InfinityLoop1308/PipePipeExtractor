@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
+import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.CHANNEL_URL;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 import com.grack.nanojson.JsonObject;
@@ -32,6 +33,8 @@ public class NiconicoUserExtractor extends ChannelExtractor {
     private String uploaderUrl;
     private String uploaderAvatarUrl;
     private JsonObject info;
+    private String channel_info;
+    private int type; //0 user 1 channel
 
     public NiconicoUserExtractor(final StreamingService service,
                                  final ListLinkHandler linkHandler) {
@@ -41,8 +44,20 @@ public class NiconicoUserExtractor extends ChannelExtractor {
     @Override
     public void onFetchPage(final @Nonnull Downloader downloader)
             throws IOException, ExtractionException {
-        final String url = getLinkHandler().getUrl() + "/video?rss=2.0&page=1";
+        String url = getLinkHandler().getUrl();
+        url += "/video?rss=2.0&page=1";
         rss = Jsoup.parse(getDownloader().get(url).responseBody());
+
+        if(url.contains(CHANNEL_URL)){
+            type = 1;
+            final Document user = Jsoup.parse(getDownloader().get(
+                    getLinkHandler().getUrl()).responseBody());
+            channel_info = user.select("meta[name=description]").attr("content");
+            uploaderName = user.select("meta[property=og:site_name]").attr("content");
+            uploaderAvatarUrl = user.select("meta[property=og:image]").attr("content");
+            uploaderUrl = getLinkHandler().getUrl();
+            return ;
+        }
 
         final Document user = Jsoup.parse(getDownloader().get(
                 getLinkHandler().getUrl()).responseBody());
@@ -135,14 +150,20 @@ public class NiconicoUserExtractor extends ChannelExtractor {
 
     @Override
     public long getSubscriberCount() throws ParsingException {
+        if(type == 1){
+            return -1;
+        }
         return info.getObject("userDetails").getObject("userDetails")
                 .getObject("user").getLong("followerCount");
     }
 
     @Override
     public String getDescription() throws ParsingException {
-        return info.getObject("userDetails").getObject("userDetails")
-                .getObject("user").getString("description");
+        if(type == 1){
+            return channel_info;
+        }
+        return Jsoup.parse(info.getObject("userDetails").getObject("userDetails")
+                .getObject("user").getString("description")).wholeText();
     }
 
     @Override

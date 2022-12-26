@@ -74,9 +74,10 @@ public class NiconicoService extends StreamingService {
             "https://www.nicovideo.jp/mylist/";
     public static final String TRENDING_RSS_STR = "^第\\d+位：(.*)$";
     public static final String SMILEVIDEO
-            = "(nicovideo\\.jp\\/watch|nico\\.ms)\\/((?:sm|so)\\d+)(.+)?";
+            = "(nicovideo\\.jp\\/watch|nico\\.ms)\\/(.+)?";
     public static final String USER_UPLOAD_LIST
             = "(?:www|sp).nicovideo.jp/user/(\\d+)(?:/video)?";
+
     // generally, Niconico uses Japanese, but some videos have multiple language
     // texts.
     // Use ja-JP locale to get original information of video.
