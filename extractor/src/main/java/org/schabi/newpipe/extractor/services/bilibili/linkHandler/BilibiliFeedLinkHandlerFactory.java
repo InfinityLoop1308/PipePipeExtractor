@@ -11,20 +11,28 @@ public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
     @Override
     public String getUrl(String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
-        // TODO Auto-generated method stub
-        return "https://www.bilibili.com";
+        switch (id){
+            case "Trending":
+            default:
+                return "https://www.bilibili.com";
+            case "Recommend Lives":
+                return "https://live.bilibili.com/all";
+        }
     }
 
     @Override
     public String getId(String url) throws ParsingException {
-        // TODO Auto-generated method stub
-        return "Trending";
+        if(url.equals("https://www.bilibili.com")){
+            return "Trending";
+        }else if(url.equals("https://live.bilibili.com/all")){
+            return "Recommend Lives";
+        }
+        return null;
     }
 
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
-        // TODO Auto-generated method stub
-        return url.equals("https://www.bilibili.com");
+        return url.equals("https://www.bilibili.com") || url.equals("https://live.bilibili.com/all");
     }
     
 }

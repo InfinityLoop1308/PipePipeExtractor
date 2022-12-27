@@ -104,7 +104,6 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public SubscriptionExtractor getSubscriptionExtractor() {
-        // TODO Auto-generated method stub
         return null;
     }
 
@@ -116,6 +115,7 @@ public class BilibiliService extends StreamingService{
         final BilibiliFeedLinkHandlerFactory h = new BilibiliFeedLinkHandlerFactory();
         try {
             kioskList.addKioskEntry(kioskFactory, h, "Trending");
+            kioskList.addKioskEntry(kioskFactory, h, "Recommend Lives");
             kioskList.setDefaultKiosk("Trending");
         } catch (Exception e) {
             e.printStackTrace();
