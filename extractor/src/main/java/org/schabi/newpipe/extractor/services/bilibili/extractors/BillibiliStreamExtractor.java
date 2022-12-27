@@ -367,4 +367,14 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         return subtitlesToReturn;
     }
+
+    @Override
+    public long getTimeStamp() throws ParsingException {
+        try{
+            return Long.parseLong(getUrl().split("#timestamp=")[1]);
+        }catch (Exception e){
+            return 0;
+        }
+
+    }
 }
