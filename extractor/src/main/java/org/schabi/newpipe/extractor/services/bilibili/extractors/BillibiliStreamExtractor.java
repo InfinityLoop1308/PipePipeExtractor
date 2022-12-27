@@ -3,8 +3,13 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -23,6 +28,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
@@ -236,7 +242,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public long getLikeCount() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return 0;
+            return -1;
         }
         return watch.getObject("stat").getLong("coin");
     }
@@ -290,7 +296,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 return collector;
             }
             for(int i=0;i<relatedArray.size();i++){
-                collector.commit(new BilibiliRelatedInfoItemExtractor(relatedArray.getObject(i), id, getThumbnailUrl(), String.valueOf(i+1)));
+                collector.commit(
+                        new BilibiliRelatedInfoItemExtractor(
+                                relatedArray.getObject(i), id, getThumbnailUrl(), String.valueOf(i+1), getUploaderName(), watch.getLong("ctime")));
             }
         } catch (JsonParserException | ParsingException e) {
             e.printStackTrace();
@@ -300,5 +308,18 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+    @Override
+    public String getTextualUploadDate() throws ParsingException {
+        if(getStreamType().equals(StreamType.LIVE_STREAM)){
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("live_time")*1000));
+        }
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("ctime")*1000));
+    }
+
+    @Override
+    public DateWrapper getUploadDate() throws ParsingException {
+        return new DateWrapper(LocalDateTime.parse(
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 }
