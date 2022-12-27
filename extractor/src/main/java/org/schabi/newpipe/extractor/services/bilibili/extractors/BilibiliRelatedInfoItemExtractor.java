@@ -27,17 +27,22 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
     String pic = "";
     String p = "1";
     String type = "multiP";
-    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id, String pic, String p) {
+    String name;
+    Long pubdate;
+    public BilibiliRelatedInfoItemExtractor(final JsonObject json, String id, String pic, String p, String name, Long pubdate) {
         item = json;
         this.id = id;
         this.pic = pic;
         this.p = p;
+        this.name = name;
+        this.pubdate = pubdate;
     }
     public BilibiliRelatedInfoItemExtractor(final JsonObject json) throws ParsingException {
         item = json;
         type = "related";
         id = item.getString("bvid").equals("")? new utils().av2bv(item.getLong("aid")):item.getString("bvid");
         pic = item.getString("pic").replace("http", "https");
+        pubdate = item.getLong("ctime");
     }
     @Override
     public String getName() throws ParsingException {
@@ -74,13 +79,13 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public long getViewCount() throws ParsingException {
-        if(type.equals("multiP"))return 0;
+        if(type.equals("multiP"))return -1;
         return item.getObject("stat").getLong("view");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        if(type.equals("multiP"))return null;
+        if(type.equals("multiP"))return name;
         return item.getObject("owner").getString("name");
     }
 
@@ -102,7 +107,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(item.getInt("pubdate") * 1000L));
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(pubdate*1000));
     }
 
     @Override
