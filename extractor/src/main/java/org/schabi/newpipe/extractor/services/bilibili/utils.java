@@ -1,10 +1,12 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import com.grack.nanojson.JsonArray;
+import com.grack.nanojson.JsonObject;
+
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -111,5 +113,25 @@ public class utils {
 
         decompresser.end();
         return output;
+    }
+    public static String bcc2srt(JsonObject bcc){
+        JsonArray array = bcc.getArray("body");
+        StringBuilder result = new StringBuilder();
+        for(int i = 0 ; i < array.size(); i++){
+            JsonObject temp = array.getObject(i);
+            result.append(i+1).append("\n")
+                    .append(sec2time(temp.getDouble("from")))
+                    .append(" --> ")
+                    .append(sec2time(temp.getDouble("to"))).append("\n")
+                    .append(temp.getString("content")).append("\n\n");
+        }
+        return result.toString();
+    }
+    public static String sec2time(double sec){
+        int h = (int) (sec/3600);
+        int m = (int) (sec/60%60);
+        int s = (int) (sec % 60);
+        int f = (int) ((sec * 1000) % 1000);
+        return String.format("%02d:%02d:%02d,%03d", h, m, s, f);
     }
 }
