@@ -20,31 +20,35 @@ package org.schabi.newpipe.extractor.services.youtube.linkHandler;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isInvidiousURL;
+import org.schabi.newpipe.extractor.search.filter.FilterItem;
+
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isInvidioURL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isYoutubeURL;
 
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
-import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
 
     public String getUrl(final String id,
-                         @Nonnull final List<FilterItem> contentFilters,
-                         @Nullable final List<FilterItem> sortFilter) {
+                         final List<FilterItem> contentFilters,
+                         final List<FilterItem> sortFilter) {
+        if(!id.equals("Trending")){
+            return "https://www.youtube.com/channel/UC4R8DWoMoI7CAwX8_LjQHig";
+        }
         return "https://www.youtube.com/feed/trending";
     }
 
     @Override
     public String getId(final String url) {
-        return "Trending";
+        if(url.equals("https://www.youtube.com/feed/trending")){
+            return "Trending";
+        }
+        return "Recommend Lives";
     }
 
     @Override
@@ -57,7 +61,7 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
         }
 
         final String urlPath = urlObj.getPath();
-        return Utils.isHTTP(urlObj) && (isYoutubeURL(urlObj) || isInvidiousURL(urlObj))
-                && urlPath.equals("/feed/trending");
+        return Utils.isHTTP(urlObj) && (isYoutubeURL(urlObj) || isInvidioURL(urlObj))
+                && (urlPath.equals("/feed/trending") || urlPath.equals("/channel/UC4R8DWoMoI7CAwX8_LjQHig"));
     }
 }
