@@ -317,6 +317,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 for(int i = 0; i< data.size();i++){
                     collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i)));
                 }
+                return collector;
             } catch (JsonParserException e) {
                 throw new RuntimeException(e);
             }

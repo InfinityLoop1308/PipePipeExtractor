@@ -5,6 +5,8 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.utils.Parser;
 
+import java.util.regex.Pattern;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
@@ -14,7 +16,7 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
         if(url.contains("live.nicovideo.jp")){
             return url;
         }
-        return Parser.matchGroup(NiconicoService.SMILEVIDEO, url, 2);
+        return Parser.matchGroup(NiconicoService.SMILEVIDEO, url, 2).split(Pattern.quote("?"))[0];
     }
 
     @Override
