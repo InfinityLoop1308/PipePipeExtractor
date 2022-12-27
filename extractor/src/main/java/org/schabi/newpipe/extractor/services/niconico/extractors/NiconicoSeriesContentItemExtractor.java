@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -52,7 +53,7 @@ public class NiconicoSeriesContentItemExtractor implements StreamInfoItemExtract
 
     @Override
     public long getDuration() throws ParsingException {
-        return Long.parseLong(data.getString("duration").split("PT")[1].split("S")[0]);
+        return Duration.parse(data.getString("duration")).getSeconds();
     }
 
     @Override
