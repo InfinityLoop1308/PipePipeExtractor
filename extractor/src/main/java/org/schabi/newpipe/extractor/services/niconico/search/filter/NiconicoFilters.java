@@ -5,6 +5,7 @@ import org.schabi.newpipe.extractor.search.filter.FilterGroup;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.search.filter.SearchFiltersBase;
 import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.util.Optional;
 
@@ -64,6 +65,8 @@ public final class NiconicoFilters extends SearchFiltersBase {
         }));
 
         /* 'Sort by' filter items */
+        final int filterHottest = builder.addSortItem(
+                new NiconicoSortFilterItem("Most Popular", "sort=h"));
         final int filterViewCount = builder.addSortItem(
                 new NiconicoSortFilterItem("Views", "_sort=viewCounter"));
         final int filterBookmarkCount = builder.addSortItem(
@@ -84,8 +87,23 @@ public final class NiconicoFilters extends SearchFiltersBase {
         final int filterSortOrderAscending = builder.addSortItem(
                 new NiconicoSortOrderFilterItem("Ascending"));
 
-
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
+                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                        builder.getFilterForId(filterHottest),
+                        builder.getFilterForId(filterViewCount),
+                        builder.getFilterForId(filterCommentCount),
+                        builder.getFilterForId(filterBookmarkCount),
+                        builder.getFilterForId(filterLikeCount),
+                        builder.getFilterForId(filterLength),
+                        builder.getFilterForId(filterPublishAt),
+                        builder.getFilterForId(filterLastCommentedAt),
+                }),
+                builder.createSortGroup("Sort order", false, new FilterItem[]{
+                        builder.getFilterForId(filterSortOrderAscending)
+                }),
+        }).build();
+
+        final Filter tagSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup("Sort by", true, new FilterItem[]{
                         builder.getFilterForId(filterViewCount),
                         builder.getFilterForId(filterCommentCount),
@@ -100,7 +118,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
                 }),
         }).build();
         addContentFilterSortVariant(contentFilterAll, allSortFilters);
-        addContentFilterSortVariant(contentFilterTagsOnly, allSortFilters);
+        addContentFilterSortVariant(contentFilterTagsOnly, tagSortFilters);
     }
 
     private static class NiconicoSortFilterItem extends FilterItem {

@@ -50,7 +50,7 @@ import java.util.Map;
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
         //super(id, "NicoNico", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
-        super(id, "NicoNico", Arrays.asList(VIDEO, BULLET_COMMENTS));
+        super(id, "NicoNico", Arrays.asList(VIDEO));
     }
 
     public static final String BASE_URL = "https://www.nicovideo.jp";
@@ -73,6 +73,9 @@ public class NiconicoService extends StreamingService {
             = "https://sug.search.nicovideo.jp/suggestion/expand/";
     public static final String RELATION_URL =
             "https://flapi.nicovideo.jp/api/getrelation?video=";
+
+    public static final String SEARCH_URL =
+            "https://www.nicovideo.jp/search/";
 
     public static final String MYLIST_URL =
             "https://nvapi.nicovideo.jp/v2/mylists/";

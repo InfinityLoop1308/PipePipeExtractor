@@ -15,7 +15,7 @@ import java.util.List;
 
 public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
     public static final int ITEMS_PER_PAGE = 10;
-    private static final String SEARCH_URL
+    private static final String SEARCH_API_URL
             = "https://api.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
 
     private final NiconicoFilters searchFilters = new NiconicoFilters();
@@ -31,7 +31,10 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
-            return SEARCH_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery.replace("+", "%2b")
+            if(filterQuery.contains("&sort=")){
+                return NiconicoService.SEARCH_URL + URLEncoder.encode(id, UTF_8) + "?sort=h&order=d&page=1";
+            }
+            return SEARCH_API_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery.replace("+", "%2b")
                     + "&fields=contentId,title,userId,channelId"
                     + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
                     + "&_offset=0"

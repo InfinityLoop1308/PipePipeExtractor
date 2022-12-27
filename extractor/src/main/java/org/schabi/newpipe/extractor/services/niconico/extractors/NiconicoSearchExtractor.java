@@ -7,6 +7,10 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.InfoItemsCollector;
@@ -41,6 +45,9 @@ public class NiconicoSearchExtractor extends SearchExtractor {
         final String response = getDownloader().get(
                 getLinkHandler().getUrl(), NiconicoService.LOCALE).responseBody();
         try {
+            if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)){
+                return ;
+            }
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not parse search results.");
@@ -50,6 +57,9 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+        if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)){
+            return getPage(new Page(getUrl()));
+        }
         if (searchCollection.getArray("data").size() == 0) {
             return new InfoItemsPage<>(collectItems(searchCollection),
                     null);
@@ -67,6 +77,19 @@ public class NiconicoSearchExtractor extends SearchExtractor {
 
         final String response = getDownloader().get(
                 page.getUrl(), NiconicoService.LOCALE).responseBody();
+
+        if(page.getUrl().contains(NiconicoService.SEARCH_URL)){
+            Elements videos = Jsoup.parse(response).select("ul.list > li.item[data-nicoad-video]");
+            final MultiInfoItemsCollector collector
+                    = new MultiInfoItemsCollector(getServiceId());
+            for (final Element e : videos) {
+                collector.commit(new NiconicoSearchContentItemExtractor(e));
+            }
+            String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
+            int currentPage = Integer.parseInt(currentPageString);
+            String nextPage = page.getUrl().replace(String.format("page=%s", currentPageString), String.format("page=%s", String.valueOf(currentPage + 1)));
+            return new InfoItemsPage<>(collector, new Page(nextPage));
+        }
 
         try {
             searchCollection = JsonParser.object().from(response);
