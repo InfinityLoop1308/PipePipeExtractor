@@ -37,12 +37,18 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
     public String getUrl(final String id,
                          final List<FilterItem> contentFilters,
                          final List<FilterItem> sortFilter) {
+        if(!id.equals("Trending")){
+            return "https://www.youtube.com/channel/UC4R8DWoMoI7CAwX8_LjQHig";
+        }
         return "https://www.youtube.com/feed/trending";
     }
 
     @Override
     public String getId(final String url) {
-        return "Trending";
+        if(url.equals("https://www.youtube.com/feed/trending")){
+            return "Trending";
+        }
+        return "Recommend Lives";
     }
 
     @Override
@@ -56,6 +62,6 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
 
         final String urlPath = urlObj.getPath();
         return Utils.isHTTP(urlObj) && (isYoutubeURL(urlObj) || isInvidioURL(urlObj))
-                && urlPath.equals("/feed/trending");
+                && (urlPath.equals("/feed/trending") || urlPath.equals("/channel/UC4R8DWoMoI7CAwX8_LjQHig"));
     }
 }

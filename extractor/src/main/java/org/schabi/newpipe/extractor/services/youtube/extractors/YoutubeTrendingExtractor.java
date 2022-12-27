@@ -60,7 +60,7 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
         // @formatter:off
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
                 getExtractorContentCountry())
-                .value("browseId", "FEtrending")
+                .value("browseId", getId().equals("Trending")?"FEtrending":"UC4R8DWoMoI7CAwX8_LjQHig")
                 .done())
                 .getBytes(UTF_8);
         // @formatter:on
@@ -108,6 +108,27 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
                     .map(content -> content.getObject("richItemRenderer")
                             .getObject("content")
                             .getObject("videoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
+        }else if(getId().equals("Recommend Lives")){
+            tabContent.getObject("sectionListRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .flatMap(content -> content.getObject("itemSectionRenderer")
+                            .getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(content -> content.getObject("shelfRenderer"))
+                    .flatMap(shelfRenderer -> shelfRenderer.getObject("content")
+                            .getObject("horizontalListRenderer")
+                            .getArray("items")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(item -> item.getObject("gridVideoRenderer"))
                     .forEachOrdered(videoRenderer -> collector.commit(
                             new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
         } else if (tabContent.has("sectionListRenderer")) {
