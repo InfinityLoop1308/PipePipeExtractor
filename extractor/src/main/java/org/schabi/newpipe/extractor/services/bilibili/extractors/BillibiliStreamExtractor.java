@@ -81,16 +81,27 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
          final List<AudioStream> audioStreams = new ArrayList<>();
          String bvid = watch.getString("bvid");
+
          String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
+         String response_720P = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&qn=64"+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
+
          JsonObject responseJson = new JsonObject();
+         JsonObject responseJson_720P = new JsonObject();
+
          try {
              responseJson =  JsonParser.object().from(response);
+             responseJson_720P = JsonParser.object().from(response_720P);
          } catch (JsonParserException e) {
              e.printStackTrace();
          }
+
          JsonArray audioArray =responseJson.getObject("data").getObject("dash").getArray("audio") ;
+         JsonArray audio_720P_Array = responseJson_720P.getObject("data").getObject("dash").getArray("audio") ;
          String url = audioArray.getObject(0).getString("baseUrl");
-         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio").setContent(url,true).setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+         String url_720P = audio_720P_Array.getObject(0).getString("baseUrl");
+         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio"+"480P").setContent(url,true).setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio"+"720P").setContent(url_720P,true).setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+
          return audioStreams;
     }
 
@@ -139,12 +150,17 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         final List<VideoStream> videoStreams = new ArrayList<>();
          String bvid = watch.getString("bvid");
          String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
+         String response_720P = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&qn=64"+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
+
          JsonObject responseJson = new JsonObject();
+         JsonObject response_720P_Json = new JsonObject();
          try {
              responseJson =  JsonParser.object().from(response);
+             response_720P_Json = JsonParser.object().from(response_720P);
          } catch (JsonParserException e) {
              e.printStackTrace();
          }
+
          String url = "";
          String desc ="";
          JsonArray videoArray =responseJson.getObject("data").getObject("dash").getArray("video") ;
@@ -154,7 +170,18 @@ public class BillibiliStreamExtractor extends StreamExtractor {
              }
             url = videoArray.getObject(i).getString("baseUrl");
          }
-         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video").setIsVideoOnly(true).setResolution("Best").build());
+
+         String url_720P = "";
+         JsonArray videoArray_720P = response_720P_Json.getObject("data").getObject("dash").getArray("video") ;
+         for(int i=0; i< videoArray_720P.size(); i++){
+             if(videoArray_720P.getObject(i).getInt("id") > 64){
+                 continue;
+             }
+             url_720P = videoArray_720P.getObject(i).getString("baseUrl");
+         }
+
+         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video"+"480P").setIsVideoOnly(true).setResolution("480P").build());
+         videoStreams.add(new VideoStream.Builder().setContent(url_720P,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video"+"720P").setIsVideoOnly(true).setResolution("720P").build());
         return videoStreams;
     }
 
