@@ -7,10 +7,14 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 public class utils {
     int[] s = {11, 10, 3, 8, 4, 6};
@@ -85,35 +89,6 @@ public class utils {
     public static String getMidFromRecordApiUrl(String url){
         return url.split("mid=")[1].split("&")[0];
     }
-    public static byte[] decompress(byte[] data) {
-        byte[] output;
-
-        Inflater decompresser = new Inflater(true);//这个true是关键
-        decompresser.reset();
-        decompresser.setInput(data);
-
-        ByteArrayOutputStream o = new ByteArrayOutputStream(data.length);
-        try {
-            byte[] buf = new byte[1024];
-            while (!decompresser.finished()) {
-                int i = decompresser.inflate(buf);
-                o.write(buf, 0, i);
-            }
-            output = o.toByteArray();
-        } catch (Exception e) {
-            output = data;
-            e.printStackTrace();
-        } finally {
-            try {
-                o.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        decompresser.end();
-        return output;
-    }
     public static String bcc2srt(JsonObject bcc){
         JsonArray array = bcc.getArray("body");
         StringBuilder result = new StringBuilder();
@@ -133,5 +108,25 @@ public class utils {
         int s = (int) (sec % 60);
         int f = (int) ((sec * 1000) % 1000);
         return String.format("%02d:%02d:%02d,%03d", h, m, s, f);
+    }
+    public static byte[] decompress(byte[] data) throws IOException {
+        byte[] decompressData = null;
+        Inflater decompressor = new Inflater(true);
+        decompressor.reset();
+        decompressor.setInput(data);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);
+        try {
+            byte[] buf = new byte[1024];
+            while (!decompressor.finished()) {
+                int i = decompressor.inflate(buf);
+                outputStream.write(buf, 0, i);
+            }
+            decompressData = outputStream.toByteArray();
+        } catch (Exception e) {
+        } finally {
+            outputStream.close();
+        }
+        decompressor.end();
+        return decompressData;
     }
 }

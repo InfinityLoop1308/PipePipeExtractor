@@ -10,17 +10,10 @@ import org.schabi.newpipe.extractor.services.bilibili.utils;
 import java.util.List;
 
 public class BilibiliBulletCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
-    private int cid;
-    public BilibiliBulletCommentsLinkHandlerFactory(WatchDataCache watchDataCache) {
-        this.cid = watchDataCache.getCid();
-    }
 
     @Override
     public String getId(String url) throws ParsingException {
-        if(url.contains("live.bilibili.com")){
-            throw new ParsingException("not a bilibili comment link");
-        }
-        return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));
+        return new BilibiliStreamLinkHandlerFactory().getId(url);
     }
 
     @Override
@@ -36,6 +29,6 @@ public class BilibiliBulletCommentsLinkHandlerFactory extends ListLinkHandlerFac
     @Override
     public String getUrl(String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
-        return String.format("https://api.bilibili.com/x/v2/dm/web/seg.so?oid=%s&type=1&segment_index=1", cid);
+        return new BilibiliStreamLinkHandlerFactory().getUrl(id);
     }
 }

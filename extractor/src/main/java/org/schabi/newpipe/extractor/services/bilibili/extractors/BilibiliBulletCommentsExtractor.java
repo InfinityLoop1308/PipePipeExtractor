@@ -1,65 +1,65 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.utils.decompress;
-
-import com.google.protobuf.TextFormat;
 import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonParserException;
 
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
+import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
-import org.schabi.newpipe.extractor.services.bilibili.ProtobufParser;
+import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 import javax.annotation.Nonnull;
 
-import okhttp3.ResponseBody;
-import okio.Buffer;
-import okio.BufferedSink;
-import okio.BufferedSource;
-import okio.Okio;
-import okio.Sink;
-
 public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
+    private int cid;
+    private Document result;
 
-    public BilibiliBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler) {
+    public BilibiliBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache watchDataCache) {
         super(service, uiHandler);
+        this.cid = watchDataCache.getCid();
     }
 
     JsonObject json = new JsonObject();
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-//        String response = downloader.get(getUrl()).responseBody();
-//        byte[] decompressBytes = decompress(response.getBytes());//调用解压函数进行解压，返回包含解压后数据的byte数组
-//        response = new String(decompressBytes);
-
-        try {
-            ResponseBody response = downloader.get(getUrl()).rawResponseBody();
-            BufferedSource source = response.source();
-            source.request(Long.MAX_VALUE);
-            Buffer buffer = source.buffer();
-            byte[] responseBytes = buffer.clone().readByteArray();
-            ProtobufParser.DmSegMobileReply reply = ProtobufParser.DmSegMobileReply.parseFrom(responseBytes);
-            String a = TextFormat.printer().printToString(reply);
+        if(getUrl().contains("live.bilibili.com")){
+            return ;
         }
-        catch (Exception e){
-            e.printStackTrace();
-        }
+        result = Jsoup.parse(new String(utils.decompress(downloader.get(
+                "https://api.bilibili.com/x/v1/dm/list.so?oid="+cid).rawResponseBody().bytes())));
     }
 
     @Nonnull
     @Override
     public InfoItemsPage<BulletCommentsInfoItem> getInitialPage() throws IOException, ExtractionException {
-        return null;
+        final BulletCommentsInfoItemsCollector collector =
+                new BulletCommentsInfoItemsCollector(getServiceId());
+        if(getUrl().contains("live.bilibili.com")){
+            return new InfoItemsPage<>(collector, null);
+        }else{
+            if(result.select("state").text().equals("1")){
+                return new InfoItemsPage<>(collector, null);
+            }
+            else{
+                Elements elements = result.select("d");
+                for(final Element element:elements){
+                    collector.commit(new BilibiliBulletCommentsInfoItemExtractor(element));
+                }
+            }
+            return new InfoItemsPage<>(collector, null);
+        }
     }
 
     @Override

@@ -58,7 +58,7 @@ public class BilibiliService extends StreamingService{
     }
 
     public BilibiliService(int id){
-        super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS));
+        super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
         watchDataCache = new WatchDataCache();
     }
 
@@ -155,12 +155,12 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public ListLinkHandlerFactory getBulletCommentsLHFactory(){
-        return new BilibiliBulletCommentsLinkHandlerFactory(watchDataCache);
+        return new BilibiliBulletCommentsLinkHandlerFactory();
     }
 
     @Override
     public BulletCommentsExtractor getBulletCommentsExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        return new BilibiliBulletCommentsExtractor(this, linkHandler);
+        return new BilibiliBulletCommentsExtractor(this, linkHandler, watchDataCache);
     }
 
     @Override
