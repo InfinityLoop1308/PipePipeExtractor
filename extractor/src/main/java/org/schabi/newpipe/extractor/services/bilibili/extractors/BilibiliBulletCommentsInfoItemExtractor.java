@@ -54,7 +54,15 @@ public class BilibiliBulletCommentsInfoItemExtractor implements BulletCommentsIn
 
     @Override
     public double getRelativeFontSize() throws ParsingException {
-        return Double.parseDouble(attr[2])/25;
+        switch (attr[2]){
+            case "18":
+                return 0.5;
+            case "25":
+            default:
+                return 0.6;
+            case "36":
+                return 0.7;
+        }
     }
 
     @Override
