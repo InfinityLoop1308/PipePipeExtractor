@@ -50,7 +50,7 @@ import java.util.Map;
 public class NiconicoService extends StreamingService {
     public NiconicoService(final int id) {
         //super(id, "NicoNico", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
-        super(id, "NicoNico", Arrays.asList(VIDEO));
+        super(id, "NicoNico", Arrays.asList(VIDEO, BULLET_COMMENTS));
     }
 
     public static final String BASE_URL = "https://www.nicovideo.jp";
@@ -105,6 +105,20 @@ public class NiconicoService extends StreamingService {
         headers.put("Referer", Collections.singletonList("https://www.nicovideo.jp/"));
         headers.put("Origin", Collections.singletonList("https://www.nicovideo.jp"));
         return headers;
+    }
+
+    static public Map<String, String> getWebSocketHeaders(){
+        Map<String, String> httpHeaders = new HashMap<String, String>();
+        httpHeaders.put("Pragma", "no-cache");
+        httpHeaders.put("Origin", "https://live.nicovideo.jp");
+        httpHeaders.put("Accept-Language", "en-US,en;q=0.9");
+        httpHeaders.put("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36");
+        httpHeaders.put("Upgrade", "websocket");
+        httpHeaders.put("Cache-Control", "no-cache");
+        httpHeaders.put("Connection", "Upgrade");
+        httpHeaders.put("Sec-WebSocket-Version", "13");
+        httpHeaders.put("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
+        return httpHeaders;
     }
 
     @Override

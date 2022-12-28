@@ -1,7 +1,5 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
-
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -33,13 +31,11 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.io.IOException;
-import java.net.ProxySelector;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +51,8 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private Document page = null;
     private Response response = null;
     private String liveUrl;
+    private String liveMessageServer;
+    private String liveThreadId;
     private JsonObject liveData;
     private Document liveResponse;
 
@@ -196,31 +194,25 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         return null;
     }
 
-    public String getLiveUrl() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
+    public void getLiveUrl() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
         String url = getUrl();
         liveResponse = Jsoup.parse(getDownloader().get(url).responseBody());
         String result = JsonParser.object().from(liveResponse
                 .select("script#embedded-data").attr("data-props"))
                 .getObject("site").getObject("relive").getString("webSocketUrl");
-        Map<String, String> httpHeaders = new HashMap<String, String>();
-        httpHeaders.put("Pragma", "no-cache");
-        httpHeaders.put("Origin", "https://live.nicovideo.jp");
-        httpHeaders.put("Accept-Language", "en-US,en;q=0.9");
-        httpHeaders.put("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36");
-        httpHeaders.put("Upgrade", "websocket");
-        httpHeaders.put("Cache-Control", "no-cache");
-        httpHeaders.put("Connection", "Upgrade");
-        httpHeaders.put("Sec-WebSocket-Version", "13");
-        httpHeaders.put("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
-        NicoWebSocketClient nicoWebSocketClient = new NicoWebSocketClient(URI.create(result), httpHeaders);
+        NicoWebSocketClient nicoWebSocketClient = new NicoWebSocketClient(URI.create(result), NiconicoService.getWebSocketHeaders());
         nicoWebSocketClient.connect();
         long startTime = System.nanoTime();
         do {
-            if (nicoWebSocketClient.hasUrl()) {
+            liveUrl = nicoWebSocketClient.getUrl();
+            liveMessageServer = nicoWebSocketClient.getServerUrl();
+            liveThreadId = nicoWebSocketClient.getThreadId();
+            if (liveUrl != null && liveMessageServer != null && liveThreadId != null) {
                 nicoWebSocketClient.close();
-                return nicoWebSocketClient.getUrl();
+                return ;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 10);
+        nicoWebSocketClient.close();
         throw new RuntimeException("Failed to get live url");
     }
 
@@ -340,8 +332,10 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             throws IOException, ExtractionException {
         if(getStreamType() == StreamType.LIVE_STREAM){
             try {
-                liveUrl = getLiveUrl();
+                getLiveUrl();
                 liveData = JsonParser.object().from(liveResponse.select("script[type='application/ld+json']").first().data());
+                niconicoWatchDataCache.setThreadId(liveThreadId);
+                niconicoWatchDataCache.setThreadServer(liveMessageServer);
             } catch (JsonParserException e) {
                 throw new RuntimeException(e);
             }

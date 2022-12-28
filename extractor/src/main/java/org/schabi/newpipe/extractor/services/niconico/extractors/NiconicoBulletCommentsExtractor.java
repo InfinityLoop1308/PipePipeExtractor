@@ -9,19 +9,28 @@ import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.niconico.NicoWebSocketClient;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
 public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
 
     private JsonObject watch;
+    private NicoWebSocketClient webSocketClient;
     @Nonnull
     private final NiconicoWatchDataCache watchDataCache;
     @Nonnull
     private final NiconicoCommentsCache commentsCache;
+    private boolean isLive = true;
 
     public NiconicoBulletCommentsExtractor(
             final StreamingService service,
@@ -36,9 +45,33 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
-        this.watch = watchDataCache.refreshAndGetWatchData(downloader, getId());
+        if(watchDataCache.getThreadServer() == null){
+            isLive = false;
+            this.watch = watchDataCache.refreshAndGetWatchData(downloader, getId());
+            return ;
+        }
+        try {
+            webSocketClient =
+                    new NicoWebSocketClient(new URI(watchDataCache.getThreadServer()), NiconicoService.getWebSocketHeaders());
+            webSocketClient.setThreadId(watchDataCache.getThreadId());
+            watchDataCache.setThreadServer(null);
+            watchDataCache.setThreadId(null);
+            webSocketClient.connect();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
+    @Override
+    public List<BulletCommentsInfoItem> getLiveMessages() throws ParsingException {
+        final BulletCommentsInfoItemsCollector collector =
+                new BulletCommentsInfoItemsCollector(getServiceId());
+        ArrayList<JsonObject> messages = webSocketClient.getMessages();
+        for(final JsonObject message:messages){
+            collector.commit(new NiconicoBulletCommentsInfoItemExtractor(message, getUrl()));
+        }
+        return new InfoItemsPage<>(collector, null).getItems();
+    }
 
     @Nonnull
     @Override
@@ -60,5 +93,14 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
     public InfoItemsPage<BulletCommentsInfoItem> getPage(final Page page)
             throws IOException, ExtractionException {
         return null;
+    }
+    @Override
+    public boolean isLive() {
+        return isLive;
+    }
+
+    @Override
+    public void disconnect() {
+        webSocketClient.close(-1);
     }
 }

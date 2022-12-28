@@ -22,6 +22,8 @@ public class NiconicoWatchDataCache {
     Document page;
     JsonObject watchData;
     WatchDataType watchDataType;
+    private String threadServer;
+    private String threadId;
 
     public enum WatchDataType {
         LOGIN(1),
@@ -93,5 +95,21 @@ public class NiconicoWatchDataCache {
 
     public Response getLastResponse() {
         return response;
+    }
+
+    public String getThreadId() {
+        return threadId;
+    }
+
+    public String getThreadServer() {
+        return threadServer;
+    }
+
+    public void setThreadId(String threadId) {
+        this.threadId = threadId;
+    }
+
+    public void setThreadServer(String threadServer) {
+        this.threadServer = threadServer;
     }
 }
