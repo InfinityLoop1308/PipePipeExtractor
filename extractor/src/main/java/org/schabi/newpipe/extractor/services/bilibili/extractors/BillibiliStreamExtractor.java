@@ -185,9 +185,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             String response = downloader.get("https://api.live.bilibili.com/room/v1/Room/room_init?id=" + getId()).responseBody();
             try {
-                String uid = String.valueOf(JsonParser.object().from(response).getObject("data").getLong("uid"));
+                JsonObject data = JsonParser.object().from(response).getObject("data");
+                String uid = String.valueOf(data.getLong("uid"));
                 response = downloader.get("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=" + uid).responseBody();
                 watch = JsonParser.object().from(response).getObject("data").getObject(uid);
+                watchDataCache.setRoomId(data.getLong("room_id"));
+                watchDataCache.setStartTime(data.getLong("live_time"));
             } catch (JsonParserException e) {
                 e.printStackTrace();
             }

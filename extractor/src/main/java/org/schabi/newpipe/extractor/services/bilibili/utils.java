@@ -5,16 +5,23 @@ import com.grack.nanojson.JsonObject;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
+import org.brotli.dec.BrotliInputStream;
+
+import okhttp3.ResponseBody;
 
 public class utils {
     int[] s = {11, 10, 3, 8, 4, 6};
@@ -128,5 +135,37 @@ public class utils {
         }
         decompressor.end();
         return decompressData;
+    }
+    public static byte[] decompressZlib(byte[] data) {
+        byte[] output = new byte[0];
+
+        Inflater decompresser = new Inflater();
+        decompresser.reset();
+        decompresser.setInput(data);
+
+        ByteArrayOutputStream o = new ByteArrayOutputStream(data.length);
+        try {
+            byte[] buf = new byte[1024];
+            while (!decompresser.finished()) {
+                int i = decompresser.inflate(buf);
+                o.write(buf, 0, i);
+            }
+            output = o.toByteArray();
+        } catch (Exception e) {
+            output = data;
+            e.printStackTrace();
+        } finally {
+            try {
+                o.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        decompresser.end();
+        return output;
+    }
+    public static String decompressBrotli(byte[] body) throws IOException {
+        return new BufferedReader(new InputStreamReader(new BrotliInputStream(
+                new ByteArrayInputStream(body)))).lines().collect(Collectors.joining());
     }
 }

@@ -56,6 +56,26 @@ public class BilibiliService extends StreamingService{
         headers.put("Cookie", Collections.singletonList("buvid3=C17989F9-9E34-6949-F6B9-19E02F3DC4B734983infoc;"));
         return headers;
     }
+    static public Map<String, String> getWebSocketHeaders(){
+        Map<String, String> httpHeaders = new HashMap<String, String>();
+        httpHeaders.put("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:106.0) Gecko/20100101 Firefox/106.0");
+        httpHeaders.put("Accept", "*/*");
+        httpHeaders.put("Accept-Language", "en-US,en;q=0.5");
+        httpHeaders.put("Accept-Encoding", "gzip, deflate, br");
+        httpHeaders.put("Sec-WebSocket-Version", "13");
+        httpHeaders.put("Origin", "https://www.piesocket.com");
+        httpHeaders.put("Sec-WebSocket-Extensions", "permessage-deflate");
+        httpHeaders.put("Sec-WebSocket-Key", "9cwI/6tCIyNBM4XSsi3jMA==");
+        httpHeaders.put("DNT", "1");
+        httpHeaders.put("Connection", "keep-alive, Upgrade");
+        httpHeaders.put("Sec-Fetch-Dest", "websocket");
+        httpHeaders.put("Sec-Fetch-Mode", "websocket");
+        httpHeaders.put("Sec-Fetch-Site", "cross-site");
+        httpHeaders.put("Pragma", "no-cache");
+        httpHeaders.put("Cache-Control", "no-cache");
+        httpHeaders.put("Upgrade", "websocket");
+        return httpHeaders;
+    }
 
     public BilibiliService(int id){
         super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
