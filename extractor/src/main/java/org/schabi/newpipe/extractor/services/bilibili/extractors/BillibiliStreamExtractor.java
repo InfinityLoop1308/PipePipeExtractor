@@ -335,6 +335,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public List<SubtitlesStream> getSubtitlesDefault() throws IOException, ExtractionException {
+        if(getStreamType().equals(StreamType.LIVE_STREAM)){
+            return new ArrayList<>();
+        }
         JsonArray subtitles = watch.getObject("subtitle").getArray("list");
         List<SubtitlesStream> subtitlesToReturn = new ArrayList<>();
         for(int i = 0; i< subtitles.size();i++){
