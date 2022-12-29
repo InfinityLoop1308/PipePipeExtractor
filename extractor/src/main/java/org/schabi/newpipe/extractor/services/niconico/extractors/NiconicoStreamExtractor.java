@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.java_websocket.client.WebSocketClient;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -201,18 +202,19 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 .select("script#embedded-data").attr("data-props"))
                 .getObject("site").getObject("relive").getString("webSocketUrl");
         NicoWebSocketClient nicoWebSocketClient = new NicoWebSocketClient(URI.create(result), NiconicoService.getWebSocketHeaders());
-        nicoWebSocketClient.connect();
+        NicoWebSocketClient.WrappedWebSocketClient webSocketClient = nicoWebSocketClient.getWebSocketClient();
+        webSocketClient.connect();
         long startTime = System.nanoTime();
         do {
-            liveUrl = nicoWebSocketClient.getUrl();
-            liveMessageServer = nicoWebSocketClient.getServerUrl();
-            liveThreadId = nicoWebSocketClient.getThreadId();
+            liveUrl = webSocketClient.getUrl();
+            liveMessageServer = webSocketClient.getServerUrl();
+            liveThreadId = webSocketClient.getThreadId();
             if (liveUrl != null && liveMessageServer != null && liveThreadId != null) {
-                nicoWebSocketClient.close();
+                webSocketClient.close();
                 return ;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 10);
-        nicoWebSocketClient.close();
+        webSocketClient.close();
         throw new RuntimeException("Failed to get live url");
     }
 

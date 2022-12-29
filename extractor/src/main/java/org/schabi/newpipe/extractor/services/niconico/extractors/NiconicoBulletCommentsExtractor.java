@@ -53,10 +53,11 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
         try {
             webSocketClient =
                     new NicoWebSocketClient(new URI(watchDataCache.getThreadServer()), NiconicoService.getWebSocketHeaders());
-            webSocketClient.setThreadId(watchDataCache.getThreadId());
+            NicoWebSocketClient.WrappedWebSocketClient wrappedWebSocketClient = webSocketClient.getWebSocketClient();
+            wrappedWebSocketClient.setThreadId(watchDataCache.getThreadId());
             watchDataCache.setThreadServer(null);
             watchDataCache.setThreadId(null);
-            webSocketClient.connect();
+            wrappedWebSocketClient.connect();
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -101,6 +102,6 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void disconnect() {
-        webSocketClient.close(-1);
+        webSocketClient.getWebSocketClient().close(-1);
     }
 }
