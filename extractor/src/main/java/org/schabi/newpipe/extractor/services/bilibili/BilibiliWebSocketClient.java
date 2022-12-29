@@ -67,17 +67,16 @@ public class BilibiliWebSocketClient {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            // send(new byte[]{0, 0, 0, 93, 0, 16, 0, 1, 0, 0, 0, 7, 0, 0, 0, 1, 123, 34, 117, 105, 100, 34, 58, 48, 44, 34, 114, 111, 111, 109, 105, 100, 34, 58, 50, 53, 50, 56, 48, 56, 54, 56, 44, 34, 112, 114, 111, 116, 111, 118, 101, 114, 34, 58, 49, 44, 34, 112, 108, 97, 116, 102, 111, 114, 109, 34, 58, 34, 119, 101, 98, 34, 44, 34, 99, 108, 105, 101, 110, 116, 118, 101, 114, 34, 58, 34, 49, 46, 52, 46, 48, 34, 125});
-//            executor = Executors.newSingleThreadScheduledExecutor();
-//            executor.scheduleAtFixedRate(() -> {
-//                try {
-//                    while (!shouldStop.get()) {
-//                        send(encode("",2));
-//                    }
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//            }, 0, 30000, TimeUnit.MILLISECONDS);
+            executor = Executors.newSingleThreadScheduledExecutor();
+            executor.scheduleAtFixedRate(() -> {
+                try {
+                    while (!shouldStop.get()) {
+                        send(encode("",2));
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }, 30000, 30000, TimeUnit.MILLISECONDS);
         }
 
         @Override
