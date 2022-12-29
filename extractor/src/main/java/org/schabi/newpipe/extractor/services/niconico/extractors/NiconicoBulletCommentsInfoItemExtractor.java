@@ -68,7 +68,7 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     protected final HashMap<String, Double> sizeMap = new HashMap<String, Double>() {
         {
             put("small", 0.64);
-            put("big", 1.44);
+            put("big", 0.8);
         }
     };
 
