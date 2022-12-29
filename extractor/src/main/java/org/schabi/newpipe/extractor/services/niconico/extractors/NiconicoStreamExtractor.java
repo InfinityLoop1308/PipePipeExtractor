@@ -222,7 +222,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         if(getStreamType() == StreamType.LIVE_STREAM){
             final List<VideoStream> videoStreams = new ArrayList<>();
-            videoStreams.add(new VideoStream.Builder().setContent(liveUrl,true)
+            videoStreams.add(new VideoStream.Builder().setContent(getUrl(),true)
                     .setId("Niconico-" + getId() +"-live").setIsVideoOnly(false)
                     .setResolution("Best").setDeliveryMethod(DeliveryMethod.HLS).build());
             return videoStreams;
@@ -246,7 +246,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         if(getStreamType() != StreamType.LIVE_STREAM){
             return null;
         }
-        return liveUrl;
+        return getUrl();
     }
 
     @Override
