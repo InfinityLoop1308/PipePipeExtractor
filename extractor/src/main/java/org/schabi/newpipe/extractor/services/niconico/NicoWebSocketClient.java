@@ -17,18 +17,19 @@ import javax.annotation.Nonnull;
 
 public class NicoWebSocketClient  {
     WrappedWebSocketClient webSocketClient;
-    private URI serverUri;
-    private Map<String, String> httpHeaders;
+    private final URI serverUri;
+    private final Map<String, String> httpHeaders;
+
+    private String serverUrl;
+    private String threadId;
+    public String url;
     private int retryTimes = 0;
+    private Map<String, String> pageIndicators;
 
     private final ArrayList<JsonObject> messages  = new ArrayList<>();
     public class WrappedWebSocketClient extends WebSocketClient {
-        public String url;
         public int type;
-        private String serverUrl;
-        private String threadId;
         private boolean shouldSkip = false;
-
 
     public WrappedWebSocketClient() {
             super(serverUri, httpHeaders);
@@ -64,15 +65,15 @@ public class NicoWebSocketClient  {
                 send("{\"type\":\"pong\"}");
                 send("{\"type\":\"keepSeat\"}");
             }
-            else if(message.equals("{\"ping\":{\"content\":\"pf:0\"}}")){
-                shouldSkip = false;
-            }
             else {
                 try {
                     JsonObject data = JsonParser.object().from(message);
                     if (data.has("chat") && !shouldSkip
                             && !data.getObject("chat").getString("content").startsWith("/nicoad")
                             && !data.getObject("chat").getString("content").startsWith("/info")) {
+                        if(data.getObject("chat").getString("content").startsWith("/")){
+                            System.out.println(data.getObject("chat").toString());
+                        }
                         messages.add(data.getObject("chat"));
                     }else if(data.has("type")){
                         if(data.getString("type").equals("stream")){
@@ -80,6 +81,11 @@ public class NicoWebSocketClient  {
                         }else if(data.getString("type").equals("room")){
                             serverUrl = data.getObject("data").getObject("messageServer").getString("uri");
                             threadId = data.getObject("data").getString("threadId");
+                        }
+                    } else if(data.has("ping")){
+                        String content = data.getObject("ping").getString("content");
+                        if(content.equals("pf:0")){
+                            shouldSkip = false;
                         }
                     }
                 } catch (JsonParserException ignored) {
@@ -91,7 +97,6 @@ public class NicoWebSocketClient  {
         @Override
         public void onClose(int code, String reason, boolean remote) {
             if(type != 0 && code != -1){
-                retryTimes ++;
                 try {
                     wrappedReconnect();
                 } catch (URISyntaxException e) {
@@ -106,26 +111,6 @@ public class NicoWebSocketClient  {
         public void onError(Exception ex) {
             System.out.println(ex);
         }
-        public boolean hasUrl(){
-            return url !=  null;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        public String getServerUrl() {
-            return serverUrl;
-        }
-
-        public String getThreadId() {
-            return threadId;
-        }
-
-        public void setThreadId(String threadId) {
-            this.threadId = threadId;
-        }
-
     }
     public NicoWebSocketClient(URI serverUri, Map<String, String> httpHeaders){
         this.serverUri = serverUri;
@@ -137,7 +122,7 @@ public class NicoWebSocketClient  {
     }
     public void wrappedReconnect() throws URISyntaxException, InterruptedException {
         webSocketClient = new WrappedWebSocketClient();
-        webSocketClient.connectBlocking();
+        webSocketClient.connect();
     }
     public ArrayList<JsonObject> getMessages() {
         ArrayList<JsonObject> temp = (ArrayList<JsonObject>) messages.clone();
@@ -146,5 +131,24 @@ public class NicoWebSocketClient  {
     }
     public void disconnect(){
         webSocketClient.close(-1);
+    }
+    public boolean hasUrl(){
+        return url !=  null;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public String getServerUrl() {
+        return serverUrl;
+    }
+
+    public String getThreadId() {
+        return threadId;
+    }
+
+    public void setThreadId(String threadId) {
+        this.threadId = threadId;
     }
 }

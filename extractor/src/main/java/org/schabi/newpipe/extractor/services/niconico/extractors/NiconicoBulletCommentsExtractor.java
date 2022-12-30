@@ -54,7 +54,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
             webSocketClient =
                     new NicoWebSocketClient(new URI(watchDataCache.getThreadServer()), NiconicoService.getWebSocketHeaders());
             NicoWebSocketClient.WrappedWebSocketClient wrappedWebSocketClient = webSocketClient.getWebSocketClient();
-            wrappedWebSocketClient.setThreadId(watchDataCache.getThreadId());
+            webSocketClient.setThreadId(watchDataCache.getThreadId());
             watchDataCache.setThreadServer(null);
             watchDataCache.setThreadId(null);
             wrappedWebSocketClient.connect();

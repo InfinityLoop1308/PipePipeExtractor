@@ -206,9 +206,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         webSocketClient.connect();
         long startTime = System.nanoTime();
         do {
-            liveUrl = webSocketClient.getUrl();
-            liveMessageServer = webSocketClient.getServerUrl();
-            liveThreadId = webSocketClient.getThreadId();
+            liveUrl = nicoWebSocketClient.getUrl();
+            liveMessageServer = nicoWebSocketClient.getServerUrl();
+            liveThreadId = nicoWebSocketClient.getThreadId();
             if (liveUrl != null && liveMessageServer != null && liveThreadId != null) {
                 webSocketClient.close();
                 return ;
