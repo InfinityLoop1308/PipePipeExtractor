@@ -70,10 +70,8 @@ public class NicoWebSocketClient  {
                     JsonObject data = JsonParser.object().from(message);
                     if (data.has("chat") && !shouldSkip
                             && !data.getObject("chat").getString("content").startsWith("/nicoad")
-                            && !data.getObject("chat").getString("content").startsWith("/info")) {
-                        if(data.getObject("chat").getString("content").startsWith("/")){
-                            System.out.println(data.getObject("chat").toString());
-                        }
+                            && !data.getObject("chat").getString("content").startsWith("/info")
+                            && ! data.getObject("chat").getString("content").startsWith("/gift")) {
                         messages.add(data.getObject("chat"));
                     }else if(data.has("type")){
                         if(data.getString("type").equals("stream")){
