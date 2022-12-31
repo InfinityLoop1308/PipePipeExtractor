@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -724,5 +725,25 @@ public class StreamInfo extends Info {
     @Nonnull
     public List<MetaInfo> getMetaInfo() {
         return this.metaInfo;
+    }
+
+    public void removeUrl(String url){
+        videoStreams = videoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
+        videoOnlyStreams = videoOnlyStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
+        audioStreams = audioStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
+    }
+
+    public void removeVideoStreamUrl(String url){
+        ArrayList<Integer>indexs = new ArrayList<>();
+        for(int i = 0; i < videoOnlyStreams.size(); i++){
+            if(videoOnlyStreams.get(i).getContent().equals(url)){
+                indexs.add(i);
+            }
+        }
+        videoStreams = videoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
+        for(Integer i:indexs){
+            videoOnlyStreams.remove(i.intValue());
+            audioStreams.remove(i.intValue());
+        }
     }
 }
