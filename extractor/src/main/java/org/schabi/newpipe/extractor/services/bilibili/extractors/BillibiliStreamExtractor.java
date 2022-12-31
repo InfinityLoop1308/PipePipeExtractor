@@ -2,23 +2,11 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.zip.DataFormatException;
-
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
+
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.InfoItemsCollector;
@@ -26,10 +14,12 @@ import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
@@ -41,6 +31,19 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -56,13 +59,26 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     int duration = 0;
     String id = "";
     JsonObject page = null;
-
-    String url;
-
+    String bvid;
     WatchDataCache watchDataCache;
+    private boolean isRoundPlay;
+    private JsonObject playData;
+    private String liveUrl;
+    private JsonObject dataObject;
+    private final List<VideoStream> videoOnlyStreams = new ArrayList<>();
+    private final List<AudioStream> audioStreams = new ArrayList<>();
+
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
         this.watchDataCache = watchDataCache;
+    }
+
+    public static <T> T[] repeat(T[] arr, int newLength) {
+        T[] dup = Arrays.copyOf(arr, newLength);
+        for (int last = arr.length; last != 0 && last < newLength; last <<= 1) {
+            System.arraycopy(dup, 0, dup, last, Math.min(last << 1, newLength) - last);
+        }
+        return dup;
     }
 
     @Override
@@ -91,22 +107,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
-        if(getStreamType() == StreamType.LIVE_STREAM){
-            return null;
+        List<AudioStream>result = new ArrayList<>();
+        int length = videoOnlyStreams.size();
+        for(AudioStream item: audioStreams){
+            result.addAll(Collections.nCopies(length, item));
         }
-         final List<AudioStream> audioStreams = new ArrayList<>();
-         String bvid = watch.getString("bvid");
-         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
-         JsonObject responseJson = new JsonObject();
-         try {
-             responseJson =  JsonParser.object().from(response);
-         } catch (JsonParserException e) {
-             e.printStackTrace();
-         }
-         JsonArray audioArray =responseJson.getObject("data").getObject("dash").getArray("audio") ;
-         String url = audioArray.getObject(0).getString("baseUrl");
-         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio").setContent(url,true).setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
-         return audioStreams;
+        return result;
     }
 
     @Override
@@ -116,60 +122,64 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
 
-        try {
-            if(url == null){
-                String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
-                url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
-            }
-            videoStreams.add(new VideoStream.Builder().setContent(url,true).setId("bilibili-"+watch.getLong("uid") +"-live").setIsVideoOnly(false).setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build());
-        } catch (JsonParserException e) {
-            e.printStackTrace();
-        }
+        videoStreams.add(new VideoStream.Builder().setContent(liveUrl,true)
+                .setId("bilibili-"+watch.getLong("uid") +"-live")
+                .setIsVideoOnly(false).setResolution("720p")
+                .setDeliveryMethod(DeliveryMethod.HLS).build());
         return videoStreams;
     }
 
     @Nonnull
     @Override
     public String getHlsUrl() throws ParsingException {
-        if(getStreamType() != StreamType.LIVE_STREAM){
-            return null;
-        }
-        try {
-            if(url == null){
-                String response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
-                url = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
-            }
-        } catch (JsonParserException | IOException | ReCaptchaException e) {
-            e.printStackTrace();
-        }
-        return url;
+        return getStreamType() != StreamType.LIVE_STREAM? null: liveUrl;
     }
 
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
+        int videoSize = videoOnlyStreams.size();
+        return Arrays.asList(repeat(videoOnlyStreams.toArray(new VideoStream[videoSize]),
+                audioStreams.size() * videoSize));
+    }
+
+    public void buildAudioStreamsArray()throws ExtractionException{
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return null;
+            return ;
         }
-        final List<VideoStream> videoStreams = new ArrayList<>();
-         String bvid = watch.getString("bvid");
-         String response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+bvid+"&fnval=16", getHeaders()).responseBody();
-         JsonObject responseJson = new JsonObject();
-         try {
-             responseJson =  JsonParser.object().from(response);
-         } catch (JsonParserException e) {
-             e.printStackTrace();
-         }
-         String url = "";
-         String desc ="";
-         JsonArray videoArray =responseJson.getObject("data").getObject("dash").getArray("video") ;
-         for(int i=0; i< videoArray.size(); i++){
-             if(videoArray.getObject(i).getInt("id") > 64){
+        JsonObject audioObject = dataObject.getArray("audio").getObject(0);
+        JsonArray backupUrls = audioObject.getArray("backupUrl");
+        audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
+                .setContent(audioObject.getString("baseUrl"),true)
+                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+        for(int j = 0; j < backupUrls.size();j++){
+            audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
+                    .setContent(backupUrls.getString(j),true)
+                    .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+        }
+    }
+
+    public void buildVideoOnlyStreamsArray() throws ExtractionException {
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            return ;
+        }
+        JsonArray videoArray = dataObject.getArray("video") ;
+        for(int i=0; i< videoArray.size(); i++){
+             JsonObject object = videoArray.getObject(i);
+             int code = object.getInt("id");
+             if(code > 64){
                  continue;
              }
-            url = videoArray.getObject(i).getString("baseUrl");
+             String resolution = BilibiliService.getResolution(code) + (i % 2 == 0? " H.264": " H.265"); //TODO: All of HDR is H.265
+             videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"),true)
+                     .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
+                     .setIsVideoOnly(true).setResolution(resolution).build());
+             JsonArray backupUrls = object.getArray("backupUrl");
+             for(int j = 0; j< backupUrls.size();j++){
+                 videoOnlyStreams.add(new VideoStream.Builder().setContent(backupUrls.getString(j),true)
+                         .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
+                         .setIsVideoOnly(true).setResolution(resolution).build());
+             }
          }
-         videoStreams.add(new VideoStream.Builder().setContent(url,true).setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video").setIsVideoOnly(true).setResolution("Best").build());
-        return videoStreams;
     }
 
     @Override
@@ -181,16 +191,28 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     }
 
     @Override
-    public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         if(getStreamType() == StreamType.LIVE_STREAM){
             String response = downloader.get("https://api.live.bilibili.com/room/v1/Room/room_init?id=" + getId()).responseBody();
             try {
-                JsonObject data = JsonParser.object().from(response).getObject("data");
+                JsonObject responseJson = JsonParser.object().from(response);
+                JsonObject data = responseJson.getObject("data");
                 String uid = String.valueOf(data.getLong("uid"));
+                if(data.size() == 0){
+                    throw new ExtractionException("Can not get live room info. Error message: " + responseJson.getString("msg"));
+                }
+                switch (data.getInt("live_status")){
+                    case 0:
+                        throw new LiveNotStartException("Live is not started.");
+                    case 2:
+                        isRoundPlay = true;
+                }
                 response = downloader.get("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=" + uid).responseBody();
                 watch = JsonParser.object().from(response).getObject("data").getObject(uid);
                 watchDataCache.setRoomId(data.getLong("room_id"));
                 watchDataCache.setStartTime(data.getLong("live_time"));
+                response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+                liveUrl = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
             } catch (JsonParserException e) {
                 e.printStackTrace();
             }
@@ -199,7 +221,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String url = getLinkHandler().getOriginalUrl();
         id =  utils.getPureBV(getId());
         url = utils.getUrl(url, id);
-        final String response = downloader.get(url).responseBody();
+        String response = downloader.get(url).responseBody();
         try {
             watch = JsonParser.object().from(response).getObject("data");
         } catch (JsonParserException e) {
@@ -209,8 +231,19 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         cid = page.getInt("cid");
         watchDataCache.setCid(cid);
         duration = page.getInt("duration");
+        response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+watch.getString("bvid")+"&fnval=16&qn=64", getHeaders()).responseBody();
+        bvid = watch.getString("bvid");
+        try {
+            playData =  JsonParser.object().from(response);
+            dataObject = playData.getObject("data").getObject("dash");
+            buildVideoOnlyStreamsArray();
+            buildAudioStreamsArray();
+        } catch (JsonParserException e) {
+            e.printStackTrace();
+        }
     }
 
+    @Nonnull
     @Override
     public String getName() throws ParsingException {
         String title = watch.getString("title");
@@ -226,6 +259,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         return duration;
     }
+    @Nonnull
     @Override
     public String getUploaderAvatarUrl () throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
@@ -233,6 +267,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         return watch.getObject("owner").getString("face").replace("http:", "https:");
     }
+    @Nonnull
     @Override
     public Description getDescription() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
@@ -269,11 +304,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             for(int i = 0; i< respArray.size(); i++){
                 tags.add(respArray.getObject(i).getString("tag_name"));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ReCaptchaException e) {
-            e.printStackTrace();
-        } catch (JsonParserException e) {
+        } catch (IOException | ReCaptchaException | JsonParserException e) {
             e.printStackTrace();
         }
         return tags;
@@ -288,9 +319,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String response = null;
         try {
             response = getDownloader().get("https://api.bilibili.com/x/player/pagelist?bvid="+id, getHeaders()).responseBody();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ReCaptchaException e) {
+        } catch (IOException | ReCaptchaException e) {
             e.printStackTrace();
         }
         try {
@@ -310,11 +339,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         new BilibiliRelatedInfoItemExtractor(
                                 relatedArray.getObject(i), id, getThumbnailUrl(), String.valueOf(i+1), getUploaderName(), watch.getLong("ctime")));
             }
-        } catch (JsonParserException | ParsingException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ReCaptchaException e) {
+        } catch (JsonParserException | ParsingException | IOException | ReCaptchaException e) {
             e.printStackTrace();
         }
         return collector;
@@ -365,9 +390,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         .setLanguageCode(subtitlesStream.getString("lan").replace("ai-",""))
                         .setAutoGenerated(subtitlesStream.getInt("ai_status") != 0)
                         .build());
-            } catch (JsonParserException e) {
-                throw new RuntimeException(e);
-            } catch (SubtitleParsingException e) {
+            } catch (JsonParserException | SubtitleParsingException e) {
                 throw new RuntimeException(e);
             }
         }
