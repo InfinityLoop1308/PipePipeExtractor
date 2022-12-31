@@ -104,7 +104,11 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     @Override
     public String getCommentText() throws ParsingException {
         try {
-            return json.getString("content");
+            String text = json.getString("content");
+            if(text.startsWith("/emotion ")){
+                text = text.substring(9);
+            }
+            return text;
         } catch (final Exception e) {
             throw new ParsingException("Could not get comment text", e);
         }
