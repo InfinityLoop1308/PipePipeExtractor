@@ -61,6 +61,9 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
                     if(views.contains("万")){
                         views = views.replace("万","");
                         flag = 10000;
+                    } else if (views.contains("亿")) {
+                        views = views.replace("亿","");
+                        flag = 100000000;
                     }
                     collector.commit(new BilibiliRecommendLiveInfoItemExtractor(
                             "https:"+live.select("a").first().attr("href"),
