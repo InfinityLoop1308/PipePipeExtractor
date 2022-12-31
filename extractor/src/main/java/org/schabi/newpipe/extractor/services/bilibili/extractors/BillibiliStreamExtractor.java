@@ -169,7 +169,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
              if(code > 64){
                  continue;
              }
-             String resolution = BilibiliService.getResolution(code) + (i % 2 == 0? " H.264": " H.265"); //TODO: All of HDR is H.265
+             String resolution = BilibiliService.getResolution(code);
              videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"),true)
                      .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
                      .setIsVideoOnly(true).setResolution(resolution).build());
