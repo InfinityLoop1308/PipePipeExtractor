@@ -1,6 +1,8 @@
 package org.schabi.newpipe.extractor.search.filter;
 
-public class FilterItem {
+import java.io.Serializable;
+
+public class FilterItem implements Serializable {
     private final String name;
     private int identifier;
     /**
@@ -25,7 +27,7 @@ public class FilterItem {
         return this.name;
     }
 
-    public static class Builder {
+    public static class Builder implements Serializable{
 
         private final FilterItem filterItem;
 
