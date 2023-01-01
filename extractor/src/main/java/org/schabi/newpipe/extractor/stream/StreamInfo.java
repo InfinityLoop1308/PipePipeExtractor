@@ -733,17 +733,25 @@ public class StreamInfo extends Info {
         audioStreams = audioStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
     }
 
-    public void removeVideoStreamUrl(String url){
+    public void removeStreamUrl(String url){
         ArrayList<Integer>indexs = new ArrayList<>();
+        ArrayList<VideoStream> newVideoOnlyStreams = new ArrayList<>(videoOnlyStreams);
+        List<VideoStream> newVideoStreams = new ArrayList<>(videoStreams);
+        ArrayList<AudioStream> newAudioStreams = new ArrayList<>(audioStreams);
+
         for(int i = 0; i < videoOnlyStreams.size(); i++){
-            if(videoOnlyStreams.get(i).getContent().equals(url)){
+            if(videoOnlyStreams.get(i).getContent().equals(url)
+                    || audioStreams.get(i).getContent().equals(url) ){
                 indexs.add(i);
             }
         }
-        videoStreams = videoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
+        newVideoStreams = newVideoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
         for(Integer i:indexs){
-            videoOnlyStreams.remove(i.intValue());
-            audioStreams.remove(i.intValue());
+            newVideoOnlyStreams.remove(i.intValue());
+            newAudioStreams.remove(i.intValue());
         }
+        videoOnlyStreams = newVideoOnlyStreams;
+        audioStreams = newAudioStreams;
+        videoStreams = newVideoStreams;
     }
 }
