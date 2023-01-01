@@ -116,6 +116,13 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     }
 
     @Override
+    public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
+        int videoSize = videoOnlyStreams.size();
+        return Arrays.asList(repeat(videoOnlyStreams.toArray(new VideoStream[videoSize]),
+                audioStreams.size() * videoSize));
+    }
+
+    @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         if(getStreamType() != StreamType.LIVE_STREAM){
             return null;
@@ -133,13 +140,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public String getHlsUrl() throws ParsingException {
         return getStreamType() != StreamType.LIVE_STREAM? null: liveUrl;
-    }
-
-    @Override
-    public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
-        int videoSize = videoOnlyStreams.size();
-        return Arrays.asList(repeat(videoOnlyStreams.toArray(new VideoStream[videoSize]),
-                audioStreams.size() * videoSize));
     }
 
     public void buildAudioStreamsArray()throws ExtractionException{
@@ -405,5 +405,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return 0;
         }
 
+    }
+
+    @Override
+    public boolean isSupportComments() throws ParsingException {
+        return getStreamType() != StreamType.LIVE_STREAM;
     }
 }
