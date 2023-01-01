@@ -554,6 +554,14 @@ public abstract class StreamExtractor extends Extractor {
         return Collections.emptyList();
     }
 
+    public boolean isSupportComments() throws ParsingException {
+        return true;
+    }
+
+    public boolean isSupportRelatedItems(){
+        return true;
+    }
+
     public enum Privacy {
         PUBLIC,
         UNLISTED,

@@ -344,9 +344,22 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
-
-        streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
-                extractor));
+        try {
+            streamInfo.setSupportComments(extractor.isSupportComments());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        try {
+            streamInfo.setSupportRelatedItems(extractor.isSupportRelatedItems());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        if(streamInfo.isSupportRelatedItems()){
+            streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
+                    extractor));
+        } else {
+            streamInfo.setRelatedItems(Collections.emptyList());
+        }
     }
 
     private StreamType streamType;
@@ -391,6 +404,8 @@ public class StreamInfo extends Info {
     private List<String> tags = new ArrayList<>();
     private List<StreamSegment> streamSegments = new ArrayList<>();
     private List<MetaInfo> metaInfo = new ArrayList<>();
+    private boolean supportComments;
+    private boolean supportRelatedItems;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -725,6 +740,22 @@ public class StreamInfo extends Info {
     @Nonnull
     public List<MetaInfo> getMetaInfo() {
         return this.metaInfo;
+    }
+
+    public boolean isSupportComments() {
+        return supportComments;
+    }
+
+    public void setSupportComments(boolean supportComments) {
+        this.supportComments = supportComments;
+    }
+
+    public boolean isSupportRelatedItems() {
+        return supportRelatedItems;
+    }
+
+    public void setSupportRelatedItems(boolean supportRelatedItem) {
+        this.supportRelatedItems = supportRelatedItem;
     }
 
     public void removeUrl(String url){
