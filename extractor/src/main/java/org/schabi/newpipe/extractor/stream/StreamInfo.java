@@ -785,4 +785,8 @@ public class StreamInfo extends Info {
         audioStreams = newAudioStreams;
         videoStreams = newVideoStreams;
     }
+
+    public int getStreamsLength(){
+        return videoOnlyStreams.size() + audioStreams.size() + videoStreams.size();
+    }
 }
