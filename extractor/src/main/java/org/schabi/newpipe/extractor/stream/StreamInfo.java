@@ -778,8 +778,8 @@ public class StreamInfo extends Info {
         }
         newVideoStreams = newVideoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
         for(Integer i:indexs){
-            newVideoOnlyStreams.remove(i.intValue());
-            newAudioStreams.remove(i.intValue());
+            newVideoOnlyStreams.remove(videoOnlyStreams.get(i.intValue()));
+            newAudioStreams.remove(audioStreams.get(i.intValue()));
         }
         videoOnlyStreams = newVideoOnlyStreams;
         audioStreams = newAudioStreams;
