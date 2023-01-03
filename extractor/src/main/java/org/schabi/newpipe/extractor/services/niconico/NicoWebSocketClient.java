@@ -129,7 +129,7 @@ public class NicoWebSocketClient  {
         return temp;
     }
     public void disconnect(){
-        webSocketClient.close(-1);
+        webSocketClient.closeConnection(-1, "Scheduled terminate");
     }
     public boolean hasUrl(){
         return url !=  null;

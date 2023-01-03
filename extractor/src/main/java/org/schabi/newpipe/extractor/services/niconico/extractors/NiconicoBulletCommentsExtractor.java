@@ -102,6 +102,6 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void disconnect() {
-        webSocketClient.getWebSocketClient().close(-1);
+        webSocketClient.disconnect();
     }
 }
