@@ -127,4 +127,8 @@ public interface StreamInfoItemExtractor extends InfoItemExtractor {
     default String getShortDescription() throws ParsingException {
         return null;
     }
+
+    default boolean isRoundPlayStream(){
+        return false;
+    }
 }

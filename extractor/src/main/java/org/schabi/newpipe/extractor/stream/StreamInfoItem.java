@@ -42,6 +42,7 @@ public class StreamInfoItem extends InfoItem {
     private String uploaderUrl = null;
     private String uploaderAvatarUrl = null;
     private boolean uploaderVerified = false;
+    private boolean isRoundPlayStream = false;
 
     public StreamInfoItem(final int serviceId,
                           final String url,
@@ -146,5 +147,13 @@ public class StreamInfoItem extends InfoItem {
                 + ", thumbnailUrl='" + getThumbnailUrl() + '\''
                 + ", uploaderVerified='" + isUploaderVerified() + '\''
                 + '}';
+    }
+
+    public boolean isRoundPlayStream() {
+        return isRoundPlayStream;
+    }
+
+    public void setRoundPlayStream(boolean roundPlayStream) {
+        isRoundPlayStream = roundPlayStream;
     }
 }

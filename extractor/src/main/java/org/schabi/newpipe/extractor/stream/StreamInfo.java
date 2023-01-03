@@ -354,7 +354,12 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
-        if(streamInfo.isSupportRelatedItems()){
+        try {
+            streamInfo.setRoundPlayStream(extractor.isRoundPlayStream());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
                     extractor));
         } else {
@@ -406,6 +411,7 @@ public class StreamInfo extends Info {
     private List<MetaInfo> metaInfo = new ArrayList<>();
     private boolean supportComments;
     private boolean supportRelatedItems;
+    private boolean isRoundPlayStream;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -756,6 +762,14 @@ public class StreamInfo extends Info {
 
     public void setSupportRelatedItems(boolean supportRelatedItem) {
         this.supportRelatedItems = supportRelatedItem;
+    }
+
+    public boolean isRoundPlayStream() {
+        return isRoundPlayStream;
+    }
+
+    public void setRoundPlayStream(boolean roundPlayStream) {
+        isRoundPlayStream = roundPlayStream;
     }
 
     public void removeUrl(String url){

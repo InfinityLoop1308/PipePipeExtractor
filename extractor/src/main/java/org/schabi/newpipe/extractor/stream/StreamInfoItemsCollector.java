@@ -98,6 +98,11 @@ public class StreamInfoItemsCollector
         } catch (final Exception e) {
             addError(e);
         }
+        try {
+            resultItem.setRoundPlayStream(extractor.isRoundPlayStream());
+        } catch (final Exception e) {
+            addError(e);
+        }
 
         return resultItem;
     }

@@ -558,8 +558,12 @@ public abstract class StreamExtractor extends Extractor {
         return true;
     }
 
-    public boolean isSupportRelatedItems(){
+    public boolean isSupportRelatedItems() throws ParsingException {
         return true;
+    }
+
+    public boolean isRoundPlayStream(){
+        return false;
     }
 
     public enum Privacy {
