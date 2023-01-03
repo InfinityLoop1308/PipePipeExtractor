@@ -379,13 +379,16 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public String getTextualUploadDate() throws ParsingException {
         if(getStreamType().equals(StreamType.LIVE_STREAM)){
-            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("live_time")*1000));
+            return null;
         }
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("ctime")*1000));
     }
 
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
+        if(getStreamType().equals(StreamType.LIVE_STREAM)){
+            return null;
+        }
         return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
