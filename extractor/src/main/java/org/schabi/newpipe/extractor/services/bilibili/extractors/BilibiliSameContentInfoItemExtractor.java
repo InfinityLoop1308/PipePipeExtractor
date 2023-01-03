@@ -1,0 +1,92 @@
+package org.schabi.newpipe.extractor.services.bilibili.extractors;
+
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
+import org.schabi.newpipe.extractor.stream.StreamType;
+
+import javax.annotation.Nullable;
+
+public class BilibiliSameContentInfoItemExtractor implements StreamInfoItemExtractor {
+    private String name;
+    private String url;
+    private String thumbnailUrl;
+    private String  uploaderName;
+    private long viewCount;
+
+    public BilibiliSameContentInfoItemExtractor(String name, String url, String thumbnailUrl, String uploaderName, long viewCount) {
+        this.name = name;
+        this.url = url;
+        this.thumbnailUrl = thumbnailUrl;
+        this.uploaderName = uploaderName;
+        this.viewCount = viewCount;
+    }
+
+    @Override
+    public String getName() throws ParsingException {
+        return name;
+    }
+
+    @Override
+    public String getUrl() throws ParsingException {
+        return url;
+    }
+
+    @Override
+    public String getThumbnailUrl() throws ParsingException {
+        return thumbnailUrl;
+    }
+
+    @Override
+    public long getViewCount() throws ParsingException {
+        return viewCount;
+    }
+
+    @Override
+    public String getUploaderName() throws ParsingException {
+        return uploaderName;
+    }
+
+    @Override
+    public StreamType getStreamType() throws ParsingException {
+        return StreamType.LIVE_STREAM;
+    }
+
+    @Override
+    public boolean isAd() throws ParsingException {
+        return false;
+    }
+
+    @Override
+    public long getDuration() throws ParsingException {
+        return -1;
+    }
+
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderAvatarUrl() throws ParsingException {
+        return null;
+    }
+
+    @Override
+    public boolean isUploaderVerified() throws ParsingException {
+        return false;
+    }
+
+    @Nullable
+    @Override
+    public String getTextualUploadDate() throws ParsingException {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public DateWrapper getUploadDate() throws ParsingException {
+        return null;
+    }
+}

@@ -67,6 +67,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonObject dataObject;
     private final List<VideoStream> videoOnlyStreams = new ArrayList<>();
     private final List<AudioStream> audioStreams = new ArrayList<>();
+    private long playTime;
+    private String currentRoundTitle;
+    private long nextTimestamp;
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -124,7 +127,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
-        if(getStreamType() != StreamType.LIVE_STREAM){
+        if(isRoundPlay || getStreamType() != StreamType.LIVE_STREAM){
             return null;
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
@@ -139,11 +142,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getHlsUrl() throws ParsingException {
-        return getStreamType() != StreamType.LIVE_STREAM? null: liveUrl;
+        return getStreamType() != StreamType.LIVE_STREAM || isRoundPlay? "": liveUrl;
     }
 
     public void buildAudioStreamsArray()throws ExtractionException{
-        if(getStreamType() == StreamType.LIVE_STREAM){
+        if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
             return ;
         }
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
@@ -159,7 +162,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     }
 
     public void buildVideoOnlyStreamsArray() throws ExtractionException {
-        if(getStreamType() == StreamType.LIVE_STREAM){
+        if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
             return ;
         }
         JsonArray videoArray = dataObject.getArray("video") ;
@@ -201,18 +204,37 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 if(data.size() == 0){
                     throw new ExtractionException("Can not get live room info. Error message: " + responseJson.getString("msg"));
                 }
-                switch (data.getInt("live_status")){
-                    case 0:
-                        throw new LiveNotStartException("Live is not started.");
-                    case 2:
-                        isRoundPlay = true;
-                }
                 response = downloader.get("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=" + uid).responseBody();
                 watch = JsonParser.object().from(response).getObject("data").getObject(uid);
                 watchDataCache.setRoomId(data.getLong("room_id"));
                 watchDataCache.setStartTime(data.getLong("live_time"));
-                response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
-                liveUrl = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+                switch (data.getInt("live_status")){
+                    case 0:
+                        throw new LiveNotStartException("Live is not started.");
+                    case 2:
+                        long timestamp = getOriginalUrl().contains("timestamp=")?
+                                Long.parseLong(getOriginalUrl().split("timestamp=")[1].split("&")[0]): new Date().getTime();
+                        isRoundPlay = true;
+                        response = downloader.get(
+                                String.format("https://api.live.bilibili.com/live/getRoundPlayVideo?room_id=%s&a=%s&type=flv",
+                                        data.getLong("room_id"), timestamp)).responseBody();
+                        responseJson = JsonParser.object().from(response).getObject("data");
+                        playTime = responseJson.getLong("play_time");
+                        currentRoundTitle = responseJson.getString("title");
+                        currentRoundTitle = currentRoundTitle.split("-")[1] + currentRoundTitle.split("-")[2];
+                        bvid = responseJson.getString("bvid");
+                        response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="
+                                + responseJson.getLong("cid")+"&bvid="+ bvid
+                                +"&fnval=16&qn=64", getHeaders()).responseBody();
+                        playData =  JsonParser.object().from(response);
+                        dataObject = playData.getObject("data").getObject("dash");
+                        buildVideoOnlyStreamsArray();
+                        buildAudioStreamsArray();
+                        nextTimestamp = timestamp + dataObject.getLong("duration") * 1000;
+                    case 1:
+                        response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+                        liveUrl = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
+                }
             } catch (JsonParserException e) {
                 e.printStackTrace();
             }
@@ -246,6 +268,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getName() throws ParsingException {
+        if (isRoundPlay){
+            return getUploaderName() + "的投稿视频轮播";
+        }
         String title = watch.getString("title");
         if(getStreamType() != StreamType.LIVE_STREAM&& watch.getArray("pages").size() > 1){
             title += " | P" + page.getInt("page") + " "+ page.getString("part");
@@ -313,6 +338,13 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public InfoItemsCollector<? extends InfoItem, ? extends InfoItemExtractor>getRelatedItems() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
+            if(isRoundPlay){
+                InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
+                collector.commit(new BilibiliSameContentInfoItemExtractor(getUploaderName() + "的投稿视频轮播",
+                        getUrl() + "?timestamp=" + nextTimestamp, getThumbnailUrl()
+                        , getUploaderName(), getViewCount()));
+                return collector;
+            }
             return null;
         }
         InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
@@ -402,7 +434,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         try{
             return Long.parseLong(getUrl().split("#timestamp=")[1]);
         }catch (Exception e){
-            return 0;
+            return isRoundPlay? playTime : 0;
         }
 
     }
@@ -410,5 +442,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public boolean isSupportComments() throws ParsingException {
         return getStreamType() != StreamType.LIVE_STREAM;
+    }
+
+    @Override
+    public boolean isSupportRelatedItems() throws ParsingException {
+        return getStreamType() != StreamType.LIVE_STREAM;
+    }
+
+    @Override
+    public boolean isRoundPlayStream() {
+        return isRoundPlay;
     }
 }
