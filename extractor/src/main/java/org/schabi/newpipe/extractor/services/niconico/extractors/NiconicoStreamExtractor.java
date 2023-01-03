@@ -56,6 +56,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private String liveThreadId;
     private JsonObject liveData;
     private Document liveResponse;
+    private JsonObject liveDataRoot;
 
     public NiconicoStreamExtractor(final StreamingService service,
             final LinkHandler linkHandler,
@@ -67,7 +68,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public long getViewCount() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getArray("interactionStatistic").getObject(0).getLong("userInteractionCount");
+            return liveData.getObject("statistics").getLong("watchCount");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getLong("view_counter");
@@ -113,7 +114,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getThumbnailUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getArray("thumbnailUrl").getString(0).replace("http:", "https:");
+            return liveData.getObject("thumbnail").getString("small").replace("http:", "https:");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return page.getElementsByClass("thumbnail").attr("src")
@@ -127,7 +128,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getUploaderUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getObject("author").getString("url");
+            return liveData.getObject("supplier").getString("pageUrl");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return "";
@@ -143,7 +144,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getUploaderName() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getObject("author").getString("name");
+            return liveData.getObject("supplier").getString("name");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return getName();
@@ -269,9 +270,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public List<String> getTags() throws ParsingException {
         final List<String> tags = new ArrayList<>();
         if(getStreamType() == StreamType.LIVE_STREAM){
-            JsonArray data = liveData.getArray("keywords");
+            JsonArray data = liveData.getObject("tag").getArray("list");
             for(int i = 0; i< data.size();i++){
-                tags.add(data.getString(i));
+                tags.add(data.getObject(i).getString("text"));
             }
             return tags;
         }
@@ -296,17 +297,12 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             String url =
                     "https://live.nicovideo.jp/front/api/v1/recommend-contents" +
                             "?recipe=live_watch_related_contents_user&v=1&site=nicolive&content_meta=true&frontend_id=9&tags=&user_id=";
-            JsonObject author = liveData.getObject("author");
-            if(author.getString("url") == null || author.getString("url").contains("/ch")){
-                try {
-                    url = url.replace("live_watch_related_contents_user", "live_watch_related_contents_channel").replace("user_id", "channel_id");
-                    url += JsonParser.object().from(liveResponse
-                            .select("script#embedded-data").attr("data-props")).getObject("socialGroup").getString("id");
-                } catch (JsonParserException e) {
-                    throw new RuntimeException(e);
-                }
+            String uploaderUrl = getUploaderUrl();
+            if(uploaderUrl == null || uploaderUrl.contains("/ch")){
+                url = url.replace("live_watch_related_contents_user", "live_watch_related_contents_channel").replace("user_id", "channel_id");
+                url += liveDataRoot.getObject("socialGroup").getString("id");
             }else{
-                url += author.getString("url").split("user/")[1];
+                url += uploaderUrl.split("user/")[1];
             }
             try {
                 JsonArray data = JsonParser.object().from(getDownloader().get(url).responseBody()).getObject("data").getArray("values");
@@ -337,7 +333,10 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             try {
                 getLiveUrl();
-                liveData = JsonParser.object().from(liveResponse.select("script[type='application/ld+json']").first().data());
+                liveDataRoot = JsonParser.object().from(liveResponse.select("script#embedded-data")
+                        .first().attr("data-props"));
+                liveData = liveDataRoot.getObject("program");
+
                 niconicoWatchDataCache.setThreadId(liveThreadId);
                 niconicoWatchDataCache.setThreadServer(liveMessageServer);
             } catch (JsonParserException e) {
@@ -355,7 +354,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getName() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getString("name");
+            return liveData.getString("title");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return watch.getString("title");
