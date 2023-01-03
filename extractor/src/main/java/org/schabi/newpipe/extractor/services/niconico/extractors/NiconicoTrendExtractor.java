@@ -39,6 +39,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
         if(!getId().equals("Trending")){
             try {
                 data = JsonParser.object().from(downloader.get(getUrl()).responseBody()).getObject("data").getArray("values");
+                return ;
             } catch (JsonParserException e) {
                 throw new RuntimeException(e);
             }
@@ -55,6 +56,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
             for(int i = 0; i< data.size(); i++){
                 collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i)));
             }
+            return new InfoItemsPage<>(collector, null);
         }
         final Elements arrays = rss.getElementsByTag("item");
         final String uploaderName = rss.getElementsByTag("dc:creator").text();
