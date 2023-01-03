@@ -33,7 +33,8 @@ public class NicoWebSocketClient  {
 
     public WrappedWebSocketClient() {
             super(serverUri, httpHeaders);
-            if(serverUri.toString().contains("wss://a.live2.nicovideo.jp/unama/wsapi/v2/watch/")){
+            if(serverUri.toString().contains("wss://a.live2.nicovideo.jp/unama/wsapi/v2/watch/")
+                    ||serverUri.toString().contains("wss://a.live2.nicovideo.jp/wsapi/v2/watch/") ){
                 type = 0;
             }else{
                 type = 1;
