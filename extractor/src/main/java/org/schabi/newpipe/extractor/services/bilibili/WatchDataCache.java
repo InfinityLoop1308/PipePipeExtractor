@@ -4,6 +4,7 @@ public class WatchDataCache {
     private int cid;
     private long roomId;
     private long startTime;
+    private String bvid;
     WatchDataCache(){
         this.cid = 0;
         roomId = 0;
@@ -32,5 +33,13 @@ public class WatchDataCache {
 
     public void setStartTime(long startTime) {
         this.startTime = startTime;
+    }
+
+    public void setBvid(String bvid) {
+        this.bvid = bvid;
+    }
+
+    public String getBvid() {
+        return bvid;
     }
 }

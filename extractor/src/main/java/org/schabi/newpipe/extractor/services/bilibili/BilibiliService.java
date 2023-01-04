@@ -204,7 +204,7 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public ListLinkHandlerFactory getCommentsLHFactory() {
-        return new BilibiliCommentsLinkHandlerFactory();
+        return new BilibiliCommentsLinkHandlerFactory(watchDataCache);
     }
 
     @Override

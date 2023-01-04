@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.services.soundcloud.linkHandler.SoundcloudStreamLinkHandlerFactory;
 
@@ -13,10 +14,19 @@ import java.io.IOException;
 import java.util.List;
 
 public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
+    private WatchDataCache watchDataCache;
+    public BilibiliCommentsLinkHandlerFactory(WatchDataCache watchDataCache) {
+        super();
+        this.watchDataCache = watchDataCache;
+    }
+
     @Override
     public String getId(String url) throws ParsingException {
         if(url.contains("live.bilibili.com")){
             return "LIVE";
+        }
+        if(url.contains("bangumi/play/")){
+            return watchDataCache.getBvid();
         }
         try {
             return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));

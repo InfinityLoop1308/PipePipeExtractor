@@ -304,6 +304,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 bvid = watch.getString("bvid");
                 cid = watch.getInt("cid");
                 watchDataCache.setCid(cid);
+                watchDataCache.setBvid(bvid);
                 duration = watch.getInt("duration") / 1000;
                 isPaid = watch.getObject("rights").getInt("pay");
             } catch (JsonParserException e) {
