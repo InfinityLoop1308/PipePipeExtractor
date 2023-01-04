@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.comments.CommentsInfoItem.UNKNOWN_REPLY_COUNT;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 import com.grack.nanojson.JsonArray;
@@ -16,6 +17,7 @@ import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
@@ -45,12 +47,15 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     @Override
     public InfoItemsPage<CommentsInfoItem> getInitialPage() throws IOException, ExtractionException {
         JsonArray results = json.getArray("replies");
-        if(results.size() == 0){
+        if(results == null || results.size() == 0){
             return new InfoItemsPage<>(new CommentsInfoItemsCollector(getServiceId()), null);
         }
         final CommentsInfoItemsCollector collector = new CommentsInfoItemsCollector(getServiceId());
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliCommentsInfoItemExtractor(results.getObject(i), getUrl()));
+        }
+        if(results.size() < 20){
+            return new InfoItemsPage<>(collector, null);
         }
         int currentPage = 1;
         String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
@@ -66,7 +71,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             e.printStackTrace();
         }
         JsonArray results = json.getObject("data").getArray("replies");
-        if(results.size() == 0){
+        if(results == null || results.size() == 0){
             return new InfoItemsPage<>(new CommentsInfoItemsCollector(getServiceId()), null);
         }
 
@@ -74,9 +79,12 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliCommentsInfoItemExtractor(results.getObject(i), getUrl()));
         }
+        if(20 > results.size()){
+            return new InfoItemsPage<>(collector, null);
+        }
         String currentPageString = page.getUrl().split("pn=")[page.getUrl().split("pn=").length-1].split("&")[0];
         int currentPage = Integer.parseInt(currentPageString);
-        String nextPage = getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
+        String nextPage = page.getUrl().replace(String.format("pn=%s", 1), String.format("pn=%s", String.valueOf(currentPage + 1)));
         return new InfoItemsPage<>(collector, new Page(nextPage));
     }
 
@@ -84,4 +92,5 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     public boolean isCommentsDisabled() throws ExtractionException {
         return getId().equals("LIVE");
     }
+
 }
