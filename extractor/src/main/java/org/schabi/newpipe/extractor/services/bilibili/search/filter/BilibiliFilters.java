@@ -9,6 +9,8 @@ public class BilibiliFilters extends SearchFiltersBase {
     private static final String VIDEOS = "Video";
     private static final String LIVES = "LiveRoom";
     private static final String USERS = "Channel";
+    private static final String ANIME = "Anime";
+    private static final String MOVIES = "Movies & TV series";
 
     public BilibiliFilters() {
         init();
@@ -47,6 +49,10 @@ public class BilibiliFilters extends SearchFiltersBase {
                 new BilibiliFilters.BilibiliContentFilterItem(LIVES, "search_type=live_room"));
         final int contentFilterUsers = builder.addFilterItem(
                 new BilibiliFilters.BilibiliContentFilterItem(USERS, "search_type=bili_user"));
+        final int contentFilterAnime = builder.addFilterItem(
+                new BilibiliFilters.BilibiliContentFilterItem(ANIME, "search_type=media_bangumi"));
+        final int contentFilterMovies = builder.addFilterItem(
+                new BilibiliFilters.BilibiliContentFilterItem(MOVIES, "search_type=media_ft"));
 
         this.defaultContentFilterId = contentFilterVideos;
 
@@ -55,6 +61,8 @@ public class BilibiliFilters extends SearchFiltersBase {
                 builder.getFilterForId(contentFilterVideos),
                 builder.getFilterForId(contentFilterLives),
                 builder.getFilterForId(contentFilterUsers),
+                builder.getFilterForId(contentFilterAnime),
+                builder.getFilterForId(contentFilterMovies),
         }));
 
         final int filterOverallScore = builder.addSortItem(

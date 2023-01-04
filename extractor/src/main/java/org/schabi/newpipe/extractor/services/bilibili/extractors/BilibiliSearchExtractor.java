@@ -75,6 +75,10 @@ public class BilibiliSearchExtractor extends SearchExtractor{
                     break;
                 case "bili_user":
                     collector.commit(new BilibiliSearchResultChannelInfoItemExtractor(result.getObject(i)));
+                    break;
+                case "media_bangumi":
+                case "media_ft":
+                    collector.commit(new BilibiliPremiumContentInfoItemExtractor(result.getObject(i)));
             }
         }
         return collector;
