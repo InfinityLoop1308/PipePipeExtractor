@@ -15,12 +15,15 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
     public String p = "1";
 
     @Override
-    public String getId(final String url) throws ParsingException {
+    public String getId(String url) throws ParsingException {
         if(url.contains("p=")){
             p = url.split("p=")[1].split("&")[0];
         }
-        if (url.split("/")[url.split("/").length-1].startsWith("BV")) {// TODO: https...../BV....../(see slash)
-            String  parseResult = url.split(Pattern.quote("/BV"))[1].split("\\?")[0].split("/")[0];
+        if(url.endsWith("/")){
+            url = url.substring(0, url.length() - 1);
+        }
+        if (url.split("/")[url.split("/").length-1].startsWith("BV")) {
+            String parseResult = url.split(Pattern.quote("/BV"))[1].split("\\?")[0].split("/")[0];
             return "BV"+parseResult + "?p="+p;
         } else if (url.contains("bvid=")) {
             String  parseResult = url.split(Pattern.quote("bvid="))[1].split("&")[0];
