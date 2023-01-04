@@ -12,12 +12,17 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
     public static final String baseUrl = "https://space.bilibili.com/";
 
     @Override
-    public String getId(final String url) throws ParsingException {
+    public String getId(String url) throws ParsingException {
         if (url.contains("mid=")) {
             return url.split("mid=")[1];
         }
-        else if(url.contains(baseUrl)){
-            return url.split(baseUrl)[1].split("\\?")[0];
+        url = url.split("\\?")[0];
+        if(url.endsWith("/")){
+            url = url.substring(0, url.length() - 1);
+        }
+        if(url.contains(baseUrl) || url.contains("/space/")){
+            String[] temp = url.split(Pattern.quote("/"));
+            return temp[temp.length - 1];
         }
         else {
             throw new ParsingException("Not a bilibili channel link.");
