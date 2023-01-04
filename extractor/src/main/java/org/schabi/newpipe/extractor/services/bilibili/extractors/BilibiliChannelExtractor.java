@@ -52,7 +52,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             String liveResponse = downloader.get("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=" + getId()).responseBody();
             liveJson = JsonParser.object().from(liveResponse);
             if(json.getInt("code") != 0 || userJson.getInt("code") != 0 || liveJson.getInt("code") != 0){
-                throw new ExtractionException("Error occurs during fetching channel content. That normally happen because your IP got temporarily banned.");
+                throw new ExtractionException("Error occurs during fetching channel content." +
+                        " That normally happen because your network is not stable or your IP got temporarily banned.");
             }
         } catch (JsonParserException e) {
             e.printStackTrace();
