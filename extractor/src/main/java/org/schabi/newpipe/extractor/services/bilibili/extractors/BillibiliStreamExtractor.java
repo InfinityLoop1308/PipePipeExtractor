@@ -377,7 +377,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             try{
                 return premiumData.getObject("up_info").getString("avatar").replace("http:", "https:");
             } catch (Exception e) {
-                return null;
+                return "https://i2.hdslb.com/bfs/face/0c84b9f4ad546d3f20324809d45fc439a2a8ddab.jpg@240w_240h_1c_1s.webp";
             }
 
         }
@@ -402,7 +402,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return watch.getLong("online");
         }
         if (isPremiumContent == 1){
-            return -1;
+            return premiumData.getObject("stat").getLong("views");
         }
         return watch.getObject("stat").getLong("view");
     }
@@ -411,7 +411,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return -1;
         }
-        return (isPremiumContent == 1?premiumData:watch).getObject("stat").getLong("coin");
+        if (isPremiumContent == 1){
+            return premiumData.getObject("stat").getLong("coins");
+        }
+        return watch.getObject("stat").getLong("coin");
     }
 
     @Nonnull
