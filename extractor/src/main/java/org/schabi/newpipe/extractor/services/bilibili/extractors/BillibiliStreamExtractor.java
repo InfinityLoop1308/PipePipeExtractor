@@ -17,6 +17,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
 import org.schabi.newpipe.extractor.exceptions.PaidContentException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -331,6 +332,17 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=16&qn=64", getHeaders()).responseBody();
         try {
             playData =  JsonParser.object().from(response);
+            switch (playData.getInt("code")){
+                case 0:
+                    break;
+                case -10403:
+                default:
+                    String message = playData.getString("message");
+                    if(message.contains("地区")){
+                        throw new GeographicRestrictionException(message);
+                    }
+                    throw new ContentNotAvailableException(message);
+            }
             JsonObject dataParentObject = (isPremiumContent == 1 ? playData.getObject("result") : playData.getObject("data"));
             dataObject = dataParentObject.getObject("dash");
             if(dataObject.size() == 0){
