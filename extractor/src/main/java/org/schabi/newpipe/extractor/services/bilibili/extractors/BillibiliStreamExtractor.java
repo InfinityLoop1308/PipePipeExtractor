@@ -78,7 +78,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonArray relatedPaidItems;
     private int isPaid;
     private JsonObject premiumData;
-    private JsonArray dataArray;
+    private JsonArray dataArray = new JsonArray();
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
