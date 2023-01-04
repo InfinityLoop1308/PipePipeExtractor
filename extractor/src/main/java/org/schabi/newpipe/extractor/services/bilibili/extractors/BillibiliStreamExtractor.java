@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
 import org.schabi.newpipe.extractor.exceptions.PaidContentException;
@@ -47,6 +48,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import javax.annotation.Nonnull;
 
@@ -60,7 +62,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonObject watch;
     int cid = 0;
     int duration = 0;
-    String id = "";
     JsonObject page = null;
     String bvid;
     WatchDataCache watchDataCache;
@@ -73,7 +74,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private long playTime;
     private String currentRoundTitle;
     private long nextTimestamp;
+    private int isPremiumContent;
+    private JsonArray relatedPaidItems;
     private int isPaid;
+    private JsonObject premiumData;
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -93,19 +97,31 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return watch.getString("cover_from_user").replace("http:", "https:");
         }
+        if(isPremiumContent == 1){
+            return watch.getString("cover").replace("http:", "https:");
+        }
         return watch.getString("pic").replace("http:", "https:");
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
+        if(isPremiumContent == 1){
+            if(premiumData.getObject("up_info")  == null){
+                return null;
+            }
+            return BilibiliChannelLinkHandlerFactory.baseUrl + premiumData.getObject("up_info").getLong("mid");
+        }
         if(getStreamType() == StreamType.LIVE_STREAM) {
             return BilibiliChannelLinkHandlerFactory.baseUrl + watch.getLong("uid");
         }
-        return BilibiliChannelLinkHandlerFactory.baseUrl  +watch.getObject("owner").getLong("mid");
+        return BilibiliChannelLinkHandlerFactory.baseUrl + watch.getObject("owner").getLong("mid");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
+        if(isPremiumContent == 1){
+            return Optional.ofNullable(premiumData.getObject("up_info").getString("uname")).orElse("BiliBili");
+        }
         if(getStreamType() == StreamType.LIVE_STREAM) {
             return watch.getString("uname");
         }
@@ -243,32 +259,71 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 e.printStackTrace();
             }
             return ;
+        } 
+        if (getUrl().contains("bangumi/play/")) {
+            isPremiumContent = 1;
+            int type = getId().startsWith("ss") ? 0 : 1;
+            String response;
+            try{
+                 response = downloader.get("https://api.bilibili.com/pgc/view/web/season?"
+                        + (type == 0? "season_id=": "ep_id=")+ getId().substring(2), getHeaders()).responseBody();
+            }catch (Exception e){
+                throw new ContentNotAvailableException("Unknown reason");
+            }
+
+            try {
+                premiumData = JsonParser.object().from(response).getObject("result");
+                relatedPaidItems = premiumData
+                        .getArray("episodes");
+                if(type == 0){
+                    watch = relatedPaidItems.getObject(0);
+                } else {
+                    for(int i = 0; i < relatedPaidItems.size(); i++){
+                        JsonObject temp = relatedPaidItems.getObject(i);
+                        if(temp.getString("share_url").endsWith(getId())){
+                            watch = temp;
+                            break;
+                        }
+                    }
+                    if(watch == null){
+                        throw new ExtractionException("Not found id in series data");
+                    }
+                }
+                bvid = watch.getString("bvid");
+                cid = watch.getInt("cid");
+                watchDataCache.setCid(cid);
+                duration = watch.getInt("duration") / 1000;
+                isPaid = watch.getObject("rights").getInt("pay");
+            } catch (JsonParserException e) {
+                e.printStackTrace();
+            }
+        } else {
+            String url = getLinkHandler().getOriginalUrl();
+            bvid =  utils.getPureBV(getId());
+            url = utils.getUrl(url, bvid);
+            String response = downloader.get(url).responseBody();
+            try {
+                watch = JsonParser.object().from(response).getObject("data");
+            } catch (JsonParserException e) {
+                e.printStackTrace();
+            }
+            page = watch.getArray("pages").getObject(Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0])-1);
+            cid = page.getInt("cid");
+            watchDataCache.setCid(cid);
+            duration = page.getInt("duration");
+            isPaid = watch.getObject("rights").getInt("pay");
         }
-        String url = getLinkHandler().getOriginalUrl();
-        id =  utils.getPureBV(getId());
-        url = utils.getUrl(url, id);
-        String response = downloader.get(url).responseBody();
-        try {
-            watch = JsonParser.object().from(response).getObject("data");
-        } catch (JsonParserException e) {
-            e.printStackTrace();
-        }
-        page = watch.getArray("pages").getObject(Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0])-1);
-        cid = page.getInt("cid");
-        watchDataCache.setCid(cid);
-        duration = page.getInt("duration");
-        isPaid = watch.getObject("rights").getInt("pay");
-        String baseUrl = isPaid != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
-        response = getDownloader().get( baseUrl + "?cid="+cid+"&bvid="+watch.getString("bvid")+"&fnval=16&qn=64", getHeaders()).responseBody();
-        bvid = watch.getString("bvid");
+        
+        String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
+        String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=16&qn=64", getHeaders()).responseBody();
         try {
             playData =  JsonParser.object().from(response);
-            if(isPaid == 1 && playData.getInt("code") != 0){
-                throw new PaidContentException("Paid content");
-            }
-            dataObject = playData.getObject("data").getObject("dash");
+            dataObject = (isPremiumContent == 1? playData.getObject("result"):playData.getObject("data")).getObject("dash");
             buildVideoOnlyStreamsArray();
             buildAudioStreamsArray();
+            if(isPaid == 1 && videoOnlyStreams.size() + audioStreams.size() == 0){
+                throw new PaidContentException("Paid content");
+            }
         } catch (JsonParserException e) {
             e.printStackTrace();
         }
@@ -280,15 +335,16 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if (isRoundPlay){
             return getUploaderName() + "的投稿视频轮播";
         }
-        String title = watch.getString("title");
-        if(getStreamType() != StreamType.LIVE_STREAM&& watch.getArray("pages").size() > 1){
+        String title = isPremiumContent == 1? watch.getString("share_copy"):watch.getString("title");
+
+        if(getStreamType() != StreamType.LIVE_STREAM&& isPremiumContent != 1 && watch.getArray("pages").size() > 1){
             title += " | P" + page.getInt("page") + " "+ page.getString("part");
         }
         return title;
     }
     @Override
     public long getLength() throws ParsingException {
-        if(getStreamType() == StreamType.LIVE_STREAM){
+        if(getStreamType() == StreamType.LIVE_STREAM ){
             return -1;
         }
         return duration;
@@ -299,6 +355,14 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return watch.getString("face").replace("http:", "https:");
         }
+        if(isPremiumContent == 1){
+            try{
+                return premiumData.getObject("up_info").getString("avatar").replace("http:", "https:");
+            } catch (Exception e) {
+                return null;
+            }
+
+        }
         return watch.getObject("owner").getString("face").replace("http:", "https:");
     }
     @Nonnull
@@ -306,6 +370,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     public Description getDescription() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return null;
+        }
+        if(isPremiumContent == 1){
+            return new Description(premiumData.getString("evaluate"), Description.PLAIN_TEXT);
         }
         return new Description(watch.getString("desc"), Description.PLAIN_TEXT);
     }
@@ -316,6 +383,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return watch.getLong("online");
         }
+        if (isPremiumContent == 1){
+            return -1;
+        }
         return watch.getObject("stat").getLong("view");
     }
     @Override
@@ -323,7 +393,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             return -1;
         }
-        return watch.getObject("stat").getLong("coin");
+        return (isPremiumContent == 1?premiumData:watch).getObject("stat").getLong("coin");
     }
 
     @Nonnull
@@ -346,9 +416,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public InfoItemsCollector<? extends InfoItem, ? extends InfoItemExtractor>getRelatedItems() throws ParsingException {
+        InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
+        if(isPremiumContent == 1){
+            for(int i = 0 ; i< relatedPaidItems.size(); i++){
+                collector.commit(new BilibiliPremiumContentInfoItemExtractor(relatedPaidItems.getObject(i)));
+            }
+            return collector;
+        }
         if(getStreamType() == StreamType.LIVE_STREAM){
             if(isRoundPlay){
-                InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
                 collector.commit(new BilibiliSameContentInfoItemExtractor(getUploaderName() + "的投稿视频轮播",
                         getUrl() + "?timestamp=" + nextTimestamp, getThumbnailUrl()
                         , getUploaderName(), getViewCount()));
@@ -356,10 +432,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             }
             return null;
         }
-        InfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         String response = null;
         try {
-            response = getDownloader().get("https://api.bilibili.com/x/player/pagelist?bvid="+id, getHeaders()).responseBody();
+            response = getDownloader().get("https://api.bilibili.com/x/player/pagelist?bvid="+bvid, getHeaders()).responseBody();
         } catch (IOException | ReCaptchaException e) {
             e.printStackTrace();
         }
@@ -367,7 +442,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             JsonObject relatedJson = JsonParser.object().from(response);
             JsonArray relatedArray = relatedJson.getArray("data");
             if(relatedArray.size()== 1){
-                response = getDownloader().get("https://api.bilibili.com/x/web-interface/archive/related?bvid="+ id, getHeaders()).responseBody();
+                response = getDownloader().get("https://api.bilibili.com/x/web-interface/archive/related?bvid="+ bvid, getHeaders()).responseBody();
                 relatedJson = JsonParser.object().from(response);
                 relatedArray = relatedJson.getArray("data");
                 for(int i=0;i<relatedArray.size();i++){
@@ -378,7 +453,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             for(int i=0;i<relatedArray.size();i++){
                 collector.commit(
                         new BilibiliRelatedInfoItemExtractor(
-                                relatedArray.getObject(i), id, getThumbnailUrl(), String.valueOf(i+1), getUploaderName(), watch.getLong("ctime")));
+                                relatedArray.getObject(i), bvid, getThumbnailUrl(), String.valueOf(i+1), getUploaderName(), watch.getLong("ctime")));
             }
         } catch (JsonParserException | ParsingException | IOException | ReCaptchaException e) {
             e.printStackTrace();
@@ -389,6 +464,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     public String getTextualUploadDate() throws ParsingException {
         if(getStreamType().equals(StreamType.LIVE_STREAM)){
             return null;
+        }
+        if(isPremiumContent == 1){
+            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("pub_time")*1000));
         }
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("ctime")*1000));
     }
@@ -404,7 +482,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public List<SubtitlesStream> getSubtitlesDefault() throws IOException, ExtractionException {
-        if(getStreamType().equals(StreamType.LIVE_STREAM)){
+        if(getStreamType().equals(StreamType.LIVE_STREAM) || isPremiumContent == 1){
             return new ArrayList<>();
         }
         JsonArray subtitles = watch.getObject("subtitle").getArray("list");

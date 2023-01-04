@@ -34,28 +34,20 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
         }else if (url.contains("aid=")) {
             String  parseResult = url.split(Pattern.quote("aid="))[1].split("&")[0];
             return new utils().av2bv(Long.parseLong(parseResult))+ "?p="+p;
-        }
-        else if(url.contains("live.bilibili.com")){
+        } else if(url.contains("live.bilibili.com") || url.contains("bangumi/play/")){
             return url.split("/")[url.split("/").length-1].split("\\?")[0];
-        }
-        else{
+        } else{
             throw new ParsingException("Not a bilibili video link.");
         }
     }
 
     @Override
     public String getUrl(final String id) {
-//        if(id.length() >8){
-//            if(cid.length()>0){
-//                return "https://api.bilibili.com/x/web-interface/view?cid="+cid+"&duration="+duration+"&bvid="+ id ;
-//            }
-//            else return "https://api.bilibili.com/x/web-interface/view?bvid="+ id;
-//        }
-//        return "https://api.bilibili.com/x/web-interface/view?aid="+ id;
         if(id.startsWith("BV")) {
             return "https://bilibili.com/"+id;
-        }
-        else return "https://live.bilibili.com/"+id;
+        } else if (id.startsWith("ss") || id.startsWith("ep")) {
+            return "https://www.bilibili.com/bangumi/play/" + id;
+        } else return "https://live.bilibili.com/"+id;
     }
 
     @Override

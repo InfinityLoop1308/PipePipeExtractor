@@ -25,9 +25,9 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
     }
     @Override
     public String getName() throws ParsingException {
-        String result = data.getString("title").replace("<em class=\"keyword\">","").replace("</em>", "");
-        if(result.length() == 0){
-            result = data.getString("shared_copy");
+        String result = data.getString("share_copy");
+        if(result == null){
+            result = data.getString("title").replace("<em class=\"keyword\">","").replace("</em>", "");
         }
         return result;
     }
@@ -35,7 +35,7 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
     @Override
     public String getUrl() throws ParsingException {
         String result = data.getString("url");
-        return result == null? data.getString("shared_url"):result;
+        return result == null? data.getString("share_url"):result;
     }
 
     @Override
@@ -55,7 +55,7 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
 
     @Override
     public long getDuration() throws ParsingException {
-        return data.getLong("duration") == 0?-1: data.getLong("duration");
+        return data.getLong("duration") / 1000;
     }
 
     @Override
@@ -65,7 +65,12 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return data.getString("org_title").replace("<em class=\"keyword\">","").replace("</em>", "");
+        try{
+            return data.getString("org_title").replace("<em class=\"keyword\">","").replace("</em>", "");
+        } catch (Exception e) {
+            return "BiliBili";
+        }
+
     }
 
     @Override
@@ -87,7 +92,7 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
     @Override
     public String getTextualUploadDate() throws ParsingException {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(
-                Optional.of(data.getInt("pubtime")).orElse(data.getInt("pub_time")) * 1000L));
+                data.getInt("pubtime") != 0 ?data.getInt("pubtime"): data.getInt("pub_time") * 1000L));
     }
 
     @Override
