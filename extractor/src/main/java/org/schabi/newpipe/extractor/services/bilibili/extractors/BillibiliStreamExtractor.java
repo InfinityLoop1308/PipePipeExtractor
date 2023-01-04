@@ -78,6 +78,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonArray relatedPaidItems;
     private int isPaid;
     private JsonObject premiumData;
+    private JsonArray dataArray;
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -148,6 +149,17 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
         if(isRoundPlay || getStreamType() != StreamType.LIVE_STREAM){
+            if(dataArray.size() > 0){
+                final List<VideoStream> videoStreams = new ArrayList<>();
+                JsonArray backupUrl = dataArray.getObject(0).getArray("backup_url");
+                for(int i = 0 ;i < backupUrl.size(); i++){
+                    videoStreams.add(new VideoStream.Builder().setContent(backupUrl.getString(i),true)
+                            .setId("bilibili-"+watch.getLong("cid"))
+                            .setIsVideoOnly(false).setResolution("Best")
+                            .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
+                }
+                return videoStreams;
+            }
             return null;
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
@@ -318,9 +330,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=16&qn=64", getHeaders()).responseBody();
         try {
             playData =  JsonParser.object().from(response);
-            dataObject = (isPremiumContent == 1? playData.getObject("result"):playData.getObject("data")).getObject("dash");
-            buildVideoOnlyStreamsArray();
-            buildAudioStreamsArray();
+            JsonObject dataParentObject = (isPremiumContent == 1 ? playData.getObject("result") : playData.getObject("data"));
+            dataObject = dataParentObject.getObject("dash");
+            if(dataObject.size() == 0){
+                throw new PaidContentException("Paid content");
+                //dataArray = dataParentObject.getArray("durl");
+            } else {
+                buildVideoOnlyStreamsArray();
+                buildAudioStreamsArray();
+            }
             if(isPaid == 1 && videoOnlyStreams.size() + audioStreams.size() == 0){
                 throw new PaidContentException("Paid content");
             }
