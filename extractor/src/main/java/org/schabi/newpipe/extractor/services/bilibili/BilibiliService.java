@@ -51,6 +51,9 @@ import java.util.Map;
 public class BilibiliService extends StreamingService{
     private WatchDataCache watchDataCache;
 
+    public static String FREE_VIDEO_BASE_URL = "https://api.bilibili.com/x/player/playurl";
+    public static String PAID_VIDEO_BASE_URL = "https://api.bilibili.com/pgc/player/web/playurl";
+
     static public Map<String, List<String>> getHeaders(){
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Cookie", Collections.singletonList("buvid3=C17989F9-9E34-6949-F6B9-19E02F3DC4B734983infoc;"));

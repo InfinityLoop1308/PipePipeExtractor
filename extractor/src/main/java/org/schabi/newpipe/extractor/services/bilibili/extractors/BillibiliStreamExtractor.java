@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FREE_VIDEO_BASE_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.PAID_VIDEO_BASE_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 import com.grack.nanojson.JsonArray;
@@ -15,6 +17,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
+import org.schabi.newpipe.extractor.exceptions.PaidContentException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
@@ -70,6 +73,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private long playTime;
     private String currentRoundTitle;
     private long nextTimestamp;
+    private int isPaid;
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -253,10 +257,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         cid = page.getInt("cid");
         watchDataCache.setCid(cid);
         duration = page.getInt("duration");
-        response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="+cid+"&bvid="+watch.getString("bvid")+"&fnval=16&qn=64", getHeaders()).responseBody();
+        isPaid = watch.getObject("rights").getInt("pay");
+        String baseUrl = isPaid != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
+        response = getDownloader().get( baseUrl + "?cid="+cid+"&bvid="+watch.getString("bvid")+"&fnval=16&qn=64", getHeaders()).responseBody();
         bvid = watch.getString("bvid");
         try {
             playData =  JsonParser.object().from(response);
+            if(isPaid == 1 && playData.getInt("code") != 0){
+                throw new PaidContentException("Paid content");
+            }
             dataObject = playData.getObject("data").getObject("dash");
             buildVideoOnlyStreamsArray();
             buildAudioStreamsArray();
