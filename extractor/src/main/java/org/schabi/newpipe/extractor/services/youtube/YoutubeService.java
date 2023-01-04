@@ -183,7 +183,7 @@ public class YoutubeService extends StreamingService {
                             id
                     ),
                     new YoutubeTrendingLinkHandlerFactory(),
-                    "Recommend Lives"
+                    "Recommended Lives"
             );
             list.setDefaultKiosk("Trending");
         } catch (final Exception e) {

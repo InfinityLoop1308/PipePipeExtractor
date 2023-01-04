@@ -168,9 +168,10 @@ public class BilibiliService extends StreamingService{
             new BilibiliFeedExtractor(this, new BilibiliFeedLinkHandlerFactory().fromUrl(url), id);
         final BilibiliFeedLinkHandlerFactory h = new BilibiliFeedLinkHandlerFactory();
         try {
-            kioskList.addKioskEntry(kioskFactory, h, "Trending");
-            kioskList.addKioskEntry(kioskFactory, h, "Recommend Lives");
-            kioskList.setDefaultKiosk("Trending");
+            kioskList.addKioskEntry(kioskFactory, h, "Recommended Videos");
+            kioskList.addKioskEntry(kioskFactory, h, "Recommended Lives");
+            kioskList.addKioskEntry(kioskFactory, h, "Top 100");
+            kioskList.setDefaultKiosk("Recommended Videos");
         } catch (Exception e) {
             e.printStackTrace();
         }

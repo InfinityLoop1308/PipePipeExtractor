@@ -12,27 +12,35 @@ public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
     public String getUrl(String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
         switch (id){
-            case "Trending":
+            case "Recommended Videos":
             default:
                 return "https://www.bilibili.com";
-            case "Recommend Lives":
+            case "Top 100":
+                return "https://api.bilibili.com/x/web-interface/ranking/v2";
+            case "Recommended Lives":
                 return "https://live.bilibili.com/all";
         }
     }
 
     @Override
     public String getId(String url) throws ParsingException {
-        if(url.equals("https://www.bilibili.com")){
-            return "Trending";
-        }else if(url.equals("https://live.bilibili.com/all")){
-            return "Recommend Lives";
+        switch (url){
+            case "https://www.bilibili.com":
+                return "Recommended Videos";
+            case "https://live.bilibili.com/all":
+                return "Recommended Lives";
+            case "https://api.bilibili.com/x/web-interface/ranking/v2":
+                return "Top 100";
+            default:
+                return null;
         }
-        return null;
     }
 
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
-        return url.equals("https://www.bilibili.com") || url.equals("https://live.bilibili.com/all");
+        return url.equals("https://www.bilibili.com")
+                || url.equals("https://live.bilibili.com/all")
+                || url.equals("https://api.bilibili.com/x/web-interface/ranking/v2");
     }
     
 }

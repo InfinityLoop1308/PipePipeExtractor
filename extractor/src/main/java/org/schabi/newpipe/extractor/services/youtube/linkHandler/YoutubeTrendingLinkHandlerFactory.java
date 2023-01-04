@@ -48,7 +48,7 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
         if(url.equals("https://www.youtube.com/feed/trending")){
             return "Trending";
         }
-        return "Recommend Lives";
+        return "Recommended Lives";
     }
 
     @Override

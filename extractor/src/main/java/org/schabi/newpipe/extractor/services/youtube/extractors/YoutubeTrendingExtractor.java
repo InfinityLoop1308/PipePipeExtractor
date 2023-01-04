@@ -110,7 +110,7 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
                             .getObject("videoRenderer"))
                     .forEachOrdered(videoRenderer -> collector.commit(
                             new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
-        }else if(getId().equals("Recommend Lives")){
+        }else if(getId().equals("Recommended Lives")){
             tabContent.getObject("sectionListRenderer")
                     .getArray("contents")
                     .stream()

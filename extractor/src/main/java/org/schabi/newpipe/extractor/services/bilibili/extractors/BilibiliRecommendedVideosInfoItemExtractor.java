@@ -5,24 +5,18 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonParserException;
 
-import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-public class BilibiliFeedInfoItemExtractor implements StreamInfoItemExtractor{
+public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoItemExtractor{
 
     protected final JsonObject item;
-    public BilibiliFeedInfoItemExtractor(final JsonObject json) {
+    public BilibiliRecommendedVideosInfoItemExtractor(final JsonObject json) {
         item = json;
     }
 
