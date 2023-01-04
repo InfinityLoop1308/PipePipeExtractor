@@ -110,4 +110,9 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
        return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
+
+    @Override
+    public int getReplyCount() throws ParsingException {
+        return (int) json.getLong("rcount");
+    }
 }
