@@ -17,22 +17,31 @@ import javax.annotation.Nullable;
 public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
-    public BilibiliLiveInfoItemExtractor(final JsonObject json) {
+    private final int type;
+
+    public BilibiliLiveInfoItemExtractor(final JsonObject json, int type) {
         item = json;
+        this.type = type;
     }
 
     @Override
     public String getName() throws ParsingException {
+        if(type == 1){
+            return getUploaderName() + "的投稿视频轮播";
+        }
         return item.getString("title").replace("<em class=\"keyword\">","").replace("</em>", "");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://live.bilibili.com/" + item.getLong("roomid");
+        return "https://live.bilibili.com/" + item.getLong(type == 0? "roomid": "room_id");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
+        if(type == 1){
+            return item.getString("cover_from_user");
+        }
         return "https:" + item.getString("user_cover");
     }
 
@@ -69,6 +78,9 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
+        if(type == 1){
+            return item.getString("face");
+        }
         return "https:" + item.getString("uface");
     }
 
@@ -80,12 +92,18 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
+        if(type == 1){
+            return null;
+        }
         return item.getString("live_time");
     }
 
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
+        if(type == 1){
+            return null;
+        }
         return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }

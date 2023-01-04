@@ -49,9 +49,11 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         try {
             json = JsonParser.object().from(response);
             userJson = JsonParser.object().from(userResponse);
-            String liveResponse = downloader.get(new BilibiliSearchQueryHandlerFactory().getUrl(getName(),
-                    Collections.singletonList(new BilibiliFilters.BilibiliContentFilterItem("live_room", "search_type=live_room")), null), getHeaders()).responseBody();
+            String liveResponse = downloader.get("https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=" + getId()).responseBody();
             liveJson = JsonParser.object().from(liveResponse);
+            if(json.getInt("code") != 0 || userJson.getInt("code") != 0 || liveJson.getInt("code") != 0){
+                throw new ExtractionException("Error occurs during fetching channel content. That normally happen because your IP got temporarily banned.");
+            }
         } catch (JsonParserException e) {
             e.printStackTrace();
         }
@@ -73,8 +75,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         if(results.size() == 0){
             return new InfoItemsPage<>(collector, null);
         }
-        if(liveJson.getObject("data").getArray("result").size() > 0){
-            collector.commit(new BilibiliLiveInfoItemExtractor(liveJson.getObject("data").getArray("result").getObject(0)));
+        if(liveJson.getObject("data").getObject(getId()).getInt("live_status") != 0){
+            collector.commit(new BilibiliLiveInfoItemExtractor(liveJson.getObject("data").getObject(getId()), 1));
         }
         for (int i = 0; i< results.size(); i++){
             collector.commit(new BilibiliChannelInfoItemExtractor(results.getObject(i), getName(),getAvatarUrl()));

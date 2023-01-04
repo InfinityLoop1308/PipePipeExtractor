@@ -71,7 +71,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
                     collector.commit(new BilibiliStreamInfoItemExtractor(result.getObject(i)));
                     break;
                 case "live_room":
-                    collector.commit(new BilibiliLiveInfoItemExtractor(result.getObject(i)));
+                    collector.commit(new BilibiliLiveInfoItemExtractor(result.getObject(i), 0));
                     break;
                 case "bili_user":
                     collector.commit(new BilibiliSearchResultChannelInfoItemExtractor(result.getObject(i)));
