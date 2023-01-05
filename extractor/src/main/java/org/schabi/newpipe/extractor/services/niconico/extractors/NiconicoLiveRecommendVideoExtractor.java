@@ -11,16 +11,19 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
 public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtractor {
     private final JsonObject data;
+    String uploaderUrl;
+    String uploaderName;
 
-    public NiconicoLiveRecommendVideoExtractor(JsonObject data) {
+    public NiconicoLiveRecommendVideoExtractor(JsonObject data, String uploaderUrl, String uploaderName) {
         this.data = data;
+        this.uploaderUrl = uploaderUrl;
+        this.uploaderName = uploaderName;
     }
 
     @Override
@@ -80,6 +83,9 @@ public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtrac
         String result = "user/" + data.getObject("content_meta").getLong("author_id");
         if(data.getObject("content_meta").getLong("author_id") == 0){
             result = data.getObject("content_meta").getObject("threads").getObject("channel").getString("channel_id");
+        }
+        if(uploaderUrl != null && uploaderUrl.contains(result)){
+            return uploaderName;
         }
         return result;
     }

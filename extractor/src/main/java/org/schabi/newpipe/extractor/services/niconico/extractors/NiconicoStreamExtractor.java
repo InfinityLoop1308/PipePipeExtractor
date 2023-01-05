@@ -307,7 +307,8 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             try {
                 JsonArray data = JsonParser.object().from(getDownloader().get(url).responseBody()).getObject("data").getArray("values");
                 for(int i = 0; i< data.size();i++){
-                    collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i)));
+                    collector.commit(new NiconicoLiveRecommendVideoExtractor(
+                            data.getObject(i), uploaderUrl, getUploaderName()));
                 }
                 return collector;
             } catch (JsonParserException e) {
