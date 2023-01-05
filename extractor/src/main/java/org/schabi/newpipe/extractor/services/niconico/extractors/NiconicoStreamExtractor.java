@@ -57,6 +57,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private JsonObject liveData;
     private Document liveResponse;
     private JsonObject liveDataRoot;
+    private boolean isHlsStream;
 
     public NiconicoStreamExtractor(final StreamingService service,
             final LinkHandler linkHandler,
@@ -176,28 +177,6 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         return Collections.emptyList();
     }
 
-    public String getNicoUrl(final String url) {
-        final Map<String, List<String>> headers = new HashMap<>();
-        headers.put("Content-Type", Collections.singletonList("application/json"));
-        final Downloader downloader = getDownloader();
-        try {
-            final JsonObject session = watch.getObject("media").getObject("delivery").getObject("movie");
-            final JsonObject encryption = watch.getObject("media")
-                    .getObject("delivery").getObject("encryption");
-            final String s = NiconicoDMCPayloadBuilder
-                    .buildJSON(session.getObject("session"), encryption);
-            response = downloader.post("https://api.dmc.nico/api/sessions?_format=json",
-                    headers, s.getBytes(StandardCharsets.UTF_8), NiconicoService.LOCALE);
-            final JsonObject content = JsonParser.object().from(response.responseBody());
-            final String contentURL = content.getObject("data").getObject("session")
-                    .getString("content_uri");
-            return String.valueOf(contentURL);
-        } catch (ReCaptchaException | JsonParserException | IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
     public void getLiveUrl() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
         String url = getUrl();
         liveResponse = Jsoup.parse(getDownloader().get(url).responseBody());
@@ -236,9 +215,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 .setContent(content, true).setId("Niconico-" + getId())
                 .setIsVideoOnly(false)
                 .setMediaFormat(MediaFormat.MPEG_4)
+                .setDeliveryMethod(isHlsStream? DeliveryMethod.HLS : DeliveryMethod.PROGRESSIVE_HTTP)
                 .setResolution("Best")
                 .build();
-        videoStream.setNicoDownloadUrl(getNicoUrl(content));
         videoStreams.add(videoStream);
         return videoStreams;
     }
@@ -246,7 +225,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getHlsUrl() throws ParsingException {
-        if(getStreamType() != StreamType.LIVE_STREAM){
+        if(getStreamType() == StreamType.VIDEO_STREAM && !isHlsStream){
             return null;
         }
         return getUrl();
@@ -346,6 +325,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return ;
         }
         watch = niconicoWatchDataCache.refreshAndGetWatchData(downloader, getId());
+        isHlsStream = watch.getObject("media").getObject("delivery")
+                .getObject("movie").getObject("session").getArray("protocols")
+                .getString(0).equals("hls");
         page = niconicoWatchDataCache.getLastPage();
         type = niconicoWatchDataCache.getLastWatchDataType();
         response = niconicoWatchDataCache.getLastResponse();
