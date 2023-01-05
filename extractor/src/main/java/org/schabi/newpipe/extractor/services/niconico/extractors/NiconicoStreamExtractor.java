@@ -348,4 +348,12 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private Boolean isChannel() {
         return watch.isNull("owner");
     }
+
+    @Override
+    public long getStartAt() throws ParsingException {
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            return liveData.getLong("beginTime") * 1000;
+        }
+        return -1;
+    }
 }

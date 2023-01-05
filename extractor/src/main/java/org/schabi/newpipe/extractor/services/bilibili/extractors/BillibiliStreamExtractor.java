@@ -577,4 +577,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     public boolean isRoundPlayStream() {
         return isRoundPlay;
     }
+
+    @Override
+    public long getStartAt() throws ParsingException {
+        if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
+            return watch.getLong("live_time") * 1000;
+        }
+        return -1;
+    }
 }
