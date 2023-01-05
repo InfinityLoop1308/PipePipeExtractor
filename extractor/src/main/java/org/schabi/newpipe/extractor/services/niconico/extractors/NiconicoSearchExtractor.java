@@ -45,7 +45,8 @@ public class NiconicoSearchExtractor extends SearchExtractor {
         final String response = getDownloader().get(
                 getLinkHandler().getUrl(), NiconicoService.LOCALE).responseBody();
         try {
-            if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)){
+            if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
+                    ||getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)){
                 return ;
             }
             searchCollection = JsonParser.object().from(response);
@@ -57,7 +58,8 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
-        if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)){
+        if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
+                ||getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)){
             return getPage(new Page(getUrl()));
         }
         if (searchCollection.getArray("data").size() == 0) {
@@ -84,6 +86,24 @@ public class NiconicoSearchExtractor extends SearchExtractor {
                     = new MultiInfoItemsCollector(getServiceId());
             for (final Element e : videos) {
                 collector.commit(new NiconicoSearchContentItemExtractor(e));
+            }
+            if(videos.size() == 0){
+                return new InfoItemsPage<>(collector, null);
+            }
+            String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
+            int currentPage = Integer.parseInt(currentPageString);
+            String nextPage = page.getUrl().replace(String.format("page=%s", currentPageString), String.format("page=%s", String.valueOf(currentPage + 1)));
+            return new InfoItemsPage<>(collector, new Page(nextPage));
+        } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
+            Elements lives = Jsoup.parse(response).select("div.searchPage-Layout_Section").first()
+                    .select("ul.searchPage-ProgramList > li.searchPage-ProgramList_Item");
+            final MultiInfoItemsCollector collector
+                    = new MultiInfoItemsCollector(getServiceId());
+            for (final Element e : lives) {
+                collector.commit(new NiconicoLiveSearchInfoItemExtractor(e));
+            }
+            if(lives.size() == 0){
+                return new InfoItemsPage<>(collector, null);
             }
             String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
             int currentPage = Integer.parseInt(currentPageString);

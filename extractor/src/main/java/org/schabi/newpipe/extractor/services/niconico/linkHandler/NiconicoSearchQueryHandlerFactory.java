@@ -31,6 +31,10 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
+            if(selectedContentFilter.get(0).getName().equals("Lives")){
+                return NiconicoService.LIVE_SEARCH_URL + "?keyword=" + URLEncoder.encode(id, UTF_8) + "&page=1";
+            }
+
             if(filterQuery.contains("&sort=")){
                 return NiconicoService.SEARCH_URL + URLEncoder.encode(id, UTF_8) + "?sort=h&order=d&page=1";
             }

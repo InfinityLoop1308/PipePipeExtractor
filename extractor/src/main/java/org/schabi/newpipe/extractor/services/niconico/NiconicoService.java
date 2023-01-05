@@ -79,6 +79,9 @@ public class NiconicoService extends StreamingService {
     public static final String SEARCH_URL =
             "https://www.nicovideo.jp/search/";
 
+    public static final String LIVE_SEARCH_URL =
+            "https://live.nicovideo.jp/search";
+
     public static final String MYLIST_URL =
             "https://nvapi.nicovideo.jp/v2/mylists/";
 

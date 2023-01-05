@@ -13,6 +13,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
 
     private static final String ALL = "All";
     private static final String TAGS_ONLY = "TagsOnly";
+    private static final String LIVES = "Lives";
 
     public NiconicoFilters() {
         init();
@@ -56,12 +57,15 @@ public final class NiconicoFilters extends SearchFiltersBase {
                 new NiconicoFilters.NiconicoContentFilterItem(ALL, "targets=title,description,tags"));
         final int contentFilterTagsOnly = builder.addFilterItem(
                 new NiconicoFilters.NiconicoContentFilterItem(TAGS_ONLY, "targets=tagsExact"));
+        final int contentFilterLiveRooms = builder.addFilterItem(
+                new NiconicoFilters.NiconicoContentFilterItem(LIVES, ""));
         this.defaultContentFilterId = contentFilterAll;
 
         /* content filters with sort filters */
         addContentFilter(builder.createSortGroup(null, true, new FilterItem[]{
                 builder.getFilterForId(contentFilterAll),
                 builder.getFilterForId(contentFilterTagsOnly),
+                builder.getFilterForId(contentFilterLiveRooms),
         }));
 
         /* 'Sort by' filter items */
