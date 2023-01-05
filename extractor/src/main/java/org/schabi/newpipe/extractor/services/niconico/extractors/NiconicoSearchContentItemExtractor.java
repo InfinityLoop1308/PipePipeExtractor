@@ -9,6 +9,10 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 
 import java.text.NumberFormat;
 import java.text.ParseException;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
 
@@ -98,6 +102,7 @@ public class NiconicoSearchContentItemExtractor implements StreamInfoItemExtract
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return null;
+        return new DateWrapper(LocalDateTime.parse(
+                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")).atOffset(ZoneOffset.ofHours(9)));
     }
 }
