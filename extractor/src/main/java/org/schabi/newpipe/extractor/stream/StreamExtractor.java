@@ -566,6 +566,11 @@ public abstract class StreamExtractor extends Extractor {
         return false;
     }
 
+    /*Live start time in millisecond. Just use if current status can't be fetched from the segment*/
+    public long getStartAt() throws ParsingException {
+        return -1;
+    }
+
     public enum Privacy {
         PUBLIC,
         UNLISTED,

@@ -43,6 +43,7 @@ public class StreamInfoItem extends InfoItem {
     private String uploaderAvatarUrl = null;
     private boolean uploaderVerified = false;
     private boolean isRoundPlayStream = false;
+    private long startAt = -1;
 
     public StreamInfoItem(final int serviceId,
                           final String url,
@@ -155,5 +156,13 @@ public class StreamInfoItem extends InfoItem {
 
     public void setRoundPlayStream(boolean roundPlayStream) {
         isRoundPlayStream = roundPlayStream;
+    }
+
+    public void setStartAt(long startAt) {
+        this.startAt = startAt;
+    }
+
+    public long getStartAt() {
+        return startAt;
     }
 }

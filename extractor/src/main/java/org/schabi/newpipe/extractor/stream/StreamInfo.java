@@ -359,6 +359,11 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+        try {
+            streamInfo.setStartAt(extractor.getStartAt());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
         if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
                     extractor));
@@ -412,6 +417,7 @@ public class StreamInfo extends Info {
     private boolean supportComments;
     private boolean supportRelatedItems;
     private boolean isRoundPlayStream;
+    private long startAt = -1;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -770,6 +776,14 @@ public class StreamInfo extends Info {
 
     public void setRoundPlayStream(boolean roundPlayStream) {
         isRoundPlayStream = roundPlayStream;
+    }
+
+    public long getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(long startAt) {
+        this.startAt = startAt;
     }
 
     public void removeUrl(String url){
