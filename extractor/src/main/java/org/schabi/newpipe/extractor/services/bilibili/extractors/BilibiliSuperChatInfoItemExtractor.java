@@ -34,7 +34,7 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
 
     @Override
     public String getCommentText() throws ParsingException {
-        return data.getString("message");
+        return String.format("(¥%s) ", data.getInt("price")) + data.getString("message");
     }
 
     @Override
@@ -44,7 +44,7 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
 
     @Override
     public BulletCommentsInfoItem.Position getPosition() throws ParsingException {
-        return BulletCommentsInfoItem.Position.TOP;
+        return BulletCommentsInfoItem.Position.SUPERCHAT;
     }
 
     @Override
@@ -56,4 +56,15 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
     public Duration getDuration() throws ParsingException {
         return Duration.ofSeconds(data.getLong("start_time") - startTime);
     }
+
+//    @Override
+//    public int getLastingTime() {
+//        int price = data.getInt("price");
+//        if(price > 700){
+//            return 60000;
+//        } else if () {
+//
+//        }
+//        return data.getInt("ti")
+//    }
 }
