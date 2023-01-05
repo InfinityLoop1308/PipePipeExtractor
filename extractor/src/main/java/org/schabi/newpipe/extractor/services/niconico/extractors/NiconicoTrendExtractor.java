@@ -1,7 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
@@ -27,6 +26,7 @@ import javax.annotation.Nonnull;
 public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
     private Document rss;
     private JsonArray data;
+    private Document document;
 
     public NiconicoTrendExtractor(final StreamingService streamingService,
                                   final ListLinkHandler linkHandler, final String kioskId) {
@@ -36,15 +36,21 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
     @Override
     public void onFetchPage(final @Nonnull Downloader downloader)
             throws IOException, ExtractionException {
-        if(!getId().equals("Trending")){
-            try {
-                data = JsonParser.object().from(downloader.get(getUrl()).responseBody()).getObject("data").getArray("values");
-                return ;
-            } catch (JsonParserException e) {
-                throw new RuntimeException(e);
-            }
+        switch (getId()){
+            case "Recommended Lives":
+                try {
+                    data = JsonParser.object().from(downloader.get(getUrl()).responseBody()).getObject("data").getArray("values");
+                    return ;
+                } catch (JsonParserException e) {
+                    throw new RuntimeException(e);
+                }
+            case "Trending":
+            default:
+                rss = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL).responseBody());
+                return;
+            case "Top Lives":
+                document = Jsoup.parse(downloader.get(getUrl()).responseBody());
         }
-        rss = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL).responseBody());
     }
 
     @Nonnull
@@ -52,21 +58,30 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
     public InfoItemsPage<StreamInfoItem> getInitialPage()
             throws IOException, ExtractionException {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
-        if(!getId().equals("Trending")){
-            for(int i = 0; i< data.size(); i++){
-                collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i)));
-            }
-            return new InfoItemsPage<>(collector, null);
-        }
-        final Elements arrays = rss.getElementsByTag("item");
-        final String uploaderName = rss.getElementsByTag("dc:creator").text();
-        final String uploaderUrl = rss.getElementsByTag("link").text();
+        switch (getId()){
+            case "Recommended Lives":
+                for(int i = 0; i< data.size(); i++){
+                    collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i), null,  null));
+                }
+                return new InfoItemsPage<>(collector, null);
+            case "Trending":
+            default:
+                final Elements arrays = rss.getElementsByTag("item");
+                final String uploaderName = rss.getElementsByTag("dc:creator").text();
+                final String uploaderUrl = rss.getElementsByTag("link").text();
 
-        for (final Element e : arrays) {
-            collector.commit(new NiconicoTrendRSSExtractor(e, uploaderName, uploaderUrl, null));
-        }
+                for (final Element e : arrays) {
+                    collector.commit(new NiconicoTrendRSSExtractor(e, uploaderName, uploaderUrl, null));
+                }
 
-        return new InfoItemsPage<>(collector, null);
+                return new InfoItemsPage<>(collector, null);
+            case "Top Lives":
+                final Elements dataArray = document.select(".___rk-program-card___csmJm");
+                for (final Element e : dataArray) {
+                    collector.commit(new NiconicoTopLivesInfoItemExtractor(e));
+                }
+                return new InfoItemsPage<>(collector, null);
+        }
     }
 
     @Override

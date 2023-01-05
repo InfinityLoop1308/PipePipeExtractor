@@ -15,13 +15,17 @@ public class NiconicoTrendLinkHandlerFactory extends ListLinkHandlerFactory {
             default:
                 return "Trending";
             case NiconicoService.RECOMMEND_LIVES_URL:
-                return "Recommend Lives";
+                return "Recommended Lives";
+            case NiconicoService.TOP_LIVES_URL:
+                return "Top Lives";
         }
     }
 
     @Override
     public boolean onAcceptUrl(final String url) throws ParsingException {
-        return NiconicoService.DAILY_TREND_URL.equals(url) || NiconicoService.RECOMMEND_LIVES_URL.equals(url);
+        return NiconicoService.DAILY_TREND_URL.equals(url)
+                || NiconicoService.RECOMMEND_LIVES_URL.equals(url)
+                || NiconicoService.TOP_LIVES_URL.equals(url);
     }
 
     @Override
@@ -33,6 +37,8 @@ public class NiconicoTrendLinkHandlerFactory extends ListLinkHandlerFactory {
                 return NiconicoService.DAILY_TREND_URL;
             case "Recommended Lives":
                 return NiconicoService.RECOMMEND_LIVES_URL;
+            case "Top Lives":
+                return NiconicoService.TOP_LIVES_URL;
         }
     }
 }
