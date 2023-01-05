@@ -2,13 +2,18 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonParserException;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException;
+import org.schabi.newpipe.extractor.exceptions.PaidContentException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
@@ -61,6 +66,12 @@ public class NiconicoWatchDataCache {
             final Element element = page.getElementById("js-initial-watch-data");
             if (element == null) {
                 watchDataType = WatchDataType.LOGIN; //need login
+                if(response.responseBody().contains("チャンネル会員専用動画")){
+                    throw new PaidContentException("Channel member limited videos");
+                } else if (response.responseBody().contains("地域と同じ地域からのみ視聴")) {
+                    throw new GeographicRestrictionException("Sorry, this video can only be viewed in the same region where it was uploaded.");
+                }
+                throw new ContentNotAvailableException("Unknown reason");
             } else {
                 watchDataType = WatchDataType.GUEST;
             }
@@ -73,8 +84,8 @@ public class NiconicoWatchDataCache {
                         page.getElementById("js-initial-watch-data")
                                 .attr("data-api-data"));
             }
-        } catch (final Exception e) {
-            throw new ExtractionException("Could not extract watching page", e);
+        } catch (JsonParserException e) {
+            throw new ParsingException("Failed to parse content");
         }
 
         lastId = id;
