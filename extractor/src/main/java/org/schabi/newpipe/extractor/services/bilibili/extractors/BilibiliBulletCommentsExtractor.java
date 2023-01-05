@@ -114,4 +114,17 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
     public void disconnect() {
         webSocketClient.disconnect();
     }
+
+    @Override
+    public void reconnect() {
+        if(webSocketClient != null && webSocketClient.getWebSocketClient().isClosed()){
+            try {
+                webSocketClient.wrappedReconnect();
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 }

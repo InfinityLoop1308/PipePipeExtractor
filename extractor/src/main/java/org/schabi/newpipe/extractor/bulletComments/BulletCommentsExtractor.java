@@ -30,4 +30,7 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
 
     public void disconnect(){
     }
+    public void reconnect(){
+
+    }
 }

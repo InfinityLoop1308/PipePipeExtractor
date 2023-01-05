@@ -104,4 +104,15 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
     public void disconnect() {
         webSocketClient.disconnect();
     }
+    public void reconnect(){
+        if(webSocketClient != null && webSocketClient.getWebSocketClient().isClosed()){
+            try {
+                webSocketClient.wrappedReconnect();
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
 }
