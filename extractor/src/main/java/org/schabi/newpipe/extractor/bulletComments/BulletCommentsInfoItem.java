@@ -9,13 +9,16 @@ public class BulletCommentsInfoItem extends InfoItem {
         REGULAR,
         BOTTOM,
         TOP,
+        SUPERCHAT
     }
 
     private String commentText;
     private int argbColor;
     private Position position;
     private double relativeFontSize;
+    /* It really should be named as timePosition or some other thing*/
     private Duration duration;
+    private int lastingTime;
 
     public BulletCommentsInfoItem(final int serviceId, final String url, final String name) {
         super(InfoType.COMMENT, serviceId, url, name);
@@ -59,5 +62,13 @@ public class BulletCommentsInfoItem extends InfoItem {
 
     public void setDuration(final Duration duration) {
         this.duration = duration;
+    }
+
+    public int getLastingTime() {
+        return -1;
+    }
+
+    public void setLastingTime(int lastingTime) {
+        this.lastingTime = lastingTime;
     }
 }

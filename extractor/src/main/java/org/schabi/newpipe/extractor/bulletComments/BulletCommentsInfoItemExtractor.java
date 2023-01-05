@@ -30,4 +30,8 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
     default Duration getDuration() throws ParsingException {
         return Duration.ZERO;
     }
+
+    default int getLastingTime() {
+        return -1;
+    }
 }
