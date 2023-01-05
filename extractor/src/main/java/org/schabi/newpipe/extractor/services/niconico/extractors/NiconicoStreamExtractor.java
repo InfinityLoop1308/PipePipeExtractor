@@ -17,7 +17,10 @@ import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
+import org.schabi.newpipe.extractor.exceptions.PaidContentException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
@@ -36,6 +39,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -177,9 +181,10 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         return Collections.emptyList();
     }
 
-    public void getLiveUrl() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
+    public void getLiveUrl() throws ExtractionException, IOException, JsonParserException {
         String url = getUrl();
-        liveResponse = Jsoup.parse(getDownloader().get(url).responseBody());
+        String responseBody = getDownloader().get(url).responseBody();
+        liveResponse = Jsoup.parse(responseBody);
         String result = JsonParser.object().from(liveResponse
                 .select("script#embedded-data").attr("data-props"))
                 .getObject("site").getObject("relive").getString("webSocketUrl");
@@ -197,7 +202,20 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 10);
         webSocketClient.close();
-        throw new RuntimeException("Failed to get live url");
+        if(responseBody.contains("フォロワー限定")){
+            throw new ContentNotAvailableException("The live is for followers only");
+        } else if (responseBody.contains("非公開")) {
+            throw new ContentNotAvailableException("タイムシフト非公開番組です");
+        } else if (responseBody.contains("会員無料")) {
+            throw new PaidContentException("Only available for premium users");
+        }
+        liveDataRoot = JsonParser.object().from(liveResponse.select("script#embedded-data")
+                .first().attr("data-props"));
+        liveData = liveDataRoot.getObject("program");
+        if(getStartAt() - new Date().getTime() > 0){
+            throw new LiveNotStartException("The live is not started yet");
+        }
+        throw new ExtractionException("Failed to get live url");
     }
 
     @Override
@@ -313,10 +331,6 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM){
             try {
                 getLiveUrl();
-                liveDataRoot = JsonParser.object().from(liveResponse.select("script#embedded-data")
-                        .first().attr("data-props"));
-                liveData = liveDataRoot.getObject("program");
-
                 niconicoWatchDataCache.setThreadId(liveThreadId);
                 niconicoWatchDataCache.setThreadServer(liveMessageServer);
             } catch (JsonParserException e) {
