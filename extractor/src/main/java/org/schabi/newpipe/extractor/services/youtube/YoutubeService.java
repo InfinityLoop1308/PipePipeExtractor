@@ -1,9 +1,13 @@
 package org.schabi.newpipe.extractor.services.youtube;
 
+import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeBulletCommentsExtractor;
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeBulletCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
@@ -46,17 +50,12 @@ import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQu
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeTrendingLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
+import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
 import javax.annotation.Nonnull;
 import java.util.List;
-
-import static java.util.Arrays.asList;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
 /*
  * Created by Christian Schabesberger on 23.08.15.
@@ -79,9 +78,10 @@ import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCap
  */
 
 public class YoutubeService extends StreamingService {
+    public WatchDataCache watchDataCache = new WatchDataCache();
 
     public YoutubeService(final int id) {
-        super(id, "YouTube", asList(AUDIO, VIDEO, LIVE, COMMENTS));
+        super(id, "YouTube", asList(AUDIO, VIDEO, LIVE, COMMENTS, BULLET_COMMENTS));
     }
 
     @Override
@@ -116,7 +116,7 @@ public class YoutubeService extends StreamingService {
 
     @Override
     public StreamExtractor getStreamExtractor(final LinkHandler linkHandler) {
-        return new YoutubeStreamExtractor(this, linkHandler);
+        return new YoutubeStreamExtractor(this, linkHandler, watchDataCache);
     }
 
     @Override
@@ -251,5 +251,15 @@ public class YoutubeService extends StreamingService {
     @Override
     public List<ContentCountry> getSupportedCountries() {
         return SUPPORTED_COUNTRIES;
+    }
+
+    @Override
+    public BulletCommentsExtractor getBulletCommentsExtractor(ListLinkHandler linkHandler) throws ExtractionException {
+        return new YoutubeBulletCommentsExtractor(this, linkHandler, watchDataCache);
+    }
+
+    @Override
+    public ListLinkHandlerFactory getBulletCommentsLHFactory() {
+        return new YoutubeBulletCommentsLinkHandlerFactory();
     }
 }

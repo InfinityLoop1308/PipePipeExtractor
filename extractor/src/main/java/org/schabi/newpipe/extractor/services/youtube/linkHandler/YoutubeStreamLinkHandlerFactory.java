@@ -51,7 +51,7 @@ public final class YoutubeStreamLinkHandlerFactory extends LinkHandlerFactory {
     private static final List<String> SUBPATHS
             = Arrays.asList("embed/", "shorts/", "watch/", "v/", "w/");
 
-    private YoutubeStreamLinkHandlerFactory() {
+    YoutubeStreamLinkHandlerFactory() {
     }
 
     public static YoutubeStreamLinkHandlerFactory getInstance() {

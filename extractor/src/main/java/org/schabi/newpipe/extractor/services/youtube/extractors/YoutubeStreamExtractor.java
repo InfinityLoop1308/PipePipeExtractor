@@ -67,6 +67,7 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.localization.TimeAgoPatternsManager;
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
+import org.schabi.newpipe.extractor.services.youtube.WatchDataCache;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptExtractor;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeThrottlingDecrypter;
@@ -150,8 +151,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private String androidCpn;
     private String iosCpn;
 
-    public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler) {
+    private WatchDataCache watchDataCache;
+
+    public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
+        this.watchDataCache = watchDataCache;
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -180,6 +184,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         return title;
     }
+
+//    @Override
+////    public long getStartAt() throws ParsingException {
+////        return getUploadDate().offsetDateTime().toEpochSecond() * 1000;
+////    }
 
     @Nullable
     @Override
@@ -735,6 +744,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         } else {
             streamType = StreamType.VIDEO_STREAM;
         }
+        watchDataCache.streamType = streamType;
     }
 
     @Nullable
@@ -876,6 +886,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // so we need to store it instead of getting it directly from the playerResponse
         playerMicroFormatRenderer = youtubePlayerResponse.getObject("microformat")
                 .getObject("playerMicroformatRenderer");
+
+        watchDataCache.startAt = getStartAt();
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(localization, contentCountry)
