@@ -18,6 +18,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
+import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
 import org.schabi.newpipe.extractor.exceptions.PaidContentException;
@@ -346,6 +347,10 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         isHlsStream = watch.getObject("media").getObject("delivery")
                 .getObject("movie").getObject("session").getArray("protocols")
                 .getString(0).equals("hls");
+        if(isHlsStream){
+            throw new ContentNotSupportedException("This video is an encryted HLS stream. " +
+                    "Sorry, but AnimePipe is not able to handle it currently.");
+        }
         page = niconicoWatchDataCache.getLastPage();
         type = niconicoWatchDataCache.getLastWatchDataType();
         response = niconicoWatchDataCache.getLastResponse();
