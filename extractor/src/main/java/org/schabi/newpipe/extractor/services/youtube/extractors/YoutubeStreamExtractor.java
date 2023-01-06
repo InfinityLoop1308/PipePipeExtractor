@@ -185,20 +185,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return title;
     }
 
-//    @Override
-////    public long getStartAt() throws ParsingException {
-////        return getUploadDate().offsetDateTime().toEpochSecond() * 1000;
-////    }
+    @Override
+    public long getStartAt() throws ParsingException {
+        return getUploadDate().offsetDateTime().toEpochSecond() * 1000;
+    }
 
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        if (!playerMicroFormatRenderer.getString("uploadDate", EMPTY_STRING).isEmpty()) {
-            return playerMicroFormatRenderer.getString("uploadDate");
-        } else if (!playerMicroFormatRenderer.getString("publishDate", EMPTY_STRING).isEmpty()) {
-            return playerMicroFormatRenderer.getString("publishDate");
-        }
-
         final JsonObject liveDetails = playerMicroFormatRenderer.getObject(
                 "liveBroadcastDetails");
         if (!liveDetails.getString("endTimestamp", EMPTY_STRING).isEmpty()) {
@@ -210,6 +204,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         } else if (getStreamType() == StreamType.LIVE_STREAM) {
             // this should never be reached, but a live stream without upload date is valid
             return null;
+        }
+
+        if (!playerMicroFormatRenderer.getString("uploadDate", EMPTY_STRING).isEmpty()) {
+            return playerMicroFormatRenderer.getString("uploadDate");
+        } else if (!playerMicroFormatRenderer.getString("publishDate", EMPTY_STRING).isEmpty()) {
+            return playerMicroFormatRenderer.getString("publishDate");
         }
 
         if (getTextFromObject(getVideoPrimaryInfoRenderer().getObject("dateText"))
