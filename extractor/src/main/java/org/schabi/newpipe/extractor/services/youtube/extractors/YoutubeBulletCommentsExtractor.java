@@ -2,7 +2,6 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareIosMobileJsonBuilder;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 
 import com.grack.nanojson.JsonArray;
@@ -26,8 +25,6 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,22 +39,20 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     private String key;
     private StreamType streamType;
     private ScheduledExecutorService executor;
-    private ArrayList<JsonObject> messages = new ArrayList<>();
-    private ArrayList<JsonObject> SuperChatMessages = new ArrayList<>();
+    private final ArrayList<JsonObject> messages = new ArrayList<>();
+    private final ArrayList<JsonObject> SuperChatMessages = new ArrayList<>();
     private String lastContinuation;
     private ScheduledFuture<?> future;
     private boolean disabled = false;
     private long currentPlayPosition = 0;
-    private boolean isLiveStream = false;
-    private long lastFetchTime = 0;
-    private long startTime;
-    private String lastDataID;
-    private String[] continuationKeyTexts = new String[]{
+    private final boolean isLiveStream;
+    private final long startTime;
+    private final String[] continuationKeyTexts = new String[]{
             "timedContinuationData", "invalidationContinuationData"
 //           , "playerSeekContinuationData" , "liveChatReplayContinuationData"
     };
-    private int messageCount = 0;
-    private ArrayList<String> IDList= new ArrayList<>();
+    private final ArrayList<String> IDList= new ArrayList<>();
+    private boolean shouldSkipFetch = false;
 
     public YoutubeBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache streamType) {
         super(service, uiHandler);
@@ -145,8 +140,6 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                     }
                 }
             }
-            System.out.println("Youtube BC - "+ "messageCount: " + messages.size() + " , currentTime: "+ currentPlayPosition);
-            messageCount = messages.size();
         } catch (IOException | ExtractionException e) {
             throw new RuntimeException(e);
         }
