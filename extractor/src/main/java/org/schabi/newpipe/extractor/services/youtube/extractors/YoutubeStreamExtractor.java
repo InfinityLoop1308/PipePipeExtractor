@@ -736,8 +736,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Override
     public StreamType getStreamType() {
-        assertPageFetched();
-
         return streamType;
     }
 
