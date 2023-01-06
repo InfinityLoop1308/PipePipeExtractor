@@ -33,4 +33,9 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
     public void reconnect(){
 
     }
+    public boolean isDisabled(){
+        return false;
+    }
+    public void setCurrentPlayPosition(long currentPlayPosition){
+    }
 }
