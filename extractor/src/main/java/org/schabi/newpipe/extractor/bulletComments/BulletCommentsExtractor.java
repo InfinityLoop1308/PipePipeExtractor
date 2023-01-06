@@ -38,4 +38,5 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
     }
     public void setCurrentPlayPosition(long currentPlayPosition){
     }
+    public void clearMappingState(){}
 }
