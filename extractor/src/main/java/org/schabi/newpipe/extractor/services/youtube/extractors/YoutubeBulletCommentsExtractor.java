@@ -202,6 +202,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void setCurrentPlayPosition(long currentPlayPosition) {
+        if(this.currentPlayPosition > currentPlayPosition){
+            IDList.clear();
+        }
         this.currentPlayPosition = currentPlayPosition;
     }
 
