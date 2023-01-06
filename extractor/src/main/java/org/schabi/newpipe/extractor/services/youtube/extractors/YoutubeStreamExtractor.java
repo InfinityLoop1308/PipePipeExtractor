@@ -730,6 +730,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     @Override
+    public boolean isSupportComments() throws ParsingException {
+        return !getStreamType().equals(StreamType.LIVE_STREAM);
+    }
+
+    @Override
     public StreamType getStreamType() {
         assertPageFetched();
 
