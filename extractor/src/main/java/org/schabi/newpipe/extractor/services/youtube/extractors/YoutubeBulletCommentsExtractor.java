@@ -85,6 +85,10 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     }
 
     private void fetchMessage(){
+        if(shouldSkipFetch){
+            shouldSkipFetch = false;
+            return ;
+        }
         try {
             final byte[] json = JsonWriter.string(prepareDesktopJsonBuilder(Localization.DEFAULT,
                             ContentCountry.DEFAULT)
@@ -204,6 +208,7 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     public void setCurrentPlayPosition(long currentPlayPosition) {
         if(this.currentPlayPosition > currentPlayPosition){
             IDList.clear();
+            shouldSkipFetch = true;
         }
         this.currentPlayPosition = currentPlayPosition;
     }
