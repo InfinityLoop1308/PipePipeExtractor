@@ -29,6 +29,7 @@ public class NiconicoWatchDataCache {
     WatchDataType watchDataType;
     private String threadServer;
     private String threadId;
+    private long startAt;
 
     public enum WatchDataType {
         LOGIN(1),
@@ -122,5 +123,13 @@ public class NiconicoWatchDataCache {
 
     public void setThreadServer(String threadServer) {
         this.threadServer = threadServer;
+    }
+
+    public long getStartAt() {
+        return startAt;
+    }
+
+    public void setStartAt(long startAt) {
+        this.startAt = startAt;
     }
 }

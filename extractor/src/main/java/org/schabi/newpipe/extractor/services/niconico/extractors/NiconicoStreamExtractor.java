@@ -334,6 +334,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 liveDataRoot = JsonParser.object().from(liveResponse.select("script#embedded-data")
                         .first().attr("data-props"));
                 liveData = liveDataRoot.getObject("program");
+                niconicoWatchDataCache.setStartAt(liveData.getLong("beginTime") * 1000);
                 niconicoWatchDataCache.setThreadId(liveThreadId);
                 niconicoWatchDataCache.setThreadServer(liveMessageServer);
             } catch (JsonParserException e) {

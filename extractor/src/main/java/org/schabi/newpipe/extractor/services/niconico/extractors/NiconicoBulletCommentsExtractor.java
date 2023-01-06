@@ -69,7 +69,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
                 new BulletCommentsInfoItemsCollector(getServiceId());
         ArrayList<JsonObject> messages = webSocketClient.getMessages();
         for(final JsonObject message:messages){
-            collector.commit(new NiconicoBulletCommentsInfoItemExtractor(message, getUrl()));
+            collector.commit(new NiconicoBulletCommentsInfoItemExtractor(message, getUrl(), watchDataCache.getStartAt()));
         }
         return new InfoItemsPage<>(collector, null).getItems();
     }
@@ -85,7 +85,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
         }
         for (final JsonObject comment : commentsCache
                 .getComments(watch, getDownloader(), getId())) {
-            collector.commit(new NiconicoBulletCommentsInfoItemExtractor(comment, getUrl()));
+            collector.commit(new NiconicoBulletCommentsInfoItemExtractor(comment, getUrl(), watchDataCache.getStartAt()));
         }
         return new InfoItemsPage<>(collector, null);
     }

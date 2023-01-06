@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
+import java.util.Date;
 import java.util.HashMap;
 
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
@@ -23,6 +24,7 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     protected String url;
     @Nonnull
     protected String[] mailStyles;
+    private long startAt;
     protected final HashMap<String, Integer> colorMap = new HashMap<String, Integer>() {
         {
             put("white", 0xFFFFFF);
@@ -73,9 +75,10 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     };
 
     NiconicoBulletCommentsInfoItemExtractor(@Nonnull final JsonObject json,
-                                            @Nonnull final String url) {
+                                            @Nonnull final String url, long startAt) {
         this.json = json;
         this.url = url;
+        this.startAt = startAt;
         this.mailStyles = new String[0];
         if (json.containsKey("mail")) {
             try {
@@ -151,7 +154,7 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
         try {
             return Duration.ofMillis(json.getLong("vpos", 0) * 10);
         } catch (final Exception e) {
-            throw new ParsingException("Could not get comment duration", e);
+           return Duration.ofMillis(new Date().getTime() - startAt);
         }
     }
 }
