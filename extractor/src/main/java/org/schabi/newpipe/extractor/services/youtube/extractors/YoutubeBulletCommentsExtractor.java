@@ -170,16 +170,6 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     public List<BulletCommentsInfoItem> getLiveMessages() throws ParsingException {
         final BulletCommentsInfoItemsCollector collector =
                 new BulletCommentsInfoItemsCollector(getServiceId());
-        long currentTime = new Date().getTime();
-//        if(lastFetchTime != 0 && currentTime - lastFetchTime < 1000){
-//            return Collections.emptyList();
-//        }
-//        lastFetchTime = currentTime;
-//        int cnt = 0;
-//        while(messages.size() > 0 && cnt <= messageCount / 3){
-//            cnt++;
-//            collector.commit(new YoutubeBulletCommentsInfoItemExtractor(messages.remove(0)));
-//        }
         for(JsonObject item: messages){
             collector.commit(new YoutubeBulletCommentsInfoItemExtractor(item, startTime));
         }

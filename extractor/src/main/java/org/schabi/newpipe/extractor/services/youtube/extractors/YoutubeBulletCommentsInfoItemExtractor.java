@@ -61,7 +61,8 @@ public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInf
 
     @Override
     public Duration getDuration() throws ParsingException {
-        return Duration.ofMillis(Long.parseLong(data.getString("timestampUsec"))/1000 - startTime);
+       // return Duration.ofMillis(Long.parseLong(data.getString("timestampUsec"))/1000 - startTime);
+        return Duration.ZERO;
     }
 
     @Override
