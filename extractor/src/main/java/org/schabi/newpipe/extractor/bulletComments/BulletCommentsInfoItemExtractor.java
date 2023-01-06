@@ -24,7 +24,7 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
     }
 
     default double getRelativeFontSize() throws ParsingException {
-        return 1.0;
+        return 0.7;
     }
 
     default Duration getDuration() throws ParsingException {
