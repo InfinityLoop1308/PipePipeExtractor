@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
+    private final boolean shoudldBeLive;
     private JsonObject data;
     private String key;
     private StreamType streamType;
@@ -54,16 +55,26 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     private final ArrayList<String> IDList= new ArrayList<>();
     private boolean shouldSkipFetch = false;
 
-    public YoutubeBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache streamType) {
+    public YoutubeBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache watchDataCache) throws ExtractionException {
         super(service, uiHandler);
-        isLiveStream = streamType.streamType.equals(StreamType.LIVE_STREAM);
-        startTime = streamType.startAt;
+        if(watchDataCache.currentUrl.equals(uiHandler.getUrl())){
+            isLiveStream = watchDataCache.streamType.equals(StreamType.LIVE_STREAM);
+            startTime = watchDataCache.startAt;
+            shoudldBeLive = watchDataCache.shouldBeLive;
+        } else if (watchDataCache.lastCurrentUrl.equals(uiHandler.getUrl())){
+            isLiveStream = watchDataCache.lastStreamType.equals(StreamType.LIVE_STREAM);
+            startTime = watchDataCache.lastStartAt;
+            shoudldBeLive = watchDataCache.lastShouldBeLive;
+        } else {
+            throw new ExtractionException("WatchDataCache of current url is not initialized");
+        }
     }
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         String response = downloader.get(getUrl()).responseBody();
-        if(!isLiveStream &&!(response.contains("Streamed live on")
+        if(!shoudldBeLive &&
+                !isLiveStream &&!(response.contains("Streamed live on")
                 && Pattern.compile("Streamed .* ago").matcher(response).find())){
             disabled = true;
             return ;
@@ -93,7 +104,7 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                             .end()
                             .done())
                     .getBytes(UTF_8);
-            JsonObject result = getJsonPostResponse("live_chat/" + 
+            JsonObject result = getJsonPostResponse("live_chat/" +
                     (isLiveStream? "get_live_chat":
                             "get_live_chat_replay"), json, Localization.DEFAULT);
             JsonObject liveChatContinuation = result.getObject("continuationContents").getObject("liveChatContinuation");

@@ -156,6 +156,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
         this.watchDataCache = watchDataCache;
+        watchDataCache.init(linkHandler.getUrl());
     }
 
     /*//////////////////////////////////////////////////////////////////////////
@@ -206,6 +207,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return null;
         }
 
+        watchDataCache.shouldBeLive = false;
         if (!playerMicroFormatRenderer.getString("uploadDate", EMPTY_STRING).isEmpty()) {
             return playerMicroFormatRenderer.getString("uploadDate");
         } else if (!playerMicroFormatRenderer.getString("publishDate", EMPTY_STRING).isEmpty()) {
