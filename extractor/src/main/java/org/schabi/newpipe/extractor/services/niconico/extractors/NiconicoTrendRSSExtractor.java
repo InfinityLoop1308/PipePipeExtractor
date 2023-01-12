@@ -79,12 +79,12 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
         String duration = cdata.getElementsByClass("nico-info-length").text();
         long result = 0;
         int len = duration.split(":").length;
-        try {
-            result += Integer.parseInt(duration.split(":")[len-1]);
-            result += Integer.parseInt(duration.split(":")[len-2]) * 60;
-            result += Integer.parseInt(duration.split(":")[len-3]) * 3600;
-        } catch (Exception e){
-            e.printStackTrace();
+        result += Integer.parseInt(duration.split(":")[len-1]);
+        if(len > 1) {
+            result += Integer.parseInt(duration.split(":")[len-2]) * 60L;
+        }
+        if(len > 2) {
+            result += (long) Integer.parseInt(duration.split(":")[len - 3]) * 60 * 60;
         }
         return  result;
     }
