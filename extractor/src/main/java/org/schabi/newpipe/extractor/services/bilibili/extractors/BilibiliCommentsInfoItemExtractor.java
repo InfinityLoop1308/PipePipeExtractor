@@ -1,33 +1,31 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
-
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
-import org.schabi.newpipe.extractor.utils.JsonUtils;
 
+import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
-import javax.annotation.Nullable;
-
 public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtractor {
-    public JsonObject json = new JsonObject();
-    public String url = "";
-    BilibiliCommentsInfoItemExtractor(JsonObject json, String url){
-        this.json = json;
+    public JsonObject data;
+    public String url;
+
+    BilibiliCommentsInfoItemExtractor(JsonObject json, String url) {
+        this.data = json;
         this.url = url;
     }
+
     @Override
     public String getName() throws ParsingException {
-        return json.getObject("member").getString("uname");
+        return data.getObject("member").getString("uname");
     }
 
     @Override
@@ -36,13 +34,8 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     }
 
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public int getLikeCount() throws ParsingException {
-        return json.getInt("like");
+        return data.getInt("like");
     }
 
     @Override
@@ -52,67 +45,55 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getCommentText() throws ParsingException {
-        return json.getObject("content").getString("message");
+        return data.getObject("content").getString("message");
     }
 
+    @SuppressWarnings("SimpleDateFormat")
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(json.getInt("ctime") * 1000L));
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(data.getInt("ctime") * 1000L));
     }
 
     @Override
     public String getCommentId() throws ParsingException {
-        return json.getString("rpid_str");
+        return data.getString("rpid_str");
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return BilibiliChannelLinkHandlerFactory.baseUrl + json.get("mid");
+        return BilibiliChannelLinkHandlerFactory.baseUrl + data.get("mid");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return json.getObject("member").getString("uname");
+        return data.getObject("member").getString("uname");
     }
 
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return json.getObject("member").getString("avatar").replace("http:", "https:");
+        return data.getObject("member").getString("avatar").replace("http:", "https:");
     }
 
-    @Override
-    public boolean isHeartedByUploader() throws ParsingException {
-        return false;
-    }
-
-    @Override
-    public boolean isPinned() throws ParsingException {
-        return false;
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
-    }
     @Nullable
     @Override
     public Page getReplies() throws ParsingException {
-        if(json.getArray("replies") == null || json.getArray("replies").size() == 0){
+        if (data.getArray("replies") == null || data.getArray("replies").size() == 0) {
             return null;
         }
-        if(json.getLong("root") == json.getLong("parent") && json.getLong("root")== json.getLong("rpid")){
+        if (data.getLong("root") == data.getLong("parent") && data.getLong("root") == data.getLong("rpid")) {
             return null;
         }
-        return new Page("https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=" + json.getLong("oid") + "&root=" + json.getLong("rpid"));
+        return new Page("https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=" + data.getLong("oid") + "&root=" + data.getLong("rpid"));
     }
+
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-       return new DateWrapper(LocalDateTime.parse(
+        return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
     @Override
-    public int getReplyCount() throws ParsingException {
-        return (int) json.getLong("rcount");
+    public int getReplyCount() {
+        return (int) data.getLong("rcount");
     }
 }

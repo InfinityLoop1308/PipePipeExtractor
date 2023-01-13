@@ -2,44 +2,45 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
 
-import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 
 public class BilibiliSearchResultChannelInfoItemExtractor implements ChannelInfoItemExtractor {
-    JsonObject json = new JsonObject();
-    BilibiliSearchResultChannelInfoItemExtractor(JsonObject json){
-        this.json = json;
+    JsonObject data;
+
+    BilibiliSearchResultChannelInfoItemExtractor(JsonObject json) {
+        this.data = json;
     }
+
     @Override
     public String getName() throws ParsingException {
-        return json.getString("uname");
+        return data.getString("uname");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return BilibiliChannelLinkHandlerFactory.baseUrl  +json.getLong("mid");
+        return BilibiliChannelLinkHandlerFactory.baseUrl + data.getLong("mid");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return "https:"+json.getString("upic");
+        return "https:" + data.getString("upic");
     }
 
     @Override
     public String getDescription() throws ParsingException {
-        return json.getString("usign");
+        return data.getString("usign");
     }
 
     @Override
     public long getSubscriberCount() throws ParsingException {
-        return json.getLong("fans");
+        return data.getLong("fans");
     }
 
     @Override
     public long getStreamCount() throws ParsingException {
-        return json.getLong("videos");
+        return data.getLong("videos");
     }
 
     @Override

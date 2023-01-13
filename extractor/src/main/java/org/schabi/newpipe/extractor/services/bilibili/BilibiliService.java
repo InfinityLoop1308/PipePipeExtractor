@@ -20,7 +20,7 @@ import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannel
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannelTabExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliCommentExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliFeedExtractor;
-import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliPlaylistExtrator;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliPlaylistExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSearchExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSuggestionExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
@@ -35,11 +35,8 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
-import static java.util.Arrays.asList;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
 import java.util.Arrays;
@@ -49,10 +46,17 @@ import java.util.List;
 import java.util.Map;
 
 public class BilibiliService extends StreamingService{
-    private WatchDataCache watchDataCache;
+    private final WatchDataCache watchDataCache;
 
     public static String FREE_VIDEO_BASE_URL = "https://api.bilibili.com/x/player/playurl";
     public static String PAID_VIDEO_BASE_URL = "https://api.bilibili.com/pgc/player/web/playurl";
+    public static String LIVE_BASE_URL = "live.bilibili.com";
+    public static String QUERY_VIDEO_BULLET_COMMENTS_URL = "https://api.bilibili.com/x/v1/dm/list.so?oid=";
+    public static String QUERY_USER_INFO_URL = "https://api.bilibili.com/x/web-interface/card?photo=true&mid=";
+    public static String QUERY_LIVEROOM_STATUS_URL = "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=";
+    public static String GET_SEASON_ARCHIVES_LIST_BASE_URL = "https://api.bilibili.com/x/polymer/space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&name=%s&page_num=1&page_size=30";
+    public static String GET_SERIES_BASE_URL = "https://api.bilibili.com/x/series/archives?mid=%s&series_id=%s&only_normal=true&sort=desc&name=%s&pn=1&ps=30";
+    public static String GET_SUGGESTION_URL = "https://s.search.bilibili.com/main/suggest?term=";
 
     static public Map<String, List<String>> getHeaders(){
         final Map<String, List<String>> headers = new HashMap<>();
@@ -190,7 +194,7 @@ public class BilibiliService extends StreamingService{
 
     @Override
     public PlaylistExtractor getPlaylistExtractor(ListLinkHandler linkHandler) throws ExtractionException {
-        return new BilibiliPlaylistExtrator(this, linkHandler);
+        return new BilibiliPlaylistExtractor(this, linkHandler);
     }
 
     @Override

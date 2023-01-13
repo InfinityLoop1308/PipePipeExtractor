@@ -11,26 +11,12 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import java.time.Duration;
 
 public class BilibiliLiveBulletCommentsInfoItemExtractor implements BulletCommentsInfoItemExtractor {
-    private JsonArray data;
-    private long startTime;
+    private final JsonArray data;
+    private final long startTime;
+
     public BilibiliLiveBulletCommentsInfoItemExtractor(JsonObject message, long startTime) throws JsonParserException {
         data = message.getArray("info");
         this.startTime = startTime;
-    }
-
-    @Override
-    public String getName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
     }
 
     @Override
@@ -45,7 +31,7 @@ public class BilibiliLiveBulletCommentsInfoItemExtractor implements BulletCommen
 
     @Override
     public BulletCommentsInfoItem.Position getPosition() throws ParsingException {
-        switch (data.getArray(0).getInt(1)){
+        switch (data.getArray(0).getInt(1)) {
             case 1:
                 return BulletCommentsInfoItem.Position.REGULAR;
             case 4:

@@ -130,4 +130,9 @@ public interface CommentsInfoItemExtractor extends InfoItemExtractor {
     default Page getReplies() throws ParsingException {
         return null;
     }
+
+    @Override
+    default String getThumbnailUrl() throws ParsingException {
+        return null;
+    }
 }

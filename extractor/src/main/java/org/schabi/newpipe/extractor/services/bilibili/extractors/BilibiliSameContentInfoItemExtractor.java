@@ -8,11 +8,11 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import javax.annotation.Nullable;
 
 public class BilibiliSameContentInfoItemExtractor implements StreamInfoItemExtractor {
-    private String name;
-    private String url;
-    private String thumbnailUrl;
-    private String  uploaderName;
-    private long viewCount;
+    private final String name;
+    private final String url;
+    private final String thumbnailUrl;
+    private final String uploaderName;
+    private final long viewCount;
 
     public BilibiliSameContentInfoItemExtractor(String name, String url, String thumbnailUrl, String uploaderName, long viewCount) {
         this.name = name;
@@ -53,29 +53,8 @@ public class BilibiliSameContentInfoItemExtractor implements StreamInfoItemExtra
     }
 
     @Override
-    public boolean isAd() throws ParsingException {
-        return false;
-    }
-
-    @Override
     public long getDuration() throws ParsingException {
         return -1;
-    }
-
-    @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public String getUploaderAvatarUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
     }
 
     @Nullable

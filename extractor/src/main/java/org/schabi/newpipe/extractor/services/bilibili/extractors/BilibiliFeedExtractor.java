@@ -25,13 +25,14 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import javax.annotation.Nonnull;
 
-public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
+public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
     public BilibiliFeedExtractor(StreamingService streamingService, ListLinkHandler linkHandler, String kioskId) {
         super(streamingService, linkHandler, kioskId);
     }
 
     private JsonObject response = new JsonObject();
     private Document document;
+
     @Nonnull
     @Override
     public String getName() throws ParsingException {
@@ -43,33 +44,33 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         JsonArray results;
-        switch (getId()){
+        switch (getId()) {
             case "Recommended Videos":
-                 results= response.getObject("data").getArray("item");
-                for (int i = 0; i< results.size(); i++){
+                results = response.getObject("data").getArray("item");
+                for (int i = 0; i < results.size(); i++) {
                     collector.commit(new BilibiliRecommendedVideosInfoItemExtractor(results.getObject(i)));
                 }
                 break;
             case "Recommended Lives":
                 Elements elements = document.select("div.index_1Jokt5rg");
-                for(final Element parent:elements){
+                for (final Element parent : elements) {
                     Elements lives = parent.children();
-                    for(final Element live: lives){
+                    for (final Element live : lives) {
                         String views = live.select(".Item_3Iz_3buh").text();
                         int flag = 1;
-                        if(views.contains("万")){
-                            views = views.replace("万","");
+                        if (views.contains("万")) {
+                            views = views.replace("万", "");
                             flag = 10000;
                         } else if (views.contains("亿")) {
-                            views = views.replace("亿","");
+                            views = views.replace("亿", "");
                             flag = 100000000;
                         }
                         collector.commit(new BilibiliRecommendLiveInfoItemExtractor(
-                                "https:"+live.select("a").first().attr("href"),
+                                "https:" + live.select("a").first().attr("href"),
                                 live.select(".Item_2n7ef9LN.bg-bright-filter")
                                         .attr("style")
                                         .split("background-image:url\\(")[1].split("\\)")[0]
-                                        .replace("http:","https:"),
+                                        .replace("http:", "https:"),
                                 live.select(".Item_2GEmdhg6").text(),
                                 live.select(".Item_QAOnosoB").text(),
                                 (long) (Double.parseDouble(views) * flag)
@@ -79,7 +80,7 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
                 break;
             case "Top 100":
                 results = response.getObject("data").getArray("list");
-                for (int i = 0; i< results.size(); i++){
+                for (int i = 0; i < results.size(); i++) {
                     collector.commit(new BilibiliTrendingInfoItemExtractor(results.getObject(i)));
                 }
                 break;
@@ -94,7 +95,7 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem>{
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
-        switch (getId()){
+        switch (getId()) {
             case "Recommended Videos":
             default:
                 try {

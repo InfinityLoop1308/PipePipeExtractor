@@ -44,12 +44,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import javax.annotation.Nonnull;
 
@@ -79,7 +74,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonArray relatedPaidItems;
     private int isPaid;
     private JsonObject premiumData;
-    private JsonArray dataArray = new JsonArray();
+    private final JsonArray dataArray = new JsonArray();
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -272,7 +267,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 e.printStackTrace();
             }
             return ;
-        } 
+        }
         if (getUrl().contains("bangumi/play/")) {
             isPremiumContent = 1;
             int type = getId().startsWith("ss") ? 0 : 1;
@@ -327,7 +322,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             duration = page.getInt("duration");
             isPaid = watch.getObject("rights").getInt("pay");
         }
-        
+
         String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
         String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=16&qn=64", getHeaders()).responseBody();
         try {
@@ -494,6 +489,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         return collector;
     }
+    @SuppressWarnings("SimpleDateFormat")
     @Override
     public String getTextualUploadDate() throws ParsingException {
         if(getStreamType().equals(StreamType.LIVE_STREAM)){
@@ -511,7 +507,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return null;
         }
         return new DateWrapper(LocalDateTime.parse(
-                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
+                Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
     @Nonnull
     @Override

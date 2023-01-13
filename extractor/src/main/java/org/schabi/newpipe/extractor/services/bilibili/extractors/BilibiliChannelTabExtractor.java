@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -56,9 +57,6 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
         }
-        String currentPageString = page.getUrl().split("page_num=")[1].split("&")[0];
-        int currentPage = Integer.parseInt(currentPageString);
-        String nextPage = page.getUrl().replace(String.format("page_num=%s", currentPage), String.format("page_num=%s", String.valueOf(currentPage + 1)));
-        return new InfoItemsPage<>(collector, new Page(nextPage));
+        return new InfoItemsPage<>(collector, new Page(getNextPageFromCurrentUrl(page.getUrl(), "page_num", 1)));
     }
 }

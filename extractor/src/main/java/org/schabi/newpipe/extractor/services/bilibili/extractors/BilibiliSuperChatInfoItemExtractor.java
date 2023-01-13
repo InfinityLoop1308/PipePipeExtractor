@@ -10,26 +10,12 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import java.time.Duration;
 
 public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoItemExtractor {
-    private JsonObject data;
-    private long startTime;
+    private final JsonObject data;
+    private final long startTime;
+
     public BilibiliSuperChatInfoItemExtractor(JsonObject message, long startTime) throws JsonParserException {
         data = message.getObject("data");
         this.startTime = startTime;
-    }
-
-    @Override
-    public String getName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
     }
 
     @Override
@@ -39,7 +25,7 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
 
     @Override
     public int getArgbColor() throws ParsingException {
-        return 0xFF000000 + Integer.parseInt(data.getString("background_bottom_color").split("#")[1],16);
+        return 0xFF000000 + Integer.parseInt(data.getString("background_bottom_color").split("#")[1], 16);
     }
 
     @Override
@@ -48,7 +34,7 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
     }
 
     @Override
-    public double getRelativeFontSize() throws ParsingException {
+    public double getRelativeFontSize() {
         return 0.64;
     }
 

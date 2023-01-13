@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.Objects;
 
 import com.grack.nanojson.JsonObject;
 
@@ -13,9 +14,10 @@ import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtractor{
+public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
+
     public BilibiliTrendingInfoItemExtractor(final JsonObject json) {
         item = json;
     }
@@ -41,11 +43,6 @@ public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtracto
     }
 
     @Override
-    public boolean isAd() throws ParsingException {
-        return false;
-    }
-
-    @Override
     public long getDuration() throws ParsingException {
         return item.getInt("duration");
     }
@@ -61,20 +58,12 @@ public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtracto
     }
 
     @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         return item.getObject("owner").getString("face");
     }
 
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
-    }
 
+    @SuppressWarnings("SimpleDateFormat")
     @Override
     public String getTextualUploadDate() throws ParsingException {
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(item.getInt("pubdate") * 1000L));
@@ -83,7 +72,7 @@ public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtracto
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
         return new DateWrapper(LocalDateTime.parse(
-                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
+                Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
 }
