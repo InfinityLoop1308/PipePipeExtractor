@@ -13,9 +13,10 @@ import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoItemExtractor{
+public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
+
     public BilibiliRecommendedVideosInfoItemExtractor(final JsonObject json) {
         item = json;
     }
@@ -41,11 +42,6 @@ public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoIte
     }
 
     @Override
-    public boolean isAd() throws ParsingException {
-        return false;
-    }
-
-    @Override
     public long getDuration() throws ParsingException {
         return item.getInt("duration");
     }
@@ -61,18 +57,8 @@ public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoIte
     }
 
     @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         return item.getObject("owner").getString("face");
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
     }
 
     @Override

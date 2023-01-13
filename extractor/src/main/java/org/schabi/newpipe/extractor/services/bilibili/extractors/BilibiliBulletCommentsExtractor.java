@@ -2,35 +2,31 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParserException;
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliWebSocketClient;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.annotation.Nonnull;
-
 public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
-    private int cid;
-    private long roomId;
-    private long startTime;
+    private final int cid;
+    private final long roomId;
+    private final long startTime;
     private Document result;
     private BilibiliWebSocketClient webSocketClient;
     private boolean isLive = false;
@@ -49,9 +45,7 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
                 webSocketClient = new BilibiliWebSocketClient(roomId);
                 webSocketClient.getWebSocketClient().connectBlocking();
                 isLive = true;
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
+            } catch (URISyntaxException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
             return ;
@@ -61,7 +55,7 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
     }
 
     @Override
-    public List<BulletCommentsInfoItem> getLiveMessages() throws ParsingException {
+    public List<BulletCommentsInfoItem> getLiveMessages() {
         final BulletCommentsInfoItemsCollector collector =
                 new BulletCommentsInfoItemsCollector(getServiceId());
         ArrayList<JsonObject> messages = webSocketClient.getMessages();
@@ -102,10 +96,6 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
     }
 
     @Override
-    public InfoItemsPage<BulletCommentsInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        return null;
-    }
-    @Override
     public boolean isLive() {
         return isLive;
     }
@@ -120,9 +110,7 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
         if(webSocketClient != null && webSocketClient.getWebSocketClient().isClosed()){
             try {
                 webSocketClient.wrappedReconnect();
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
+            } catch (URISyntaxException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }

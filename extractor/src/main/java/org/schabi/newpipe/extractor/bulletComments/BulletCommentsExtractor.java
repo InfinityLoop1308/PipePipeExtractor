@@ -3,10 +3,13 @@ package org.schabi.newpipe.extractor.bulletComments;
 import javax.annotation.Nonnull;
 
 import org.schabi.newpipe.extractor.ListExtractor;
+import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 
+import java.io.IOException;
 import java.util.List;
 
 public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommentsInfoItem> {
@@ -20,6 +23,12 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
         return "BulletComments";
     }
 
+    // No need to be overridden normally as it is enough for bullet comments to be handled in getInitialPage
+    @Override
+    public InfoItemsPage<BulletCommentsInfoItem> getPage(Page page) throws IOException, ExtractionException {
+        return null;
+    }
+
     public List<BulletCommentsInfoItem> getLiveMessages() throws ParsingException {
         return null;
     }
@@ -28,15 +37,24 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
         return false;
     }
 
-    public void disconnect(){
-    }
-    public void reconnect(){
-
-    }
-    public boolean isDisabled(){
+    public boolean isDisabled() {
         return false;
     }
-    public void setCurrentPlayPosition(long currentPlayPosition){
+
+    // Must be overriden if your BC extractor needs to fetch bullet comments continuously
+    public void disconnect() {
+
     }
-    public void clearMappingState(){}
+
+    // Must be overriden if your BC extractor needs to fetch bullet comments continuously
+    public void reconnect() {
+
+    }
+
+    // May be useful if your BC extractor needs to fetch bullet comments continuously and requires the current play position
+    public void setCurrentPlayPosition(long currentPlayPosition) {
+    }
+
+    public void clearMappingState() {
+    }
 }

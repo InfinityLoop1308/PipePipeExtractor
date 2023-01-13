@@ -1,30 +1,28 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
-
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
-import org.schabi.newpipe.extractor.utils.JsonUtils;
 
+import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
-import javax.annotation.Nullable;
-
 public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtractor {
-    public JsonObject json = new JsonObject();
-    public String url = "";
-    BilibiliCommentsInfoItemExtractor(JsonObject json, String url){
+    public JsonObject json;
+    public String url;
+
+    BilibiliCommentsInfoItemExtractor(JsonObject json, String url) {
         this.json = json;
         this.url = url;
     }
+
     @Override
     public String getName() throws ParsingException {
         return json.getObject("member").getString("uname");
@@ -33,11 +31,6 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Override
     public String getUrl() throws ParsingException {
         return url;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
     }
 
     @Override
@@ -80,39 +73,26 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         return json.getObject("member").getString("avatar").replace("http:", "https:");
     }
 
-    @Override
-    public boolean isHeartedByUploader() throws ParsingException {
-        return false;
-    }
-
-    @Override
-    public boolean isPinned() throws ParsingException {
-        return false;
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
-    }
     @Nullable
     @Override
     public Page getReplies() throws ParsingException {
-        if(json.getArray("replies") == null || json.getArray("replies").size() == 0){
+        if (json.getArray("replies") == null || json.getArray("replies").size() == 0) {
             return null;
         }
-        if(json.getLong("root") == json.getLong("parent") && json.getLong("root")== json.getLong("rpid")){
+        if (json.getLong("root") == json.getLong("parent") && json.getLong("root") == json.getLong("rpid")) {
             return null;
         }
         return new Page("https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=" + json.getLong("oid") + "&root=" + json.getLong("rpid"));
     }
+
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-       return new DateWrapper(LocalDateTime.parse(
+        return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
     @Override
-    public int getReplyCount() throws ParsingException {
+    public int getReplyCount() {
         return (int) json.getLong("rcount");
     }
 }

@@ -7,6 +7,21 @@ import org.schabi.newpipe.extractor.utils.Utils;
 import java.time.Duration;
 
 public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
+    @Override
+    default String getName() throws ParsingException {
+        return null;
+    }
+
+    @Override
+    default String getThumbnailUrl() throws ParsingException{
+        return null;
+    }
+
+    @Override
+    default String getUrl() throws ParsingException {
+        return null;
+    }
+
     default String getCommentText() throws ParsingException {
         return Utils.EMPTY_STRING;
     }
@@ -27,11 +42,10 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
         return 0.7;
     }
 
-    default Duration getDuration() throws ParsingException {
-        return Duration.ZERO;
-    }
-
     default int getLastingTime() {
         return -1;
     }
+
+    // Must be implemented. If that is a live stream you should at least calculate the time from the start of the stream.
+    Duration getDuration() throws ParsingException;
 }

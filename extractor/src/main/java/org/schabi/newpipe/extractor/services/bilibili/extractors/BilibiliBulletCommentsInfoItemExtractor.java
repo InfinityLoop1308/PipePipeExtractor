@@ -6,30 +6,14 @@ import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemExtract
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.time.Duration;
-import java.util.HashMap;
 
 public class BilibiliBulletCommentsInfoItemExtractor implements BulletCommentsInfoItemExtractor {
-    private Element element;
-    private String[] attr;
+    private final Element element;
+    private final String[] attr;
 
     public BilibiliBulletCommentsInfoItemExtractor(Element element) {
         this.element = element;
         attr = element.attr("p").split(",");
-    }
-
-    @Override
-    public String getName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
     }
 
     @Override

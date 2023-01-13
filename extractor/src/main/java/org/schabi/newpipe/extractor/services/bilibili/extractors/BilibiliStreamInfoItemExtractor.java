@@ -19,16 +19,17 @@ import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor{
+public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
+
     public BilibiliStreamInfoItemExtractor(final JsonObject json) {
         item = json;
     }
 
     @Override
     public String getName() throws ParsingException {
-        return item.getString("title").replace("<em class=\"keyword\">","").replace("</em>", "");
+        return item.getString("title").replace("<em class=\"keyword\">", "").replace("</em>", "");
     }
 
     @Override
@@ -47,25 +48,20 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor{
     }
 
     @Override
-    public boolean isAd() throws ParsingException {
-        return false;
-    }
-
-    @Override
     public long getDuration() throws ParsingException {
         String duration = item.getString("duration");
         long result = 0;
         int len = duration.split(":").length;
         try {
-            result += Integer.parseInt(duration.split(":")[len-1]);
-            result += Integer.parseInt(duration.split(":")[len-2]) * 60;
-            result += Integer.parseInt(duration.split(":")[len-3]) * 3600;
+            result += Integer.parseInt(duration.split(":")[len - 1]);
+            result += Integer.parseInt(duration.split(":")[len - 2]) * 60;
+            result += Integer.parseInt(duration.split(":")[len - 3]) * 3600;
 
 
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
-        return  result;
+        return result;
     }
 
     @Override
@@ -79,18 +75,8 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor{
     }
 
     @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         return item.getString("upic").replace("http:", "https:");
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
     }
 
     @Override

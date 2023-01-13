@@ -26,20 +26,20 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getName() throws ParsingException {
-        if(type == 1){
+        if (type == 1) {
             return getUploaderName() + "的投稿视频轮播";
         }
-        return item.getString("title").replace("<em class=\"keyword\">","").replace("</em>", "");
+        return item.getString("title").replace("<em class=\"keyword\">", "").replace("</em>", "");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://live.bilibili.com/" + item.getLong(type == 0? "roomid": "room_id");
+        return "https://live.bilibili.com/" + item.getLong(type == 0 ? "roomid" : "room_id");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        if(type == 1){
+        if (type == 1) {
             return item.getString("cover_from_user");
         }
         return "https:" + item.getString("user_cover");
@@ -48,11 +48,6 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
     @Override
     public StreamType getStreamType() throws ParsingException {
         return StreamType.LIVE_STREAM;
-    }
-
-    @Override
-    public boolean isAd() throws ParsingException {
-        return false;
     }
 
     @Override
@@ -70,29 +65,19 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
         return item.getString("uname");
     }
 
-    @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        if(type == 1){
+        if (type == 1) {
             return item.getString("face");
         }
         return "https:" + item.getString("uface");
     }
 
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
-    }
-
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        if(type == 1){
+        if (type == 1) {
             return null;
         }
         return item.getString("live_time");
@@ -101,7 +86,7 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        if(type == 1){
+        if (type == 1) {
             return null;
         }
         return new DateWrapper(LocalDateTime.parse(

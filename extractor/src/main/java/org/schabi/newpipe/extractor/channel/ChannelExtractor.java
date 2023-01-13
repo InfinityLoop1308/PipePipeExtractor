@@ -39,18 +39,40 @@ public abstract class ChannelExtractor extends ListExtractor<StreamInfoItem> {
     }
 
     public abstract String getAvatarUrl() throws ParsingException;
-    public abstract String getBannerUrl() throws ParsingException;
-    public abstract String getFeedUrl() throws ParsingException;
+
+    public String getBannerUrl() throws ParsingException {
+        return null;
+    }
+
+    public String getFeedUrl() throws ParsingException {
+        return null;
+    }
+
     public abstract long getSubscriberCount() throws ParsingException;
+
     public abstract String getDescription() throws ParsingException;
-    public abstract String getParentChannelName() throws ParsingException;
-    public abstract String getParentChannelUrl() throws ParsingException;
-    public abstract String getParentChannelAvatarUrl() throws ParsingException;
-    public abstract boolean isVerified() throws ParsingException;
+
+    public String getParentChannelName() throws ParsingException {
+        return null;
+    }
+
+    public String getParentChannelUrl() throws ParsingException {
+        return null;
+    }
+
+    public String getParentChannelAvatarUrl() throws ParsingException {
+        return null;
+    }
+
+    public boolean isVerified() throws ParsingException {
+        return false;
+    }
+
     @Nonnull
     public List<ListLinkHandler> getTabs() throws ParsingException {
         return Collections.emptyList();
     }
+
     @Nonnull
     public List<String> getTags() throws ParsingException {
         return Collections.emptyList();

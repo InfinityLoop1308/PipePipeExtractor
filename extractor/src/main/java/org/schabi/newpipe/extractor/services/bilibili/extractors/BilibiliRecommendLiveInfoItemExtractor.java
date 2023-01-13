@@ -44,11 +44,6 @@ public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExt
     }
 
     @Override
-    public boolean isAd() throws ParsingException {
-        return false;
-    }
-
-    @Override
     public long getDuration() throws ParsingException {
         return -1;
     }
@@ -61,22 +56,6 @@ public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExt
     @Override
     public String getUploaderName() throws ParsingException {
         return name;
-    }
-
-    @Override
-    public String getUploaderUrl() throws ParsingException {
-        return null;
-    }
-
-    @Nullable
-    @Override
-    public String getUploaderAvatarUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public boolean isUploaderVerified() throws ParsingException {
-        return false;
     }
 
     @Nullable

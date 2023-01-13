@@ -19,21 +19,6 @@ public class BilibiliLiveBulletCommentsInfoItemExtractor implements BulletCommen
     }
 
     @Override
-    public String getName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public String getCommentText() throws ParsingException {
         return data.getString(1);
     }
