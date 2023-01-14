@@ -3,17 +3,15 @@ package org.schabi.newpipe.extractor.services.bilibili;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import org.brotli.dec.BrotliInputStream;
-import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Inflater;
-
-import static org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoSearchQueryHandlerFactory.ITEMS_PER_PAGE;
 
 public class utils {
     int[] s = {11, 10, 3, 8, 4, 6};
@@ -190,11 +188,19 @@ public class utils {
     public static String getNextPageFromCurrentUrl(String currentUrl, final String varName, final int addCount
             , final boolean shouldTryInit, final String initValue, final String urlType)
             throws ParsingException {
-        final String varString = String.format("&%s=", varName);
-        if (shouldTryInit && !currentUrl.contains(varString)) {
-            currentUrl += varString.replace("&", urlType) + initValue;
+        String varString = String.format("&%s=", varName);
+        String varStringVariant = String.format("?%s=", varName);
+        if (shouldTryInit && !currentUrl.contains(varString) && !currentUrl.contains(varStringVariant)) {
+            varString = varString.replace("&", urlType);
+            currentUrl += varString + initValue;
         }
-        final String offset = currentUrl.split(varString)[1].split("&")[0];
+        if(currentUrl.contains(varStringVariant)) {
+            varString = varStringVariant;
+        } else if(!currentUrl.contains(varString)) {
+            throw new ParsingException("Could not find " + varName + " in url: " + currentUrl);
+        }
+
+        final String offset = currentUrl.split(Pattern.quote(varString))[1].split(Pattern.quote("&"))[0];
         return currentUrl.replace(varString + offset, varString
                 + (Integer.parseInt(offset) + addCount));
     }
@@ -202,7 +208,7 @@ public class utils {
     // Default value of getNextPageFromCurrentUrl, shouldTryInit = false, initValue = 1, urlType = &
     public static String getNextPageFromCurrentUrl(String currentUrl, final String varName, final int addCount)
             throws ParsingException {
-        return getNextPageFromCurrentUrl(currentUrl, varName, addCount, false, "1", "&");
+        return getNextPageFromCurrentUrl(currentUrl, varName, addCount, false, "0", "&");
     }
 
     public static long getDurationFromString(String duration) {
