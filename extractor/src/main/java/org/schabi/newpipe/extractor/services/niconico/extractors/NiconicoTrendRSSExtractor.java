@@ -6,6 +6,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.nodes.TextNode;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoServiceParsingHelper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
@@ -76,17 +77,7 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
 
     @Override
     public long getDuration() throws ParsingException {
-        String duration = cdata.getElementsByClass("nico-info-length").text();
-        long result = 0;
-        int len = duration.split(":").length;
-        result += Integer.parseInt(duration.split(":")[len-1]);
-        if(len > 1) {
-            result += Integer.parseInt(duration.split(":")[len-2]) * 60L;
-        }
-        if(len > 2) {
-            result += (long) Integer.parseInt(duration.split(":")[len - 3]) * 60 * 60;
-        }
-        return  result;
+        return utils.getDurationFromString(cdata.getElementsByClass("nico-info-length").text());
     }
 
     @Override
