@@ -45,7 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BilibiliService extends StreamingService{
+public class BilibiliService extends StreamingService {
     private final WatchDataCache watchDataCache;
 
     public static String FREE_VIDEO_BASE_URL = "https://api.bilibili.com/x/player/playurl";
@@ -57,13 +57,15 @@ public class BilibiliService extends StreamingService{
     public static String GET_SEASON_ARCHIVES_LIST_BASE_URL = "https://api.bilibili.com/x/polymer/space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&name=%s&page_num=1&page_size=30";
     public static String GET_SERIES_BASE_URL = "https://api.bilibili.com/x/series/archives?mid=%s&series_id=%s&only_normal=true&sort=desc&name=%s&pn=1&ps=30";
     public static String GET_SUGGESTION_URL = "https://s.search.bilibili.com/main/suggest?term=";
+    public static String COMMENT_REPLIES_URL = "https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=";
 
-    static public Map<String, List<String>> getHeaders(){
+    static public Map<String, List<String>> getHeaders() {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Cookie", Collections.singletonList("buvid3=C17989F9-9E34-6949-F6B9-19E02F3DC4B734983infoc;"));
         return headers;
     }
-    static public Map<String, String> getWebSocketHeaders(){
+
+    static public Map<String, String> getWebSocketHeaders() {
         Map<String, String> httpHeaders = new HashMap<String, String>();
         httpHeaders.put("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:106.0) Gecko/20100101 Firefox/106.0");
         httpHeaders.put("Accept", "*/*");
@@ -84,8 +86,8 @@ public class BilibiliService extends StreamingService{
         return httpHeaders;
     }
 
-    static public String getResolution(int code){
-        switch (code){
+    static public String getResolution(int code) {
+        switch (code) {
             case 127:
                 return "8K 超高清";
             case 126:
@@ -97,7 +99,7 @@ public class BilibiliService extends StreamingService{
             case 116:
                 return "1080P60 高帧率";
             case 112:
-                return  "1080P+ 高码率";
+                return "1080P+ 高码率";
             case 80:
                 return "1080P 高清";
             case 74:
@@ -115,7 +117,7 @@ public class BilibiliService extends StreamingService{
         }
     }
 
-    public BilibiliService(int id){
+    public BilibiliService(int id) {
         super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
         watchDataCache = new WatchDataCache();
     }
@@ -169,7 +171,7 @@ public class BilibiliService extends StreamingService{
     public KioskList getKioskList() throws ExtractionException {
         final KioskList kioskList = new KioskList(this);
         final KioskList.KioskExtractorFactory kioskFactory = (streamingService, url, id) ->
-            new BilibiliFeedExtractor(this, new BilibiliFeedLinkHandlerFactory().fromUrl(url), id);
+                new BilibiliFeedExtractor(this, new BilibiliFeedLinkHandlerFactory().fromUrl(url), id);
         final BilibiliFeedLinkHandlerFactory h = new BilibiliFeedLinkHandlerFactory();
         try {
             kioskList.addKioskEntry(kioskFactory, h, "Recommended Videos");
@@ -213,7 +215,7 @@ public class BilibiliService extends StreamingService{
     }
 
     @Override
-    public ListLinkHandlerFactory getBulletCommentsLHFactory(){
+    public ListLinkHandlerFactory getBulletCommentsLHFactory() {
         return new BilibiliBulletCommentsLinkHandlerFactory();
     }
 

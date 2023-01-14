@@ -57,7 +57,8 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
                          final List<FilterItem> sortFilter) throws ParsingException {
         id = id.startsWith("BV")? String.valueOf(new utils().bv2av(id)) :id;
         if(id.contains("&root")){
-            return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id;
+            // I don't know why but pn must be placed in the end or nothing will be fetched
+            return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id + "&pn=1";
         }
         return "https://api.bilibili.com/x/v2/reply?type=1&sort=1&oid="+ id + "&pn=1";
     }

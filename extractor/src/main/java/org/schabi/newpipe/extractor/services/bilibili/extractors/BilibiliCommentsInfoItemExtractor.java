@@ -14,13 +14,13 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.COMMENT_REPLIES_URL;
+
 public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtractor {
     public JsonObject data;
-    public String url;
 
-    BilibiliCommentsInfoItemExtractor(JsonObject json, String url) {
+    BilibiliCommentsInfoItemExtractor(JsonObject json) {
         this.data = json;
-        this.url = url;
     }
 
     @Override
@@ -30,7 +30,7 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getUrl() throws ParsingException {
-        return url;
+        return COMMENT_REPLIES_URL + data.getLong("oid") + "&root=" + data.getLong("rpid");
     }
 
     @Override
@@ -83,7 +83,7 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         if (data.getLong("root") == data.getLong("parent") && data.getLong("root") == data.getLong("rpid")) {
             return null;
         }
-        return new Page("https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=" + data.getLong("oid") + "&root=" + data.getLong("rpid"));
+        return new Page(getUrl());
     }
 
     @Override
