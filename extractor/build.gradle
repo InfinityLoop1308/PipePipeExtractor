@@ -30,7 +30,6 @@ checkstyleTest {
 
 dependencies {
     implementation project(':timeago-parser')
-    implementation project(':subtitle')
 
     implementation "com.github.TeamNewPipe:nanojson:$nanojsonVersion"
     implementation 'org.jsoup:jsoup:1.15.3'

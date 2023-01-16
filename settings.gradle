@@ -1,2 +1,2 @@
-include 'extractor', 'timeago-parser', "subtitle"
+include 'extractor', 'timeago-parser'
 rootProject.name = 'NewPipeExtractor'
