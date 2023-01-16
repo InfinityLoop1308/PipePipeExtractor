@@ -50,7 +50,7 @@ public enum MediaFormat {
     TRANSCRIPT1(0x3000, "TranScript v1",              "srv1", "text/xml"),
     TRANSCRIPT2(0x4000, "TranScript v2",              "srv2", "text/xml"),
     TRANSCRIPT3(0x5000, "TranScript v3",              "srv3", "text/xml"),
-    SRT        (0x6000, "SubRip file format",         "srt",  "text/srt");
+    SRT        (0x6000, "SubRip file format",         "srt",  "application/x-subrip");
     // @formatter:on
 
     public final int id;
