@@ -2,8 +2,10 @@ package org.schabi.newpipe.extractor;
 
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -43,6 +45,19 @@ public abstract class ListExtractor<R extends InfoItem> extends Extractor {
      */
     @Nonnull
     public abstract InfoItemsPage<R> getInitialPage() throws IOException, ExtractionException;
+
+    @Nonnull
+    public InfoItemsPage<StreamInfoItem> getFullPage() throws IOException, ExtractionException{
+        InfoItemsPage<StreamInfoItem> currentPage = (InfoItemsPage<StreamInfoItem>) getInitialPage();
+        ArrayList<StreamInfoItem> itemArrayList = new ArrayList<>(currentPage.getItems());
+        ArrayList<Throwable> errors = new ArrayList<>(currentPage.getErrors());
+        while (currentPage.hasNextPage()){
+            currentPage = (InfoItemsPage<StreamInfoItem>) getPage(currentPage.getNextPage());
+            itemArrayList.addAll(currentPage.getItems());
+            errors.addAll(currentPage.getErrors());
+        }
+        return new InfoItemsPage<>(itemArrayList, null, errors);
+    }
 
     /**
      * Get a list of items corresponding to the specific requested page.

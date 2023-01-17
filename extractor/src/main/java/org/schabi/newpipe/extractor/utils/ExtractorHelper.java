@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
+import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,18 @@ public final class ExtractorHelper {
             final InfoItemsPage<T> page = extractor.getInitialPage();
             info.addAllErrors(page.getErrors());
 
+            return page;
+        } catch (final Exception e) {
+            info.addError(e);
+            return InfoItemsPage.emptyPage();
+        }
+    }
+
+    public static InfoItemsPage<StreamInfoItem> getItemsFullPageOrLogError(
+            final Info info, final ListExtractor<StreamInfoItem> extractor) {
+        try {
+            final InfoItemsPage<StreamInfoItem> page = extractor.getFullPage();
+            info.addAllErrors(page.getErrors());
             return page;
         } catch (final Exception e) {
             info.addError(e);

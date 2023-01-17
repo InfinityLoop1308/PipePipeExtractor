@@ -1,13 +1,11 @@
 package org.schabi.newpipe.extractor.playlist;
 
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage;
-import org.schabi.newpipe.extractor.ListInfo;
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
@@ -81,7 +79,7 @@ public final class PlaylistInfo extends ListInfo<StreamInfoItem> {
      *
      * @param extractor an extractor where fetchPage() was already got called on.
      */
-    public static PlaylistInfo getInfo(final PlaylistExtractor extractor)
+    public static PlaylistInfo getInfo(final PlaylistExtractor extractor, boolean shouldFetchPage)
             throws ExtractionException {
 
         final PlaylistInfo info = new PlaylistInfo(
@@ -157,11 +155,38 @@ public final class PlaylistInfo extends ListInfo<StreamInfoItem> {
             info.addAllErrors(uploaderParsingErrors);
         }
 
-        final InfoItemsPage<StreamInfoItem> itemsPage
-                = ExtractorHelper.getItemsPageOrLogError(info, extractor);
-        info.setRelatedItems(itemsPage.getItems());
-        info.setNextPage(itemsPage.getNextPage());
+        if(shouldFetchPage){
+            final InfoItemsPage<StreamInfoItem> itemsPage
+                    = ExtractorHelper.getItemsPageOrLogError(info, extractor);
+            info.setRelatedItems(itemsPage.getItems());
+            info.setNextPage(itemsPage.getNextPage());
+        }
+        return info;
+    }
 
+    public static PlaylistInfo getInfo(final PlaylistExtractor extractor)
+            throws ExtractionException {
+        return getInfo(extractor, true);
+    }
+
+    public static PlaylistInfo getInfoWithFullItems(final StreamingService service, final String url)
+            throws ExtractionException, IOException {
+        final PlaylistExtractor extractor = service.getPlaylistExtractor(url);
+        extractor.fetchPage();
+        final PlaylistInfo info = getInfo(extractor);
+        if (info.getServiceId() == ServiceList.YouTube.getServiceId()
+                && (YoutubeParsingHelper.isYoutubeMixId(info.getId())
+                || YoutubeParsingHelper.isYoutubeMusicMixId(info.getId()))){
+            // YouTube mixes are infinite playlists, so we just fetch the first page
+            final InfoItemsPage<StreamInfoItem> itemsPage
+                    = ExtractorHelper.getItemsPageOrLogError(info, extractor);
+            info.setRelatedItems(itemsPage.getItems());
+            info.setNextPage(itemsPage.getNextPage());
+        } else {
+            InfoItemsPage<StreamInfoItem> itemsPage = ExtractorHelper.getItemsFullPageOrLogError(info, extractor);
+            info.setRelatedItems(itemsPage.getItems());
+            info.setNextPage(null);
+        }
         return info;
     }
 
