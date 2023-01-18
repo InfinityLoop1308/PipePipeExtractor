@@ -68,10 +68,9 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         for (int i = 0; i < results.size(); i++) {
             collector.commit(new BilibiliCommentsInfoItemExtractor(results.getObject(i)));
         }
-        // Sometimes we only get 19 for no reason, so we just drop the check.
-//        if (20 > results.size()) {
-//            return new InfoItemsPage<>(collector, null);
-//        }
+        if (19 > results.size() && page.getUrl().contains("pn=1")) {
+            return new InfoItemsPage<>(collector, null);
+        }
         return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "pn", 1)));
     }
 
