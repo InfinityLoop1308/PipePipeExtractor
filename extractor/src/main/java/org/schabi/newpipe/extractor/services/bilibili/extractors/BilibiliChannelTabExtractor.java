@@ -49,10 +49,20 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
                 return new InfoItemsPage<>(collector, null);
             }
             for(int i=0; i< seasons_list.size();i++){
-                collector.commit(new BilibiliPlaylistInfoItemExtractor(seasons_list.getObject(i), "seasons_archives"));
+                BilibiliPlaylistInfoItemExtractor extractor = new BilibiliPlaylistInfoItemExtractor
+                        (seasons_list.getObject(i), "seasons_archives");
+                if(extractor.getStreamCount() == 0){
+                    continue;
+                }
+                collector.commit(extractor);
             }
             for(int i=0; i< series_list.size();i++){
-                collector.commit(new BilibiliPlaylistInfoItemExtractor(series_list.getObject(i), "archives"));
+                BilibiliPlaylistInfoItemExtractor extractor = new BilibiliPlaylistInfoItemExtractor
+                        (series_list.getObject(i), "archives");
+                if(extractor.getStreamCount() == 0){
+                    continue;
+                }
+                collector.commit(extractor);
             }
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
