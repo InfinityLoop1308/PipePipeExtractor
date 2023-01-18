@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import com.grack.nanojson.JsonParser;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemExtractor;
@@ -18,7 +19,13 @@ public class BilibiliBulletCommentsInfoItemExtractor implements BulletCommentsIn
 
     @Override
     public String getCommentText() throws ParsingException {
-        return element.text();
+        String text = element.text();
+        try{
+            String possibleText = JsonParser.array().from(text).getString(4);
+            return possibleText == null || possibleText.isEmpty() ? text : possibleText;
+        } catch (Exception e) {
+            return text;
+        }
     }
 
     @Override
