@@ -36,7 +36,15 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
 
     public BilibiliBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache watchDataCache) {
         super(service, uiHandler);
-        cid = watchDataCache.getCid();
+        // Because of the auto-enqueueing, the new cid is fetched
+        if(watchDataCache.getCurrentUrl().equals(uiHandler.getUrl())){
+            cid = watchDataCache.getCid();
+        } else if (watchDataCache.getLastUrl().equals(uiHandler.getUrl())){
+            cid = watchDataCache.getLastCid();
+        } else {
+            throw new IllegalArgumentException("The url is not in the watch data cache");
+        }
+        // live rooms have no related items(expect round-play, but that is handled), so it is ok here
         roomId = watchDataCache.getRoomId();
         startTime = watchDataCache.getStartTime();
     }

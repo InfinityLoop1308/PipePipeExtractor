@@ -195,6 +195,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+        watchDataCache.init(getUrl());
         if(getStreamType() == StreamType.LIVE_STREAM){
             String response = downloader.get("https://api.live.bilibili.com/room/v1/Room/room_init?id=" + getId()).responseBody();
             try {

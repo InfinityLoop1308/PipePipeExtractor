@@ -5,11 +5,11 @@ public class WatchDataCache {
     private long roomId;
     private long startTime;
     private String bvid;
-    WatchDataCache(){
-        this.cid = 0;
-        roomId = 0;
-        startTime = 0;
-    }
+
+    // Fuck you auto-enqueueing
+    private int lastCid;
+    private String currentUrl;
+    private String lastUrl;
 
     public int getCid() {
         return cid;
@@ -41,5 +41,26 @@ public class WatchDataCache {
 
     public String getBvid() {
         return bvid;
+    }
+
+    public void init(String url){
+        if(url.equals(currentUrl)){
+            return ;
+        }
+        lastCid = cid;
+        lastUrl = currentUrl;
+        currentUrl = url;
+    }
+
+    public int getLastCid() {
+        return lastCid;
+    }
+
+    public String getLastUrl() {
+        return lastUrl;
+    }
+
+    public String getCurrentUrl() {
+        return currentUrl;
     }
 }
