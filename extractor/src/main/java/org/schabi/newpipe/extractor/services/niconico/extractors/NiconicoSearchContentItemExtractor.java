@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
@@ -12,6 +13,7 @@ import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nullable;
@@ -35,7 +37,12 @@ public class NiconicoSearchContentItemExtractor implements StreamInfoItemExtract
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return data.select(".jsLazyImage").attr("data-original");
+        String result = null;
+        try {
+            result = data.select(".jsLazyImage").attr("data-original");
+        } catch (Exception ignored){
+        }
+        return StringUtils.defaultIfBlank(result, data.select("img.thumb").attr("src"));
     }
 
     @Override
