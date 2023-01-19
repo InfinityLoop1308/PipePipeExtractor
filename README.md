@@ -1,3 +1,5 @@
+## Deprecated. We moved to https://codeberg.org/NullPointerException/AnimePipeExtractor
+
 ## README
 
 This is the client of [NewPipeWithMoreServices](https://github.com/InfinityLoop1309/NewPipeWithMoreServices), an unofficial fork of [TeamPipe/NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractore).
