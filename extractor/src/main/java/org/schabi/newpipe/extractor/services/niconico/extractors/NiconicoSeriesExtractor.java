@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -35,7 +36,7 @@ public class NiconicoSeriesExtractor extends PlaylistExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            Document response = Jsoup.parse(getDownloader().get(getLinkHandler().getUrl()).responseBody());
+            Document response = Jsoup.parse(getDownloader().get(getLinkHandler().getUrl(), Localization.DEFAULT).responseBody());
             uploaderName = response.select(".SeriesAdditionalContainer-ownerName").text();
             url = response.select(".SeriesAdditionalContainer-ownerName").attr("href");
             avatar = response.select(".UserIcon-image").attr("src");
