@@ -1,8 +1,5 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.MYLIST_URL;
-import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.getMylistHeaders;
-
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -23,6 +20,8 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
+
+import static org.schabi.newpipe.extractor.services.niconico.NiconicoService.*;
 
 public class NiconicoPlaylistExtractor extends PlaylistExtractor {
     JsonObject data;
@@ -89,7 +88,12 @@ public class NiconicoPlaylistExtractor extends PlaylistExtractor {
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return NiconicoService.CHANNEL_URL + data.getObject("owner").getString("id");
+        JsonObject owner = data.getObject("owner");
+        if(owner.getString("ownerType").equals("user")){
+            return USER_URL + owner.getString("id");
+        } else {
+            return CHANNEL_URL + owner.getString("id");
+        }
     }
 
     @Override
