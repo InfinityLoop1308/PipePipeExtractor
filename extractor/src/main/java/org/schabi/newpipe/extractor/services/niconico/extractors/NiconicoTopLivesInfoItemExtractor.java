@@ -22,17 +22,17 @@ public class NiconicoTopLivesInfoItemExtractor implements StreamInfoItemExtracto
 
     @Override
     public String getName() throws ParsingException {
-        return data.select("a.___rk-program-card-detail-title___OD4jc > span").text();
+        return data.select("a[class^=___rk-program-card-detail-title] > span").text();
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return data.select("a.___rk-program-card-detail-title___OD4jc").attr("href");
+        return data.select("a[class^=___rk-program-card-detail-title]").attr("href");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return data.select("a.___rk-program-card-thumbnail___cj6QY > img").attr("src");
+        return data.select("a[class^=___rk-program-card-thumbnail] > img").attr("src");
     }
 
     @Override
@@ -52,13 +52,13 @@ public class NiconicoTopLivesInfoItemExtractor implements StreamInfoItemExtracto
 
     @Override
     public long getViewCount() throws ParsingException {
-        return Long.parseLong(data.select("li.___rk-program-card-detail-counts-view-count___RgocQ > span")
+        return Long.parseLong(data.select("li[class^=___rk-program-card-detail-counts-view-count] > span")
                 .attr("data-value"));
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return data.select("a.___rk-program-card-detail-provider-name___HKfu6 > span").text();
+        return data.select("a[class^=___rk-program-card-detail-provider-name] > span").text();
     }
 
     @Override
@@ -80,7 +80,7 @@ public class NiconicoTopLivesInfoItemExtractor implements StreamInfoItemExtracto
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return data.select("div.___rk-program-card-detail-time___yN20F > span").text();
+        return data.select("div[class^=___rk-program-card-detail-time] > span").text();
     }
 
     @Nullable

@@ -76,7 +76,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
 
                 return new InfoItemsPage<>(collector, null);
             case "Top Lives":
-                final Elements dataArray = document.select(".___rk-program-card___csmJm");
+                final Elements dataArray = document.select("[class^=___rk-program-card___]");
                 for (final Element e : dataArray) {
                     collector.commit(new NiconicoTopLivesInfoItemExtractor(e));
                 }
