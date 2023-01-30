@@ -6,11 +6,13 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.LIVE_BASE_URL;
+
 /*
 General form of stream link url: https://m.bilibili.com/video/<ID> (mobile) and https://www.bilibili.com/video/<ID> (PC)
 */
 public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
-    
+
     public static final String baseUrl = "https://www.bilibili.com/video/";
     public String p = "1";
 
@@ -34,7 +36,7 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
         }else if (url.contains("aid=")) {
             String  parseResult = url.split(Pattern.quote("aid="))[1].split("&")[0];
             return new utils().av2bv(Long.parseLong(parseResult))+ "?p="+p;
-        } else if(url.contains("live.bilibili.com") || url.contains("bangumi/play/")){
+        } else if(url.contains(LIVE_BASE_URL) || url.contains("bangumi/play/")){
             return url.split("/")[url.split("/").length-1].split("\\?")[0];
         } else{
             throw new ParsingException("Not a bilibili video link.");
@@ -61,4 +63,3 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory{
     }
 
 }
- 
