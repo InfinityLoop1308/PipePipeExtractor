@@ -26,6 +26,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
+import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.AccountTerminatedException;
@@ -967,18 +968,50 @@ public final class YoutubeParsingHelper {
         }
 
         final StringBuilder textBuilder = new StringBuilder();
-        for (final Object textPart : textObject.getArray("runs")) {
-            final String text = ((JsonObject) textPart).getString("text");
-            if (html && ((JsonObject) textPart).has("navigationEndpoint")) {
-                final String url = getUrlFromNavigationEndpoint(((JsonObject) textPart)
-                        .getObject("navigationEndpoint"));
-                if (!isNullOrEmpty(url)) {
-                    textBuilder.append("<a href=\"").append(url).append("\">").append(text)
-                            .append("</a>");
-                    continue;
+        for (final Object o : textObject.getArray("runs")) {
+            final JsonObject run = (JsonObject) o;
+            String text = run.getString("text");
+
+            if (html) {
+                if (run.has("navigationEndpoint")) {
+                    final String url = getUrlFromNavigationEndpoint(run
+                            .getObject("navigationEndpoint"));
+                    if (!isNullOrEmpty(url)) {
+                        text = "<a href=\"" + url + "\">" + text + "</a>";
+                    }
                 }
+
+                final boolean bold = run.has("bold")
+                        && run.getBoolean("bold");
+                final boolean italic = run.has("italics")
+                        && run.getBoolean("italics");
+                final boolean strikethrough = run.has("strikethrough")
+                        && run.getBoolean("strikethrough");
+
+                if (bold) {
+                    textBuilder.append("<b>");
+                }
+                if (italic) {
+                    textBuilder.append("<i>");
+                }
+                if (strikethrough) {
+                    textBuilder.append("<s>");
+                }
+
+                textBuilder.append(Entities.escape(text));
+
+                if (strikethrough) {
+                    textBuilder.append("</s>");
+                }
+                if (italic) {
+                    textBuilder.append("</i>");
+                }
+                if (bold) {
+                    textBuilder.append("</b>");
+                }
+            } else {
+                textBuilder.append(text);
             }
-            textBuilder.append(text);
         }
 
         String text = textBuilder.toString();
@@ -990,6 +1023,7 @@ public final class YoutubeParsingHelper {
 
         return text;
     }
+
 
     @Nullable
     public static String getTextFromObject(final JsonObject textObject) throws ParsingException {
