@@ -73,7 +73,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
         try {
             info = JsonParser.object()
                     .from(user.getElementById("js-initial-userpage-data")
-                            .attr("data-initial-data"));
+                            .attr("data-initial-data")).getObject("state");
             final JsonObject infoObj = info.getObject("userDetails").getObject("userDetails")
                     .getObject("user");
             uploaderName = infoObj.getString("nickname");
