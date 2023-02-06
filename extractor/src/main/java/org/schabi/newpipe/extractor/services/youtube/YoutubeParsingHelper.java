@@ -1111,7 +1111,7 @@ public final class YoutubeParsingHelper {
                                                  final Localization localization)
             throws IOException, ExtractionException {
         final Map<String, List<String>> headers = new HashMap<>();
-        addClientInfoHeaders(headers);
+        addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
 
         final Response response = getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?key="
@@ -1379,12 +1379,12 @@ public final class YoutubeParsingHelper {
 
     /**
      * Add required headers and cookies to an existing headers Map.
-     * @see #addClientInfoHeaders(Map)
+     * @see #addYoutubeHeaders(Map)
      * @see #addCookieHeader(Map)
      */
     public static void addYouTubeHeaders(final Map<String, List<String>> headers)
             throws IOException, ExtractionException {
-        addClientInfoHeaders(headers);
+        addYoutubeHeaders(headers);
         addCookieHeader(headers);
     }
 
@@ -1393,7 +1393,7 @@ public final class YoutubeParsingHelper {
      * <code>Origin</code>, and <code>Referer</code> headers.
      * @param headers The headers which should be completed
      */
-    public static void addClientInfoHeaders(@Nonnull final Map<String, List<String>> headers)
+    public static void addYoutubeHeaders(@Nonnull final Map<String, List<String>> headers)
             throws IOException, ExtractionException {
         headers.computeIfAbsent("Origin", k -> singletonList("https://www.youtube.com"));
         headers.computeIfAbsent("Referer", k -> singletonList("https://www.youtube.com"));
@@ -1401,6 +1401,7 @@ public final class YoutubeParsingHelper {
         if (headers.get("X-YouTube-Client-Version") == null) {
             headers.put("X-YouTube-Client-Version", singletonList(getClientVersion()));
         }
+        addCookieHeader(headers);
     }
 
     /**
