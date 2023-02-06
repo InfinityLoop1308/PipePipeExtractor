@@ -344,6 +344,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
     private void addContentFilterTypeAndSortVariant(final int contentFilterId,
                                                     final Filter variant) {
+        addContentFilterSortVariant(-1, variant);
         addContentFilterSortVariant(contentFilterId, variant);
     }
 

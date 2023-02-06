@@ -115,6 +115,7 @@ public class BilibiliFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterDuartionExtraLong),
                 })
         }).build();
+        addContentFilterSortVariant(-1, videoSortFilters);
         addContentFilterSortVariant(contentFilterVideos, videoSortFilters);
     }
 

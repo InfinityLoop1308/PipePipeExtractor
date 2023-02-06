@@ -86,29 +86,29 @@ public final class SoundcloudFilters extends SearchFiltersBase {
         final int filterIdLicenseCommerce = builder.addSortItem(
                 new SoundcloudSortFilterItem("To modify commercially",
                         "filter.license=to_modify_commercially"));
-
-        addContentFilterSortVariant(contentFilterTracks,
-                new Filter.Builder(new FilterGroup[]{
-                        builder.createSortGroup("Sort by", true, new FilterItem[]{
-                                builder.getFilterForId(filterIdDateAll),
-                                builder.getFilterForId(filterIdDateLastHour),
-                                builder.getFilterForId(filterIdDateLastDay),
-                                builder.getFilterForId(filterIdDateLastWeek),
-                                builder.getFilterForId(filterIdDateLastMonth),
-                                builder.getFilterForId(filterIdDateLastYear),
-                        }),
-                        builder.createSortGroup("Length", true, new FilterItem[]{
-                                builder.getFilterForId(filterIdDurationAll),
-                                builder.getFilterForId(filterIdDurationShort),
-                                builder.getFilterForId(filterIdDurationMedium),
-                                builder.getFilterForId(filterIdDurationLong),
-                                builder.getFilterForId(filterIdDurationEpic),
-                        }),
-                        builder.createSortGroup("License", true, new FilterItem[]{
-                                builder.getFilterForId(filterIdLicenseAll),
-                                builder.getFilterForId(filterIdLicenseCommerce),
-                        }),
-                }).build());
+        final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
+                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                        builder.getFilterForId(filterIdDateAll),
+                        builder.getFilterForId(filterIdDateLastHour),
+                        builder.getFilterForId(filterIdDateLastDay),
+                        builder.getFilterForId(filterIdDateLastWeek),
+                        builder.getFilterForId(filterIdDateLastMonth),
+                        builder.getFilterForId(filterIdDateLastYear),
+                }),
+                builder.createSortGroup("Length", true, new FilterItem[]{
+                        builder.getFilterForId(filterIdDurationAll),
+                        builder.getFilterForId(filterIdDurationShort),
+                        builder.getFilterForId(filterIdDurationMedium),
+                        builder.getFilterForId(filterIdDurationLong),
+                        builder.getFilterForId(filterIdDurationEpic),
+                }),
+                builder.createSortGroup("License", true, new FilterItem[]{
+                        builder.getFilterForId(filterIdLicenseAll),
+                        builder.getFilterForId(filterIdLicenseCommerce),
+                }),
+        }).build();
+        addContentFilterSortVariant(-1, allSortFilters);
+        addContentFilterSortVariant(contentFilterTracks, allSortFilters);
     }
 
     @Override

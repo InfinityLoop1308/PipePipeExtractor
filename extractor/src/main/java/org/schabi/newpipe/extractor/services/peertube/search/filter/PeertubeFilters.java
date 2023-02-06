@@ -173,6 +173,7 @@ public final class PeertubeFilters extends SearchFiltersBase {
                 builder.createSortGroup(null, false, new FilterItem[]{
                         builder.getFilterForId(filterSepiaSearch),
                 })}).build();
+        addContentFilterSortVariant(-1, allSortFilters);
         addContentFilterSortVariant(contentFilterAll, allSortFilters);
         addContentFilterSortVariant(contentFilterVideos, allSortFilters);
         addContentFilterSortVariant(contentFilterChannels, sepiaFilterOnly);

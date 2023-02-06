@@ -109,8 +109,10 @@ public abstract class SearchFiltersBase {
     protected void addContentFilterSortVariant(
             final int contentFilterId,
             final Filter variant) {
-        if (this.sortFilterVariants.isEmpty()) {
+        if (this.allSortFiltersVariant == null) {
             this.allSortFiltersVariant = variant;
+            return ; // First should be the set of all the available filters , not need to really have this group
+            // and this will not be shown
         }
         this.sortFilterVariants.put(contentFilterId, variant);
     }
