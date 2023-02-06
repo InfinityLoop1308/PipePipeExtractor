@@ -337,7 +337,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String title = isPremiumContent == 1? watch.getString("share_copy"):watch.getString("title");
 
         if(getStreamType() != StreamType.LIVE_STREAM&& isPremiumContent != 1 && watch.getArray("pages").size() > 1){
-            title += " | P" + page.getInt("page") + " "+ page.getString("part");
+            title = "P" + page.getInt("page") + " "+ page.getString("part") + " | " + title;
         }
         return title;
     }
