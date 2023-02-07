@@ -23,6 +23,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
@@ -59,15 +60,18 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
         if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
-                ||getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)){
+                || getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)
+                || getLinkHandler().getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
             return getPage(new Page(getUrl()));
-        }
-        if (searchCollection.getArray("data").size() == 0) {
+        } else {
+            // Video search without popular filter
+            if (searchCollection.getArray("data").size() == 0) {
+                return new InfoItemsPage<>(collectItems(searchCollection),
+                        null);
+            }
             return new InfoItemsPage<>(collectItems(searchCollection),
-                    null);
+                    getNextPageFromCurrentUrl(getUrl()));
         }
-        return new InfoItemsPage<>(collectItems(searchCollection),
-                getNextPageFromCurrentUrl(getUrl()));
     }
 
     @Override
@@ -90,10 +94,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             if(videos.size() == 0){
                 return new InfoItemsPage<>(collector, null);
             }
-            String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
-            int currentPage = Integer.parseInt(currentPageString);
-            String nextPage = page.getUrl().replace(String.format("page=%s", currentPageString), String.format("page=%s", String.valueOf(currentPage + 1)));
-            return new InfoItemsPage<>(collector, new Page(nextPage));
+            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
             Elements lives = Jsoup.parse(response).select("div.searchPage-Layout_Section").first()
                     .select("ul.searchPage-ProgramList > li.searchPage-ProgramList_Item");
@@ -105,10 +106,22 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             if(lives.size() == 0){
                 return new InfoItemsPage<>(collector, null);
             }
-            String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
-            int currentPage = Integer.parseInt(currentPageString);
-            String nextPage = page.getUrl().replace(String.format("page=%s", currentPageString), String.format("page=%s", String.valueOf(currentPage + 1)));
-            return new InfoItemsPage<>(collector, new Page(nextPage));
+            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
+        } else if (page.getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
+            final MultiInfoItemsCollector collector
+                    = new MultiInfoItemsCollector(getServiceId());
+            try {
+                searchCollection = JsonParser.object().from(response).getObject("data");
+                if (searchCollection.getArray("items").size() == 0) {
+                    return new InfoItemsPage<>(collector, null);
+                }
+            } catch (final JsonParserException e) {
+                throw new ParsingException("could not parse search results.");
+            }
+            for (Object item : searchCollection.getArray("items")) {
+                collector.commit(new NiconicoPlaylistInfoItemExtractor((JsonObject) item));
+            }
+            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         }
 
         try {

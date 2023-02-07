@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonObject;
 
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 
@@ -14,7 +15,7 @@ public class NiconicoPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
 
     @Override
     public String getName() throws ParsingException {
-        return itemObject.getString("name");
+        return StringUtils.defaultIfEmpty(itemObject.getString("name"), itemObject.getString("title"));
     }
 
     @Override
@@ -24,7 +25,7 @@ public class NiconicoPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return null;
+        return itemObject.getString("thumbnailUrl");
     }
 
     @Override
@@ -34,6 +35,7 @@ public class NiconicoPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
 
     @Override
     public long getStreamCount() throws ParsingException {
-        return itemObject.getLong("itemsCount");
+        // if itemsCount not exists then use videoCount
+        return Math.max(itemObject.getLong("itemsCount"), itemObject.getLong("videoCount"));
     }
 }
