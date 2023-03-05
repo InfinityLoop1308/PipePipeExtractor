@@ -24,7 +24,9 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     protected String url;
     @Nonnull
     protected String[] mailStyles;
-    private long startAt;
+    private final long startAt;
+    private boolean isLive;
+
     protected final HashMap<String, Integer> colorMap = new HashMap<String, Integer>() {
         {
             put("white", 0xFFFFFF);
@@ -75,11 +77,12 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     };
 
     NiconicoBulletCommentsInfoItemExtractor(@Nonnull final JsonObject json,
-                                            @Nonnull final String url, long startAt) {
+                                            @Nonnull final String url, long startAt, boolean isLive) {
         this.json = json;
         this.url = url;
         this.startAt = startAt;
         this.mailStyles = new String[0];
+        this.isLive = isLive;
         if (json.containsKey("mail")) {
             try {
                 this.mailStyles = json.getString("mail").split(" ");
@@ -151,6 +154,9 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     @Nonnull
     @Override
     public Duration getDuration() throws ParsingException {
+        if(isLive){
+            return Duration.ofMillis(new Date().getTime() - startAt);
+        }
         try {
             return Duration.ofMillis(json.getLong("vpos", 0) * 10);
         } catch (final Exception e) {
