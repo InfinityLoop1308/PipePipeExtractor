@@ -220,6 +220,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                                 String.format("https://api.live.bilibili.com/live/getRoundPlayVideo?room_id=%s&a=%s&type=flv",
                                         data.getLong("room_id"), timestamp)).responseBody();
                         responseJson = JsonParser.object().from(response).getObject("data");
+                        if(responseJson.getLong("cid") < 0){
+                            throw new ContentNotAvailableException("Round playing is not available at this moment.");
+                        }
                         playTime = responseJson.getLong("play_time");
                         currentRoundTitle = responseJson.getString("title");
                         currentRoundTitle = currentRoundTitle.split("-")[1] + currentRoundTitle.split("-")[2];
