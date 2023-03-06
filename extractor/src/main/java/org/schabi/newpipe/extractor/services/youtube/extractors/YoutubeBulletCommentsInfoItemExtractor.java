@@ -10,11 +10,13 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import java.time.Duration;
 
 public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInfoItemExtractor {
-    private JsonObject data;
+    private final JsonObject data;
     private long startTime;
-    public YoutubeBulletCommentsInfoItemExtractor(JsonObject item, long startTime) {
+    private long offsetDuration; // the expected offset of the comment from the start of the video
+    public YoutubeBulletCommentsInfoItemExtractor(JsonObject item, long startTime, long offsetDuration) {
         data = item;
         this.startTime = startTime;
+        this.offsetDuration = offsetDuration;
     }
 
     @Override
@@ -62,7 +64,7 @@ public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInf
     @Override
     public Duration getDuration() throws ParsingException {
        // return Duration.ofMillis(Long.parseLong(data.getString("timestampUsec"))/1000 - startTime);
-        return Duration.ZERO;
+        return offsetDuration == -1 ? Duration.ZERO : Duration.ofMillis(offsetDuration);
     }
 
     @Override

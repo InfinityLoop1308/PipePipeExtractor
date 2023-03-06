@@ -33,6 +33,7 @@ public abstract class BulletCommentsExtractor extends ListExtractor<BulletCommen
         return null;
     }
 
+    // return false if all the bullet comments can be fetched in one go, true if they need to be fetched continuously
     public boolean isLive() {
         return false;
     }

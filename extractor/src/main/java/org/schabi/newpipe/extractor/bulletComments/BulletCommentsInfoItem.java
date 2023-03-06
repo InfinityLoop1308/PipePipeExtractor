@@ -4,7 +4,14 @@ import java.time.Duration;
 
 import org.schabi.newpipe.extractor.InfoItem;
 
-public class BulletCommentsInfoItem extends InfoItem {
+import javax.annotation.Nonnull;
+
+public class BulletCommentsInfoItem extends InfoItem implements Comparable<BulletCommentsInfoItem> {
+    @Override
+    public int compareTo(@Nonnull BulletCommentsInfoItem bulletCommentsInfoItem) {
+        return this.duration.compareTo(bulletCommentsInfoItem.duration);
+    }
+
     public enum Position {
         REGULAR,
         BOTTOM,

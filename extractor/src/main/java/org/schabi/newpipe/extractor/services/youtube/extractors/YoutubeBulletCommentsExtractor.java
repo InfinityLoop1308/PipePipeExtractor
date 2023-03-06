@@ -21,6 +21,7 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.WatchDataCache;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeBulletCommentPair;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
 import java.io.IOException;
@@ -40,8 +41,8 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     private String key;
     private StreamType streamType;
     private ScheduledExecutorService executor;
-    private final ArrayList<JsonObject> messages = new ArrayList<>();
-    private final ArrayList<JsonObject> SuperChatMessages = new ArrayList<>();
+    private final ArrayList<YoutubeBulletCommentPair> messages = new ArrayList<>();
+    private final ArrayList<YoutubeBulletCommentPair> SuperChatMessages = new ArrayList<>();
     private String lastContinuation;
     private ScheduledFuture<?> future;
     private boolean disabled = false;
@@ -139,14 +140,18 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                     JsonObject temp = item.getObject("liveChatTextMessageRenderer");
                     String id = temp.getString("id");
                     if(!IDList.contains(id)){
-                        messages.add(temp);
+                        messages.add(new YoutubeBulletCommentPair(temp, isLiveStream?
+                                -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
+                                .getString("videoOffsetTimeMsec"))));
                         IDList.add(id);
                     }
                 } else if (item.has("liveChatPaidMessageRenderer")) {
                     JsonObject temp = item.getObject("liveChatPaidMessageRenderer");
                     String id = temp.getString("id");
                     if(!IDList.contains(id)){
-                        SuperChatMessages.add(temp);
+                        SuperChatMessages.add(new YoutubeBulletCommentPair(temp, isLiveStream?
+                                -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
+                                .getString("videoOffsetTimeMsec"))));
                         IDList.add(id);
                     }
                 }
@@ -178,11 +183,11 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     public List<BulletCommentsInfoItem> getLiveMessages() throws ParsingException {
         final BulletCommentsInfoItemsCollector collector =
                 new BulletCommentsInfoItemsCollector(getServiceId());
-        for(JsonObject item: messages){
-            collector.commit(new YoutubeBulletCommentsInfoItemExtractor(item, startTime));
+        for(YoutubeBulletCommentPair item: messages){
+            collector.commit(new YoutubeBulletCommentsInfoItemExtractor(item.getData(), startTime, item.getOffsetDuration()));
         }
-        for(JsonObject item: SuperChatMessages){
-            collector.commit(new YoutubeSuperChatInfoItemExtractor(item, startTime));
+        for(YoutubeBulletCommentPair item: SuperChatMessages){
+            collector.commit(new YoutubeSuperChatInfoItemExtractor(item.getData(), startTime, item.getOffsetDuration()));
         }
         messages.clear();
         SuperChatMessages.clear();

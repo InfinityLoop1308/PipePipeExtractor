@@ -7,8 +7,8 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 public class YoutubeSuperChatInfoItemExtractor extends YoutubeBulletCommentsInfoItemExtractor {
     private JsonObject data;
-    public YoutubeSuperChatInfoItemExtractor(JsonObject item, long startTime) {
-        super(item, startTime);
+    public YoutubeSuperChatInfoItemExtractor(JsonObject item, long startTime, long offsetDuration) {
+        super(item, startTime, offsetDuration);
         data = item;
     }
 
