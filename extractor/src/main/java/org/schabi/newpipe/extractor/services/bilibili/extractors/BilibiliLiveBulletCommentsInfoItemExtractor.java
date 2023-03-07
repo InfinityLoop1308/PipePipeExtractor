@@ -48,6 +48,7 @@ public class BilibiliLiveBulletCommentsInfoItemExtractor implements BulletCommen
 
     @Override
     public Duration getDuration() throws ParsingException {
-        return Duration.ofMillis(data.getArray(0).getLong(4) - startTime * 1000);
+//        return Duration.ofMillis(data.getArray(0).getLong(4) - startTime * 1000);
+        return Duration.ZERO;
     }
 }
