@@ -153,7 +153,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     }
 
     public void buildStreams() throws ExtractionException {
-        if (dataObject.getObject("audio").size() == 0) {
+        if (dataObject.getArray("audio").size() == 0) {
             dataArray = dataObject.getArray("video");
             return;
         }
