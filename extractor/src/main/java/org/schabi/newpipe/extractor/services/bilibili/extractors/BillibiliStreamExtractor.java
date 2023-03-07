@@ -46,7 +46,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private JsonArray relatedPaidItems;
     private int isPaid;
     private JsonObject premiumData;
-    private final JsonArray dataArray = new JsonArray();
+    private JsonArray dataArray = new JsonArray();
 
     public BillibiliStreamExtractor(StreamingService service, LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
@@ -119,12 +119,19 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(isRoundPlay || getStreamType() != StreamType.LIVE_STREAM){
             if(dataArray.size() > 0){
                 final List<VideoStream> videoStreams = new ArrayList<>();
-                JsonArray backupUrl = dataArray.getObject(0).getArray("backup_url");
-                for(int i = 0 ;i < backupUrl.size(); i++){
-                    videoStreams.add(new VideoStream.Builder().setContent(backupUrl.getString(i),true)
-                            .setId("bilibili-"+watch.getLong("cid"))
-                            .setIsVideoOnly(false).setResolution("Best")
+                for (int j = 0; j < dataArray.size(); j++) {
+                    String resolution = BilibiliService.getResolution(dataArray.getObject(j).getInt("id"));
+                    videoStreams.add(new VideoStream.Builder().setContent(dataArray.getObject(j).getString("base_url"),true)
+                            .setId("bilibili-"+ watch.getLong("cid"))
+                            .setIsVideoOnly(false).setResolution(resolution)
                             .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
+                    JsonArray backupUrl = dataArray.getObject(j).getArray("backup_url");
+                    for(int i = 0 ;i < backupUrl.size(); i++){
+                        videoStreams.add(new VideoStream.Builder().setContent(backupUrl.getString(i),true)
+                                .setId("bilibili-"+ watch.getLong("cid"))
+                                .setIsVideoOnly(false).setResolution(resolution)
+                                .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
+                    }
                 }
                 return videoStreams;
             }
@@ -143,6 +150,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Override
     public String getHlsUrl() throws ParsingException {
         return getStreamType() != StreamType.LIVE_STREAM || isRoundPlay? "": liveUrl;
+    }
+
+    public void buildStreams() throws ExtractionException {
+        if (dataObject.getObject("audio").size() == 0) {
+            dataArray = dataObject.getArray("video");
+            return;
+        }
+        buildVideoOnlyStreamsArray();
+        buildAudioStreamsArray();
     }
 
     public void buildAudioStreamsArray()throws ExtractionException{
@@ -232,8 +248,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                                 +"&fnval=16&qn=64", getHeaders()).responseBody();
                         playData =  JsonParser.object().from(response);
                         dataObject = playData.getObject("data").getObject("dash");
-                        buildVideoOnlyStreamsArray();
-                        buildAudioStreamsArray();
+                        buildStreams();
                         nextTimestamp = timestamp + dataObject.getLong("duration") * 1000;
                     case 1:
                         response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
@@ -320,8 +335,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 throw new PaidContentException("Paid content");
                 //dataArray = dataParentObject.getArray("durl");
             } else {
-                buildVideoOnlyStreamsArray();
-                buildAudioStreamsArray();
+                buildStreams();
             }
             if(isPaid == 1 && videoOnlyStreams.size() + audioStreams.size() == 0){
                 throw new PaidContentException("Paid content");
