@@ -142,14 +142,14 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         videoStreams.add(new VideoStream.Builder().setContent(liveUrl,true)
                 .setId("bilibili-"+watch.getLong("uid") +"-live")
                 .setIsVideoOnly(false).setResolution("720p")
-                .setDeliveryMethod(DeliveryMethod.HLS).build());
+                .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
         return videoStreams;
     }
 
     @Nonnull
     @Override
     public String getHlsUrl() throws ParsingException {
-        return getStreamType() != StreamType.LIVE_STREAM || isRoundPlay? "": liveUrl;
+        return "";
     }
 
     public void buildStreams() throws ExtractionException {
@@ -251,7 +251,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         buildStreams();
                         nextTimestamp = timestamp + dataObject.getLong("duration") * 1000;
                     case 1:
-                        response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=h5&cid=" + getId(), getHeaders()).responseBody();
+                        response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=web&cid=" + getId(), getHeaders()).responseBody();
                         liveUrl = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
                 }
             } catch (JsonParserException e) {
