@@ -227,18 +227,27 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                     .setId("Niconico-" + getId() +"-live").setIsVideoOnly(false)
                     .setResolution("Best").setDeliveryMethod(DeliveryMethod.HLS).build());
             return videoStreams;
+        } else {
+            final List<VideoStream> videoStreams = new ArrayList<>();
+            final String content = NiconicoService.WATCH_URL + getLinkHandler().getId();
+            JsonArray videos = watch.getObject("media").getObject("delivery").getObject("movie").getArray("videos");
+
+            for(int i = 0; i < videos.size(); i++){
+                JsonObject video = videos.getObject(i);
+                if(!video.getBoolean("isAvailable")){
+                    continue;
+                }
+                String label = video.getObject("metadata").getString("label");
+                videoStreams.add(new VideoStream.Builder()
+                        .setContent(content + "#quality=" + i, true).setId("Niconico-" + getId() + label)
+                        .setIsVideoOnly(false)
+                        .setMediaFormat(MediaFormat.MPEG_4)
+                        .setDeliveryMethod(isHlsStream? DeliveryMethod.HLS : DeliveryMethod.PROGRESSIVE_HTTP)
+                        .setResolution(label)
+                        .build());
+            }
+            return videoStreams;
         }
-        final List<VideoStream> videoStreams = new ArrayList<>();
-        final String content = NiconicoService.WATCH_URL + getLinkHandler().getId();
-        final VideoStream videoStream = new VideoStream.Builder()
-                .setContent(content, true).setId("Niconico-" + getId())
-                .setIsVideoOnly(false)
-                .setMediaFormat(MediaFormat.MPEG_4)
-                .setDeliveryMethod(isHlsStream? DeliveryMethod.HLS : DeliveryMethod.PROGRESSIVE_HTTP)
-                .setResolution("Best")
-                .build();
-        videoStreams.add(videoStream);
-        return videoStreams;
     }
 
     @Nonnull

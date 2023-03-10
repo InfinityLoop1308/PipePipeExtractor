@@ -1,17 +1,13 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonParserException;
-import com.grack.nanojson.JsonStringWriter;
-import com.grack.nanojson.JsonWriter;
+import com.grack.nanojson.*;
 
 public final class NiconicoDMCPayloadBuilder {
     private NiconicoDMCPayloadBuilder() {
 
     }
 
-    public static String buildJSON(final JsonObject obj, final JsonObject encryption) throws JsonParserException {
+    public static String buildJSON(final JsonObject obj, final JsonObject encryption, String quality) throws JsonParserException {
         JsonStringWriter temp = JsonWriter.string()
                 .object()
                 .object("session")
@@ -23,7 +19,8 @@ public final class NiconicoDMCPayloadBuilder {
                 .array("content_src_ids")
                 .object()
                 .object("src_id_to_mux")
-                .array("video_src_ids", obj.getArray("videos"))
+                .array("video_src_ids", obj.getArray("videos")
+                        .subList(Integer.parseInt(quality), obj.getArray("videos").size()))
                 .array("audio_src_ids", obj.getArray("audios"))
                 .end()
                 .end()
