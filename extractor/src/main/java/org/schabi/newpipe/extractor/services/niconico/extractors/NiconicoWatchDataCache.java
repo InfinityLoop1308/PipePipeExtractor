@@ -18,6 +18,9 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -58,7 +61,11 @@ public class NiconicoWatchDataCache {
             url = id;
         }
         try {
-            response = downloader.get(url, null, NiconicoService.LOCALE);
+            HashMap<String, List<String>> headers = new HashMap<>();
+            if(NiconicoService.getTokens() != null){
+                headers.put("Cookie", Collections.singletonList(NiconicoService.getTokens()));
+            }
+            response = downloader.get(url, headers, NiconicoService.LOCALE);
         } catch (final IOException | ReCaptchaException e) {
             throw new ExtractionException("Could not get response.", e);
         }

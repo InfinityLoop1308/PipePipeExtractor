@@ -97,6 +97,7 @@ public abstract class StreamingService {
 
     public final int serviceId;
     private final ServiceInfo serviceInfo;
+    private static String tokens = null;
 
     /**
      * Creates a new Streaming service.
@@ -467,4 +468,11 @@ public abstract class StreamingService {
                 "Localization is not supported (\"" + localization + "\")");
     }
 
+    public void setTokens(String tokens) {
+        StreamingService.tokens = tokens;
+    }
+
+    public static String getTokens() {
+        return tokens;
+    }
 }
