@@ -64,15 +64,17 @@ public class NiconicoWatchDataCache {
         }
         page = Jsoup.parse(response.responseBody());
         try {
-            final Element element = page.getElementById("js-initial-watch-data");
+            Element element = page.getElementById("js-initial-watch-data");
             if (element == null) {
                 watchDataType = WatchDataType.LOGIN; //need login
                 if(response.responseBody().contains("チャンネル会員専用動画")){
                     throw new PaidContentException("Channel member limited videos");
                 } else if (response.responseBody().contains("地域と同じ地域からのみ視聴")) {
                     throw new GeographicRestrictionException("Sorry, this video can only be viewed in the same region where it was uploaded.");
+                } else if (response.responseBody().contains("この動画を視聴するにはログインが必要です。")) {
+                    throw new PaidContentException("This video requires login to view.");
                 }
-                throw new ContentNotAvailableException("Unknown reason");
+                throw new ContentNotAvailableException(page.select("p.fail-message").text());
             } else {
                 watchDataType = WatchDataType.GUEST;
             }
