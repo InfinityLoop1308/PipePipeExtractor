@@ -20,7 +20,7 @@ public final class NiconicoDMCPayloadBuilder {
                 .object()
                 .object("src_id_to_mux")
                 .array("video_src_ids", obj.getArray("videos")
-                        .subList(Integer.parseInt(quality), obj.getArray("videos").size()))
+                        .subList(obj.getArray("videos").indexOf(quality), obj.getArray("videos").size()))
                 .array("audio_src_ids", obj.getArray("audios"))
                 .end()
                 .end()

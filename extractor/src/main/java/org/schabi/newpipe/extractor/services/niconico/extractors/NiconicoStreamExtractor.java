@@ -243,7 +243,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 }
                 String label = video.getObject("metadata").getString("label");
                 videoStreams.add(new VideoStream.Builder()
-                        .setContent(content + "#quality=" + i, true).setId("Niconico-" + getId() + label)
+                        .setContent(content + "#quality=" + video.getString("id"), true).setId("Niconico-" + getId() + label)
                         .setIsVideoOnly(false)
                         .setMediaFormat(MediaFormat.MPEG_4)
                         .setDeliveryMethod(isHlsStream? DeliveryMethod.HLS : DeliveryMethod.PROGRESSIVE_HTTP)
