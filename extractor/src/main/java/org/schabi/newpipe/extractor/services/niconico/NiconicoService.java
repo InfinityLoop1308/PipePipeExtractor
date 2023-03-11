@@ -126,6 +126,9 @@ public class NiconicoService extends StreamingService {
         httpHeaders.put("Connection", "Upgrade");
         httpHeaders.put("Sec-WebSocket-Version", "13");
         httpHeaders.put("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
+        if(NiconicoService.getTokens() != null){
+            httpHeaders.put("Cookie", NiconicoService.getTokens());
+        }
         return httpHeaders;
     }
 

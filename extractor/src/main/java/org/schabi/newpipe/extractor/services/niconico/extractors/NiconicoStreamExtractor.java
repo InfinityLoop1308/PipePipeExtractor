@@ -184,7 +184,11 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     public void getLiveUrl() throws ExtractionException, IOException, JsonParserException {
         String url = getUrl();
-        String responseBody = getDownloader().get(url).responseBody();
+        HashMap<String, List<String>> tokens = new HashMap<>();
+        if(NiconicoService.getTokens() != null){
+            tokens.put("Cookie", Collections.singletonList(NiconicoService.getTokens()));
+        }
+        String responseBody = getDownloader().get(url, tokens).responseBody();
         liveResponse = Jsoup.parse(responseBody);
         String result = JsonParser.object().from(liveResponse
                 .select("script#embedded-data").attr("data-props"))
