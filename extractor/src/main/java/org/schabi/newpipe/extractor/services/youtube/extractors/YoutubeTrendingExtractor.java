@@ -82,10 +82,13 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
             name = getTextAtKey(header.getObject("feedTabbedHeaderRenderer"), "title");
         } else if (header.has("c4TabbedHeaderRenderer")) {
             name = getTextAtKey(header.getObject("c4TabbedHeaderRenderer"), "title");
+        } else if (header.has("carouselHeaderRenderer")) {
+            name = header.getObject("carouselHeaderRenderer").getArray("contents").getObject(0)
+                    .getObject("topicChannelDetailsRenderer").getObject("title").getString("simpleText");
         }
 
         if (isNullOrEmpty(name)) {
-            throw new ParsingException("Could not get Trending name");
+            name = "Unknown";
         }
         return name;
     }
@@ -108,27 +111,6 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
                     .map(content -> content.getObject("richItemRenderer")
                             .getObject("content")
                             .getObject("videoRenderer"))
-                    .forEachOrdered(videoRenderer -> collector.commit(
-                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
-        }else if(getId().equals("Recommended Lives")){
-            tabContent.getObject("sectionListRenderer")
-                    .getArray("contents")
-                    .stream()
-                    .filter(JsonObject.class::isInstance)
-                    .map(JsonObject.class::cast)
-                    .flatMap(content -> content.getObject("itemSectionRenderer")
-                            .getArray("contents")
-                            .stream())
-                    .filter(JsonObject.class::isInstance)
-                    .map(JsonObject.class::cast)
-                    .map(content -> content.getObject("shelfRenderer"))
-                    .flatMap(shelfRenderer -> shelfRenderer.getObject("content")
-                            .getObject("horizontalListRenderer")
-                            .getArray("items")
-                            .stream())
-                    .filter(JsonObject.class::isInstance)
-                    .map(JsonObject.class::cast)
-                    .map(item -> item.getObject("gridVideoRenderer"))
                     .forEachOrdered(videoRenderer -> collector.commit(
                             new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
         } else if (tabContent.has("sectionListRenderer")) {
@@ -155,6 +137,55 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
                     .map(item -> item.getObject("videoRenderer"))
                     .forEachOrdered(videoRenderer -> collector.commit(
                             new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
+        }
+        // try 1
+        if(collector.getItems().isEmpty()) {
+            tabContent.getObject("sectionListRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .flatMap(content -> content.getObject("itemSectionRenderer")
+                            .getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(content -> content.getObject("shelfRenderer"))
+                    .flatMap(shelfRenderer -> shelfRenderer.getObject("content")
+                            .getObject("horizontalListRenderer")
+                            .getArray("items")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(item -> item.getObject("gridVideoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
+        }
+        // try 2
+        if (collector.getItems().isEmpty()) {
+            tabContent.getObject("richGridRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    // Filter Trending shorts and Recently trending sections
+                    .filter(content -> content.has("richSectionRenderer"))
+                    .map(content -> content.getObject("richSectionRenderer")
+                            .getObject("content")
+                            .getObject("richShelfRenderer"))
+                    .flatMap(richShelfRenderer -> richShelfRenderer.getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .filter(content -> content.has("richItemRenderer"))
+                    .map(content -> content.getObject("richItemRenderer")
+                            .getObject("content")
+                            .getObject("videoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
+        }
+        if (collector.getItems().isEmpty()) {
+            throw new ParsingException("Could not get trending page");
         }
         return new InfoItemsPage<>(collector, null);
     }
