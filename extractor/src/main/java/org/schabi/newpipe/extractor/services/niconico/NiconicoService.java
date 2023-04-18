@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.niconico;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
@@ -126,8 +127,8 @@ public class NiconicoService extends StreamingService {
         httpHeaders.put("Connection", "Upgrade");
         httpHeaders.put("Sec-WebSocket-Version", "13");
         httpHeaders.put("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits");
-        if(NiconicoService.getTokens() != null){
-            httpHeaders.put("Cookie", NiconicoService.getTokens());
+        if(ServiceList.NicoNico.getTokens() != null){
+            httpHeaders.put("Cookie", ServiceList.NicoNico.getTokens());
         }
         return httpHeaders;
     }

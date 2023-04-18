@@ -97,7 +97,7 @@ public abstract class StreamingService {
 
     public final int serviceId;
     private final ServiceInfo serviceInfo;
-    private static String tokens = null;
+    private String tokens = null;
 
     /**
      * Creates a new Streaming service.
@@ -469,10 +469,10 @@ public abstract class StreamingService {
     }
 
     public void setTokens(String tokens) {
-        StreamingService.tokens = tokens;
+        this.tokens = tokens;
     }
 
-    public static String getTokens() {
-        return tokens;
+    public String getTokens() {
+        return this.tokens;
     }
 }

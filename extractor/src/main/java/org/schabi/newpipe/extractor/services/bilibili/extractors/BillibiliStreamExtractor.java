@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.stream.*;
 
 import javax.annotation.Nonnull;
@@ -185,9 +186,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         for(int i=0; i< videoArray.size(); i++){
              JsonObject object = videoArray.getObject(i);
              int code = object.getInt("id");
-             if(code > 64){
-                 continue;
-             }
              String resolution = BilibiliService.getResolution(code);
              videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"),true)
                      .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
@@ -245,7 +243,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         bvid = responseJson.getString("bvid");
                         response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="
                                 + responseJson.getLong("cid")+"&bvid="+ bvid
-                                +"&fnval=16&qn=64", getHeaders()).responseBody();
+                                +"&fnval=2000&qn=120&fourk=1", getHeaders()).responseBody();
                         playData =  JsonParser.object().from(response);
                         dataObject = playData.getObject("data").getObject("dash");
                         buildStreams();
@@ -315,7 +313,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
 
         String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
-        String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=16&qn=64", getHeaders()).responseBody();
+        Map<String, List<String>> headers = getHeaders();
+        if(ServiceList.BiliBili.getTokens() != null){
+            headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
+        }
+        String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=2000&qn=120&fourk=1", headers).responseBody();
         try {
             playData =  JsonParser.object().from(response);
             switch (playData.getInt("code")){

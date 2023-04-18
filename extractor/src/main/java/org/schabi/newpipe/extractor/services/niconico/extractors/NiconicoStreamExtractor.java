@@ -10,11 +10,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.InfoItemExtractor;
-import org.schabi.newpipe.extractor.InfoItemsCollector;
-import org.schabi.newpipe.extractor.MediaFormat;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -185,8 +181,8 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public void getLiveUrl() throws ExtractionException, IOException, JsonParserException {
         String url = getUrl();
         HashMap<String, List<String>> tokens = new HashMap<>();
-        if(NiconicoService.getTokens() != null){
-            tokens.put("Cookie", Collections.singletonList(NiconicoService.getTokens()));
+        if(ServiceList.NicoNico.getTokens() != null){
+            tokens.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
         }
         String responseBody = getDownloader().get(url, tokens).responseBody();
         liveResponse = Jsoup.parse(responseBody);

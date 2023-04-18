@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -62,8 +63,8 @@ public class NiconicoWatchDataCache {
         }
         try {
             HashMap<String, List<String>> headers = new HashMap<>();
-            if(NiconicoService.getTokens() != null){
-                headers.put("Cookie", Collections.singletonList(NiconicoService.getTokens()));
+            if(ServiceList.NicoNico.getTokens() != null){
+                headers.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
             }
             response = downloader.get(url, headers, NiconicoService.LOCALE);
         } catch (final IOException | ReCaptchaException e) {
