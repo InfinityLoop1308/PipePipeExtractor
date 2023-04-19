@@ -58,6 +58,7 @@ public class BilibiliService extends StreamingService {
     public static String GET_SERIES_BASE_URL = "https://api.bilibili.com/x/series/archives?mid=%s&series_id=%s&only_normal=true&sort=desc&name=%s&pn=1&ps=30";
     public static String GET_SUGGESTION_URL = "https://s.search.bilibili.com/main/suggest?term=";
     public static String COMMENT_REPLIES_URL = "https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=";
+    public static String GET_SUBTITLE_META_URL = "https://api.bilibili.com/x/player/wbi/v2";
 
     static public Map<String, List<String>> getHeaders() {
         final Map<String, List<String>> headers = new HashMap<>();

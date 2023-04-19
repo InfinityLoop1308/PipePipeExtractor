@@ -508,11 +508,21 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return new ArrayList<>();
         }
         JsonArray subtitles = watch.getObject("subtitle").getArray("list");
+        int p = Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0]);
+        if(p > 1){
+            try {
+                subtitles  = JsonParser.object().from(getDownloader()
+                        .get(GET_SUBTITLE_META_URL + "?cid=" + cid + "&bvid=" + bvid, getHeaders())
+                        .responseBody()).getObject("data").getObject("subtitle").getArray("subtitles");
+            } catch (JsonParserException e) {
+                throw new RuntimeException(e);
+            }
+        }
         List<SubtitlesStream> subtitlesToReturn = new ArrayList<>();
         for(int i = 0; i< subtitles.size();i++){
             JsonObject subtitlesStream = subtitles.getObject(i);
             String bccResult = getDownloader()
-                    .get(subtitlesStream
+                    .get((p>1?"https:":"") + subtitlesStream
                             .getString("subtitle_url")
                             .replace("http:","https:"), getHeaders()).responseBody();
             try {
