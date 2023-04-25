@@ -76,7 +76,7 @@ public class utils {
         if (url.contains("pn=")) {
             pn = url.split("pn=")[1].split("&")[0];
         }
-        return "https://api.bilibili.com/x/space/arc/search?pn=" + pn + "&ps=10&mid=" + id;
+        return "https://api.bilibili.com/x/space/wbi/arc/search?pn=" + pn + "&ps=30&mid=" + id;
     }
 
     public static String getRecordApiUrl(String url) {
