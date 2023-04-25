@@ -63,6 +63,7 @@ public class BilibiliService extends StreamingService {
     static public Map<String, List<String>> getHeaders() {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Cookie", Collections.singletonList("buvid3=C17989F9-9E34-6949-F6B9-19E02F3DC4B734983infoc;"));
+        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (Linux; Android 13; KB2000) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36"));
         return headers;
     }
 

@@ -50,7 +50,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                         " That normally happen because your network is not stable or your IP got temporarily banned.");
             }
         } catch (JsonParserException e) {
-            e.printStackTrace();
+            throw new ExtractionException("Error occurs during fetching channel content." +
+                    " That normally happen because your network is not stable or your IP got temporarily banned.");
         }
     }
 
@@ -89,7 +90,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             userData = JsonParser.object().from(userResponse);
 
         } catch (JsonParserException e) {
-            e.printStackTrace();
+            throw new ExtractionException("Error occurs during fetching channel content." +
+                    " That normally happen because your network is not stable or your IP got temporarily banned.");
         }
         JsonArray results;
         results = data.getObject("data").getObject("list").getArray("vlist");
