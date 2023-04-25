@@ -77,20 +77,23 @@ public final class YoutubeSearchSortFilter {
             this.searchParameter
                     = URLEncoder.encode(protoBufEncodedBase64, UTF_8);
         } catch (NoClassDefFoundError e){
-            if(searchRequest.sorted != 0 || searchRequest.extras != null){
+            try{
+                if (searchRequest.sorted != 0 || searchRequest.extras != null) {
+                    throw new RuntimeException("You device only support 4 basic search filters");
+                }
+                if (searchRequest.filter == null || searchRequest.filter.type == null) {
+                    this.searchParameter = "CAASAA%3D%3D";
+                } else if (searchRequest.filter.type == 1) {
+                    this.searchParameter = "CAASAhAB";
+                } else if (searchRequest.filter.type == 2) {
+                    this.searchParameter = "CAASAhAC";
+                } else if (searchRequest.filter.type == 3) {
+                    this.searchParameter = "CAASAhAD";
+                } else
+                    throw new RuntimeException("You device only support 4 basic search filters");
+            } catch (Exception ex) {
                 throw new RuntimeException("You device only support 4 basic search filters");
             }
-            if(searchRequest.filter == null || searchRequest.filter.type == null){
-                this.searchParameter = "CAASAA%3D%3D";
-            }
-            else if(searchRequest.filter.type == 1){
-                this.searchParameter = "CAASAhAB";
-            } else if (searchRequest.filter.type == 2) {
-                this.searchParameter = "CAASAhAC";
-            } else if (searchRequest.filter.type == 3){
-                this.searchParameter = "CAASAhAD";
-            } else
-            throw new RuntimeException("You device only support 4 basic search filters");
         }
         return this.searchParameter;
     }
