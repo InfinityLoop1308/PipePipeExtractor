@@ -75,7 +75,8 @@ import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.getStringResultFromRegexArray;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
-public final class YoutubeParsingHelper {
+public final class
+YoutubeParsingHelper {
 
     private YoutubeParsingHelper() {
     }
@@ -308,6 +309,7 @@ public final class YoutubeParsingHelper {
                 || host.equalsIgnoreCase("invidious.kavin.rocks")
                 || host.equalsIgnoreCase("invidious-us.kavin.rocks")
                 || host.equalsIgnoreCase("piped.kavin.rocks")
+                || host.equalsIgnoreCase("piped.video")
                 || host.equalsIgnoreCase("invidious.site")
                 || host.equalsIgnoreCase("vid.mint.lgbt")
                 || host.equalsIgnoreCase("invidiou.site")

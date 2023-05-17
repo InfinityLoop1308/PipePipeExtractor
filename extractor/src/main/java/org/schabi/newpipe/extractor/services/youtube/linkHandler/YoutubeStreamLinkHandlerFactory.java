@@ -197,6 +197,7 @@ public final class YoutubeStreamLinkHandlerFactory extends LinkHandlerFactory {
             case "INVIDIOUS.KAVIN.ROCKS":
             case "INVIDIOUS-US.KAVIN.ROCKS":
             case "PIPED.KAVIN.ROCKS":
+            case "PIPED.VIDEO":
             case "INVIDIOUS.SITE":
             case "VID.MINT.LGBT":
             case "INVIDIOU.SITE":
