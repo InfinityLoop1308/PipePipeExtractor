@@ -1,14 +1,11 @@
 package org.schabi.newpipe.extractor.stream;
 
-import org.schabi.newpipe.extractor.Info;
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MetaInfo;
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
@@ -152,7 +149,11 @@ public class StreamInfo extends Info {
 
         /* Load and extract audio */
         try {
-            streamInfo.setAudioStreams(extractor.getAudioStreams());
+            if(streamInfo.getService() == ServiceList.BiliBili){
+                streamInfo.setAudioStreams(((BillibiliStreamExtractor)extractor).getAudioStreamsForDownloader());
+            } else {
+                streamInfo.setAudioStreams(extractor.getAudioStreams());
+            }
         } catch (final ContentNotSupportedException e) {
             throw e;
         } catch (final Exception e) {

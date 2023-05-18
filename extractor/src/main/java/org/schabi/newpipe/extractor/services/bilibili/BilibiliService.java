@@ -119,6 +119,28 @@ public class BilibiliService extends StreamingService {
         }
     }
 
+    static public String getBitrate(int code) {
+        //30216 	64K
+        //30232 	132K
+        //30280 	192K
+        //30250 	杜比全景声
+        //30251 	Hi-Res无损
+        switch (code) {
+            case 30216:
+                return "64K";
+            case 30232:
+                return "132K";
+            case 30280:
+                return "192K";
+            case 30250:
+                return "杜比全景声";
+            case 30251:
+                return "Hi-Res无损";
+            default:
+                return "Unknown bitrate";
+        }
+    }
+
     public BilibiliService(int id) {
         super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
         watchDataCache = new WatchDataCache();

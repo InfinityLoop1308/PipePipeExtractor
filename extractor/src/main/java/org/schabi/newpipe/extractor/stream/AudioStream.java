@@ -59,7 +59,7 @@ public final class AudioStream extends Stream {
         private int averageBitrate = UNKNOWN_BITRATE;
         @Nullable
         private ItagItem itagItem;
-
+        private String quality;
         /**
          * Create a new {@link Builder} instance with its default values.
          */
@@ -193,6 +193,11 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        public Builder setQuality(String quality) {
+            this.quality = quality;
+            return this;
+        }
+
         /**
          * Build an {@link AudioStream} using the builder's current values.
          *
@@ -226,7 +231,7 @@ public final class AudioStream extends Stream {
             }
 
             return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate,
-                    manifestUrl, itagItem);
+                    manifestUrl, itagItem, quality);
         }
     }
 
@@ -244,9 +249,10 @@ public final class AudioStream extends Stream {
      * @param deliveryMethod the {@link DeliveryMethod} of the stream
      * @param averageBitrate the average bitrate of the stream (which can be unknown, see
      *                       {@link #UNKNOWN_BITRATE})
-     * @param itagItem       the {@link ItagItem} corresponding to the stream, which cannot be null
      * @param manifestUrl    the URL of the manifest this stream comes from (if applicable,
      *                       otherwise null)
+     * @param itagItem       the {@link ItagItem} corresponding to the stream, which cannot be null
+     * @param quality
      */
     @SuppressWarnings("checkstyle:ParameterNumber")
     private AudioStream(@Nonnull final String id,
@@ -256,7 +262,7 @@ public final class AudioStream extends Stream {
                         @Nonnull final DeliveryMethod deliveryMethod,
                         final int averageBitrate,
                         @Nullable final String manifestUrl,
-                        @Nullable final ItagItem itagItem) {
+                        @Nullable final ItagItem itagItem, String quality) {
         super(id, content, isUrl, format, deliveryMethod, manifestUrl);
         if (itagItem != null) {
             this.itagItem = itagItem;
@@ -270,6 +276,9 @@ public final class AudioStream extends Stream {
             this.codec = itagItem.getCodec();
         }
         this.averageBitrate = averageBitrate;
+        if(quality != null) {
+            this.quality = quality;
+        }
     }
 
     /**
@@ -361,6 +370,10 @@ public final class AudioStream extends Stream {
      */
     public String getQuality() {
         return quality;
+    }
+
+    public void setQuality(String quality) {
+        this.quality = quality;
     }
 
     /**

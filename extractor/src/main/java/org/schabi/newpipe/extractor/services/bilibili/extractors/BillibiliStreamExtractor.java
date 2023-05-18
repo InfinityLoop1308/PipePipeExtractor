@@ -108,6 +108,21 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         return result;
     }
 
+    public List<AudioStream> getAudioStreamsForDownloader() throws IOException, ExtractionException {
+        if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
+            return null;
+        }
+        JsonArray audioObjects = dataObject.getArray("audio");
+        ArrayList<AudioStream> audioStreamsForDownloader = new ArrayList<>();
+        for (int i = 0; i < audioObjects.size(); i++) {
+            JsonObject audioObject = audioObjects.getObject(i);
+            audioStreamsForDownloader.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
+                    .setContent(audioObject.getString("baseUrl"),true)
+                    .setMediaFormat(MediaFormat.M4A).setQuality(getBitrate(audioObject.getInt("id"))).build());
+        }
+        return audioStreamsForDownloader;
+    }
+
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
         int videoSize = videoOnlyStreams.size();
