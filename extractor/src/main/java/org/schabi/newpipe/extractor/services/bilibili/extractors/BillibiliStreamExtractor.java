@@ -113,6 +113,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return null;
         }
         JsonArray audioObjects = dataObject.getArray("audio");
+        if(dataObject.getObject("dolby").getArray("audio").size() != 0){
+            audioObjects.addAll(0, dataObject.getObject("dolby").getArray("audio"));
+        }
         if(dataObject.getObject("flac").getObject("audio").size() != 0){
             audioObjects.add(0, dataObject.getObject("flac").getObject("audio"));
         }
@@ -184,14 +187,18 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
             return ;
         }
+        boolean hasDolby = dataObject.getObject("dolby").getArray("audio").size() != 0;
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
         if(dataObject.getObject("flac").getObject("audio").size() != 0){
             audioObject = dataObject.getObject("flac").getObject("audio");
         }
+        if(hasDolby){
+            audioObject = dataObject.getObject("dolby").getArray("audio").getObject(0);
+        }
         JsonArray backupUrls = audioObject.getArray("backupUrl");
         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                 .setContent(audioObject.getString("baseUrl"),true)
-                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+                .setMediaFormat(hasDolby?MediaFormat.M4A:null).setAverageBitrate(192000).build());
         for(int j = 0; j < backupUrls.size();j++){
             audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                     .setContent(backupUrls.getString(j),true)
