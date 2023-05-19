@@ -113,6 +113,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return null;
         }
         JsonArray audioObjects = dataObject.getArray("audio");
+        if(dataObject.getObject("flac").getObject("audio").size() != 0){
+            audioObjects.add(0, dataObject.getObject("flac").getObject("audio"));
+        }
         ArrayList<AudioStream> audioStreamsForDownloader = new ArrayList<>();
         for (int i = 0; i < audioObjects.size(); i++) {
             JsonObject audioObject = audioObjects.getObject(i);
@@ -182,6 +185,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return ;
         }
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
+        if(dataObject.getObject("flac").getObject("audio").size() != 0){
+            audioObject = dataObject.getObject("flac").getObject("audio");
+        }
         JsonArray backupUrls = audioObject.getArray("backupUrl");
         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                 .setContent(audioObject.getString("baseUrl"),true)
