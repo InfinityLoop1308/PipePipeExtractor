@@ -358,7 +358,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 .getString(0).equals("hls");
         if(isHlsStream){
             throw new ContentNotSupportedException("This video is an encryted HLS stream. " +
-                    "Sorry, but AnimePipe is not able to handle it currently.");
+                    "Sorry, but PipePipe is not able to handle it currently.");
         }
         page = niconicoWatchDataCache.getLastPage();
         type = niconicoWatchDataCache.getLastWatchDataType();
