@@ -198,20 +198,24 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return ;
         }
         JsonArray videoArray = dataObject.getArray("video") ;
+        ArrayList<VideoStream> h264Streams = new ArrayList<>();
         for(int i=0; i< videoArray.size(); i++){
              JsonObject object = videoArray.getObject(i);
              int code = object.getInt("id");
+             boolean isH264 = object.getString("codecs").contains("avc");
              String resolution = BilibiliService.getResolution(code);
-             videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"),true)
+             (isH264?h264Streams:videoOnlyStreams).add(new VideoStream.Builder().setContent(object.getString("baseUrl"),true)
                      .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
                      .setIsVideoOnly(true).setResolution(resolution).build());
              JsonArray backupUrls = object.getArray("backupUrl");
              for(int j = 0; j< backupUrls.size();j++){
-                 videoOnlyStreams.add(new VideoStream.Builder().setContent(backupUrls.getString(j),true)
+                 (isH264?h264Streams:videoOnlyStreams).add(new VideoStream.Builder().setContent(backupUrls.getString(j),true)
                          .setMediaFormat( MediaFormat.MPEG_4).setId("bilibili-"+bvid+"-video")
                          .setIsVideoOnly(true).setResolution(resolution).build());
              }
          }
+        // append h264 streams to videoOnlyStreams
+        videoOnlyStreams.addAll(0, h264Streams);
     }
 
     @Override
