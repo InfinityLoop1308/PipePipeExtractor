@@ -189,12 +189,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         boolean hasDolby = dataObject.getObject("dolby").getArray("audio").size() != 0;
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
-        if(dataObject.getObject("flac").getObject("audio").size() != 0){
-            audioObject = dataObject.getObject("flac").getObject("audio");
-        }
-        if(hasDolby){
-            audioObject = dataObject.getObject("dolby").getArray("audio").getObject(0);
-        }
         JsonArray backupUrls = audioObject.getArray("backupUrl");
         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                 .setContent(audioObject.getString("baseUrl"),true)
