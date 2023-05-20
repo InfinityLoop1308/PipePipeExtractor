@@ -187,12 +187,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if(getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay){
             return ;
         }
-        boolean hasDolby = dataObject.getObject("dolby").getArray("audio").size() != 0;
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
         JsonArray backupUrls = audioObject.getArray("backupUrl");
         audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                 .setContent(audioObject.getString("baseUrl"),true)
-                .setMediaFormat(hasDolby?MediaFormat.M4A:null).setAverageBitrate(192000).build());
+                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
         for(int j = 0; j < backupUrls.size();j++){
             audioStreams.add(new AudioStream.Builder().setId("bilibili-"+bvid+"-audio")
                     .setContent(backupUrls.getString(j),true)
