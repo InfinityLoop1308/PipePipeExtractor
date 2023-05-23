@@ -8,7 +8,7 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
 public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
-    
+
     public static final String baseUrl = "https://space.bilibili.com/";
 
     @Override
@@ -44,7 +44,4 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
                          final List<FilterItem> sortFilter) throws ParsingException {
         return baseUrl + id;
     }
-
-
 }
- 

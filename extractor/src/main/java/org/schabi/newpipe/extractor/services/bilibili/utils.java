@@ -2,16 +2,23 @@ package org.schabi.newpipe.extractor.services.bilibili;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.brotli.dec.BrotliInputStream;
+import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.security.MessageDigest;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Inflater;
+
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+
 
 public class utils {
     int[] s = {11, 10, 3, 8, 4, 6};
@@ -19,6 +26,10 @@ public class utils {
     public long add = 8728348608L;
     public String table = "fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF";
     public Map<Character, Integer> map = new HashMap<Character, Integer>();
+    private static final String USER_AGENT = "Mozilla/5.0";
+    private static final String REFERER = "https://www.bilibili.com";
+    private static final OkHttpClient client = new OkHttpClient();
+
 
     public utils() {
         for (int i = 0; i < 58; i++) {
@@ -71,12 +82,24 @@ public class utils {
         return id.split("\\?")[0];
     }
 
-    public static String getChannelApiUrl(String url, String id) {
+    public static String getUserVideos(String url, String id, Downloader downloader) throws IOException, ReCaptchaException {
         String pn = "1";
         if (url.contains("pn=")) {
             pn = url.split("pn=")[1].split("&")[0];
         }
-        return "https://api.bilibili.com/x/space/wbi/arc/search?pn=" + pn + "&ps=30&mid=" + id;
+        Map<String, String> params = new HashMap<>();
+        params.put("pn", pn);
+        params.put("ps", "30");
+        params.put("mid", id);
+        params.put("platform", "web");
+        String[] result = encWbi(params);
+        params.put("w_rid", result[0]);
+        params.put("wts", result[1]);
+        //get new url
+        String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining("&"));
+        return downloader.get(newUrl, getHeaders()).responseBody();
     }
 
     public static String getRecordApiUrl(String url) {
@@ -222,5 +245,64 @@ public class utils {
             result += (long) Integer.parseInt(duration.split(":")[len - 3]) * 60 * 60;
         }
         return result;
+    }
+    private static String getMixinKey(String ae) {
+        int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
+                13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
+        String le = Arrays.stream(oe)
+                .mapToObj(i -> String.valueOf((char) ae.charAt(i)))
+                .collect(Collectors.joining());
+        return le.substring(0, 32);
+    }
+
+    public static String[] encWbi(Map<String, String> params) {
+        String wbiImgUrl = WBI_IMG_URL;
+        String img_value;
+        String sub_value;
+        String img_url;
+        String sub_url;
+        String me;
+        int wts;
+        String w_rid;
+
+        try {
+            Request request = new Request.Builder()
+                    .url(wbiImgUrl)
+                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("Referer", REFERER)
+                    .build();
+            Response response = client.newCall(request).execute();
+            if (!response.isSuccessful()) {
+                throw new RuntimeException("Failed to get wbi_img");
+            }
+            String responseBody = response.body().string();
+            img_url = responseBody.split("\"img_url\":\"")[1].split("\"")[0];
+            sub_url = responseBody.split("\"sub_url\":\"")[1].split("\"")[0];
+            img_value = img_url.split("/")[img_url.split("/").length - 1].split("\\.")[0];
+            sub_value = sub_url.split("/")[sub_url.split("/").length - 1].split("\\.")[0];
+            me = getMixinKey(img_value + sub_value);
+            wts = (int) (System.currentTimeMillis() / 1000);
+            params.put("wts", String.valueOf(wts));
+            Map<String, String> sortedParams = new TreeMap<>(params);
+            String ae = sortedParams.entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(Collectors.joining("&"));
+            String toHash = ae + me;
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(toHash.getBytes());
+            w_rid = bytesToHex(digest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return new String[]{w_rid, String.valueOf(wts)};
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 }

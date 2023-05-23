@@ -27,7 +27,7 @@ import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
 
 public class BilibiliChannelExtractor extends ChannelExtractor {
-    JsonObject data = new JsonObject();
+    JsonObject videoData = new JsonObject();
     JsonObject userData = new JsonObject();
     JsonObject liveData = new JsonObject();
 
@@ -37,15 +37,14 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        final String url = utils.getChannelApiUrl(getUrl(), getLinkHandler().getId());
-        String response = downloader.get(url, getHeaders()).responseBody();
+        String videoResponse = utils.getUserVideos(getUrl(), getLinkHandler().getId(), downloader);
         String userResponse = downloader.get(QUERY_USER_INFO_URL + getId(), getHeaders()).responseBody();
         try {
-            data = JsonParser.object().from(response);
+            videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
             String liveResponse = downloader.get(QUERY_LIVEROOM_STATUS_URL + getId()).responseBody();
             liveData = JsonParser.object().from(liveResponse);
-            if (data.getInt("code") != 0 || userData.getInt("code") != 0 || liveData.getInt("code") != 0) {
+            if (videoData.getInt("code") != 0 || userData.getInt("code") != 0 || liveData.getInt("code") != 0) {
                 throw new ExtractionException("Error occurs during fetching channel content." +
                         " That normally happen because your network is not stable or your IP got temporarily banned.");
             }
@@ -65,7 +64,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         JsonArray results;
-        results = data.getObject("data").getObject("list").getArray("vlist");
+        results = videoData.getObject("data").getObject("list").getArray("vlist");
 
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         if (results.size() == 0) {
@@ -83,10 +82,10 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        String response = getDownloader().get(utils.getChannelApiUrl(page.getUrl(), getId()), getHeaders()).responseBody();
+        String videoResponse = utils.getUserVideos(page.getUrl(), getId(), getDownloader());
         String userResponse = getDownloader().get(QUERY_USER_INFO_URL + getId(), getHeaders()).responseBody();
         try {
-            data = JsonParser.object().from(response);
+            videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
 
         } catch (JsonParserException e) {
@@ -94,7 +93,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                     " That normally happen because your network is not stable or your IP got temporarily banned.");
         }
         JsonArray results;
-        results = data.getObject("data").getObject("list").getArray("vlist");
+        results = videoData.getObject("data").getObject("list").getArray("vlist");
 
         if (results.size() == 0) {
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
