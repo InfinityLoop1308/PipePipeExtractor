@@ -81,12 +81,12 @@ public class NiconicoSearchContentItemExtractor implements StreamInfoItemExtract
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return null;
+        return "";
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return null;
+        return "";
     }
 
     @Nullable
