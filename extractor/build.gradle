@@ -39,7 +39,7 @@ dependencies {
     implementation "com.google.protobuf:protobuf-java:3.11.0"
     implementation "com.squareup.okhttp3:okhttp:4.10.0"
     implementation "org.brotli:dec:0.1.1"
-    implementation 'org.apache.commons:commons-lang3:3.8.1'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
 
 
     // do not upgrade to 1.7.14, since in 1.7.14 Rhino uses the `SourceVersion` class, which is not
