@@ -36,7 +36,7 @@ dependencies {
     implementation 'org.jsoup:jsoup:1.15.3'
     implementation "org.java-websocket:Java-WebSocket:1.5.3"
     implementation "com.github.spotbugs:spotbugs-annotations:$spotbugsVersion"
-    implementation 'org.nibor.autolink:autolink:0.10.0'
+    implementation 'org.nibor.autolink:autolink:0.11.0'
     implementation "com.google.protobuf:protobuf-java:3.11.0"
     implementation "com.squareup.okhttp3:okhttp:4.10.0"
     implementation "org.brotli:dec:0.1.1"
