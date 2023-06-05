@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.*;
@@ -268,7 +269,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         bvid = responseJson.getString("bvid");
                         response = getDownloader().get("https://api.bilibili.com/x/player/playurl"+"?cid="
                                 + responseJson.getLong("cid")+"&bvid="+ bvid
-                                +"&fnval=2000&qn=120&fourk=1", getHeaders()).responseBody();
+                                +"&fnval=2000&qn=120&fourk=1&try_look=1", getHeaders()).responseBody();
                         playData =  JsonParser.object().from(response);
                         dataObject = playData.getObject("data").getObject("dash");
                         buildStreams();
@@ -338,11 +339,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
 
         String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
+        String params = "?cid=" + cid + "&bvid=" + bvid + "&fnval=2000&qn=120&fourk=1";
         Map<String, List<String>> headers = getHeaders();
-        if(ServiceList.BiliBili.getTokens() != null){
+        if(StringUtils.isNotBlank(ServiceList.BiliBili.getTokens())){
             headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
+        } else {
+            // https://codeberg.org/NullPointerException/PipePipe/issues/42
+            params += "&try_look=1";
         }
-        String response = getDownloader().get(baseUrl + "?cid=" + cid + "&bvid=" + bvid + "&fnval=2000&qn=120&fourk=1", headers).responseBody();
+        String response = getDownloader().get(baseUrl + params, headers).responseBody();
         try {
             playData =  JsonParser.object().from(response);
             switch (playData.getInt("code")){
