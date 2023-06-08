@@ -196,13 +196,13 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
         /* 'Sort order' filter items */
         final int filterIdSortByRelevance = builder.addSortItem(
-                new YoutubeSortOrderSortFilterItem("Relevance", SortOrder.relevance));
+                new YoutubeSortOrderSortFilterItem("sort_relevance", SortOrder.relevance));
         final int filterIdSortByRating = builder.addSortItem(
-                new YoutubeSortOrderSortFilterItem("Rating", SortOrder.rating));
+                new YoutubeSortOrderSortFilterItem("sort_rating", SortOrder.rating));
         final int filterIdSortByDate = builder.addSortItem(
-                new YoutubeSortOrderSortFilterItem("Date", SortOrder.date));
+                new YoutubeSortOrderSortFilterItem("sort_publish_time", SortOrder.date));
         final int filterIdSortByViews = builder.addSortItem(
-                new YoutubeSortOrderSortFilterItem("Views", SortOrder.views));
+                new YoutubeSortOrderSortFilterItem("sort_view", SortOrder.views));
 
         /* 'Date' filter items */
         final int filterIdDateAll = builder.addSortItem(
@@ -250,7 +250,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
 
         final FilterGroup[] videoFilters = new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterIdSortByRelevance),
                         builder.getFilterForId(filterIdSortByRating),
                         builder.getFilterForId(filterIdSortByDate),
@@ -269,7 +269,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
 //                        builder.getFilterForId(filterIdDurationShort),
 //                        builder.getFilterForId(filterIdDurationLong),
 //                }),
-                builder.createSortGroup("Features", false, new FilterItem[]{
+                builder.createSortGroup("features", false, new FilterItem[]{
                         builder.getFilterForId(filterIdFeatureHd),
                         builder.getFilterForId(filterIdFeatureSubtitles),
                         builder.getFilterForId(filterIdFeatureCcommons),

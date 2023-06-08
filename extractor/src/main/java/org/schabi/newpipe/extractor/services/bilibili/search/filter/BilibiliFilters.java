@@ -6,11 +6,11 @@ import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.search.filter.SearchFiltersBase;
 
 public class BilibiliFilters extends SearchFiltersBase {
-    private static final String VIDEOS = "Video";
-    private static final String LIVES = "LiveRoom";
-    private static final String USERS = "Channel";
-    private static final String ANIME = "Anime";
-    private static final String MOVIES = "Movies & TV series";
+    private static final String VIDEOS = "videos";
+    private static final String LIVES = "lives";
+    private static final String USERS = "channels";
+    private static final String ANIME = "animes";
+    private static final String MOVIES = "movies_and_tv";
 
     public BilibiliFilters() {
         init();
@@ -66,22 +66,22 @@ public class BilibiliFilters extends SearchFiltersBase {
         }));
 
         final int filterOverallScore = builder.addSortItem(
-                new BilibiliSortFilterItem("Overall", "order=totalrank")
+                new BilibiliSortFilterItem("sort_overall", "order=totalrank")
         );
         final int filterViewCount = builder.addSortItem(
-                new BilibiliSortFilterItem("Views", "order=click")
+                new BilibiliSortFilterItem("sort_view", "order=click")
         );
         final int filterLatest = builder.addSortItem(
-                new BilibiliSortFilterItem("Latest", "order=pubdate")
+                new BilibiliSortFilterItem("sort_publish_time", "order=pubdate")
         );
         final int filterBulletCommentCount = builder.addSortItem(
-                new BilibiliSortFilterItem("Bullet Comments", "order=dm")
+                new BilibiliSortFilterItem("sort_bullet_comments", "order=dm")
         );
         final int filterCommentCount = builder.addSortItem(
-                new BilibiliSortFilterItem("Comments", "order=scores")
+                new BilibiliSortFilterItem("sort_comments", "order=scores")
         );
         final int filterBookmarkCount = builder.addSortItem(
-                new BilibiliSortFilterItem("Bookmarks", "order=stow")
+                new BilibiliSortFilterItem("sort_bookmark", "order=stow")
         );
         final int filterDuartionAll = builder.addSortItem(
                 new BilibiliSortFilterItem("All", "duration=0")
@@ -99,7 +99,7 @@ public class BilibiliFilters extends SearchFiltersBase {
                 new BilibiliSortFilterItem("> 60 min", "duration=4")
         );
         final Filter videoSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterOverallScore),
                         builder.getFilterForId(filterLatest),
                         builder.getFilterForId(filterViewCount),

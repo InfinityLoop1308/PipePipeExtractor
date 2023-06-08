@@ -11,10 +11,10 @@ import java.util.Optional;
 
 public final class NiconicoFilters extends SearchFiltersBase {
 
-    private static final String ALL = "All";
-    private static final String TAGS_ONLY = "TagsOnly";
-    private static final String LIVES = "Lives";
-    private static final String PLAYLISTS = "Playlists";
+    private static final String ALL = "all";
+    private static final String TAGS_ONLY = "tags_only";
+    private static final String LIVES = "lives";
+    private static final String PLAYLISTS = "playlists";
 
     public NiconicoFilters() {
         init();
@@ -74,36 +74,36 @@ public final class NiconicoFilters extends SearchFiltersBase {
 
         /* 'Sort by' filter items */
         final int filterHottest = builder.addSortItem(
-                new NiconicoSortFilterItem("Most Popular", "sort=h"));
+                new NiconicoSortFilterItem("sort_popular", "sort=h"));
         final int filterViewCount = builder.addSortItem(
-                new NiconicoSortFilterItem("Views", "_sort=viewCounter"));
+                new NiconicoSortFilterItem("sort_view", "_sort=viewCounter"));
         final int filterBookmarkCount = builder.addSortItem(
-                new NiconicoSortFilterItem("Bookmarks", "_sort=mylistCounter"));
+                new NiconicoSortFilterItem("sort_bookmark", "_sort=mylistCounter"));
         final int filterLikeCount = builder.addSortItem(
-                new NiconicoSortFilterItem("Likes", "_sort=likeCounter"));
+                new NiconicoSortFilterItem("sort_likes", "_sort=likeCounter"));
         final int filterCommentCount = builder.addSortItem(
-                new NiconicoSortFilterItem("Comments", "_sort=commentCounter"));
+                new NiconicoSortFilterItem("sort_comments", "_sort=commentCounter"));
 
         final int filterLength = builder.addSortItem(
-                new NiconicoSortFilterItem("Length", "_sort=lengthSeconds"));
+                new NiconicoSortFilterItem("sort_length", "_sort=lengthSeconds"));
 
         final int filterPublishAt = builder.addSortItem(
-                new NiconicoSortFilterItem("Publish Time", "_sort=startTime"));
+                new NiconicoSortFilterItem("sort_publish_time", "_sort=startTime"));
         final int filterLastCommentedAt = builder.addSortItem(
-                new NiconicoSortFilterItem("Last Comment Time", "_sort=lastCommentTime"));
+                new NiconicoSortFilterItem("sort_last_comment_time", "_sort=lastCommentTime"));
 
         final int filterPlaylistMostPopular = builder.addSortItem(
-                new NiconicoSortFilterItem("Most Popular", "sortKey=_hotTotalScore"));
+                new NiconicoSortFilterItem("sort_popular", "sortKey=_hotTotalScore"));
         final int filterPlaylistMostVideos = builder.addSortItem(
-                new NiconicoSortFilterItem("Most Videos", "sortKey=videoCount"));
+                new NiconicoSortFilterItem("sort_video_count", "sortKey=videoCount"));
         final int filterPlaylistRecentCreated = builder.addSortItem(
-                new NiconicoSortFilterItem("Recently Created", "sortKey=startTime"));
+                new NiconicoSortFilterItem("sort_publish_time", "sortKey=startTime"));
 
         final int filterSortOrderAscending = builder.addSortItem(
-                new NiconicoSortOrderFilterItem("Ascending"));
+                new NiconicoSortOrderFilterItem("sort_ascending"));
 
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterHottest),
                         builder.getFilterForId(filterViewCount),
                         builder.getFilterForId(filterCommentCount),
@@ -116,13 +116,13 @@ public final class NiconicoFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterPlaylistMostVideos),
                         builder.getFilterForId(filterPlaylistRecentCreated),
                 }),
-                builder.createSortGroup("Sort order", false, new FilterItem[]{
+                builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterSortOrderAscending)
                 }),
         }).build();
 
         final Filter videoSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterHottest),
                         builder.getFilterForId(filterViewCount),
                         builder.getFilterForId(filterCommentCount),
@@ -132,13 +132,13 @@ public final class NiconicoFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterPublishAt),
                         builder.getFilterForId(filterLastCommentedAt),
                 }),
-                builder.createSortGroup("Sort order", false, new FilterItem[]{
+                builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterSortOrderAscending)
                 }),
         }).build();
 
         final Filter tagSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterViewCount),
                         builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
@@ -147,13 +147,13 @@ public final class NiconicoFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterPublishAt),
                         builder.getFilterForId(filterLastCommentedAt),
                 }),
-                builder.createSortGroup("Sort order", false, new FilterItem[]{
+                builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterSortOrderAscending)
                 }),
         }).build();
 
         final Filter playlistSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterPlaylistMostPopular),
                         builder.getFilterForId(filterPlaylistMostVideos),
                         builder.getFilterForId(filterPlaylistRecentCreated),
