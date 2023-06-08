@@ -13,6 +13,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
@@ -31,7 +32,10 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor 
 
     @Override
     public String getName() throws ParsingException {
-        return item.getString("title").replace("<em class=\"keyword\">", "").replace("</em>", "");
+        return StringEscapeUtils.unescapeHtml4(
+                item.getString("title")
+                        .replace("<em class=\"keyword\">", "")
+                        .replace("</em>", ""));
     }
 
     @Override
