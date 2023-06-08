@@ -107,13 +107,13 @@ public class BilibiliFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
                 }),
-                builder.createSortGroup("Duration", true, new FilterItem[]{
-                        builder.getFilterForId(filterDuartionAll),
-                        builder.getFilterForId(filterDuartionShort),
-                        builder.getFilterForId(filterDuartionMedium),
-                        builder.getFilterForId(filterDuartionLong),
-                        builder.getFilterForId(filterDuartionExtraLong),
-                })
+//                builder.createSortGroup("Duration", true, new FilterItem[]{
+//                        builder.getFilterForId(filterDuartionAll),
+//                        builder.getFilterForId(filterDuartionShort),
+//                        builder.getFilterForId(filterDuartionMedium),
+//                        builder.getFilterForId(filterDuartionLong),
+//                        builder.getFilterForId(filterDuartionExtraLong),
+//                })
         }).build();
         addContentFilterSortVariant(-1, videoSortFilters);
         addContentFilterSortVariant(contentFilterVideos, videoSortFilters);
