@@ -1,10 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
-
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,10 +10,6 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
@@ -25,6 +18,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 
@@ -86,7 +80,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
-        final String html = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
+        final String html = getDownloader().get(page.getUrl(), getSearchHeader()).responseBody();
 
         try {
             searchCollection = JsonParser.object().from(html);
@@ -106,14 +100,19 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
-
         final String response = getDownloader().get(
-            getLinkHandler().getUrl(), getHeaders()).responseBody();
+            getLinkHandler().getUrl(), getSearchHeader()).responseBody();
         try {
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not parse search results.");
         }
     }
-    
+
+    public Map<String, List<String>> getSearchHeader() throws ParsingException, IOException, ReCaptchaException {
+        Map<String, List<String>> tmpHeaders = getDownloader().get(getBaseUrl()).responseHeaders();
+        return Map.of("Cookie",
+                Collections.singletonList(tmpHeaders.get("set-cookie").stream()
+                        .filter(s -> s.contains("buvid3=")).findFirst().get()));
+    }
 }
