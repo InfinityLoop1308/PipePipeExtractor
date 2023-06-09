@@ -7,6 +7,8 @@ import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+
 public class BilibiliPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException {
@@ -15,8 +17,9 @@ public class BilibiliPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
-        return url.contains("https://api.bilibili.com/x/polymer/space/seasons_archives_list") ||
-                url.contains("https://api.bilibili.com/x/series/archives");
+        return url.contains(GET_SEASON_ARCHIVES_LIST_BASE_URL) ||
+                url.contains(GET_SERIES_BASE_URL) ||
+                url.contains(GET_PARTITION_URL);
     }
 
     @Override

@@ -1,13 +1,11 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_INFO_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
-
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -18,11 +16,16 @@ import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 
 import javax.annotation.Nonnull;
+
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
 public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     public JsonObject data;
@@ -36,8 +39,16 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            data = JsonParser.object().from(getDownloader().get(getLinkHandler().getUrl(), getHeaders()).responseBody()).getObject("data");
-            type = getLinkHandler().getUrl().contains("seasons_archives") ? "seasons_archives" : "archives";
+            data = JsonParser.object().from(getDownloader().get(getLinkHandler().getUrl(), getHeaders()).responseBody());
+            if (getLinkHandler().getUrl().contains(GET_SEASON_ARCHIVES_LIST_BASE_URL)) {
+                type = "seasons_archives";
+            } else if (getLinkHandler().getUrl().contains(GET_SERIES_BASE_URL)) {
+                type = "series";
+            } else if (getLinkHandler().getUrl().contains(GET_PARTITION_URL)) {
+                type = "partition";
+                return;
+            }
+            data = data.getObject("data");
             String userResponse = getDownloader().get(QUERY_USER_INFO_URL + utils.getMidFromRecordApiUrl(getLinkHandler().getUrl()), getHeaders()).responseBody();
             userData = JsonParser.object().from(userResponse);
         } catch (JsonParserException e) {
@@ -54,11 +65,24 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
+        if (type.equals("partition")) {
+            InfoItemsCollector<StreamInfoItem, StreamInfoItemExtractor> collector = new StreamInfoItemsCollector(getServiceId());
+            JsonArray relatedArray = data.getArray("data");
+            for (int i = 0; i < relatedArray.size(); i++) {
+                collector.commit(
+                        new BilibiliRelatedInfoItemExtractor(
+                                relatedArray.getObject(i), getLinkHandler().getUrl().split("bvid=")[1].split("&")[0],
+                                URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8"),
+                                String.valueOf(i + 1), null, null));
+            }
+            return new InfoItemsPage<>(collector, null);
+        }
         return getPage(new Page(getUrl() + "&username=" + getUploaderName()));
     }
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
+        // Partitions have only 1 page
         type = getLinkHandler().getUrl().contains("seasons_archives") ? "seasons_archives" : "archives";
         try {
             if (!(page.getUrl().contains("pn=1") || page.getUrl().contains("page_num=1"))) {
@@ -80,16 +104,33 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
 
     @Override
     public String getUploaderUrl() throws ParsingException {
+        if (type.equals("partition")) {
+            try {
+                return URLDecoder.decode(getLinkHandler().getUrl().split("uploaderUrl=")[1].split("&")[0], "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                return null;
+            }
+        }
         return BilibiliChannelLinkHandlerFactory.baseUrl + utils.getMidFromRecordApiUrl(getLinkHandler().getUrl());
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
+        if (type.equals("partition")) {
+            return getLinkHandler().getUrl().split("uploaderName=")[1].split("&")[0];
+        }
         return userData.getObject("data").getObject("card").getString("name");
     }
 
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
+        if (type.equals("partition")) {
+            try {
+                return URLDecoder.decode(getLinkHandler().getUrl().split("uploaderAvatar=")[1].split("&")[0], "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                return null;
+            }
+        }
         return userData.getObject("data").getObject("card").getString("face").replace("http:", "https:");
     }
 
@@ -100,6 +141,9 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
 
     @Override
     public long getStreamCount() throws ParsingException {
+        if (type.equals("partition")) {
+            return data.getArray("data").size();
+        }
         return data.getObject("page").getLong("total");
     }
 }

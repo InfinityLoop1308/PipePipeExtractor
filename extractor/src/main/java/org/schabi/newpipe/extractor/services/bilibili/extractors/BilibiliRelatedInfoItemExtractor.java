@@ -90,11 +90,13 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
     @SuppressWarnings("SimpleDateFormat")
     @Override
     public String getTextualUploadDate() throws ParsingException {
+        if(pubdate == null) return null;
         return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(pubdate * 1000));
     }
 
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
+        if(pubdate == null) return null;
         return new DateWrapper(LocalDateTime.parse(
                 Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
