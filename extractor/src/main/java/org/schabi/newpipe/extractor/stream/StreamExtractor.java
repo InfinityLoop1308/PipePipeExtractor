@@ -571,6 +571,11 @@ public abstract class StreamExtractor extends Extractor {
         return -1;
     }
 
+    public InfoItemsCollector<? extends InfoItem, ? extends InfoItemExtractor>
+    getPartitions() throws ParsingException {
+        return null;
+    }
+
     /**
      * Whether the stream is a short-form content.
      *

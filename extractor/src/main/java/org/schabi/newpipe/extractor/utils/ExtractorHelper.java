@@ -59,6 +59,23 @@ public final class ExtractorHelper {
         }
     }
 
+    public static List<StreamInfoItem> getPartitionsOrLogError(final StreamInfo info,
+                                                               final StreamExtractor extractor) {
+        try {
+            final InfoItemsCollector<? extends InfoItem, ?> collector = extractor.getPartitions();
+            if (collector == null) {
+                return Collections.emptyList();
+            }
+            info.addAllErrors(collector.getErrors());
+
+            //noinspection unchecked
+            return (List<StreamInfoItem>) collector.getItems();
+        } catch (final Exception e) {
+            info.addError(e);
+            return Collections.emptyList();
+        }
+    }
+
     /**
      * @deprecated Use {@link #getRelatedItemsOrLogError(StreamInfo, StreamExtractor)}
      */

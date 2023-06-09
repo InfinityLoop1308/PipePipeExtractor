@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
@@ -370,6 +371,12 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+        try {
+            streamInfo.setPartitions(ExtractorHelper.getPartitionsOrLogError(streamInfo,
+                    extractor));
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
         if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
                     extractor));
@@ -424,6 +431,7 @@ public class StreamInfo extends Info {
     private boolean supportRelatedItems;
     private boolean isRoundPlayStream;
     private long startAt = -1;
+    private List<StreamInfoItem> partitions = new ArrayList<>();
     private boolean shortFormContent = false;
 
     /**
@@ -791,6 +799,14 @@ public class StreamInfo extends Info {
 
     public void setStartAt(long startAt) {
         this.startAt = startAt;
+    }
+
+    public List<StreamInfoItem> getPartitions() {
+        return partitions;
+    }
+
+    public void setPartitions(List<StreamInfoItem> partitions) {
+        this.partitions = partitions;
     }
 
     public void removeUrl(String url){
