@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -45,7 +46,7 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getCommentText() throws ParsingException {
-        return data.getObject("content").getString("message");
+        return StringEscapeUtils.unescapeHtml4((data.getObject("content").getString("message")));
     }
 
     @SuppressWarnings("SimpleDateFormat")
