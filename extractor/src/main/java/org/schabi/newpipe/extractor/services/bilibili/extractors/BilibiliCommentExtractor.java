@@ -51,7 +51,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         if (page.getUrl().equals(getUrl())) {
             results = data.getArray("replies");
         } else {
-            final String html = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
+            final String html = getDownloader().get(page.getUrl()).responseBody();
             try {
                 data = JsonParser.object().from(html);
             } catch (JsonParserException e) {
