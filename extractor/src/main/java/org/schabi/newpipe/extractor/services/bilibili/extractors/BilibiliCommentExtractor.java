@@ -49,7 +49,11 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     public InfoItemsPage<CommentsInfoItem> getPage(Page page) throws IOException, ExtractionException {
         JsonArray results;
         if (page.getUrl().equals(getUrl())) {
-            results = data.getArray("replies");
+            results = data.getArray("top_replies");
+            for(int i = 0; i < results.size(); i++){
+                results.getObject(i).put("isTop", true);
+            }
+            results.addAll(data.getArray("replies"));
         } else {
             final String html = getDownloader().get(page.getUrl()).responseBody();
             try {

@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.COMMENT_REPLIES_URL;
 
@@ -46,7 +47,11 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getCommentText() throws ParsingException {
-        return StringEscapeUtils.unescapeHtml4((data.getObject("content").getString("message")));
+        String result = StringEscapeUtils.unescapeHtml4((data.getObject("content").getString("message")));
+        if (data.getObject("content").getArray("pictures").size() != 0){
+            result += "\n" + data.getObject("content").getArray("pictures").stream().map(x -> ((JsonObject)x).getString("img_src")).collect(Collectors.joining("\n"));
+        }
+        return result;
     }
 
     @SuppressWarnings("SimpleDateFormat")
@@ -96,5 +101,15 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Override
     public int getReplyCount() {
         return (int) data.getLong("rcount");
+    }
+
+    @Override
+    public boolean isHeartedByUploader() throws ParsingException {
+        return data.getObject("up_action").getBoolean("like");
+    }
+
+    @Override
+    public boolean isPinned() throws ParsingException {
+        return data.getBoolean("isTop");
     }
 }
