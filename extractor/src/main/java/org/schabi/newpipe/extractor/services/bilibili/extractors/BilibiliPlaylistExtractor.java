@@ -72,7 +72,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                 collector.commit(
                         new BilibiliRelatedInfoItemExtractor(
                                 relatedArray.getObject(i), getLinkHandler().getUrl().split("bvid=")[1].split("&")[0],
-                                URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8"),
+                                relatedArray.getObject(i).getString("first_frame").replace("http://", "https://"),
                                 String.valueOf(i + 1), null, null));
             }
             return new InfoItemsPage<>(collector, null);
@@ -145,5 +145,19 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
             return data.getArray("data").size();
         }
         return data.getObject("page").getLong("total");
+    }
+
+    @Nonnull
+    @Override
+    public String getThumbnailUrl() throws ParsingException {
+        if (type.equals("partition")) {
+            try {
+                return URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                return null;
+            }
+        } else {
+            return data.getObject("meta").getString("cover");
+        }
     }
 }
