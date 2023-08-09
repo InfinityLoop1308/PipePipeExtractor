@@ -993,7 +993,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         // codes by using stories parameter for Android client requests
                         // This behavior only happen in certain countries such as UK as of
                         // 10.29.2022
-                        .value("params", "8AEB")
+                        .value("params", "CgIQBg")
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
