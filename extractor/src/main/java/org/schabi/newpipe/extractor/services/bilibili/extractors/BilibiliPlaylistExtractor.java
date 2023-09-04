@@ -72,7 +72,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                 collector.commit(
                         new BilibiliRelatedInfoItemExtractor(
                                 relatedArray.getObject(i), getLinkHandler().getUrl().split("bvid=")[1].split("&")[0],
-                                relatedArray.getObject(i).getString("first_frame").replace("http://", "https://"),
+                                URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8"),
                                 String.valueOf(i + 1), null, null));
             }
             return new InfoItemsPage<>(collector, null);
