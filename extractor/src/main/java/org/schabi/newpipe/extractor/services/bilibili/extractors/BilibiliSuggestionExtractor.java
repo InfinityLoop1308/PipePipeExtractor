@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
@@ -25,9 +26,9 @@ public class BilibiliSuggestionExtractor extends SuggestionExtractor {
         final String response = NewPipe.getDownloader().get(GET_SUGGESTION_URL + query, getHeaders()).responseBody();
         List<String> resultList = new ArrayList<>();
         try {
-            JsonObject respObject = JsonParser.object().from(response);
+            JsonArray respObject = JsonParser.object().from(response).getObject("result").getArray("tag");
             for(int i = 0; i < respObject.size(); i++){
-                resultList.add(respObject.getObject(""+i).getString("value"));
+                resultList.add(respObject.getObject(i).getString("value"));
             }
         } catch (JsonParserException e) {
             e.printStackTrace();
