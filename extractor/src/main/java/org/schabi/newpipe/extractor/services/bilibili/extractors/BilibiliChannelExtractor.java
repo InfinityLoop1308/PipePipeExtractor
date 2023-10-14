@@ -38,19 +38,14 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         String videoResponse = utils.getUserVideos(getUrl(), getLinkHandler().getId(), downloader);
-        String userResponse = downloader.get(QUERY_USER_INFO_URL + getId(), getHeaders()).responseBody();
         try {
+            String userResponse = downloader.get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
             String liveResponse = downloader.get(QUERY_LIVEROOM_STATUS_URL + getId()).responseBody();
             liveData = JsonParser.object().from(liveResponse);
-            if (videoData.getInt("code") != 0 || userData.getInt("code") != 0 || liveData.getInt("code") != 0) {
-                throw new ExtractionException("Error occurs during fetching channel content." +
-                        " That normally happen because your network is not stable or your IP got temporarily banned.");
-            }
         } catch (JsonParserException e) {
-            throw new ExtractionException("Error occurs during fetching channel content." +
-                    " That normally happen because your network is not stable or your IP got temporarily banned.");
+            e.printStackTrace();
         }
     }
 
@@ -83,14 +78,13 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
         String videoResponse = utils.getUserVideos(page.getUrl(), getId(), getDownloader());
-        String userResponse = getDownloader().get(QUERY_USER_INFO_URL + getId(), getHeaders()).responseBody();
         try {
+            String userResponse = getDownloader().get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
 
         } catch (JsonParserException e) {
-            throw new ExtractionException("Error occurs during fetching channel content." +
-                    " That normally happen because your network is not stable or your IP got temporarily banned.");
+            e.printStackTrace();
         }
         JsonArray results;
         results = videoData.getObject("data").getObject("list").getArray("vlist");

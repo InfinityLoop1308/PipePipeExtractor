@@ -22,6 +22,8 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUpToDateHeaders;
+
 public class BilibiliSearchExtractor extends SearchExtractor{
 
     private JsonObject searchCollection;
@@ -80,9 +82,8 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
-        final String html = getDownloader().get(page.getUrl(), getSearchHeader()).responseBody();
-
         try {
+            final String html = getDownloader().get(page.getUrl(), getUpToDateHeaders()).responseBody();
             searchCollection = JsonParser.object().from(html);
         } catch (JsonParserException e) {
             e.printStackTrace();
@@ -100,19 +101,14 @@ public class BilibiliSearchExtractor extends SearchExtractor{
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
-        final String response = getDownloader().get(
-            getLinkHandler().getUrl(), getSearchHeader()).responseBody();
         try {
+            final String response = getDownloader().get(
+                    getLinkHandler().getUrl(), getUpToDateHeaders()).responseBody();
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not parse search results.");
         }
     }
 
-    public Map<String, List<String>> getSearchHeader() throws ParsingException, IOException, ReCaptchaException {
-        Map<String, List<String>> tmpHeaders = getDownloader().get(getBaseUrl()).responseHeaders();
-        return Map.of("Cookie",
-                Collections.singletonList(tmpHeaders.get("set-cookie").stream()
-                        .filter(s -> s.contains("buvid3=")).findFirst().get()));
-    }
+
 }

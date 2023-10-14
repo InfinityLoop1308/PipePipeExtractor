@@ -1,11 +1,15 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
@@ -35,10 +39,12 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
+import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,6 +70,8 @@ public class BilibiliService extends StreamingService {
     public static String QUERY_USER_VIDEOS_URL = "https://api.bilibili.com/x/space/wbi/arc/search";
     public static String WBI_IMG_URL = "https://api.bilibili.com/x/web-interface/nav";
     public static String GET_PARTITION_URL = "https://api.bilibili.com/x/player/pagelist?bvid=";
+    public static String FETCH_COOKIE_URL = "https://api.bilibili.com/x/frontend/finger/spi";
+
 
     static public Map<String, List<String>> getHeaders() {
         final Map<String, List<String>> headers = new HashMap<>();
@@ -91,6 +99,13 @@ public class BilibiliService extends StreamingService {
         httpHeaders.put("Cache-Control", "no-cache");
         httpHeaders.put("Upgrade", "websocket");
         return httpHeaders;
+    }
+
+    static public Map<String, List<String>> getUpToDateHeaders() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
+        String buvid3 = "buvid3="+JsonParser.object().from(getDownloader().get(FETCH_COOKIE_URL).responseBody())
+                .getObject("data").getString("b_3");
+        return Map.of("Cookie",
+                Collections.singletonList(buvid3));
     }
 
     static public String getResolution(int code) {
