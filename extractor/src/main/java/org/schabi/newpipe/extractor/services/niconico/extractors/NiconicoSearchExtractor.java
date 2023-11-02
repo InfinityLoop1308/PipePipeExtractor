@@ -96,8 +96,8 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
-            Elements lives = Jsoup.parse(response).select("div.searchPage-Layout_Section").first()
-                    .select("ul.searchPage-ProgramList > li.searchPage-ProgramList_Item");
+            Elements lives = Jsoup.parse(response).select("div.program-search-result").first()
+                    .select("ul[class*=program-card-list] > li[class*=___program-card___]");
             final MultiInfoItemsCollector collector
                     = new MultiInfoItemsCollector(getServiceId());
             for (final Element e : lives) {

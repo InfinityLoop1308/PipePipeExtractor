@@ -17,17 +17,17 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
 
     @Override
     public String getName() throws ParsingException {
-        return data.select("a.searchPage-ProgramList_TitleLink").text();
+        return data.select("a[class*=___program-card-title-anchor___]").attr("title");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://live.nicovideo.jp/" + data.select("a.searchPage-ProgramList_TitleLink").attr("href");
+        return data.select("a[class*=___program-card-title-anchor___]").attr("href");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return data.select("img.searchPage-ProgramList_Image").attr("src").replace("http:", "https");
+        return data.select("img[class*=___program-card-thumbnail-image___]").attr("src");
     }
 
     @Override
@@ -47,23 +47,24 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
 
     @Override
     public long getViewCount() throws ParsingException {
-        return Long.parseLong(data.select("span.searchPage-ProgramList_DataText").get(1).text());
+        return Long.parseLong(data.select("span[class*=___program-card-statistics-text___] > span").get(1).text());
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return data.select("p.searchPage-ProgramList_UserName > a.searchPage-ProgramList_UserNameLink").text();
+        return data.select("p[class*=___program-card-provider-name___] > a[class*=___program-card-provider-name-link___]").text();
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return null;
+        return data.select("p[class*=___program-card-provider-name___] > a[class*=___program-card-provider-name-link___]")
+                .attr("href").split("/live_programs")[0];
     }
 
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return data.select("img.searchPage-ProgramList_UserImage").attr("src");
+        return data.select("img[class*=___program-card-provider-icon-image___]").attr("src");
     }
 
     @Override
@@ -74,7 +75,7 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return data.select("li.searchPage-ProgramList_DataItem").first().select("span").text();
+        return data.select("span[class*=___program-card-statistics-text___] > span").first().text();
     }
 
     @Nullable
@@ -86,6 +87,6 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getShortDescription() throws ParsingException {
-        return data.select("p.searchPage-ProgramList_Description").text();
+        return data.select("p[class*=___program-card-description___]").text();
     }
 }

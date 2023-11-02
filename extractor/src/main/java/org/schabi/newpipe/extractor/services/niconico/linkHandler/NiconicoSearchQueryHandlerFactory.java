@@ -31,9 +31,9 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         final String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
-            if(selectedContentFilter.get(0).getName().equals("Lives")){
+            if(selectedContentFilter.get(0).getName().equals("lives")){
                 return NiconicoService.LIVE_SEARCH_URL + "?keyword=" + URLEncoder.encode(id, UTF_8) + "&page=1";
-            } else if(selectedContentFilter.get(0).getName().equals("Playlists")){
+            } else if(selectedContentFilter.get(0).getName().equals("playlists")){
                 return NiconicoService.PLAYLIST_SEARCH_API_URL + "&keyword=" + URLEncoder.encode(id, UTF_8) + filterQuery + "&types=mylist&pageSize=10&page=1";
             } else {
                 // Most Popular, this have different format with other filters
