@@ -256,19 +256,19 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterIdSortByDate),
                         builder.getFilterForId(filterIdSortByViews),
                 }),
-//                builder.createSortGroup("Upload Date", true, new FilterItem[]{
-//                        builder.getFilterForId(filterIdDateAll),
-//                        builder.getFilterForId(filterIdDateLastHour),
-//                        builder.getFilterForId(filterIdDateLastDay),
-//                        builder.getFilterForId(filterIdDateLastWeek),
-//                        builder.getFilterForId(filterIdDateLastMonth),
-//                        builder.getFilterForId(filterIdDateLastYear),
-//                }),
-//                builder.createSortGroup("Duration", true, new FilterItem[]{
-//                        builder.getFilterForId(filterIdDurationAll),
-//                        builder.getFilterForId(filterIdDurationShort),
-//                        builder.getFilterForId(filterIdDurationLong),
-//                }),
+                builder.createSortGroup("Upload Date", true, new FilterItem[]{
+                        builder.getFilterForId(filterIdDateAll),
+                        builder.getFilterForId(filterIdDateLastHour),
+                        builder.getFilterForId(filterIdDateLastDay),
+                        builder.getFilterForId(filterIdDateLastWeek),
+                        builder.getFilterForId(filterIdDateLastMonth),
+                        builder.getFilterForId(filterIdDateLastYear),
+                }),
+                builder.createSortGroup("Duration", true, new FilterItem[]{
+                        builder.getFilterForId(filterIdDurationAll),
+                        builder.getFilterForId(filterIdDurationShort),
+                        builder.getFilterForId(filterIdDurationLong),
+                }),
                 builder.createSortGroup("features", false, new FilterItem[]{
                         builder.getFilterForId(filterIdFeatureHd),
                         builder.getFilterForId(filterIdFeatureSubtitles),
