@@ -322,16 +322,15 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 throw new RuntimeException(e);
             }
         }
-        final String url = NiconicoService.RELATION_URL + getId();
-        final Document response = Jsoup.parse(
-                getDownloader().get(url, NiconicoService.LOCALE).responseBody());
-
-        final Elements videos = response.getElementsByTag("video");
-
-        for (final Element e : videos) {
-            collector.commit(new NiconicoRelationVideoExtractor(e));
+        final String url = NiconicoService.RELATED_ITEMS_URL + getId();
+        try {
+            JsonArray data = JsonParser.object().from(getDownloader().get(url, NiconicoService.LOCALE).responseBody()).getObject("data").getArray("items");
+            for(int i = 0; i< data.size();i++){
+                collector.commit(new NiconicoPlaylistContentItemExtractor(data.getObject(i), true));
+            }
+        } catch (JsonParserException e) {
+            throw new RuntimeException(e);
         }
-
         return collector;
     }
 

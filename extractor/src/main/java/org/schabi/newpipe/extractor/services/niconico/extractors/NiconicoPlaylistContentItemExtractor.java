@@ -21,6 +21,14 @@ public class NiconicoPlaylistContentItemExtractor implements StreamInfoItemExtra
         this.item = item.getObject("video");
     }
 
+    public NiconicoPlaylistContentItemExtractor(JsonObject item, boolean isFromRelated){
+        if(isFromRelated){
+            this.item = item.getObject("content");
+        }else{
+            this.item = item.getObject("video");
+        }
+    }
+
     @Override
     public String getName() throws ParsingException {
         return item.getString("title");

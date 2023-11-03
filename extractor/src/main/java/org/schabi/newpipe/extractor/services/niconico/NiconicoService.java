@@ -74,8 +74,8 @@ public class NiconicoService extends StreamingService {
             = "https://live.nicovideo.jp/ranking";
     public static final String SUGGESTION_URL
             = "https://sug.search.nicovideo.jp/suggestion/expand/";
-    public static final String RELATION_URL =
-            "https://flapi.nicovideo.jp/api/getrelation?video=";
+    public static final String RELATED_ITEMS_URL =
+            "https://nvapi.nicovideo.jp/v1/recommend?recipeId=video_watch_recommendation&site=nicovideo&_frontendId=6&_frontendVersion=0&videoId=";
 
     public static final String SEARCH_URL =
             "https://www.nicovideo.jp/search/";
