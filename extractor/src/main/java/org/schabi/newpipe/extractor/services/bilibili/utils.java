@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.bilibili;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -305,6 +306,13 @@ public class utils {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    static public void checkResponse(String response) throws ParsingException, JsonParserException {
+        JsonObject responseJson = JsonParser.object().from(response);
+        if (responseJson.getLong("code") != 0) {
+            throw new ParsingException("Failed request, response: " + response);
+        }
     }
 
     static public String getUserAgentRandomly() {

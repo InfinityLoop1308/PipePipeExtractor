@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.checkResponse;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
 
 public class BilibiliChannelExtractor extends ChannelExtractor {
@@ -39,10 +40,13 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
             String videoResponse = utils.getUserVideos(getUrl(), getLinkHandler().getId(), downloader);
+            checkResponse(videoResponse);
             String userResponse = downloader.get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
+            checkResponse(userResponse);
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
             String liveResponse = downloader.get(QUERY_LIVEROOM_STATUS_URL + getId()).responseBody();
+            checkResponse(liveResponse);
             liveData = JsonParser.object().from(liveResponse);
         } catch (JsonParserException e) {
             e.printStackTrace(); // ignore because liveResponse may not exist
@@ -79,7 +83,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
         try {
             String videoResponse = utils.getUserVideos(page.getUrl(), getId(), getDownloader());
+            checkResponse(videoResponse);
             String userResponse = getDownloader().get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
+            checkResponse(userResponse);
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
         } catch (JsonParserException e) {
