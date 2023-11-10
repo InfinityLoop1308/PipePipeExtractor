@@ -43,6 +43,7 @@ import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
 import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.getUserAgentRandomly;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -104,8 +105,10 @@ public class BilibiliService extends StreamingService {
     static public Map<String, List<String>> getUpToDateHeaders() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
         String buvid3 = "buvid3="+JsonParser.object().from(getDownloader().get(FETCH_COOKIE_URL).responseBody())
                 .getObject("data").getString("b_3");
-        return Map.of("Cookie",
-                Collections.singletonList(buvid3));
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Cookie", Collections.singletonList(buvid3));
+        headers.put("User-Agent", Collections.singletonList(getUserAgentRandomly()));
+        return headers;
     }
 
     static public String getResolution(int code) {

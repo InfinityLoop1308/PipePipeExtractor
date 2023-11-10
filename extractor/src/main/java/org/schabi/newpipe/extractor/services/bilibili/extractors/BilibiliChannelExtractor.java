@@ -37,15 +37,15 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        String videoResponse = utils.getUserVideos(getUrl(), getLinkHandler().getId(), downloader);
         try {
+            String videoResponse = utils.getUserVideos(getUrl(), getLinkHandler().getId(), downloader);
             String userResponse = downloader.get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
             String liveResponse = downloader.get(QUERY_LIVEROOM_STATUS_URL + getId()).responseBody();
             liveData = JsonParser.object().from(liveResponse);
         } catch (JsonParserException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // ignore because liveResponse may not exist
         }
     }
 
@@ -77,14 +77,13 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        String videoResponse = utils.getUserVideos(page.getUrl(), getId(), getDownloader());
         try {
+            String videoResponse = utils.getUserVideos(page.getUrl(), getId(), getDownloader());
             String userResponse = getDownloader().get(QUERY_USER_INFO_URL + getId(), getUpToDateHeaders()).responseBody();
             videoData = JsonParser.object().from(videoResponse);
             userData = JsonParser.object().from(userResponse);
-
         } catch (JsonParserException e) {
-            e.printStackTrace();
+            e.printStackTrace();  // ignore
         }
         JsonArray results;
         results = videoData.getObject("data").getObject("list").getArray("vlist");

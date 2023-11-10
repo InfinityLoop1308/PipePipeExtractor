@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.bilibili;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParserException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -82,7 +83,7 @@ public class utils {
         return id.split("\\?")[0];
     }
 
-    public static String getUserVideos(String url, String id, Downloader downloader) throws IOException, ReCaptchaException {
+    public static String getUserVideos(String url, String id, Downloader downloader) throws IOException, ReCaptchaException, ParsingException, JsonParserException {
         String pn = "1";
         if (url.contains("pn=")) {
             pn = url.split("pn=")[1].split("&")[0];
@@ -99,7 +100,7 @@ public class utils {
         String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining("&"));
-        return downloader.get(newUrl, getHeaders()).responseBody();
+        return downloader.get(newUrl, getUpToDateHeaders()).responseBody();
     }
 
     public static String getRecordApiUrl(String url) {
@@ -304,5 +305,20 @@ public class utils {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
+    }
+
+    static public String getUserAgentRandomly() {
+        ArrayList<String> userAgents = new ArrayList<>();
+        userAgents.add("Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Mobile Safari/537.36");
+        userAgents.add("Mozilla/5.0 (Linux; Android 7.1.1; OPPO R9sk) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.111 Mobile Safari/537.36");
+        userAgents.add("Mozilla/5.0 (Linux; Android 11; Samsung SM-A025G) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19");
+        userAgents.add("Mozilla/5.0 (Linux; Android 7.0; SM-G930VC Build/NRD90M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/58.0.3029.83 Mobile Safari/537.36");
+        userAgents.add("Mozilla/5.0 (Linux; Android 11; V2108) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Mobile Safari/537.36");
+        userAgents.add("Mozilla/5.0 (Linux; Android 11; moto g(50) Build/RRFS31.Q1-59-76-2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.159 Mobile Safari/537.36 EdgW/1.0");
+        userAgents.add("Mozilla/5.0 (Linux; Android 11; M2102K1G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Mobile Safari/537.36");
+        userAgents.add("Mozilla/5.0 (iPhone; CPU iPhone OS 14_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/92.0.4515.90 Mobile/15E148 Safari/604.1");
+        userAgents.add("Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/36.0  Mobile/15E148 Safari/605.1.15");
+        userAgents.add("Mozilla/5.0 (iPhone12,8; U; CPU iPhone OS 13_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/14A403 Safari/602.1");
+        return userAgents.get(new Random().nextInt(userAgents.size()));
     }
 }
