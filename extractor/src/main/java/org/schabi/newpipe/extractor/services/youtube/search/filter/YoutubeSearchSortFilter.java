@@ -14,7 +14,11 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.Base64;
+
+// commons-codec
+import org.apache.commons.codec.binary.Base64;
+
+import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
 
 
 public final class YoutubeSearchSortFilter {
@@ -73,27 +77,11 @@ public final class YoutubeSearchSortFilter {
         final SearchRequest searchRequest = searchRequestBuilder.build();
         try {
             final byte[] protoBufEncoded = searchRequest.encode();
-            final String protoBufEncodedBase64 = Base64.getEncoder().encodeToString(protoBufEncoded);
+            final String protoBufEncodedBase64 = Base64.encodeBase64String(protoBufEncoded);
             this.searchParameter
                     = URLEncoder.encode(protoBufEncodedBase64, UTF_8);
         } catch (NoClassDefFoundError e){
-            try{
-                if (searchRequest.sorted != 0 || searchRequest.extras != null) {
-                    throw new RuntimeException("You device only support 4 basic search filters");
-                }
-                if (searchRequest.filter == null || searchRequest.filter.type == null) {
-                    this.searchParameter = "CAASAA%3D%3D";
-                } else if (searchRequest.filter.type == 1) {
-                    this.searchParameter = "CAASAhAB";
-                } else if (searchRequest.filter.type == 2) {
-                    this.searchParameter = "CAASAhAC";
-                } else if (searchRequest.filter.type == 3) {
-                    this.searchParameter = "CAASAhAD";
-                } else
-                    throw new RuntimeException("You device only support 4 basic search filters");
-            } catch (Exception ex) {
-                throw new RuntimeException("You device only support 4 basic search filters");
-            }
+            throw new RuntimeException("Base64 error. This shouldn't happen", e);
         }
         return this.searchParameter;
     }
@@ -104,7 +92,7 @@ public final class YoutubeSearchSortFilter {
         final String urlDecodedBase64EncodedSearchParameter
                 = URLDecoder.decode(urlEncodedBase64EncodedSearchParameter, UTF_8);
         final byte[] decodedSearchParameter
-                = Base64.getDecoder().decode(urlDecodedBase64EncodedSearchParameter);
+                = Base64.decodeBase64(urlDecodedBase64EncodedSearchParameter);
         final SearchRequest decodedSearchRequest
                 = new SearchRequest.Builder().build().adapter().decode(decodedSearchParameter);
 
