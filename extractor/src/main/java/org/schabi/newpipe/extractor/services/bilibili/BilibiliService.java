@@ -2,6 +2,8 @@ package org.schabi.newpipe.extractor.services.bilibili;
 
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
+import org.apache.commons.lang3.StringUtils;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
@@ -109,6 +111,16 @@ public class BilibiliService extends StreamingService {
         headers.put("Cookie", Collections.singletonList(buvid3));
         headers.put("User-Agent", Collections.singletonList(getUserAgentRandomly()));
         return headers;
+    }
+
+    static public Map<String, List<String>> getLoggedHeadersOrNull(String condition){
+        Map<String, List<String>> headers = getHeaders();
+        if(StringUtils.isNotBlank(ServiceList.BiliBili.getTokens()) && ServiceList.BiliBili.getCookieFunctions() != null
+                && ServiceList.BiliBili.getCookieFunctions().contains(condition)){
+            headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
+            return headers;
+        }
+        return null;
     }
 
     static public String getResolution(int code) {

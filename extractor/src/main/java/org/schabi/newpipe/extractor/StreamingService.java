@@ -29,8 +29,10 @@ import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /*
  * Copyright (C) Christian Schabesberger 2018 <chris.schabesberger@mailbox.org>
@@ -98,6 +100,7 @@ public abstract class StreamingService {
     public final int serviceId;
     private final ServiceInfo serviceInfo;
     private String tokens = null;
+    private Set<String> cookieFunctions = null;
 
     /**
      * Creates a new Streaming service.
@@ -474,5 +477,13 @@ public abstract class StreamingService {
 
     public String getTokens() {
         return this.tokens;
+    }
+
+    public Set<String> getCookieFunctions() {
+        return cookieFunctions;
+    }
+
+    public void setCookieFunctions(Set<String> cookieFunctions) {
+        this.cookieFunctions = cookieFunctions;
     }
 }
