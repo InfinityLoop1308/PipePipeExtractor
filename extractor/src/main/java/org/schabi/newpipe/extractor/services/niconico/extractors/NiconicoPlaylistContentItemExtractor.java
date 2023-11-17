@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonObject;
 
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
@@ -88,7 +89,13 @@ public class NiconicoPlaylistContentItemExtractor implements StreamInfoItemExtra
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return item.getString("registeredAt").replace("T", " ").split("\\+")[0];
+        String date = StringUtils.defaultIfEmpty(item.getString("createdAt"), item.getString("registeredAt"));
+        try {
+            return date.replace("T", " ").split("\\+")[0];
+        } catch (Exception e) {
+            throw new ParsingException("Could not parse date", e);
+        }
+
     }
 
     @Nullable
