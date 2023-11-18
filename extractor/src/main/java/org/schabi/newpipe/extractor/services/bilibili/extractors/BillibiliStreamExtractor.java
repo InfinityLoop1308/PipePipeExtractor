@@ -527,25 +527,23 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public List<SubtitlesStream> getSubtitlesDefault() throws IOException, ExtractionException {
-        if(getStreamType().equals(StreamType.LIVE_STREAM) || isPremiumContent == 1){
+        if(getLoggedHeadersOrNull("ai_subtitle") == null || getStreamType().equals(StreamType.LIVE_STREAM)
+                || isPremiumContent == 1){
             return new ArrayList<>();
         }
-        JsonArray subtitles = watch.getObject("subtitle").getArray("list");
-        int p = Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0]);
-        if(p > 1){
-            try {
-                subtitles  = JsonParser.object().from(getDownloader()
-                        .get(GET_SUBTITLE_META_URL + "?cid=" + cid + "&bvid=" + bvid, getHeaders())
-                        .responseBody()).getObject("data").getObject("subtitle").getArray("subtitles");
-            } catch (JsonParserException e) {
-                throw new RuntimeException(e);
-            }
+        JsonArray subtitles;
+        try {
+            subtitles = JsonParser.object().from(getDownloader()
+                    .get(GET_SUBTITLE_META_URL + "?cid=" + cid + "&bvid=" + bvid, getLoggedHeadersOrNull("ai_subtitle"))
+                    .responseBody()).getObject("data").getObject("subtitle").getArray("subtitles");
+        } catch (JsonParserException e) {
+            throw new RuntimeException(e);
         }
         List<SubtitlesStream> subtitlesToReturn = new ArrayList<>();
         for(int i = 0; i< subtitles.size();i++){
             JsonObject subtitlesStream = subtitles.getObject(i);
             String bccResult = getDownloader()
-                    .get((p>1?"https:":"") + subtitlesStream
+                    .get("https:" + subtitlesStream
                             .getString("subtitle_url")
                             .replace("http:","https:"), getHeaders()).responseBody();
             try {
