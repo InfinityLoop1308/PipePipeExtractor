@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import org.apache.commons.lang3.StringUtils;
@@ -105,10 +106,10 @@ public class BilibiliService extends StreamingService {
     }
 
     static public Map<String, List<String>> getUpToDateHeaders() throws ParsingException, IOException, ReCaptchaException, JsonParserException {
-        String buvid3 = "buvid3="+JsonParser.object().from(getDownloader().get(FETCH_COOKIE_URL).responseBody())
-                .getObject("data").getString("b_3");
+        JsonObject data = JsonParser.object().from(getDownloader().get(FETCH_COOKIE_URL).responseBody()).getObject("data");
+        String cookie = "buvid3="+data.getString("b_3") + ";buvid4="+ data.getString("b_4") + ";";
         final Map<String, List<String>> headers = new HashMap<>();
-        headers.put("Cookie", Collections.singletonList(buvid3));
+        headers.put("Cookie", Collections.singletonList(cookie));
         headers.put("User-Agent", Collections.singletonList(getUserAgentRandomly()));
         return headers;
     }

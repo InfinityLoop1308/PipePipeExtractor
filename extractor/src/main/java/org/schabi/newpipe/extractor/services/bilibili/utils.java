@@ -97,6 +97,8 @@ public class utils {
         String[] result = encWbi(params);
         params.put("w_rid", result[0]);
         params.put("wts", result[1]);
+        params.put("dm_img_str", "bm8gd2ViZ2");
+        params.put("dm_cover_img_str", "bm8gd2ViZ2");
         //get new url
         String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
