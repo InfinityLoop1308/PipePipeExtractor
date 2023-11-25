@@ -15,9 +15,7 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 
-// commons-codec
-import org.apache.commons.codec.binary.Base64;
-
+import okio.ByteString;
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
 
 
@@ -77,7 +75,8 @@ public final class YoutubeSearchSortFilter {
         final SearchRequest searchRequest = searchRequestBuilder.build();
         try {
             final byte[] protoBufEncoded = searchRequest.encode();
-            final String protoBufEncodedBase64 = Base64.encodeBase64String(protoBufEncoded);
+            final ByteString bs = new ByteString(protoBufEncoded);
+            final String protoBufEncodedBase64 = bs.base64();
             this.searchParameter
                     = URLEncoder.encode(protoBufEncodedBase64, UTF_8);
         } catch (NoClassDefFoundError e){
@@ -87,17 +86,17 @@ public final class YoutubeSearchSortFilter {
     }
 
     @SuppressWarnings("NewApi")
-    public SearchRequest deocodeSp(final String urlEncodedBase64EncodedSearchParameter)
-            throws IOException {
-        final String urlDecodedBase64EncodedSearchParameter
-                = URLDecoder.decode(urlEncodedBase64EncodedSearchParameter, UTF_8);
-        final byte[] decodedSearchParameter
-                = Base64.decodeBase64(urlDecodedBase64EncodedSearchParameter);
-        final SearchRequest decodedSearchRequest
-                = new SearchRequest.Builder().build().adapter().decode(decodedSearchParameter);
-
-        return decodedSearchRequest;
-    }
+//    public SearchRequest deocodeSp(final String urlEncodedBase64EncodedSearchParameter)
+//            throws IOException {
+//        final String urlDecodedBase64EncodedSearchParameter
+//                = URLDecoder.decode(urlEncodedBase64EncodedSearchParameter, UTF_8);
+//        final byte[] decodedSearchParameter
+//                = Base64.decodeBase64(urlDecodedBase64EncodedSearchParameter);
+//        final SearchRequest decodedSearchRequest
+//                = new SearchRequest.Builder().build().adapter().decode(decodedSearchParameter);
+//
+//        return decodedSearchRequest;
+//    }
 
     public String getSp() {
         return this.searchParameter;
