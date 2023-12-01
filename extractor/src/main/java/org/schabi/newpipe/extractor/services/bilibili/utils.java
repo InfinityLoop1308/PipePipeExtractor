@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okio.ByteString;
 import org.brotli.dec.BrotliInputStream;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -97,8 +98,9 @@ public class utils {
         String[] result = encWbi(params);
         params.put("w_rid", result[0]);
         params.put("wts", result[1]);
-        params.put("dm_img_str", "bm8gd2ViZ2");
-        params.put("dm_cover_img_str", "bm8gd2ViZ2");
+        params.put("dm_img_str", "V2ViR0wgMS4wIChPcGVuR0wgRVMgMi4wIENocm9taXVtKQ");
+        params.put("dm_cover_img_str", "QU5HTEUgKEludGVsLCBJbnRlbChSKSBIRCBHcmFwaGljcyA2MzAgKDB4MDAwMDU5MUIpIERpcmVjdDNEMTEgdnNfNV8wIHBzXzVfMCwgRDNEMTEpR29vZ2xlIEluYy4gKEludGVsKQ");
+        params.put("dm_img_list", "[]");
         //get new url
         String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
@@ -330,5 +332,11 @@ public class utils {
         userAgents.add("Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/36.0  Mobile/15E148 Safari/605.1.15");
         userAgents.add("Mozilla/5.0 (iPhone12,8; U; CPU iPhone OS 13_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/14A403 Safari/602.1");
         return userAgents.get(new Random().nextInt(userAgents.size()));
+    }
+
+    public static String B(String t) {
+        ByteString byteString = ByteString.encodeUtf8(t);
+        String encodedString = byteString.base64();
+        return encodedString.substring(0, encodedString.length() - 2);
     }
 }
