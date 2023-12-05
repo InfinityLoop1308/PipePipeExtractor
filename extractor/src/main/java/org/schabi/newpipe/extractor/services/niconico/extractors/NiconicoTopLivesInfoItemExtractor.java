@@ -52,17 +52,22 @@ public class NiconicoTopLivesInfoItemExtractor implements StreamInfoItemExtracto
 
     @Override
     public long getViewCount() throws ParsingException {
-        String views = data.select("li.watch-count > span > span").text();
-        int flag = 1;
-        if (views.contains("万")) {
-            views = views.replace("万", "");
-            flag = 10000;
-        } else if (views.contains("亿")) {
-            views = views.replace("亿", "");
-            flag = 100000000;
+        try {
+            String views = data.select("li.watch-count > span > span").text();
+            int flag = 1;
+            if (views.contains("万")) {
+                views = views.replace("万", "");
+                flag = 10000;
+            } else if (views.contains("亿")) {
+                views = views.replace("亿", "");
+                flag = 100000000;
+            }
+            views = views.replaceAll(",", ""); // remove comma 4,291 => 4291
+            return (long) (Double.parseDouble(views) * flag);
+        } catch (Exception e) {
+            return -1;
         }
-        views = views.replaceAll(",", ""); // remove comma 4,291 => 4291
-        return (long) (Double.parseDouble(views) * flag);
+
     }
 
     @Override
@@ -89,7 +94,11 @@ public class NiconicoTopLivesInfoItemExtractor implements StreamInfoItemExtracto
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return data.select("div[class^=___rk-program-card-detail-time] > span").text();
+        try {
+            return data.select("div[class^=___rk-program-card-detail-time] > span").text();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Nullable
