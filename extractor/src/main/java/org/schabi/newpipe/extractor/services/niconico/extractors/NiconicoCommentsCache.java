@@ -1,11 +1,7 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -20,6 +16,8 @@ import com.grack.nanojson.JsonWriter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
+
 public class NiconicoCommentsCache {
     String id;
     JsonObject[] comments;
@@ -31,42 +29,27 @@ public class NiconicoCommentsCache {
             return comments;
         }
         this.id = lastId;
+        JsonObject nvComment = watch.getObject("comment").getObject("nvComment");
+        String url = "https://nv-comment.nicovideo.jp/v1/threads";
 
-        final JsonArray threads = watch.getObject("comment").getArray("threads");
-        final JsonObject thread = threads.getObject(1);
-        final HashMap<String, Object> params = new HashMap<String, Object>() {
-            {
-                put("thread", thread.getInt("id"));
-                put("version", "20090904");
-                put("scores", "1");
-                put("fork", thread.getInt("fork"));
-                put("language", 0);
-                put("res_from", "-1000");
-            }
-        };
-        StringBuilder url = new StringBuilder(thread.getString("server") + "/api.json/thread?");
-        for (final String key : params.keySet()) {
-            url.append(key).append("=").append(params.get(key)).append("&");
-        }
-        url = new StringBuilder(url.substring(0, url.length() - 1));
-
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("x-frontend-id", Collections.singletonList("6"));
         final String commentResponse;
         try {
-            commentResponse = downloader.get(url.toString()).responseBody();
+            commentResponse = downloader.post(url, headers, JsonWriter.string(nvComment).getBytes(UTF_8)).responseBody();
         } catch (IllegalArgumentException | IOException e) {
             throw new ExtractionException(
                     "Could not get comments. Url: "
                             + url
                             + ", Thread: "
-                            + JsonWriter.string(thread), e);
+                            + JsonWriter.string(nvComment), e);
         }
 
         try {
-            final JsonArray result = JsonParser.array().from(commentResponse);
+            final JsonArray result = JsonParser.object().from(commentResponse).getObject("data").getArray("threads")
+                    .getObject(1).getArray("comments");
             final List<JsonObject> commentsList = Arrays.stream(result.toArray())
                     .map(s -> (JsonObject) s)
-                    .filter(s -> s.has("chat"))
-                    .map(s -> s.getObject("chat"))
                     .collect(Collectors.toList());
             // Reverse the order to show comments in order of newest to oldest.
             Collections.reverse(commentsList);

@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 import java.util.Date;
 import java.util.HashMap;
 
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -89,6 +90,12 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
             } catch (final Exception e) {
                 e.printStackTrace();
             }
+        } else if (json.containsKey("commands")){
+            try {
+                this.mailStyles = json.getArray("commands").toArray(new String[0]);
+            } catch (final Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -110,7 +117,7 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
     @Override
     public String getCommentText() throws ParsingException {
         try {
-            String text = json.getString("content");
+            String text = StringUtils.defaultIfEmpty(json.getString("content"), json.getString("body"));
             if(text.startsWith("/emotion ")){
                 text = text.substring(9);
             }
@@ -158,7 +165,11 @@ public class NiconicoBulletCommentsInfoItemExtractor implements BulletCommentsIn
             return Duration.ofMillis(new Date().getTime() - startAt);
         }
         try {
-            return Duration.ofMillis(json.getLong("vpos", 0) * 10);
+            if(json.containsKey("vpos")){
+                return Duration.ofMillis(json.getLong("vpos", 0) * 10);
+            } else {
+                return Duration.ofMillis(json.getLong("vposMs", 0));
+            }
         } catch (final Exception e) {
            return Duration.ofMillis(new Date().getTime() - startAt);
         }
