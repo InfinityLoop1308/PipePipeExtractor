@@ -9,9 +9,7 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okio.ByteString;
 import org.brotli.dec.BrotliInputStream;
-import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.*;
 import java.security.MessageDigest;
@@ -85,27 +83,29 @@ public class utils {
         return id.split("\\?")[0];
     }
 
-    public static String getUserVideos(String url, String id, Downloader downloader) throws IOException, ReCaptchaException, ParsingException, JsonParserException {
-        String pn = "1";
-        if (url.contains("pn=")) {
-            pn = url.split("pn=")[1].split("&")[0];
-        }
+
+    public static String buildUserVideosUrl(String baseUrl, String id) {
+
         Map<String, String> params = new HashMap<>();
+        String pn = "1";
+        if (baseUrl.contains("pn=")) {
+            pn = baseUrl.split("pn=")[1].split("&")[0];
+        }
         params.put("pn", pn);
         params.put("ps", "30");
         params.put("mid", id);
         params.put("platform", "web");
-        String[] result = encWbi(params);
+        String[] result = utils.encWbi(params);
         params.put("w_rid", result[0]);
         params.put("wts", result[1]);
-        params.put("dm_img_str", "V2ViR0wgMS4wIChPcGVuR0wgRVMgMi4wIENocm9taXVtKQ");
-        params.put("dm_cover_img_str", "QU5HTEUgKEludGVsLCBJbnRlbChSKSBIRCBHcmFwaGljcyA2MzAgKDB4MDAwMDU5MUIpIERpcmVjdDNEMTEgdnNfNV8wIHBzXzVfMCwgRDNEMTEpR29vZ2xlIEluYy4gKEludGVsKQ");
+        params.put("dm_img_str", DeviceForger.requireRandomDevice().getWebGlVersionBase64());
+        params.put("dm_cover_img_str", DeviceForger.requireRandomDevice().getWebGLRendererInfoBase64());
         params.put("dm_img_list", "[]");
-        //get new url
+
         String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining("&"));
-        return downloader.get(newUrl, getUpToDateHeaders()).responseBody();
+        return newUrl;
     }
 
     public static String getRecordApiUrl(String url) {
@@ -223,9 +223,9 @@ public class utils {
             varString = varString.replace("&", urlType);
             currentUrl += varString + initValue;
         }
-        if(currentUrl.contains(varStringVariant)) {
+        if (currentUrl.contains(varStringVariant)) {
             varString = varStringVariant;
-        } else if(!currentUrl.contains(varString)) {
+        } else if (!currentUrl.contains(varString)) {
             throw new ParsingException("Could not find " + varName + " in url: " + currentUrl);
         }
 
@@ -243,15 +243,16 @@ public class utils {
     public static long getDurationFromString(String duration) {
         long result = 0;
         int len = duration.split(":").length;
-        result += Integer.parseInt(duration.split(":")[len-1]);
-        if(len > 1) {
-            result += Integer.parseInt(duration.split(":")[len-2]) * 60L;
+        result += Integer.parseInt(duration.split(":")[len - 1]);
+        if (len > 1) {
+            result += Integer.parseInt(duration.split(":")[len - 2]) * 60L;
         }
-        if(len > 2) {
+        if (len > 2) {
             result += (long) Integer.parseInt(duration.split(":")[len - 3]) * 60 * 60;
         }
         return result;
     }
+
     private static String getMixinKey(String ae) {
         int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
                 13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
@@ -312,12 +313,31 @@ public class utils {
         return sb.toString();
     }
 
-    static public void checkResponse(String response) throws ParsingException, JsonParserException {
-        JsonObject responseJson = JsonParser.object().from(response);
-        if (responseJson.getLong("code") != 0) {
-            throw new ParsingException("Failed request, response: " + response);
+
+    public static JsonObject parseUserSpaceResponse(org.schabi.newpipe.extractor.downloader.Response response) throws ParsingException {
+        String responseBody = response.responseBody();
+        try {
+            JsonObject responseJson = JsonParser.object().from(responseBody);
+            long code = responseJson.getLong("code");
+            if (code != 0) {
+                if (code == -352) {
+                    // risk control
+                    DeviceForger.Device device = DeviceForger.requireRandomDevice();
+                    String msg = "BiliBili blocked us, and current forged device is:\n"
+                            + device.info()
+                            + "\nTry to refresh, or report this!\n"
+                            + responseBody;
+                    DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
+                    throw new ParsingException(msg);
+                }
+            }
+            return responseJson;
+        } catch (JsonParserException e) {
+            e.printStackTrace();
+            throw new ParsingException("Failed parse response body: " + responseBody);
         }
     }
+
 
     static public String getUserAgentRandomly() {
         ArrayList<String> userAgents = new ArrayList<>();
@@ -334,8 +354,8 @@ public class utils {
         return userAgents.get(new Random().nextInt(userAgents.size()));
     }
 
-    public static String B(String t) {
-        ByteString byteString = ByteString.encodeUtf8(t);
+    public static String encodeToBase64SubString(String raw) {
+        ByteString byteString = ByteString.encodeUtf8(raw);
         String encodedString = byteString.base64();
         return encodedString.substring(0, encodedString.length() - 2);
     }

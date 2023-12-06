@@ -109,7 +109,7 @@ public class BilibiliService extends StreamingService {
         String cookie = "buvid3="+data.getString("b_3") + ";buvid4="+ data.getString("b_4") + ";";
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Cookie", Collections.singletonList(cookie));
-        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36 Edg/118.0.2088.76"));
+        headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
         headers.put("Accept-Language", Collections.singletonList("en,zh-CN;q=0.9,zh;q=0.8"));
         return headers;
     }
