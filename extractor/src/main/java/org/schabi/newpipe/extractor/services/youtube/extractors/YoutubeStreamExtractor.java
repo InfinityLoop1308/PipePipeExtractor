@@ -1431,6 +1431,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return streamingData.getArray(streamingDataKey).stream()
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
+                .filter(data -> {
+                    try {
+                        if(!data.has("audioTrack")) return true;
+                        return data.getObject("audioTrack").getBoolean("audioIsDefault");
+                    } catch (final Exception ignored) {
+                        return true;
+                    }
+                })
                 .map(formatData -> {
                     try {
                         final ItagItem itagItem = ItagItem.getItag(formatData.getInt("itag"));
