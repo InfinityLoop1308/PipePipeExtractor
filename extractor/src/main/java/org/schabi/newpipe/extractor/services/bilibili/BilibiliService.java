@@ -111,6 +111,15 @@ public class BilibiliService extends StreamingService {
         headers.put("Cookie", Collections.singletonList(cookie));
         headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
         headers.put("Accept-Language", Collections.singletonList("en,zh-CN;q=0.9,zh;q=0.8"));
+        headers.put("Referer", Collections.singletonList("https://www.bilibili.com"));
+        return headers;
+    }
+
+    static public Map<String, List<String>> getDownloadHeaders(){
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
+        headers.put("Accept-Language", Collections.singletonList("en,zh-CN;q=0.9,zh;q=0.8"));
+        headers.put("Referer", Collections.singletonList("https://www.bilibili.com"));
         return headers;
     }
 
@@ -122,6 +131,15 @@ public class BilibiliService extends StreamingService {
             return headers;
         }
         return null;
+    }
+
+    static public boolean isBiliBiliDownloadUrl(String url){
+        // *.akamaized.net, *.bilivideo.com
+        return url.contains("akamaized.net") || url.contains("bilivideo.com");
+    }
+
+    static public boolean isBiliBiliUrl(String url){
+        return url.contains("bilibili.com");
     }
 
     static public String getResolution(int code) {
