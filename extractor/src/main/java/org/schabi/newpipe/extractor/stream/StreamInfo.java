@@ -45,6 +45,10 @@ import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
  */
 public class StreamInfo extends Info {
 
+    public StreamInfo() {
+        super(-1, "", "", "", "");
+    }
+
     public static class StreamExtractException extends ExtractionException {
         StreamExtractException(final String message) {
             super(message);
