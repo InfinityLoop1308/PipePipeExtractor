@@ -12,6 +12,7 @@ import org.brotli.dec.BrotliInputStream;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.*;
+import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -85,22 +86,32 @@ public class utils {
 
 
     public static String buildUserVideosUrl(String baseUrl, String id) {
+        Map<String, String> params = new LinkedHashMap<>();
 
-        Map<String, String> params = new HashMap<>();
+        params.put("mid", id);
+        params.put("ps", "30");
+        params.put("tid", "0");
+
         String pn = "1";
         if (baseUrl.contains("pn=")) {
             pn = baseUrl.split("pn=")[1].split("&")[0];
         }
         params.put("pn", pn);
-        params.put("ps", "30");
-        params.put("mid", id);
+
+        // params.put("keyword", "");
+        params.put("order", "pubdate");
         params.put("platform", "web");
-        String[] result = utils.encWbi(params);
-        params.put("w_rid", result[0]);
-        params.put("wts", result[1]);
+        params.put("web_location", "1550101");
+        // params.put("order_avoided", "true");
+
+        params.put("dm_img_list", "[]");
         params.put("dm_img_str", DeviceForger.requireRandomDevice().getWebGlVersionBase64());
         params.put("dm_cover_img_str", DeviceForger.requireRandomDevice().getWebGLRendererInfoBase64());
-        params.put("dm_img_list", "[]");
+
+        String[] wbiResults = utils.encWbi(params);
+
+        params.put("w_rid", wbiResults[0]);
+        params.put("wts", wbiResults[1]);
 
         String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
@@ -292,7 +303,7 @@ public class utils {
             params.put("wts", String.valueOf(wts));
             Map<String, String> sortedParams = new TreeMap<>(params);
             String ae = sortedParams.entrySet().stream()
-                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .map(entry -> entry.getKey() + "=" + URLEncoder.encode(entry.getValue()))
                     .collect(Collectors.joining("&"));
             String toHash = ae + me;
             MessageDigest md = MessageDigest.getInstance("MD5");
