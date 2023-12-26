@@ -214,6 +214,11 @@ public class StreamInfo extends Info {
             streamInfo.addError(e);
         }
         try {
+            streamInfo.setThumbnails(extractor.getThumbnails());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        try {
             streamInfo.setDuration(extractor.getLength());
         } catch (final Exception e) {
             streamInfo.addError(e);
@@ -230,6 +235,11 @@ public class StreamInfo extends Info {
         }
         try {
             streamInfo.setUploaderAvatarUrl(extractor.getUploaderAvatarUrl());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        try {
+            streamInfo.setUploaderAvatars(extractor.getUploaderAvatars());
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
@@ -261,6 +271,11 @@ public class StreamInfo extends Info {
         }
         try {
             streamInfo.setSubChannelAvatarUrl(extractor.getSubChannelAvatarUrl());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+        try {
+            streamInfo.setSubChannelAvatars(extractor.getSubChannelAvatars());
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
@@ -398,6 +413,8 @@ public class StreamInfo extends Info {
 
     private StreamType streamType;
     private String thumbnailUrl = "";
+    @Nonnull
+    private List<Image> thumbnails = Collections.emptyList();
     private String textualUploadDate;
     private DateWrapper uploadDate;
     private long duration = -1;
@@ -411,6 +428,8 @@ public class StreamInfo extends Info {
     private String uploaderName = "";
     private String uploaderUrl = "";
     private String uploaderAvatarUrl = "";
+    @Nonnull
+    private List<Image> uploaderAvatars = Collections.emptyList();
     private boolean uploaderVerified = false;
     private long uploaderSubscriberCount = -1;
 
@@ -419,6 +438,8 @@ public class StreamInfo extends Info {
     private String subChannelName = "";
     private String subChannelUrl = "";
     private String subChannelAvatarUrl = "";
+    @Nonnull
+    private List<Image> subChannelAvatars = Collections.emptyList();
 
     private List<VideoStream> videoStreams = new ArrayList<>();
     private List<AudioStream> audioStreams = new ArrayList<>();
@@ -472,6 +493,20 @@ public class StreamInfo extends Info {
      */
     public String getThumbnailUrl() {
         return thumbnailUrl;
+    }
+
+    /**
+     * Get the thumbnail url
+     *
+     * @return the thumbnail url as a string
+     */
+    @Nonnull
+    public List<Image> getThumbnails() {
+        return thumbnails;
+    }
+
+    public void setThumbnails(@Nonnull final List<Image> thumbnails) {
+        this.thumbnails = thumbnails;
     }
 
     public void setThumbnailUrl(final String thumbnailUrl) {
@@ -581,6 +616,15 @@ public class StreamInfo extends Info {
         this.uploaderAvatarUrl = uploaderAvatarUrl;
     }
 
+    @Nonnull
+    public List<Image> getUploaderAvatars() {
+        return uploaderAvatars;
+    }
+
+    public void setUploaderAvatars(@Nonnull final List<Image> uploaderAvatars) {
+        this.uploaderAvatars = uploaderAvatars;
+    }
+
     public boolean isUploaderVerified() {
         return uploaderVerified;
     }
@@ -627,6 +671,15 @@ public class StreamInfo extends Info {
 
     public void setSubChannelAvatarUrl(final String subChannelAvatarUrl) {
         this.subChannelAvatarUrl = subChannelAvatarUrl;
+    }
+
+    @Nonnull
+    public List<Image> getSubChannelAvatars() {
+        return subChannelAvatars;
+    }
+
+    public void setSubChannelAvatars(@Nonnull final List<Image> subChannelAvatars) {
+        this.subChannelAvatars = subChannelAvatars;
     }
 
     public List<VideoStream> getVideoStreams() {

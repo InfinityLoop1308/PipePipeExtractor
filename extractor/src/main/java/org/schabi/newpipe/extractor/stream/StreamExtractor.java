@@ -20,10 +20,11 @@ package org.schabi.newpipe.extractor.stream;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.InfoItemsCollector;
-import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.Extractor;
+import org.schabi.newpipe.extractor.Image;
+import org.schabi.newpipe.extractor.InfoItem;
+import org.schabi.newpipe.extractor.InfoItemExtractor;
+import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -35,13 +36,14 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.utils.Parser;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Scrapes information from a video/audio streaming service (eg, YouTube).
@@ -95,6 +97,24 @@ public abstract class StreamExtractor extends Extractor {
      */
     @Nonnull
     public abstract String getThumbnailUrl() throws ParsingException;
+
+    /**
+     * This will return the thumbnails of the stream.
+     *
+     * @return the thumbnails of the stream
+     */
+    @Nonnull
+    public List<Image> getThumbnails() throws ParsingException {
+        String thumbnailUrl = getThumbnailUrl();
+        if (!thumbnailUrl.isEmpty()) {
+            Image image = new Image(thumbnailUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
+            List<Image> list = new java.util.ArrayList<>();
+            list.add(image);
+            return list;
+        } else {
+            return Collections.emptyList();
+        }
+    }
 
     /**
      * This is the stream description.
@@ -220,6 +240,29 @@ public abstract class StreamExtractor extends Extractor {
     }
 
     /**
+     * The image files/profile pictures/avatars of the creator/uploader of the stream.
+     *
+     * <p>
+     * If they are not available in the stream on specific cases, you must return an empty list for
+     * these ones, like it is made by default.
+     * </p>
+     *
+     * @return the avatars of the sub-channel of the stream or an empty list (default)
+     */
+    @Nonnull
+    public List<Image> getUploaderAvatars() throws ParsingException {
+        String avatarUrl = getUploaderAvatarUrl();
+        if (!avatarUrl.isEmpty()) {
+            Image image = new Image(avatarUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
+            List<Image> list = new java.util.ArrayList<>();
+            list.add(image);
+            return list;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
      * The Url to the page of the sub-channel of the stream. This must not be a homepage,
      * but the page offered by the service the extractor handles. This url will be handled by the
      * {@link ChannelExtractor}, so be sure to implement that one before you return a value here,
@@ -241,6 +284,34 @@ public abstract class StreamExtractor extends Extractor {
     @Nonnull
     public String getSubChannelName() throws ParsingException {
         return "";
+    }
+
+    /**
+     * The avatars of the sub-channel of the stream.
+     *
+     * <p>
+     * If they are not available in the stream on specific cases, you must return an empty list for
+     * these ones, like it is made by default.
+     * </p>
+     *
+     * <p>
+     * If the concept of sub-channels doesn't apply to the stream's service, keep the default
+     * implementation.
+     * </p>
+     *
+     * @return the avatars of the sub-channel of the stream or an empty list (default)
+     */
+    @Nonnull
+    public List<Image> getSubChannelAvatars() throws ParsingException {
+        String subChannelUrl = getSubChannelUrl();
+        if (!subChannelUrl.isEmpty()) {
+            Image image = new Image(subChannelUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
+            List<Image> list = new ArrayList<>();
+            list.add(image);
+            return list;
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     /**
@@ -377,7 +448,7 @@ public abstract class StreamExtractor extends Extractor {
      * Should return a list of Frameset object that contains preview of stream frames
      *
      * @return list of preview frames or empty list if frames preview is not supported or not found
-     *         for specified stream
+     * for specified stream
      */
     @Nonnull
     public List<Frameset> getFrames() throws ExtractionException {
@@ -562,7 +633,7 @@ public abstract class StreamExtractor extends Extractor {
      * @return list of staffs, empty if stream is not a Cooperation Stream
      */
     @Nonnull
-    public  List<StaffInfoItem> getStaffs() {
+    public List<StaffInfoItem> getStaffs() {
         return Collections.emptyList();
     }
 
@@ -574,7 +645,7 @@ public abstract class StreamExtractor extends Extractor {
         return true;
     }
 
-    public boolean isRoundPlayStream(){
+    public boolean isRoundPlayStream() {
         return false;
     }
 

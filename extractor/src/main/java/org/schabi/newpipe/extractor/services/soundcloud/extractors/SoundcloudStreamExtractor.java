@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.soundcloud.extractors;
 
 import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.SOUNDCLOUD_API_V2_URL;
 import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.clientId;
+import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.getAllImagesFromTrackObject;
 import static org.schabi.newpipe.extractor.stream.AudioStream.UNKNOWN_BITRATE;
 import static org.schabi.newpipe.extractor.stream.Stream.ID_UNKNOWN;
 import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
@@ -14,6 +15,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -161,6 +163,12 @@ public class SoundcloudStreamExtractor extends StreamExtractor {
     @Override
     public String getUploaderAvatarUrl() {
         return SoundcloudParsingHelper.getAvatarUrl(track);
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() throws ParsingException {
+        return getAllImagesFromTrackObject(track);
     }
 
     @Override

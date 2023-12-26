@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.channel;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -36,6 +37,33 @@ public abstract class ChannelExtractor extends ListExtractor<StreamInfoItem> {
 
     public ChannelExtractor(final StreamingService service, final ListLinkHandler linkHandler) {
         super(service, linkHandler);
+    }
+
+
+    @Nonnull
+    public List<Image> getAvatars() throws ParsingException {
+        String avatarUrl = getAvatarUrl();
+        if (!avatarUrl.isEmpty()) {
+            Image image = new Image(avatarUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
+            List<Image> list = new java.util.ArrayList<>();
+            list.add(image);
+            return list;
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    @Nonnull
+    public List<Image> getBanners() throws ParsingException {
+        String avatarUrl = getBannerUrl();
+        if (!avatarUrl.isEmpty()) {
+            Image image = new Image(avatarUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
+            List<Image> list = new java.util.ArrayList<>();
+            list.add(image);
+            return list;
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     public abstract String getAvatarUrl() throws ParsingException;

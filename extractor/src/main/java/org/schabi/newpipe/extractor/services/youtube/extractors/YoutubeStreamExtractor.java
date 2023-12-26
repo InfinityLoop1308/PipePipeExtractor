@@ -30,6 +30,7 @@ import static org.schabi.newpipe.extractor.services.youtube.ItagItem.CONTENT_LEN
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.fixThumbnailUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.generateContentPlaybackNonce;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.generateTParameter;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getImagesFromThumbnailsArray;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonAndroidPostResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonIosPostResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
@@ -47,6 +48,7 @@ import com.grack.nanojson.JsonWriter;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
@@ -288,6 +290,19 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             throw new ParsingException("Could not get thumbnail url");
         }
 
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() throws ParsingException {
+        assertPageFetched();
+        try {
+            return getImagesFromThumbnailsArray(playerResponse.getObject("videoDetails")
+                    .getObject("thumbnail")
+                    .getArray("thumbnails"));
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get thumbnails");
+        }
     }
 
     @Nonnull
@@ -612,6 +627,24 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         return fixThumbnailUrl(url);
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getUploaderAvatars() throws ParsingException {
+        assertPageFetched();
+
+        final List<Image> imageList = getImagesFromThumbnailsArray(
+                getVideoSecondaryInfoRenderer().getObject("owner")
+                        .getObject("videoOwnerRenderer")
+                        .getObject("thumbnail")
+                        .getArray("thumbnails"));
+
+        if (imageList.isEmpty() && ageLimit == NO_AGE_LIMIT) {
+            throw new ParsingException("Could not get uploader avatars");
+        }
+
+        return imageList;
     }
 
     @Override

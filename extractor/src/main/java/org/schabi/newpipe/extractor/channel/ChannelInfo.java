@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.channel;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage;
 import org.schabi.newpipe.extractor.ListInfo;
 import org.schabi.newpipe.extractor.NewPipe;
@@ -87,6 +88,19 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
         } catch (final Exception e) {
             info.addError(e);
         }
+
+        try {
+            info.setAvatars(extractor.getAvatars());
+        } catch (final Exception e) {
+            info.addError(e);
+        }
+
+        try {
+            info.setBanners(extractor.getBanners());
+        } catch (final Exception e) {
+            info.addError(e);
+        }
+
         try {
             info.setFeedUrl(extractor.getFeedUrl());
         } catch (final Exception e) {
@@ -147,6 +161,12 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
         return info;
     }
 
+
+    @Nonnull
+    private List<Image> avatars = Collections.emptyList();
+    @Nonnull
+    private List<Image> banners = Collections.emptyList();
+
     private String avatarUrl;
     private String parentChannelName;
     private String parentChannelUrl;
@@ -185,6 +205,25 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
     public void setParentChannelAvatarUrl(final String parentChannelAvatarUrl) {
         this.parentChannelAvatarUrl = parentChannelAvatarUrl;
     }
+
+    @Nonnull
+    public List<Image> getAvatars() {
+        return avatars;
+    }
+
+    public void setAvatars(@Nonnull final List<Image> avatars) {
+        this.avatars = avatars;
+    }
+
+    @Nonnull
+    public List<Image> getBanners() {
+        return banners;
+    }
+
+    public void setBanners(@Nonnull final List<Image> banners) {
+        this.banners = banners;
+    }
+
 
     public String getAvatarUrl() {
         return avatarUrl;
