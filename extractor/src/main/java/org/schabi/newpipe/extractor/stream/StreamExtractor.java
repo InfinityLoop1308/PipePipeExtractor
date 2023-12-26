@@ -28,6 +28,7 @@ import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
+import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
@@ -551,6 +552,17 @@ public abstract class StreamExtractor extends Extractor {
      */
     @Nonnull
     public List<MetaInfo> getMetaInfo() throws ParsingException {
+        return Collections.emptyList();
+    }
+
+    /**
+     * get the list of StaffInfoItem, if the stream can be co-authored
+     * (with more than one author/staff).
+     *
+     * @return list of staffs, empty if stream is not a Cooperation Stream
+     */
+    @Nonnull
+    public  List<StaffInfoItem> getStaffs() {
         return Collections.emptyList();
     }
 

@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.*;
+import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.*;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
@@ -25,6 +26,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
@@ -99,6 +101,27 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return watch.getString("uname");
         }
         return watch.getObject("owner").getString("name");
+    }
+
+    @Nonnull
+    @Override
+    public List<StaffInfoItem> getStaffs() {
+        JsonArray staffs = watch.getArray("staff");
+        if (!staffs.isEmpty()) {
+            return staffs.stream()
+                    .map(item -> {
+                        JsonObject staff = (JsonObject) item;
+                        String staffName = staff.getString("name");
+                        String staffTitle = staff.getString("title");
+                        String staffThumbnail = staff.getString("face");
+                        long staffMid = staff.getLong("mid");
+                        String url = BilibiliChannelLinkHandlerFactory.baseUrl + staffMid;
+                        return new StaffInfoItem(getServiceId(), url, staffName, staffTitle, staffThumbnail);
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     @Override

@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.stream;
 
 import org.schabi.newpipe.extractor.*;
+import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -11,6 +12,7 @@ import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -237,6 +239,11 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+        try {
+            streamInfo.setStaffs(extractor.getStaffs());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
 
         try {
             streamInfo.setSubChannelName(extractor.getSubChannelName());
@@ -402,6 +409,8 @@ public class StreamInfo extends Info {
     private String uploaderAvatarUrl = "";
     private boolean uploaderVerified = false;
     private long uploaderSubscriberCount = -1;
+
+    private Collection<StaffInfoItem> staffs = Collections.emptyList();
 
     private String subChannelName = "";
     private String subChannelUrl = "";
@@ -582,6 +591,14 @@ public class StreamInfo extends Info {
 
     public void setUploaderSubscriberCount(final long uploaderSubscriberCount) {
         this.uploaderSubscriberCount = uploaderSubscriberCount;
+    }
+
+    public Collection<StaffInfoItem> getStaffs() {
+        return staffs;
+    }
+
+    public void setStaffs(Collection<StaffInfoItem> staffs) {
+        this.staffs = staffs;
     }
 
     public String getSubChannelName() {
