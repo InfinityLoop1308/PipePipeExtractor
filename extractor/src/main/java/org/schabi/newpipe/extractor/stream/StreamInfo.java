@@ -16,6 +16,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -258,6 +259,11 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+        try {
+            streamInfo.setStats(extractor.getStats());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
 
         try {
             streamInfo.setSubChannelName(extractor.getSubChannelName());
@@ -434,6 +440,7 @@ public class StreamInfo extends Info {
     private long uploaderSubscriberCount = -1;
 
     private Collection<StaffInfoItem> staffs = Collections.emptyList();
+    private Map<String, String> stats = Collections.emptyMap();
 
     private String subChannelName = "";
     private String subChannelUrl = "";
@@ -647,6 +654,14 @@ public class StreamInfo extends Info {
 
     public void setStaffs(Collection<StaffInfoItem> staffs) {
         this.staffs = staffs;
+    }
+
+    public Map<String, String> getStats() {
+        return stats;
+    }
+
+    public void setStats(Map<String, String> stats) {
+        this.stats = stats;
     }
 
     public String getSubChannelName() {

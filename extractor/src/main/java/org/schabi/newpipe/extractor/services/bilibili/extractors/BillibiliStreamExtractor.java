@@ -124,6 +124,19 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
     }
 
+    @Nonnull
+    @Override
+    public Map<String, String> getStats() {
+        JsonObject stat = watch.getObject("stat");
+        return stat.entrySet().stream()
+                .collect(
+                        Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> entry.getValue().toString()
+                        )
+                );
+    }
+
     @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
         List<AudioStream>result = new ArrayList<>();

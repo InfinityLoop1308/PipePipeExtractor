@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -635,6 +636,15 @@ public abstract class StreamExtractor extends Extractor {
     @Nonnull
     public List<StaffInfoItem> getStaffs() {
         return Collections.emptyList();
+    }
+
+    /**
+     * Detailed statistic data about the stream
+     * @return map of statistic data, empty if not available
+     */
+    @Nonnull
+    public Map<String, String> getStats() {
+        return Collections.emptyMap();
     }
 
     public boolean isSupportComments() throws ParsingException {
