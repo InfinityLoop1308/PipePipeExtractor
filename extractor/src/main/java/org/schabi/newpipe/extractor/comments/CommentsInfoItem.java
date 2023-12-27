@@ -1,9 +1,14 @@
 package org.schabi.newpipe.extractor.comments;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 
+import java.util.Collection;
+import java.util.Collections;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class CommentsInfoItem extends InfoItem {
@@ -25,6 +30,8 @@ public class CommentsInfoItem extends InfoItem {
     private int replyCount;
     @Nullable
     private Page replies;
+    @Nonnull
+    private Collection<Image> pictures = Collections.emptyList();
 
     public static final int NO_LIKE_COUNT = -1;
     public static final int NO_STREAM_POSITION = -1;
@@ -165,5 +172,14 @@ public class CommentsInfoItem extends InfoItem {
     @Nullable
     public Page getReplies() {
         return this.replies;
+    }
+
+    @Nonnull
+    public Collection<Image> getPictures() {
+        return pictures;
+    }
+
+    public void setPictures(@Nonnull Collection<Image> pictures) {
+        this.pictures = pictures;
     }
 }

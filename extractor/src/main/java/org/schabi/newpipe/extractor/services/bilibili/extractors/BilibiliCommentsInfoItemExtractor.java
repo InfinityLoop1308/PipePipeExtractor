@@ -1,18 +1,22 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import org.apache.commons.lang3.StringEscapeUtils;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
 
@@ -111,5 +115,24 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Override
     public boolean isPinned() throws ParsingException {
         return data.getBoolean("isTop");
+    }
+
+    @Nonnull
+    @Override
+    public Collection<Image> getPictures() throws ParsingException {
+        JsonArray array = data.getObject("content").getArray("pictures");
+        if (array.size() != 0) {
+            return array.stream()
+                    .map(x -> {
+                        JsonObject jsonObject = (JsonObject) x;
+                        String src = jsonObject.getString("img_src");
+                        int width = jsonObject.getInt("img_width");
+                        int height = jsonObject.getInt("img_height");
+                        return new Image(src, height, width, Image.ResolutionLevel.fromHeight(height));
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            return CommentsInfoItemExtractor.super.getPictures();
+        }
     }
 }
