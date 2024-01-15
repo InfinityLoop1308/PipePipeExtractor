@@ -27,10 +27,7 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -41,8 +38,8 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     private String key;
     private StreamType streamType;
     private ScheduledExecutorService executor;
-    private final ArrayList<YoutubeBulletCommentPair> messages = new ArrayList<>();
-    private final ArrayList<YoutubeBulletCommentPair> SuperChatMessages = new ArrayList<>();
+    private final CopyOnWriteArrayList<YoutubeBulletCommentPair> messages = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<YoutubeBulletCommentPair> SuperChatMessages = new CopyOnWriteArrayList<>();
     private String lastContinuation;
     private ScheduledFuture<?> future;
     private boolean disabled = false;
@@ -53,7 +50,7 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
             "timedContinuationData", "invalidationContinuationData"
 //           , "playerSeekContinuationData" , "liveChatReplayContinuationData"
     };
-    private final ArrayList<String> IDList= new ArrayList<>();
+    private final CopyOnWriteArrayList<String> IDList= new CopyOnWriteArrayList<>();
     private boolean shouldSkipFetch = false;
 
     public YoutubeBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache watchDataCache) throws ExtractionException {
@@ -105,9 +102,15 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                             .end()
                             .done())
                     .getBytes(UTF_8);
-            JsonObject result = getJsonPostResponse("live_chat/" +
-                    (isLiveStream? "get_live_chat":
-                            "get_live_chat_replay"), json, Localization.DEFAULT);
+            JsonObject result;
+            try{
+                result = getJsonPostResponse("live_chat/" +
+                        (isLiveStream? "get_live_chat":
+                                "get_live_chat_replay"), json, Localization.DEFAULT);
+            } catch (Exception e){
+                return;
+            }
+
             JsonObject liveChatContinuation = result.getObject("continuationContents").getObject("liveChatContinuation");
             JsonObject lastContinuationParent = liveChatContinuation
                     .getArray("continuations").getObject(isLiveStream?0:1);
@@ -140,6 +143,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                     JsonObject temp = item.getObject("liveChatTextMessageRenderer");
                     String id = temp.getString("id");
                     if(!IDList.contains(id)){
+                        System.out.println("YoutubeBulletCommentsExtractor -  " + "id: " + id + " text: " + temp.getObject("message").getArray("runs").getObject(0).getString("text") + " duration: " + (isLiveStream?
+                                -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
+                                .getString("videoOffsetTimeMsec"))));
                         messages.add(new YoutubeBulletCommentPair(temp, isLiveStream?
                                 -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
                                 .getString("videoOffsetTimeMsec"))));
@@ -156,8 +162,8 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                     }
                 }
             }
-        } catch (IOException | ExtractionException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            // should never throw any exception as that will stop fetching and unable to reconnect
         }
     }
 
@@ -215,6 +221,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void setCurrentPlayPosition(long currentPlayPosition) {
+        if(!this.isLiveStream && currentPlayPosition == 49) {  // 49 is -1 + 50, invalid and shouldn't set position or it will causing duplicate messages
+            return;
+        }
         if(this.currentPlayPosition > currentPlayPosition){
             IDList.clear();
             shouldSkipFetch = true;
