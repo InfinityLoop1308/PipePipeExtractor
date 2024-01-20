@@ -326,6 +326,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         try {
             JsonArray data = JsonParser.object().from(getDownloader().get(url, NiconicoService.LOCALE).responseBody()).getObject("data").getArray("items");
             for(int i = 0; i< data.size();i++){
+                if(data.getObject(i).getString("contentType").equals("mylist")){
+                    continue; //TODO: handle playlist here
+                }
                 collector.commit(new NiconicoPlaylistContentItemExtractor(data.getObject(i), true));
             }
         } catch (JsonParserException e) {
