@@ -202,7 +202,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
         videoStreams.add(new VideoStream.Builder().setContent(liveUrl,true)
                 .setId("bilibili-"+watch.getLong("uid") +"-live")
-                .setIsVideoOnly(false).setResolution("720p")
+                .setIsVideoOnly(false).setResolution("720p") // not really 720p, we just fetch the best
                 .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
         return videoStreams;
     }

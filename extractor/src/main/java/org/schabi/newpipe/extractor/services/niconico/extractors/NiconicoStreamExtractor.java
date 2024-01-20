@@ -225,7 +225,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             final List<VideoStream> videoStreams = new ArrayList<>();
             videoStreams.add(new VideoStream.Builder().setContent(getUrl(),true)
                     .setId("Niconico-" + getId() +"-live").setIsVideoOnly(false)
-                    .setResolution("Best").setDeliveryMethod(DeliveryMethod.HLS).build());
+                    .setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build()); // not really 720p, we just fetch the best
             return videoStreams;
         } else {
             final List<VideoStream> videoStreams = new ArrayList<>();
