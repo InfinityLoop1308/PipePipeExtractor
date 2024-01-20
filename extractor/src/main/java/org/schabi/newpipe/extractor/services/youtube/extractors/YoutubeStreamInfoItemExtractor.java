@@ -151,7 +151,7 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                     final String textualDuration = labelParts[labelParts.length - 2];
                     return timeAgoParser.parseDuration(textualDuration);
                 } else {
-                    throw new ParsingException("Could not get duration");
+                    return 0; // some videos don't have durations at all
                 }
             }
         }
