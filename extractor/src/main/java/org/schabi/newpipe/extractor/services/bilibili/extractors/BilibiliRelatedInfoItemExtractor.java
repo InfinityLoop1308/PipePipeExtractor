@@ -36,7 +36,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
     public BilibiliRelatedInfoItemExtractor(final JsonObject json) throws ParsingException {
         item = json;
         type = "related";
-        id = item.getString("bvid").equals("") ? new utils().av2bv(item.getLong("aid")) : item.getString("bvid");
+        id = item.getString("bvid").equals("") ? utils.av2bv(item.getLong("aid")) : item.getString("bvid");
         pic = item.getString("pic").replace("http", "https");
         pubdate = item.getLong("ctime");
     }

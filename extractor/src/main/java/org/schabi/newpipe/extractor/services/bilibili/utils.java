@@ -12,6 +12,7 @@ import org.brotli.dec.BrotliInputStream;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.*;
+import java.math.BigInteger;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.util.*;
@@ -23,10 +24,13 @@ import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
 
 public class utils {
-    int[] s = {11, 10, 3, 8, 4, 6};
-    public int xor = 177451812;
-    public long add = 8728348608L;
-    public String table = "fZodR9XQDSUm21yCkr6zBqiveYah8bt4xsWpHnJE7jL5VG3guMTKNPAwcF";
+    private static final BigInteger XOR_CODE = new BigInteger("23442827791579");
+    private static final BigInteger MASK_CODE = new BigInteger("2251799813685247");
+    private static final BigInteger MAX_AID = BigInteger.ONE.shiftLeft(51);
+    private static final BigInteger BASE = new BigInteger("58");
+
+    private static final String table = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf";
+
     public Map<Character, Integer> map = new HashMap<Character, Integer>();
     private static final String USER_AGENT = "Mozilla/5.0";
     private static final String REFERER = "https://www.bilibili.com";
@@ -39,37 +43,38 @@ public class utils {
         }
     }
 
-    public Long bv2av(String bv) {
-        long r = 0;
-        for (int i = 0; i < 6; i++) {
-            r += map.get(bv.charAt(s[i])) * Math.pow(58, i);
+    public static String av2bv(long aid) {
+        char[] bytes = {'B', 'V', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
+        int bvIndex = bytes.length - 1;
+        BigInteger tmp = (MAX_AID.or(BigInteger.valueOf(aid))).xor(XOR_CODE);
+        while (tmp.compareTo(BigInteger.ZERO) > 0) {
+            bytes[bvIndex] = table.charAt(tmp.mod(BASE).intValue());
+            tmp = tmp.divide(BASE);
+            bvIndex -= 1;
         }
-        return (r - add) ^ xor;
+        char temp = bytes[3];
+        bytes[3] = bytes[9];
+        bytes[9] = temp;
+        temp = bytes[4];
+        bytes[4] = bytes[7];
+        bytes[7] = temp;
+        return new String(bytes);
     }
 
-    public String av2bv(Long x) throws ParsingException {
-        String result = av2bvImpl(x, false);
-        return result.contains(" ") ? av2bvImpl(x, true) : result;
-    }
-
-    /*
-        for unknown reason, some devices resolve the index as index - 1
-        flag is set to true that case
-     */
-    private String av2bvImpl(Long x, boolean flag) throws ParsingException {
-        x = (x ^ xor) + add;
-        String[] r = "BV1  4 1 7  ".split("");
-        for (int i = 0; i < 6; i++) {
-            r[s[i] + (flag ? 1 : 0)] = String.valueOf(table.charAt((int) ((x / Math.pow(58, i)) % 58)));
+    public static int bv2av(String bvid) {
+        char[] bvidArr = bvid.toCharArray();
+        char temp = bvidArr[3];
+        bvidArr[3] = bvidArr[9];
+        bvidArr[9] = temp;
+        temp = bvidArr[4];
+        bvidArr[4] = bvidArr[7];
+        bvidArr[7] = temp;
+        String subString = new String(bvidArr, 3, bvidArr.length - 3);
+        BigInteger tmp = BigInteger.ZERO;
+        for (char bvidChar : subString.toCharArray()) {
+            tmp = tmp.multiply(BASE).add(BigInteger.valueOf(table.indexOf(bvidChar)));
         }
-        StringBuilder result = new StringBuilder();
-        for (String i : r) {
-            result.append(i);
-        }
-        if (flag && result.toString().contains(" ")) {
-            throw new ParsingException(String.format("Failed to convert av to bv. av number: %s", x));
-        }
-        return result.toString();
+        return tmp.and(MASK_CODE).xor(XOR_CODE).intValue();
     }
 
     public static String getUrl(String url, String id) {
