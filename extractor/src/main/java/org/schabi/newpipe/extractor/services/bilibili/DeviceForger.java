@@ -98,15 +98,21 @@ public class DeviceForger {
 
     static GraphicCard randomCard(Random random) {
         GraphicCard[] cards = {
+                new GraphicCard("NVIDIA", "NVIDIA GeForce MX150 (0x00001D12)"),
+                new GraphicCard("NVIDIA", "NVIDIA GeForce MX250 (0x00001D13)"),
+                new GraphicCard("NVIDIA", "NVIDIA GeForce MX350 (0x00001C94)"),
+                new GraphicCard("NVIDIA", "NVIDIA GeForce MX450 (0x00001F97)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTS 250 (0x00000615)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 670 (0x00001189)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 750 Ti (0x00001380)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GT 1030 (0x00001D01)"),
+                new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1050 (0x00001C81)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1050 Ti (0x00001C82)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1050 Ti (0x00001C8C)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1060 3GB (0x00001C02)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1060 6GB (0x00001C03)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1060 Ti (0x00001380)"),
+                new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1070 (0x00001B81)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1080 (0x00001B80)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1650 (0x00001F82)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce GTX 1660 Ti (0x00002182)"),
@@ -125,9 +131,13 @@ public class DeviceForger {
                 new GraphicCard("Intel", "Intel(R) HD Graphics 630 (0x0000591B)"),
                 new GraphicCard("Intel", "Intel(R) HD Graphics 4600 (0x00000416)"),
                 new GraphicCard("Intel", "Intel(R) HD Graphics Family (0x00000A16)"),
+                new GraphicCard("Intel", "Intel(R) UHD Graphics (0x000046A3)"),
+                new GraphicCard("Intel", "Intel(R) UHD Graphics (0x000046D2)"),
                 new GraphicCard("Intel", "Intel(R) UHD Graphics (0x00004E55)"),
                 new GraphicCard("Intel", "Intel(R) UHD Graphics (0x00009BC4)"),
+                new GraphicCard("Intel", "Intel(R) UHD Graphics (0x0000A720)"),
                 new GraphicCard("Intel", "Intel(R) UHD Graphics 620 (0x00005917)"),
+                new GraphicCard("Intel", "Intel(R) UHD Graphics 630 (0x0000591B)"),
                 new GraphicCard("Intel", "Intel(R) UHD Graphics 630 (0x00003E9B)"),
                 new GraphicCard("Intel", "Intel(R) UHD Graphics 770 (0x0000A780)"),
                 new GraphicCard("Intel", "Intel(R) Iris(R) Xe Graphics (0x000046A6)"),
@@ -139,6 +149,7 @@ public class DeviceForger {
                 new GraphicCard("AMD", "AMD Radeon(TM) Graphics (0x00001681)"),
                 new GraphicCard("AMD", "AMD Radeon(TM) Graphics (0x0000679A)"),
                 new GraphicCard("AMD", "AMD Radeon(TM) R7 Graphics (0x00001313)"),
+                new GraphicCard("AMD", "AMD Radeon(TM) Vega 8 Graphics (0x000015D8)"),
                 new GraphicCard("AMD", "AMD Radeon(TM) Vega 8 Graphics (0x000015DD)"),
                 new GraphicCard("AMD", "AMD Radeon 780M Graphics (0x000015BF)"),
                 new GraphicCard("AMD", "AMD Radeon RX 580 2048SP (0x00006FDF)"),
@@ -159,7 +170,7 @@ public class DeviceForger {
         // currently we only forge device with
         // * Modern Chrome Browse (so User Agent are frozen)
         // * Windows 10/11 X64 Operate System
-        int chromiumVersion = (random.nextInt() % 2) + 118;
+        int chromiumVersion = (random.nextInt(7)) + 115;
         GraphicCard graphicCard = randomCard(random);
         Device device = new Device(
                 buildUserAgent("Windows NT 10.0; Win64; x64", chromiumVersion),
