@@ -1,81 +1,127 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
+
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okio.ByteString;
+
 import org.brotli.dec.BrotliInputStream;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
-import java.io.*;
-import java.math.BigInteger;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Random;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Inflater;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okio.ByteString;
 
 
 public class utils {
-    private static final BigInteger XOR_CODE = new BigInteger("23442827791579");
-    private static final BigInteger MASK_CODE = new BigInteger("2251799813685247");
-    private static final BigInteger MAX_AID = BigInteger.ONE.shiftLeft(51);
-    private static final BigInteger BASE = new BigInteger("58");
 
-    private static final String table = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf";
-
-    public Map<Character, Integer> map = new HashMap<Character, Integer>();
     private static final String USER_AGENT = "Mozilla/5.0";
     private static final String REFERER = "https://www.bilibili.com";
     private static final OkHttpClient client = new OkHttpClient();
 
 
-    public utils() {
-        for (int i = 0; i < 58; i++) {
-            map.put(table.charAt(i), i);
+    //region AV BV conversion
+
+    private static final int BASE = 58;
+    private static final String BASE58_TABLE = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf";
+    private static final long XOR_CODE = 23442827791579L;
+    private static final long MAX_AID = 2251799813685248L; // 2^51
+    private static final long MASK_CODE = 2251799813685247L; // 2^51 - 1
+
+
+    /**
+     * Convert BiliBili av number to bv number
+     *
+     * @param aid av number
+     * @return bv number starting with BV1 with length of 12
+     */
+    public static String av2bv(final long aid) {
+        if (aid > 0) {
+            char[] bytes = {'B', 'V', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
+
+            //
+            long tmp = (aid | MAX_AID) ^ XOR_CODE;
+
+            // convert base 10 (decimal) number into base 58 number with custom table
+            int bvIndex = bytes.length - 1;
+            while (tmp > 0) {
+                bytes[bvIndex] = BASE58_TABLE.charAt((int) (tmp % BASE));
+                tmp = tmp / BASE;
+                bvIndex -= 1;
+            }
+
+            // swap: 3 <-> 9 , 4 <-> 7
+            char temp = bytes[3];
+            bytes[3] = bytes[9];
+            bytes[9] = temp;
+            temp = bytes[4];
+            bytes[4] = bytes[7];
+            bytes[7] = temp;
+
+            return new String(bytes);
+        } else {
+            throw new IllegalArgumentException("Incorrect AV number format: " + aid);
         }
     }
 
-    public static String av2bv(long aid) {
-        char[] bytes = {'B', 'V', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0'};
-        int bvIndex = bytes.length - 1;
-        BigInteger tmp = (MAX_AID.or(BigInteger.valueOf(aid))).xor(XOR_CODE);
-        while (tmp.compareTo(BigInteger.ZERO) > 0) {
-            bytes[bvIndex] = table.charAt(tmp.mod(BASE).intValue());
-            tmp = tmp.divide(BASE);
-            bvIndex -= 1;
+    /**
+     * Convert BiliBili bv number to av number
+     *
+     * @param bvid bv number starting with BV1 with length of 12
+     * @return av number
+     */
+    public static long bv2av(final String bvid) {
+        // length must be 12 and starting with BV1
+        if (bvid != null && bvid.length() == 12 && bvid.charAt(2) == '1') {
+
+            char[] bvidArr = bvid.toCharArray();
+
+            // swap: 3 <-> 9 , 4 <-> 7
+            char temp = bvidArr[3];
+            bvidArr[3] = bvidArr[9];
+            bvidArr[9] = temp;
+            temp = bvidArr[4];
+            bvidArr[4] = bvidArr[7];
+            bvidArr[7] = temp;
+
+            // remove first 3 char ("BV1")
+            final String numberInBase58 = new String(bvidArr, 3, bvidArr.length - 3);
+            // convert base 58 number into base 10 (decimal) number
+            long tmp = 0; // accumulator
+            for (char c = 0; c < numberInBase58.length(); c++) {
+                tmp = tmp * BASE + BASE58_TABLE.indexOf(numberInBase58.charAt(c));
+            }
+            //
+            return (tmp & MASK_CODE) ^ XOR_CODE;
+        } else {
+            throw new IllegalArgumentException("Incorrect BV number format: " + bvid);
         }
-        char temp = bytes[3];
-        bytes[3] = bytes[9];
-        bytes[9] = temp;
-        temp = bytes[4];
-        bytes[4] = bytes[7];
-        bytes[7] = temp;
-        return new String(bytes);
     }
 
-    public static int bv2av(String bvid) {
-        char[] bvidArr = bvid.toCharArray();
-        char temp = bvidArr[3];
-        bvidArr[3] = bvidArr[9];
-        bvidArr[9] = temp;
-        temp = bvidArr[4];
-        bvidArr[4] = bvidArr[7];
-        bvidArr[7] = temp;
-        String subString = new String(bvidArr, 3, bvidArr.length - 3);
-        BigInteger tmp = BigInteger.ZERO;
-        for (char bvidChar : subString.toCharArray()) {
-            tmp = tmp.multiply(BASE).add(BigInteger.valueOf(table.indexOf(bvidChar)));
-        }
-        return tmp.and(MASK_CODE).xor(XOR_CODE).intValue();
-    }
+    //endregion
 
     public static String getUrl(String url, String id) {
         String p = "1";

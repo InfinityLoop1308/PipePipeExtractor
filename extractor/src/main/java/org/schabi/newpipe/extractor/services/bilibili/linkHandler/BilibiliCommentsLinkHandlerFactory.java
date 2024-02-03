@@ -1,16 +1,11 @@
 package org.schabi.newpipe.extractor.services.bilibili.linkHandler;
 
-import static org.schabi.newpipe.extractor.services.soundcloud.SoundcloudParsingHelper.clientId;
-
-import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
-import org.schabi.newpipe.extractor.services.soundcloud.linkHandler.SoundcloudStreamLinkHandlerFactory;
 
-import java.io.IOException;
 import java.util.List;
 
 public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
@@ -55,7 +50,7 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getUrl(String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
-        id = id.startsWith("BV")? String.valueOf(new utils().bv2av(id)) :id;
+        id = id.startsWith("BV")? String.valueOf(utils.bv2av(id)) :id;
         if(id.contains("&root")){
             // I don't know why but pn must be placed in the end or nothing will be fetched
             return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id + "&pn=1";
