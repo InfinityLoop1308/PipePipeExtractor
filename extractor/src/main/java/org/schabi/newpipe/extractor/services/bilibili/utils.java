@@ -114,6 +114,8 @@ public class utils {
         params.put("dm_img_list", "[]");
         params.put("dm_img_str", DeviceForger.requireRandomDevice().getWebGlVersionBase64());
         params.put("dm_cover_img_str", DeviceForger.requireRandomDevice().getWebGLRendererInfoBase64());
+//        dm_img_inter = '{"ds":[],"wh":[0,0,0],"of":[0,0,0]}'
+        params.put("dm_img_inter", "{\"ds\":[],\"wh\":[0,0,0],\"of\":[0,0,0]}");
 
         String[] wbiResults = utils.encWbi(params);
 
@@ -337,9 +339,11 @@ public class utils {
             Map<String, List<String>> headers
     ) throws ParsingException, IOException, ReCaptchaException {
         int maxTry = 3;
+        int currentTry = maxTry;
+
         String responseBody = "";
 
-        while (maxTry > 0) {
+        while (currentTry > 0) {
             responseBody = downloader.get(url, headers).responseBody();
             try {
                 JsonObject responseJson = JsonParser.object().from(responseBody);
@@ -348,7 +352,7 @@ public class utils {
                     if (code == -352) {
                         // blocked risk control
                         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-                        maxTry -= 1;
+                        currentTry -= 1;
                     }
                 } else {
                     return responseJson;
