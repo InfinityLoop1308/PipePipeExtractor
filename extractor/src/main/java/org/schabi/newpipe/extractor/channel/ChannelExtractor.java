@@ -43,7 +43,7 @@ public abstract class ChannelExtractor extends ListExtractor<StreamInfoItem> {
     @Nonnull
     public List<Image> getAvatars() throws ParsingException {
         String avatarUrl = getAvatarUrl();
-        if (!avatarUrl.isEmpty()) {
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
             Image image = new Image(avatarUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
             List<Image> list = new java.util.ArrayList<>();
             list.add(image);
@@ -56,7 +56,7 @@ public abstract class ChannelExtractor extends ListExtractor<StreamInfoItem> {
     @Nonnull
     public List<Image> getBanners() throws ParsingException {
         String avatarUrl = getBannerUrl();
-        if (!avatarUrl.isEmpty()) {
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
             Image image = new Image(avatarUrl, -1, -1, Image.ResolutionLevel.MEDIUM);
             List<Image> list = new java.util.ArrayList<>();
             list.add(image);
