@@ -29,10 +29,7 @@ import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /*
  * Copyright (C) Christian Schabesberger 2018 <chris.schabesberger@mailbox.org>
@@ -480,6 +477,9 @@ public abstract class StreamingService {
     }
 
     public Set<String> getCookieFunctions() {
+        if(cookieFunctions == null) {
+            cookieFunctions = new HashSet<>();
+        }
         return cookieFunctions;
     }
 
