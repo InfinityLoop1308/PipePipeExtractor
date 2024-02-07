@@ -16,6 +16,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.stream.Collectors;
@@ -52,8 +53,8 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     @Override
     public String getCommentText() throws ParsingException {
         String result = StringEscapeUtils.unescapeHtml4((data.getObject("content").getString("message")));
-        if (data.getObject("content").getArray("pictures").size() != 0){
-            result += "\n" + data.getObject("content").getArray("pictures").stream().map(x -> ((JsonObject)x).getString("img_src")).collect(Collectors.joining("\n"));
+        if (result.endsWith("...")) {
+            result += new ArrayList<>(data.getObject("content").getObject("jump_url").keySet()).get(0);
         }
         return result;
     }
