@@ -17,8 +17,8 @@ public class Response {
     private final String responseMessage;
     private final Map<String, List<String>> responseHeaders;
     private final String responseBody;
-    
-    private final ResponseBody rawResponseBody;
+
+    public final ResponseBody rawResponseBody;
 
     private final String latestUrl;
 

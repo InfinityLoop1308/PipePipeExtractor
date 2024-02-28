@@ -34,6 +34,7 @@ public class NiconicoWatchDataCache {
     private String threadServer;
     private String threadId;
     private long startAt;
+    private String streamCookie="";
 
     public enum WatchDataType {
         LOGIN(1),
@@ -141,5 +142,13 @@ public class NiconicoWatchDataCache {
 
     public void setStartAt(long startAt) {
         this.startAt = startAt;
+    }
+
+    public String getStreamCookie() {
+        return streamCookie;
+    }
+
+    public void setStreamCookie(String streamCookie) {
+        this.streamCookie = streamCookie;
     }
 }

@@ -133,6 +133,67 @@ public class NiconicoService extends StreamingService {
         return httpHeaders;
     }
 
+    static public Map<String, List<String>> getStreamSourceHeaders(String accessKey){
+        Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0"));
+        headers.put("Accept", Collections.singletonList("*/*"));
+        headers.put("Accept-Language", Collections.singletonList("en-US,en;q=0.5"));
+        headers.put("Accept-Encoding", Collections.singletonList("gzip, deflate, br"));
+        headers.put("Referer", Collections.singletonList("https://www.nicovideo.jp/"));
+        headers.put("Content-Type", Collections.singletonList("application/json"));
+        headers.put("X-Request-With", Collections.singletonList("https://www.nicovideo.jp"));
+        headers.put("X-Access-Right-Key", Collections.singletonList(accessKey));
+        headers.put("X-Frontend-Id", Collections.singletonList("6"));
+        headers.put("X-Frontend-Version", Collections.singletonList("0"));
+        headers.put("Origin", Collections.singletonList("https://www.nicovideo.jp"));
+        headers.put("DNT", Collections.singletonList("1"));
+        headers.put("Connection", Collections.singletonList("keep-alive"));
+        headers.put("Sec-Fetch-Dest", Collections.singletonList("empty"));
+        headers.put("Sec-Fetch-Mode", Collections.singletonList("cors"));
+        headers.put("Sec-Fetch-Site", Collections.singletonList("same-site"));
+        headers.put("Sec-GPC", Collections.singletonList("1"));
+        headers.put("TE", Collections.singletonList("trailers"));
+        return headers;
+    }
+
+    static public Map<String, List<String>> getPreFetchStreamHeaders(){
+        Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0"));
+        headers.put("Accept", Collections.singletonList("*/*"));
+        headers.put("Accept-Language", Collections.singletonList("en-US,en;q=0.5"));
+        headers.put("Accept-Encoding", Collections.singletonList("gzip, deflate, br"));
+        headers.put("Access-Control-Request-Method", Collections.singletonList("POST"));
+        headers.put("Access-Control-Request-Headers", Collections.singletonList("content-type,x-access-right-key,x-frontend-id,x-frontend-version,x-request-with"));
+        headers.put("Referer", Collections.singletonList("https://www.nicovideo.jp/"));
+        headers.put("Origin", Collections.singletonList("https://www.nicovideo.jp"));
+        headers.put("DNT", Collections.singletonList("1"));
+        headers.put("Connection", Collections.singletonList("keep-alive"));
+        headers.put("Sec-Fetch-Dest", Collections.singletonList("empty"));
+        headers.put("Sec-Fetch-Mode", Collections.singletonList("cors"));
+        headers.put("Sec-Fetch-Site", Collections.singletonList("same-site"));
+        headers.put("Sec-GPC", Collections.singletonList("1"));
+        headers.put("TE", Collections.singletonList("trailers"));
+        return headers;
+    }
+
+    static public Map<String, List<String>> getStreamHeaders(String cookie){
+        HashMap<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/119.0"));
+        headers.put("Accept", Collections.singletonList("*/*"));
+        headers.put("Accept-Language", Collections.singletonList("en-US,en;q=0.5"));
+        headers.put("Accept-Encoding", Collections.singletonList("gzip, deflate, br"));
+        headers.put("Referer", Collections.singletonList("https://www.nicovideo.jp/"));
+        headers.put("Origin", Collections.singletonList("https://www.nicovideo.jp"));
+        headers.put("DNT", Collections.singletonList("1"));
+        headers.put("Connection", Collections.singletonList("keep-alive"));
+        headers.put("Sec-Fetch-Dest", Collections.singletonList("empty"));
+        headers.put("Sec-Fetch-Mode", Collections.singletonList("cors"));
+        headers.put("Sec-Fetch-Site", Collections.singletonList("same-site"));
+        headers.put("Sec-GPC", Collections.singletonList("1"));
+        headers.put("Cookie", Collections.singletonList(cookie));
+        return headers;
+    }
+
     @Override
     public LinkHandlerFactory getStreamLHFactory() {
         return new NiconicoStreamLinkHandlerFactory();

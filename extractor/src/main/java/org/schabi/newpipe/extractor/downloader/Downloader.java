@@ -144,6 +144,13 @@ public abstract class Downloader {
                 .localization(localization)
                 .build());
     }
+
+    public Response options(final String url,@Nullable final Map<String, List<String>> headers) throws IOException, ReCaptchaException {
+        return execute(Request.newBuilder()
+                .options(url)
+                .headers(headers)
+                .build());
+    }
     /**
      * Do a request using the specified {@link Request} object.
      *

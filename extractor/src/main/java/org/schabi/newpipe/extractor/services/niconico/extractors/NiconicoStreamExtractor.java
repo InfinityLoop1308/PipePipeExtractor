@@ -1,28 +1,22 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
-import com.grack.nanojson.JsonParserException;
+import com.grack.nanojson.*;
 
-import org.java_websocket.client.WebSocketClient;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
-import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
 import org.schabi.newpipe.extractor.exceptions.PaidContentException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.services.niconico.M3U8Parser;
 import org.schabi.newpipe.extractor.services.niconico.NicoWebSocketClient;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.DeliveryMethod;
 import org.schabi.newpipe.extractor.stream.Description;
@@ -30,6 +24,7 @@ import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
+import org.schabi.newpipe.extractor.utils.RegexUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -41,6 +36,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -51,14 +48,12 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private NiconicoWatchDataCache.WatchDataType type;
     private final NiconicoWatchDataCache niconicoWatchDataCache;
     private Document page = null;
-    private Response response = null;
-    private String liveUrl;
     private String liveMessageServer;
     private String liveThreadId;
     private JsonObject liveData;
     private Document liveResponse;
     private JsonObject liveDataRoot;
-    private boolean isHlsStream;
+    private Map<String, List<String>> streamSources;
 
     public NiconicoStreamExtractor(final StreamingService service,
             final LinkHandler linkHandler,
@@ -175,7 +170,15 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
-        return Collections.emptyList();
+        final List<AudioStream> audioStreams = new ArrayList<>();
+        ArrayList<String> audios = (ArrayList<String>) streamSources.get("audio");
+        for (String audio : audios) {
+            String id = RegexUtils.extract(audio, "audio-(.*?)-\\d+kbps");
+            audioStreams.add(new AudioStream.Builder().setId("Niconico-"+getId()+"-audio")
+                    .setContent(audio,true)
+                    .setMediaFormat(MediaFormat.M4A).setQuality(id.split("-")[2].split("kbps")[0]).build());
+        }
+        return audioStreams;
     }
 
     public void getLiveUrl() throws ExtractionException, IOException, JsonParserException {
@@ -194,7 +197,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         webSocketClient.connect();
         long startTime = System.nanoTime();
         do {
-            liveUrl = nicoWebSocketClient.getUrl();
+            String liveUrl = nicoWebSocketClient.getUrl();
             liveMessageServer = nicoWebSocketClient.getServerUrl();
             liveThreadId = nicoWebSocketClient.getThreadId();
             if (liveUrl != null && liveMessageServer != null && liveThreadId != null) {
@@ -228,40 +231,26 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                     .setResolution("720p").setDeliveryMethod(DeliveryMethod.HLS).build()); // not really 720p, we just fetch the best
             return videoStreams;
         } else {
-            final List<VideoStream> videoStreams = new ArrayList<>();
-            final String content = NiconicoService.WATCH_URL + getLinkHandler().getId();
-            JsonArray videos = watch.getObject("media").getObject("delivery").getObject("movie").getArray("videos");
-
-            for(int i = 0; i < videos.size(); i++){
-                JsonObject video = videos.getObject(i);
-                if(!video.getBoolean("isAvailable")){
-                    continue;
-                }
-                String label = video.getObject("metadata").getString("label");
-                videoStreams.add(new VideoStream.Builder()
-                        .setContent(content + "#quality=" + video.getString("id"), true).setId("Niconico-" + getId() + label)
-                        .setIsVideoOnly(false)
-                        .setMediaFormat(MediaFormat.MPEG_4)
-                        .setDeliveryMethod(isHlsStream? DeliveryMethod.HLS : DeliveryMethod.PROGRESSIVE_HTTP)
-                        .setResolution(label)
-                        .build());
-            }
-            return videoStreams;
+            return Collections.emptyList();
         }
-    }
-
-    @Nonnull
-    @Override
-    public String getHlsUrl() throws ParsingException {
-        if(getStreamType() == StreamType.VIDEO_STREAM && !isHlsStream){
-            return null;
-        }
-        return getUrl();
     }
 
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
-        return Collections.emptyList();
+        final List<VideoStream> videoStreams = new ArrayList<>();
+        ArrayList<String> videos = (ArrayList<String>) streamSources.get("video");
+        for (String video : videos) {
+            String id = RegexUtils.extract(video, "video-(.*?)-\\d+p");
+            String resolution = id.split("-")[2];
+            videoStreams.add(new VideoStream.Builder()
+                    .setContent(video, true).setId("Niconico-" + getId() + '-' + resolution)
+                    .setIsVideoOnly(true)
+                    .setMediaFormat(MediaFormat.MPEG_4)
+                    .setDeliveryMethod(DeliveryMethod.HLS)
+                    .setResolution(resolution)
+                    .build());
+        }
+        return videoStreams;
     }
 
     @Override
@@ -355,16 +344,48 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return ;
         }
         watch = niconicoWatchDataCache.refreshAndGetWatchData(downloader, getId());
-        isHlsStream = watch.getObject("media").getObject("delivery")
-                .getObject("movie").getObject("session").getArray("protocols")
-                .getString(0).equals("hls");
-        if(isHlsStream){
-            throw new ContentNotSupportedException("This video is an encryted HLS stream. " +
-                    "Sorry, but PipePipe is not able to handle it currently.");
+
+        JsonStringWriter resolutionObject = JsonWriter.string().object()
+                .array("outputs");
+        String audioResolutionName = watch.getObject("media").getObject("domand").getArray("audios").stream().filter(s -> ((JsonObject)s).getBoolean("isAvailable")).map(s -> (JsonObject) s).findFirst().get().getString("id");
+        for (int i = 0; i < watch.getObject("media").getObject("domand").getArray("videos").size(); i++) {
+            if(!watch.getObject("media").getObject("domand").getArray("videos").getObject(i).getBoolean("isAvailable")){
+                continue;
+            }
+            resolutionObject.array()
+                    .value(watch.getObject("media").getObject("domand").getArray("videos").getObject(i).getString("id"))
+                    .value(audioResolutionName)
+                    .end();
+        }
+//        Response preFetch = downloader.options("https://nvapi.nicovideo.jp/v1/watch/"+ getId() +"/access-rights/hls?actionTrackId=" + watch.getObject("client").getString("watchTrackId"), NiconicoService.getPreFetchStreamHeaders());
+        String resolutionObjectString = resolutionObject.end().end().done();
+        Response response = null;
+        try {
+            Map<String, List<String>> headers = NiconicoService.getStreamSourceHeaders(watch.getObject("media").getObject("domand").getString("accessRightKey"));
+            headers.put("Cookie", Collections.singletonList(niconicoWatchDataCache.getStreamCookie()));
+            response = downloader.post("https://nvapi.nicovideo.jp/v1/watch/"+ getId() +"/access-rights/hls?actionTrackId=" + watch.getObject("client").getString("watchTrackId"), headers, resolutionObjectString.getBytes(StandardCharsets.UTF_8));
+            Matcher matcher= Pattern.compile("(domand_bid=[^;]+)").matcher(response.responseHeaders().get("Set-Cookie").get(0));
+            matcher.find();
+            response = downloader.get(JsonParser.object().from(response.responseBody()).getObject("data").getString("contentUrl"), NiconicoService.getStreamHeaders(niconicoWatchDataCache.getStreamCookie()));
+            if (response.responseCode() / 100 == 2) {
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie());
+            }
+            niconicoWatchDataCache.setStreamCookie(matcher.group(0));
+            headers.put("Cookie", Collections.singletonList(niconicoWatchDataCache.getStreamCookie()));
+            if (response.responseCode() / 100 != 2) {
+                response = downloader.post("https://nvapi.nicovideo.jp/v1/watch/"+ getId() +"/access-rights/hls?actionTrackId=" + watch.getObject("client").getString("watchTrackId"), headers, resolutionObjectString.getBytes(StandardCharsets.UTF_8));
+                response = downloader.get(JsonParser.object().from(response.responseBody()).getObject("data").getString("contentUrl"), NiconicoService.getStreamHeaders(niconicoWatchDataCache.getStreamCookie()));
+                if(response.responseCode() / 100 != 2){
+                    throw new ParsingException("Failed to get stream source");
+                }
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie());
+            }
+
+        } catch (JsonParserException e) {
+            throw new RuntimeException(e);
         }
         page = niconicoWatchDataCache.getLastPage();
         type = niconicoWatchDataCache.getLastWatchDataType();
-        response = niconicoWatchDataCache.getLastResponse();
     }
 
     @Nonnull
