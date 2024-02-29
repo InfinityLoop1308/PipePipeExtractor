@@ -50,6 +50,9 @@ public class NiconicoWatchDataCache {
             return value;
         }
     }
+    public void invalidate(){
+        lastId = null;
+    }
 
     @Nonnull
     public JsonObject refreshAndGetWatchData(final Downloader downloader,

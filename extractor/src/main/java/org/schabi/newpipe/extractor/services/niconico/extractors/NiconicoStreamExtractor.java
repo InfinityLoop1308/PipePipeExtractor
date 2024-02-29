@@ -364,11 +364,15 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             Map<String, List<String>> headers = NiconicoService.getStreamSourceHeaders(watch.getObject("media").getObject("domand").getString("accessRightKey"));
             headers.put("Cookie", Collections.singletonList(niconicoWatchDataCache.getStreamCookie()));
             response = downloader.post("https://nvapi.nicovideo.jp/v1/watch/"+ getId() +"/access-rights/hls?actionTrackId=" + watch.getObject("client").getString("watchTrackId"), headers, resolutionObjectString.getBytes(StandardCharsets.UTF_8));
+            if(response.responseCode() / 100 != 2){
+                niconicoWatchDataCache.invalidate();
+                throw new ExtractionException("Token expired. Please retry.");
+            }
             Matcher matcher= Pattern.compile("(domand_bid=[^;]+)").matcher(response.responseHeaders().get("Set-Cookie").get(0));
             matcher.find();
             response = downloader.get(JsonParser.object().from(response.responseBody()).getObject("data").getString("contentUrl"), NiconicoService.getStreamHeaders(niconicoWatchDataCache.getStreamCookie()));
             if (response.responseCode() / 100 == 2) {
-                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie());
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie(), getLength());
             }
             niconicoWatchDataCache.setStreamCookie(matcher.group(0));
             headers.put("Cookie", Collections.singletonList(niconicoWatchDataCache.getStreamCookie()));
@@ -378,7 +382,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 if(response.responseCode() / 100 != 2){
                     throw new ParsingException("Failed to get stream source");
                 }
-                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie());
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie(), getLength());
             }
 
         } catch (JsonParserException e) {
