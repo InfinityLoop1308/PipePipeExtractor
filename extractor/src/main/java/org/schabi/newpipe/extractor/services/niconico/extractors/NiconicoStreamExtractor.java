@@ -170,6 +170,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            return Collections.emptyList();
+        }
         final List<AudioStream> audioStreams = new ArrayList<>();
         ArrayList<String> audios = (ArrayList<String>) streamSources.get("audio");
         for (String audio : audios) {
@@ -237,6 +240,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
 
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            return Collections.emptyList();
+        }
         final List<VideoStream> videoStreams = new ArrayList<>();
         ArrayList<String> videos = (ArrayList<String>) streamSources.get("video");
         for (String video : videos) {
@@ -414,5 +420,14 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return liveData.getLong("beginTime") * 1000;
         }
         return -1;
+    }
+
+    @Nonnull
+    @Override
+    public String getHlsUrl() throws ParsingException {
+        if(getStreamType() == StreamType.LIVE_STREAM){
+            return getUrl();
+        }
+        return null;
     }
 }
