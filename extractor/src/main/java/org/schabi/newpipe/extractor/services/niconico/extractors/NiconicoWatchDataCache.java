@@ -148,6 +148,14 @@ public class NiconicoWatchDataCache {
     }
 
     public String getStreamCookie() {
+        if(ServiceList.NicoNico.getTokens() != null){
+            String cookie = ServiceList.NicoNico.getTokens();
+            if(cookie.endsWith(";")){
+                cookie = cookie.substring(0, cookie.length() - 1);
+            }
+            cookie += ";" + streamCookie;
+            return cookie;
+        }
         return streamCookie;
     }
 
