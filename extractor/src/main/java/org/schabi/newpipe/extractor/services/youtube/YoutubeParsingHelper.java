@@ -26,6 +26,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
+import org.json.JSONObject;
 import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MetaInfo;
@@ -1151,6 +1152,21 @@ YoutubeParsingHelper {
 
         return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
     }
+
+    public static String getJsonPostResponseRaw(final String endpoint,
+                                                 final byte[] body,
+                                                 final Localization localization)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+
+        final Response response = getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?key="
+                + getKey() + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization);
+
+        return getValidJsonResponseBody(response);
+    }
+
 
     public static JsonObject getJsonAndroidPostResponse(
             final String endpoint,

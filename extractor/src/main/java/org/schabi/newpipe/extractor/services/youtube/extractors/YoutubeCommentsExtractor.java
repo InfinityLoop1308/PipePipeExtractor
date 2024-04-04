@@ -1,18 +1,11 @@
 package org.schabi.newpipe.extractor.services.youtube.extractors;
 
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
-import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import com.grack.nanojson.JsonArray;
+import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonWriter;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
@@ -23,27 +16,33 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.Localization;
+import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
+import org.schabi.newpipe.extractor.utils.Utils;
 
-import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonWriter;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
+import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 public class YoutubeCommentsExtractor extends CommentsExtractor {
 
-    private JsonObject nextResponse;
+    private static final String COMMENT_VIEW_MODEL_KEY = "commentViewModel";
+    private static final String COMMENT_RENDERER_KEY = "commentRenderer";
 
     /**
-     * Caching mechanism and holder of the commentsDisabled value.
-     * <br/>
-     * Initial value = empty -> unknown if comments are disabled or not<br/>
-     * Some method calls {@link #findInitialCommentsToken()}
-     * -> value is set<br/>
-     * If the method or another one that is depending on disabled comments
-     * is now called again, the method execution can avoid unnecessary calls
+     * Whether comments are disabled on video.
      */
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private Optional<Boolean> optCommentsDisabled = Optional.empty();
+    private boolean commentsDisabled;
+
+    /**
+     * The second ajax <b>/next</b> response.
+     */
+    private JsonObject ajaxJson;
 
     public YoutubeCommentsExtractor(
             final StreamingService service,
@@ -56,33 +55,30 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
     public InfoItemsPage<CommentsInfoItem> getInitialPage()
             throws IOException, ExtractionException {
 
-        // Check if findInitialCommentsToken was already called and optCommentsDisabled initialized
-        if (optCommentsDisabled.orElse(false)) {
+        if (commentsDisabled) {
             return getInfoItemsPageForDisabledComments();
         }
 
-        // Get the token
-        final String commentsToken = findInitialCommentsToken();
-        // Check if the comments have been disabled
-        if (optCommentsDisabled.get()) {
-            return getInfoItemsPageForDisabledComments();
-        }
-
-        return getPage(getNextPage(commentsToken));
+        return getPage(extractComments(ajaxJson, null).getNextPage());
     }
 
     /**
      * Finds the initial comments token and initializes commentsDisabled.
      * <br/>
-     * Also sets {@link #optCommentsDisabled}.
+     * Also sets {@link #commentsDisabled}.
      *
      * @return the continuation token or null if none was found
      */
     @Nullable
-    private String findInitialCommentsToken() throws ExtractionException {
-        final String token = JsonUtils.getArray(nextResponse,
-                "contents.twoColumnWatchNextResults.results.results.contents")
-                .stream()
+    private String findInitialCommentsToken(final JsonObject nextResponse) {
+        final JsonArray contents = getJsonContents(nextResponse);
+
+        // For videos where comments are unavailable, this would be null
+        if (contents == null) {
+            return null;
+        }
+
+        final String token = contents.stream()
                 // Only use JsonObjects
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
@@ -112,9 +108,34 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .orElse(null);
 
         // The comments are disabled if we couldn't get a token
-        optCommentsDisabled = Optional.of(token == null);
+        commentsDisabled = token == null;
 
         return token;
+    }
+
+    @Nullable
+    private JsonArray getJsonContents(final JsonObject nextResponse) {
+        try {
+            return JsonUtils.getArray(nextResponse,
+                    "contents.twoColumnWatchNextResults.results.results.contents");
+        } catch (final ParsingException e) {
+            return null;
+        }
+    }
+
+    @Nonnull
+    private JsonObject getMutationPayloadFromEntityKey(@Nonnull final JsonArray mutations,
+                                                       @Nonnull final String commentKey)
+            throws ParsingException {
+        return mutations.stream()
+                .filter(JsonObject.class::isInstance)
+                .map(JsonObject.class::cast)
+                .filter(mutation -> commentKey.equals(
+                        mutation.getString("entityKey")))
+                .findFirst()
+                .orElseThrow(() -> new ParsingException(
+                        "Could not get comment entity payload mutation"))
+                .getObject("payload");
     }
 
     @Nonnull
@@ -123,13 +144,29 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
     }
 
     @Nullable
-    private Page getNextPage(@Nonnull final JsonObject ajaxJson) throws ExtractionException {
+    private Page getNextPage(@Nonnull final JsonObject jsonObject, JSONObject jsonObjectSafe) throws ExtractionException {
         final JsonArray onResponseReceivedEndpoints =
-                ajaxJson.getArray("onResponseReceivedEndpoints");
+                jsonObject.getArray("onResponseReceivedEndpoints");
 
         // Prevent ArrayIndexOutOfBoundsException
         if (onResponseReceivedEndpoints.isEmpty()) {
             return null;
+        }
+
+        if(jsonObjectSafe == null) {
+            return getNextPage(onResponseReceivedEndpoints
+                    .getObject(0)
+                    .getObject("reloadContinuationItemsCommand")
+                    .getArray("continuationItems")
+                    .getObject(0)
+                    .getObject("commentsHeaderRenderer")
+                    .getObject("sortMenu")
+                    .getObject("sortFilterSubMenuRenderer")
+                    .getArray("subMenuItems")
+                    .getObject(0)
+                    .getObject("serviceEndpoint")
+                    .getObject("continuationCommand")
+                    .getString("token"));
         }
 
         final JsonArray continuationItemsArray;
@@ -148,21 +185,51 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
             return null;
         }
 
-        final JsonObject continuationItemRenderer = continuationItemsArray
-                .getObject(continuationItemsArray.size() - 1)
-                .getObject("continuationItemRenderer");
-
-        final String jsonPath = continuationItemRenderer.has("button")
-                ? "button.buttonRenderer.command.continuationCommand.token"
-                : "continuationEndpoint.continuationCommand.token";
-
-        final String continuation;
+        JSONArray continuationItems = null;
         try {
-            continuation = JsonUtils.getString(continuationItemRenderer, jsonPath);
-        } catch (final Exception e) {
+            try {
+                continuationItems = jsonObjectSafe
+                        .getJSONArray("onResponseReceivedEndpoints")
+                        .getJSONObject(onResponseReceivedEndpoints.size() - 1)
+                        .getJSONObject("reloadContinuationItemsCommand")
+                        .getJSONArray("continuationItems");
+            } catch (final Exception ignored) {
+
+            }
+            // fall back to "appendContinuationItemsAction"
+            if (continuationItems == null) {
+                continuationItems = jsonObjectSafe
+                        .getJSONArray("onResponseReceivedEndpoints")
+                        .getJSONObject(onResponseReceivedEndpoints.size() - 1)
+                        .getJSONObject("appendContinuationItemsAction")
+                        .getJSONArray("continuationItems");
+            }
+
+            final JSONObject continuationItemRenderer = continuationItems
+                    .getJSONObject(continuationItems.length() - 1)
+                    .getJSONObject("continuationItemRenderer");
+
+            if(continuationItemRenderer.has("button")) { // replies
+                //TODO: seems reply send 2 useless requests which should be avoided
+                //button.buttonRenderer.command.continuationCommand.token
+                return getNextPage(continuationItemRenderer
+                        .getJSONObject("button")
+                        .getJSONObject("buttonRenderer")
+                        .getJSONObject("command")
+                        .getJSONObject("continuationCommand")
+                        .getString("token")
+                );
+            }
+
+
+            return getNextPage(continuationItemRenderer
+                    .getJSONObject("continuationEndpoint")
+                    .getJSONObject("continuationCommand")
+                    .getString("token")
+            );
+        } catch (JSONException e) {
             return null;
         }
-        return getNextPage(continuation);
     }
 
     @Nonnull
@@ -173,33 +240,52 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
     @Override
     public InfoItemsPage<CommentsInfoItem> getPage(final Page page)
             throws IOException, ExtractionException {
-        if (optCommentsDisabled.orElse(false)) {
+
+        if (commentsDisabled) {
             return getInfoItemsPageForDisabledComments();
         }
+
         if (page == null || isNullOrEmpty(page.getId())) {
             throw new IllegalArgumentException("Page doesn't have the continuation.");
         }
 
         final Localization localization = getExtractorLocalization();
+        // @formatter:off
         final byte[] body = JsonWriter.string(
-                prepareDesktopJsonBuilder(localization, getExtractorContentCountry())
-                    .value("continuation", page.getId())
-                    .done())
+                        prepareDesktopJsonBuilder(localization, getExtractorContentCountry())
+                                .value("continuation", page.getId())
+                                .done())
                 .getBytes(StandardCharsets.UTF_8);
+        // @formatter:on
 
-        final JsonObject ajaxJson = getJsonPostResponse("next", body, localization);
+        String resp = getJsonPostResponseRaw("next", body, localization);
+        final JsonObject jsonObject = JsonUtils.toJsonObject(resp);
+        final JSONObject jsonObjectSafe;
+        try {
+            jsonObjectSafe = new JSONObject(resp);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
 
-        final CommentsInfoItemsCollector collector = new CommentsInfoItemsCollector(
-                getServiceId());
-        collectCommentsFrom(collector, ajaxJson);
-        return new InfoItemsPage<>(collector, getNextPage(ajaxJson));
+        return extractComments(jsonObject, jsonObjectSafe);
     }
 
-    private void collectCommentsFrom(final CommentsInfoItemsCollector collector,
-                                     @Nonnull final JsonObject ajaxJson) throws ParsingException {
+    private InfoItemsPage<CommentsInfoItem> extractComments(final JsonObject jsonObject, final JSONObject jsonObjectSafe)
+            throws ExtractionException {
+        final CommentsInfoItemsCollector collector = new CommentsInfoItemsCollector(
+                getServiceId());
+        if(jsonObjectSafe != null) {
+            collectCommentsFrom(collector, jsonObject);
+        }
+        return new InfoItemsPage<>(collector, getNextPage(jsonObject, jsonObjectSafe));
+    }
+
+    private void collectCommentsFrom(@Nonnull final CommentsInfoItemsCollector collector,
+                                     @Nonnull final JsonObject jsonObject)
+            throws ParsingException {
 
         final JsonArray onResponseReceivedEndpoints =
-                ajaxJson.getArray("onResponseReceivedEndpoints");
+                jsonObject.getArray("onResponseReceivedEndpoints");
         // Prevent ArrayIndexOutOfBoundsException
         if (onResponseReceivedEndpoints.isEmpty()) {
             return;
@@ -220,7 +306,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
 
         final JsonArray contents;
         try {
-            contents = new JsonArray(JsonUtils.getArray(commentsEndpoint, path));
+            contents = JsonUtils.getArray(commentsEndpoint, path);
         } catch (final Exception e) {
             // No comments
             return;
@@ -231,47 +317,115 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
             contents.remove(index);
         }
 
-        final String jsonKey = contents.getObject(0).has("commentThreadRenderer")
-                ? "commentThreadRenderer"
-                : "commentRenderer";
+        // The mutations object, which is returned in the comments' continuation
+        // It contains parts of comment data when comments are returned with a view model
+        final JsonArray mutations = jsonObject.getObject("frameworkUpdates")
+                .getObject("entityBatchUpdate")
+                .getArray("mutations");
+        final String videoUrl = getUrl();
+        final TimeAgoParser timeAgoParser = getTimeAgoParser();
 
-        final List<Object> comments;
-        try {
-            comments = JsonUtils.getValues(contents, jsonKey);
-        } catch (final Exception e) {
-            throw new ParsingException("Unable to get parse youtube comments", e);
+        for (final Object o : contents) {
+            if (!(o instanceof JsonObject)) {
+                continue;
+            }
+
+            collectCommentItem(mutations, (JsonObject) o, collector, videoUrl, timeAgoParser);
         }
+    }
 
-        final String url = getUrl();
-        comments.stream()
-                .filter(JsonObject.class::isInstance)
-                .map(JsonObject.class::cast)
-                .map(jObj -> new YoutubeCommentsInfoItemExtractor(jObj, url, getTimeAgoParser()))
-                .forEach(collector::commit);
+    private void collectCommentItem(@Nonnull final JsonArray mutations,
+                                    @Nonnull final JsonObject content,
+                                    @Nonnull final CommentsInfoItemsCollector collector,
+                                    @Nonnull final String videoUrl,
+                                    @Nonnull final TimeAgoParser timeAgoParser)
+            throws ParsingException {
+        if (content.has("commentThreadRenderer")) {
+            final JsonObject commentThreadRenderer =
+                    content.getObject("commentThreadRenderer");
+            if (commentThreadRenderer.has(COMMENT_VIEW_MODEL_KEY)) {
+                final JsonObject commentViewModel =
+                        commentThreadRenderer.getObject(COMMENT_VIEW_MODEL_KEY)
+                                .getObject(COMMENT_VIEW_MODEL_KEY);
+                collector.commit(new YoutubeCommentsEUVMInfoItemExtractor(
+                        commentViewModel,
+                        commentThreadRenderer.getObject("replies")
+                                .getObject("commentRepliesRenderer"),
+                        getMutationPayloadFromEntityKey(mutations,
+                                commentViewModel.getString("commentKey", ""))
+                                .getObject("commentEntityPayload"),
+                        getMutationPayloadFromEntityKey(mutations,
+                                commentViewModel.getString("toolbarStateKey", ""))
+                                .getObject("engagementToolbarStateEntityPayload"),
+                        videoUrl,
+                        timeAgoParser));
+            } else if (commentThreadRenderer.has("comment")) {
+                collector.commit(new YoutubeCommentsInfoItemExtractor(
+                        commentThreadRenderer.getObject("comment")
+                                .getObject(COMMENT_RENDERER_KEY),
+                        commentThreadRenderer.getObject("replies")
+                                .getObject("commentRepliesRenderer"),
+                        videoUrl,
+                        timeAgoParser));
+            }
+        } else if (content.has(COMMENT_VIEW_MODEL_KEY)) {
+            final JsonObject commentViewModel = content.getObject(COMMENT_VIEW_MODEL_KEY);
+            collector.commit(new YoutubeCommentsEUVMInfoItemExtractor(
+                    commentViewModel,
+                    null,
+                    getMutationPayloadFromEntityKey(mutations,
+                            commentViewModel.getString("commentKey", ""))
+                            .getObject("commentEntityPayload"),
+                    getMutationPayloadFromEntityKey(mutations,
+                            commentViewModel.getString("toolbarStateKey", ""))
+                            .getObject("engagementToolbarStateEntityPayload"),
+                    videoUrl,
+                    timeAgoParser));
+        } else if (content.has(COMMENT_RENDERER_KEY)) {
+            // commentRenderers are directly returned for comment replies, so there is no
+            // commentRepliesRenderer to provide
+            // Also, YouTube has only one comment reply level
+            collector.commit(new YoutubeCommentsInfoItemExtractor(
+                    content.getObject(COMMENT_RENDERER_KEY),
+                    null,
+                    videoUrl,
+                    timeAgoParser));
+        }
     }
 
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
         final Localization localization = getExtractorLocalization();
+        // @formatter:off
         final byte[] body = JsonWriter.string(
-                prepareDesktopJsonBuilder(localization, getExtractorContentCountry())
-                    .value("videoId", getId())
-                    .done())
+                        prepareDesktopJsonBuilder(localization, getExtractorContentCountry())
+                                .value("videoId", getId())
+                                .done())
                 .getBytes(StandardCharsets.UTF_8);
+        // @formatter:on
 
-        nextResponse = getJsonPostResponse("next", body, localization);
+        final String initialToken =
+                findInitialCommentsToken(getJsonPostResponse("next", body, localization));
+
+        if (initialToken == null) {
+            return;
+        }
+
+        // @formatter:off
+        final byte[] ajaxBody = JsonWriter.string(
+                        prepareDesktopJsonBuilder(localization, getExtractorContentCountry())
+                                .value("continuation", initialToken)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+        // @formatter:on
+
+        ajaxJson = getJsonPostResponse("next", ajaxBody, localization);
     }
 
 
     @Override
-    public boolean isCommentsDisabled() throws ExtractionException {
-        // Check if commentsDisabled has to be initialized
-        if (!optCommentsDisabled.isPresent()) {
-            // Initialize commentsDisabled
-            this.findInitialCommentsToken();
-        }
-
-        return optCommentsDisabled.get();
+    public boolean isCommentsDisabled() {
+        return commentsDisabled;
     }
 }

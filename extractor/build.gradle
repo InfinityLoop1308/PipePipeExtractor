@@ -41,6 +41,7 @@ dependencies {
     implementation "org.brotli:dec:0.1.1"
     implementation 'org.apache.commons:commons-lang3:3.8.1'
     implementation 'commons-codec:commons-codec:1.16.0'
+    implementation "org.json:json:20231013"
 
 
     // do not upgrade to 1.7.14, since in 1.7.14 Rhino uses the `SourceVersion` class, which is not
