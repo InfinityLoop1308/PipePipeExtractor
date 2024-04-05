@@ -610,12 +610,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public String getUploaderAvatarUrl() throws ParsingException {
         assertPageFetched();
 
-        final String url = getVideoSecondaryInfoRenderer()
+        JsonArray thumbnails = getVideoSecondaryInfoRenderer()
                 .getObject("owner")
                 .getObject("videoOwnerRenderer")
                 .getObject("thumbnail")
-                .getArray("thumbnails")
-                .getObject(0)
+                .getArray("thumbnails");
+        final String url = thumbnails
+                .getObject(thumbnails.size() - 1)
                 .getString("url");
 
         if (isNullOrEmpty(url)) {

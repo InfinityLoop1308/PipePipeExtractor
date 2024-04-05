@@ -143,9 +143,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Override
     public String getAvatarUrl() throws ParsingException {
         try {
-            final String url = initialData.getObject("header")
-                    .getObject("c4TabbedHeaderRenderer").getObject("avatar").getArray("thumbnails")
-                    .getObject(0).getString("url");
+            JsonArray thumbnails = initialData.getObject("header")
+                    .getObject("c4TabbedHeaderRenderer").getObject("avatar").getArray("thumbnails");
+            final String url = thumbnails.getObject(thumbnails.size() - 1).getString("url");
 
             return fixThumbnailUrl(url);
         } catch (final Exception e) {
@@ -156,9 +156,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Override
     public String getBannerUrl() throws ParsingException {
         try {
-            final String url = initialData.getObject("header")
-                    .getObject("c4TabbedHeaderRenderer").getObject("banner").getArray("thumbnails")
-                    .getObject(0).getString("url");
+            JsonArray thumbnails = initialData.getObject("header").getObject("c4TabbedHeaderRenderer").getObject("banner").getArray("thumbnails");
+            final String url = thumbnails
+                    .getObject(thumbnails.size() - 1).getString("url");
 
             if (url == null || url.contains("s.ytimg.com") || url.contains("default_banner")) {
                 return null;

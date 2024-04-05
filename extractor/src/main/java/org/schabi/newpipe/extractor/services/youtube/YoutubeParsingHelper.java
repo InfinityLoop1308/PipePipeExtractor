@@ -1072,8 +1072,8 @@ YoutubeParsingHelper {
             throws ParsingException {
         // TODO: Don't simply get the first item, but look at all thumbnails and their resolution
         try {
-            return fixThumbnailUrl(infoItem.getObject("thumbnail").getArray("thumbnails")
-                    .getObject(0).getString("url"));
+            JsonArray thumbnails = infoItem.getObject("thumbnail").getArray("thumbnails");
+            return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
         } catch (final Exception e) {
             throw new ParsingException("Could not get thumbnail url", e);
         }

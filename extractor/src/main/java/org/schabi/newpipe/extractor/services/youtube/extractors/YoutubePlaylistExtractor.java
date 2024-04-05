@@ -128,19 +128,21 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
     @Nonnull
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        String url = playlistInfo.getObject("thumbnailRenderer")
+        JsonArray thumbnails = playlistInfo.getObject("thumbnailRenderer")
                 .getObject("playlistVideoThumbnailRenderer")
                 .getObject("thumbnail")
-                .getArray("thumbnails")
-                .getObject(0)
+                .getArray("thumbnails");
+        String url = thumbnails
+                .getObject(thumbnails.size() - 1)
                 .getString("url");
 
         if (isNullOrEmpty(url)) {
-            url = browseResponse.getObject("microformat")
+            thumbnails = browseResponse.getObject("microformat")
                     .getObject("microformatDataRenderer")
                     .getObject("thumbnail")
-                    .getArray("thumbnails")
-                    .getObject(0)
+                    .getArray("thumbnails");
+            url = thumbnails
+                    .getObject(thumbnails.size() - 1)
                     .getString("url");
 
             if (isNullOrEmpty(url)) {
@@ -172,10 +174,11 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         try {
-            final String url = getUploaderInfo()
+            JsonArray thumbnails = getUploaderInfo()
                     .getObject("thumbnail")
-                    .getArray("thumbnails")
-                    .getObject(0)
+                    .getArray("thumbnails");
+            final String url = thumbnails
+                    .getObject(thumbnails.size() - 1)
                     .getString("url");
 
             return fixThumbnailUrl(url);

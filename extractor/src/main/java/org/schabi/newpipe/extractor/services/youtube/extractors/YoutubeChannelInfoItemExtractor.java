@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.youtube.extractors;
 
+import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 
 import org.schabi.newpipe.extractor.ListExtractor;
@@ -59,8 +60,9 @@ public class YoutubeChannelInfoItemExtractor implements ChannelInfoItemExtractor
     @Override
     public String getThumbnailUrl() throws ParsingException {
         try {
-            final String url = channelInfoItem.getObject("thumbnail").getArray("thumbnails")
-                    .getObject(0).getString("url");
+            JsonArray thumbnails = channelInfoItem.getObject("thumbnail").getArray("thumbnails");
+            final String url = thumbnails
+                    .getObject(thumbnails.size() - 1).getString("url");
 
             return fixThumbnailUrl(url);
         } catch (final Exception e) {
