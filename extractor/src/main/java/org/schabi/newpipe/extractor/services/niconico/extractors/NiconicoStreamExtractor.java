@@ -113,7 +113,13 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getThumbnailUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getObject("thumbnail").getString("ogp").replace("http:", "https:");
+            if (liveData.getObject("thumbnail").has("huge") && liveData.getObject("thumbnail").getObject("huge").has("s1280x720")) {
+                return liveData.getObject("thumbnail").getObject("huge").getString("s1280x720");
+            } else if (liveData.getObject("thumbnail").has("large")) {
+                return liveData.getObject("thumbnail").getString("large");
+            } else {
+                return liveData.getObject("thumbnail").getString("small");
+            }
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return page.getElementsByClass("thumbnail").attr("src")
