@@ -113,13 +113,13 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getThumbnailUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveData.getObject("thumbnail").getString("small").replace("http:", "https:");
+            return liveData.getObject("thumbnail").getString("ogp").replace("http:", "https:");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return page.getElementsByClass("thumbnail").attr("src")
                     .replace("http:", "https:");
         }
-        return watch.getObject("video").getObject("thumbnail").getString("url")
+        return watch.getObject("video").getObject("thumbnail").getString("ogp")
                 .replace("http:", "https:");
     }
 
@@ -168,7 +168,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         }
         if (isChannel()) {
             String result = watch.getObject("channel")
-                    .getObject("thumbnail").getString("url");
+                    .getObject("thumbnail").getString("ogp");
             if (StringUtils.isEmpty(result)) {
                 return "";
             }

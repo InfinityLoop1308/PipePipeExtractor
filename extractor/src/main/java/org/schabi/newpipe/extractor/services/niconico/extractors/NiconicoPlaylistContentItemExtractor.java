@@ -42,7 +42,7 @@ public class NiconicoPlaylistContentItemExtractor implements StreamInfoItemExtra
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return item.getObject("thumbnail").getString("url");
+        return item.getObject("thumbnail").getString("nHdUrl");
     }
 
     @Override
