@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.*;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.schabi.newpipe.extractor.*;
@@ -25,6 +26,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 import org.schabi.newpipe.extractor.utils.RegexUtils;
+import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -147,7 +149,10 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return getName();
         }
         if (isChannel()) {
-            return watch.getObject("channel").getString("name");
+            String result =  watch.getObject("channel").getString("name");
+            if (StringUtils.isEmpty(result)) {
+                return "Unknown";
+            }
         }
         return watch.getObject("owner").getString("nickname");
     }
@@ -162,8 +167,11 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return getThumbnailUrl();
         }
         if (isChannel()) {
-            return watch.getObject("channel")
+            String result = watch.getObject("channel")
                     .getObject("thumbnail").getString("url");
+            if (StringUtils.isEmpty(result)) {
+                return "";
+            }
         }
         return watch.getObject("owner").getString("iconUrl");
     }
@@ -245,6 +253,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         }
         final List<VideoStream> videoStreams = new ArrayList<>();
         ArrayList<String> videos = (ArrayList<String>) streamSources.get("video");
+        if(Utils.isNullOrEmpty(videos)){
+            return Collections.emptyList();
+        }
         for (String video : videos) {
             String id = RegexUtils.extract(video, "video-(.*?)-\\d+p");
             String resolution = id.split("-")[2];
