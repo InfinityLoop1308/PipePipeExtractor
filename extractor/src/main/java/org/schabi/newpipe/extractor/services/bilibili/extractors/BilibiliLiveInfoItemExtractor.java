@@ -93,4 +93,9 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
         return new DateWrapper(LocalDateTime.parse(
                 Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
+
+    @Override
+    public boolean isRoundPlayStream() {
+        return type == 1;
+    }
 }
