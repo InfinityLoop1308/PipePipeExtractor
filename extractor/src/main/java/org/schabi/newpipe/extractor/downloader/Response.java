@@ -18,7 +18,7 @@ public class Response {
     private final Map<String, List<String>> responseHeaders;
     private final String responseBody;
 
-    public final ResponseBody rawResponseBody;
+    private final byte[] rawResponseBody;
 
     private final String latestUrl;
 
@@ -26,7 +26,7 @@ public class Response {
                     final String responseMessage,
                     @Nullable final Map<String, List<String>> responseHeaders,
                     @Nullable final String responseBody,
-                    final ResponseBody rawResponseBody,
+                    final byte[] rawResponseBody,
                     @Nullable final String latestUrl) {
         this.responseCode = responseCode;
         this.responseMessage = responseMessage;
@@ -36,7 +36,7 @@ public class Response {
         this.latestUrl = latestUrl;
     }
 
-    public ResponseBody rawResponseBody() {
+    public byte[] rawResponseBody() {
         return rawResponseBody;
     }
 

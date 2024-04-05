@@ -62,7 +62,7 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
             return;
         }
         result = Jsoup.parse(new String(utils.decompress(downloader.get(
-                QUERY_VIDEO_BULLET_COMMENTS_URL + cid).rawResponseBody().bytes())));
+                QUERY_VIDEO_BULLET_COMMENTS_URL + cid).rawResponseBody())));
     }
 
     @Override

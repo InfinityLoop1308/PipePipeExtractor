@@ -378,7 +378,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             matcher.find();
             response = downloader.get(JsonParser.object().from(response.responseBody()).getObject("data").getString("contentUrl"), NiconicoService.getStreamHeaders(niconicoWatchDataCache.getStreamCookie()));
             if (response.responseCode() / 100 == 2) {
-                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie(), getLength());
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody()), niconicoWatchDataCache.getStreamCookie(), getLength());
             }
             niconicoWatchDataCache.setStreamCookie(matcher.group(0));
             headers.put("Cookie", Collections.singletonList(niconicoWatchDataCache.getStreamCookie()));
@@ -388,7 +388,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 if(response.responseCode() / 100 != 2){
                     throw new ParsingException("Failed to get stream source");
                 }
-                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody.bytes()), niconicoWatchDataCache.getStreamCookie(), getLength());
+                streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody()), niconicoWatchDataCache.getStreamCookie(), getLength());
             }
 
         } catch (JsonParserException e) {
