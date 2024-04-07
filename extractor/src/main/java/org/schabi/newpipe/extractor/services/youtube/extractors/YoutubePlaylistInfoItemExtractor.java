@@ -26,7 +26,7 @@ public class YoutubePlaylistInfoItemExtractor implements PlaylistInfoItemExtract
                 thumbnails = playlistInfoItem.getObject("thumbnail").getArray("thumbnails");
             }
 
-            final String url = thumbnails.getObject(thumbnails.size() - 1).getString("url");
+            final String url = thumbnails.getObject(Math.max(0, thumbnails.size() - 2)).getString("url");
             return fixThumbnailUrl(url);
         } catch (final Exception e) {
             throw new ParsingException("Could not get thumbnail url", e);

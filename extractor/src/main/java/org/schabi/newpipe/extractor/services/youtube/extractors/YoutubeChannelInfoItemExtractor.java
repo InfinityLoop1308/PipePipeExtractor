@@ -62,7 +62,7 @@ public class YoutubeChannelInfoItemExtractor implements ChannelInfoItemExtractor
         try {
             JsonArray thumbnails = channelInfoItem.getObject("thumbnail").getArray("thumbnails");
             final String url = thumbnails
-                    .getObject(thumbnails.size() - 1).getString("url");
+                    .getObject(Math.max(0, thumbnails.size() - 2)).getString("url");
 
             return fixThumbnailUrl(url);
         } catch (final Exception e) {
