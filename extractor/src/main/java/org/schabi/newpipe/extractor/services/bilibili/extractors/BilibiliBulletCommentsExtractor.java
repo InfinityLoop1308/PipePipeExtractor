@@ -2,6 +2,8 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParserException;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -12,6 +14,7 @@ import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItem;
 import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemsCollector;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliWebSocketClient;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
@@ -23,8 +26,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.LIVE_BASE_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_VIDEO_BULLET_COMMENTS_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
 public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
     private final int cid;
@@ -53,11 +55,14 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         if (getUrl().contains(LIVE_BASE_URL)) {
             try {
-                webSocketClient = new BilibiliWebSocketClient(roomId);
+                String token = new JSONObject(downloader.get(QUERY_DANMU_INFO_URL + roomId).responseBody()).getJSONObject("data").getString("token");
+                webSocketClient = new BilibiliWebSocketClient(roomId, token);
                 webSocketClient.getWebSocketClient().connectBlocking();
                 isLive = true;
             } catch (URISyntaxException | InterruptedException e) {
                 throw new RuntimeException(e);
+            } catch (JSONException e) {
+                throw new ParsingException("Failed to connect to live chat", e);
             }
             return;
         }

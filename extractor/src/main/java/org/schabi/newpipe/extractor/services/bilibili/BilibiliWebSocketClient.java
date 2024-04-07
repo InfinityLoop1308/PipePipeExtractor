@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 public class BilibiliWebSocketClient {
+    private final String token;
     WrappedWebSocketClient webSocketClient;
     long id;
 
@@ -57,7 +58,7 @@ public class BilibiliWebSocketClient {
             return result;
         }
         public String authPacket(){
-            return  String.format("{\"uid\":0,\"roomid\":%s,\"protover\":1,\"platform\":\"web\",\"clientver\":\"1.4.0\"}", id);
+            return  String.format("{\"uid\":0,\"roomid\":%s,\"protover\":3,\"platform\":\"web\",\"clientver\":\"1.4.0\",\"type\":2, \"key\":\"%s\"}", id, token);
         }
 
         @Override
@@ -146,8 +147,9 @@ public class BilibiliWebSocketClient {
 
         }
     }
-    public BilibiliWebSocketClient(long id) throws URISyntaxException {
+    public BilibiliWebSocketClient(long id, String token) throws URISyntaxException {
         this.id = id;
+        this.token = token;
         webSocketClient = new WrappedWebSocketClient();
     }
 
