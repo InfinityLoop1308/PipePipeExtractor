@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
 import javax.annotation.Nullable;
+import java.net.URLDecoder;
 
 public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtractor {
     Element data;
@@ -27,7 +28,7 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return data.select("img[class*=___program-card-thumbnail-image___]").attr("src");
+        return URLDecoder.decode(data.select("img[class*=___program-card-thumbnail-image___]").attr("src"));
     }
 
     @Override
