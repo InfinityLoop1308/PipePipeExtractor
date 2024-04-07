@@ -44,6 +44,7 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     private ScheduledFuture<?> future;
     private boolean disabled = false;
     private long currentPlayPosition = 0;
+    private long lastPlayPosition = 0;
     private final boolean isLiveStream;
     private final long startTime;
     private final String[] continuationKeyTexts = new String[]{
@@ -95,6 +96,10 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
             shouldSkipFetch = false;
             return ;
         }
+        if(lastPlayPosition == currentPlayPosition){
+            return ; // should only happen when watching replay and user pauses
+            // we do not want to fetch the same message twice
+        }
         try {
             final byte[] json = JsonWriter.string(prepareDesktopJsonBuilder(Localization.DEFAULT,
                             ContentCountry.DEFAULT)
@@ -134,6 +139,8 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                 }
             }
 
+            lastPlayPosition = currentPlayPosition;
+
             JsonArray actions = liveChatContinuation.getArray("actions");
             for(int i = 0; i < actions.size(); i++){
                 JsonObject item = isLiveStream?
@@ -145,9 +152,6 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
                     JsonObject temp = item.getObject("liveChatTextMessageRenderer");
                     String id = temp.getString("id");
                     if(!IDList.contains(id)){
-                        System.out.println("YoutubeBulletCommentsExtractor -  " + "id: " + id + " text: " + temp.getObject("message").getArray("runs").getObject(0).getString("text") + " duration: " + (isLiveStream?
-                                -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
-                                .getString("videoOffsetTimeMsec"))));
                         messages.add(new YoutubeBulletCommentPair(temp, isLiveStream?
                                 -1 : Long.parseLong(actions.getObject(i).getObject("replayChatItemAction")
                                 .getString("videoOffsetTimeMsec"))));
