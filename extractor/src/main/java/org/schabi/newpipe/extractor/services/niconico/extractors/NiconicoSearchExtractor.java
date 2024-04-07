@@ -85,7 +85,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
                 page.getUrl(), NiconicoService.LOCALE).responseBody();
 
         if(page.getUrl().contains(NiconicoService.SEARCH_URL)){
-            Elements videos = Jsoup.parse(response).select("ul.list > li.item[data-nicoad-video]");
+            Elements videos = Jsoup.parse(response).select("ul[data-video-list] > li.item[data-nicoad-video]");
             final MultiInfoItemsCollector collector
                     = new MultiInfoItemsCollector(getServiceId());
             for (final Element e : videos) {
