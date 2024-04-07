@@ -957,11 +957,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         nextResponse = getJsonPostResponse(NEXT, body, localization);
 
-        if ((!isAgeRestricted && streamType != StreamType.LIVE_STREAM)
+        if ((!isAgeRestricted && streamType != StreamType.LIVE_STREAM && html5StreamingData == null)
                 || isAndroidClientFetchForced) {
             try {
                 fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
-            } catch (final Exception ignored) {
+            } catch (final Exception e) {
+                throw new ParsingException("Could not get failover Android JSON player", e);
             }
         }
 

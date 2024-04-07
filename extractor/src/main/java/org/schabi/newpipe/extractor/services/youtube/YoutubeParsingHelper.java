@@ -165,7 +165,7 @@ YoutubeParsingHelper {
      * such as <a href="https://www.apkmirror.com/apk/google-inc/youtube/">APKMirror</a>.
      * </p>
      */
-    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "17.31.35";
+    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "18.48.37";
 
     /**
      * The InnerTube API key used by the {@code ANDROID} client. Found with the help of
@@ -183,7 +183,7 @@ YoutubeParsingHelper {
      * Store page of the YouTube app</a>, in the {@code What’s New} section.
      * </p>
      */
-    private static final String IOS_YOUTUBE_CLIENT_VERSION = "17.31.4";
+    private static final String IOS_YOUTUBE_CLIENT_VERSION = "18.48.3";
 
     /**
      * The InnerTube API key used by the {@code iOS} client. Found with the help of
@@ -1262,36 +1262,41 @@ YoutubeParsingHelper {
         // @formatter:off
         return JsonObject.builder()
                 .object("context")
-                    .object("client")
-                        .value("clientName", "ANDROID")
-                        .value("clientVersion", ANDROID_YOUTUBE_CLIENT_VERSION)
-                        .value("platform", "MOBILE")
-                        .value("osName", "Android")
-                        .value("osVersion", "12")
-                        /*
-                        A valid Android SDK version is required to be sure to get a valid player
-                        response
-                        If this parameter is not provided, the player response may be replaced by
-                        the one of a 5-minute video saying the message "The following content is
-                        not available on this app. Watch this content on the latest version on
-                        YouTube"
-                        See https://github.com/TeamNewPipe/NewPipe/issues/8713
-                        The Android SDK version corresponding to the Android version used in
-                        requests is sent
-                        */
-                        .value("androidSdkVersion", 31)
-                        .value("hl", localization.getLocalizationCode())
-                        .value("gl", contentCountry.getCountryCode())
-                    .end()
-                    .object("user")
-                        // TO DO: provide a way to enable restricted mode with:
-                        // .value("enableSafetyMode", boolean)
-                        .value("lockedSafetyMode", false)
-                    .end()
+                .object("client")
+                .value("clientName", "ANDROID")
+                .value("clientVersion", ANDROID_YOUTUBE_CLIENT_VERSION)
+                .value("platform", "MOBILE")
+                .value("osName", "Android")
+                .value("osVersion", "14")
+                /*
+                A valid Android SDK version is required to be sure to get a valid player
+                response
+                If this parameter is not provided, the player response is replaced by an
+                error saying the message "The following content is not available on this
+                app. Watch this content on the latest version on YouTube" (it was
+                previously a 5-minute video with this message)
+                See https://github.com/TeamNewPipe/NewPipe/issues/8713
+                The Android SDK version corresponding to the Android version used in
+                requests is sent
+                */
+                .value("androidSdkVersion", 34)
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end()
+                .object("request")
+                .array("internalExperimentFlags")
+                .end()
+                .value("useSsl", true)
+                .end()
+                .object("user")
+                // TODO: provide a way to enable restricted mode with:
+                //  .value("enableSafetyMode", boolean)
+                .value("lockedSafetyMode", false)
+                .end()
                 .end();
         // @formatter:on
     }
-
     @Nonnull
     public static JsonBuilder<JsonObject> prepareIosMobileJsonBuilder(
             @Nonnull final Localization localization,
@@ -1299,27 +1304,36 @@ YoutubeParsingHelper {
         // @formatter:off
         return JsonObject.builder()
                 .object("context")
-                    .object("client")
-                        .value("clientName", "IOS")
-                        .value("clientVersion", IOS_YOUTUBE_CLIENT_VERSION)
-                        .value("deviceMake",  "Apple")
-                        // Device model is required to get 60fps streams
-                        .value("deviceModel", IOS_DEVICE_MODEL)
-                        .value("platform", "MOBILE")
-                        .value("osName", "iOS")
-                        // The value of this field seems to use the following structure:
-                        // "iOS version.0.build version"
-                        // The build version corresponding to the iOS version used can be found on
-                        // https://www.theiphonewiki.com/wiki/Firmware/iPhone/15.x#iPhone_13
-                        .value("osVersion", "15.6.0.19G71")
-                        .value("hl", localization.getLocalizationCode())
-                        .value("gl", contentCountry.getCountryCode())
-                    .end()
-                    .object("user")
-                        // TO DO: provide a way to enable restricted mode with:
-                        // .value("enableSafetyMode", boolean)
-                        .value("lockedSafetyMode", false)
-                    .end()
+                .object("client")
+                .value("clientName", "IOS")
+                .value("clientVersion", IOS_YOUTUBE_CLIENT_VERSION)
+                .value("deviceMake",  "Apple")
+                // Device model is required to get 60fps streams
+                .value("deviceModel", IOS_DEVICE_MODEL)
+                .value("platform", "MOBILE")
+                .value("osName", "iOS")
+                /*
+                The value of this field seems to use the following structure:
+                "iOS major version.minor version.patch version.build version", where
+                "patch version" is equal to 0 if it isn't set
+                The build version corresponding to the iOS version used can be found on
+                https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15
+                 */
+                .value("osVersion", "17.1.2.21B101")
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end()
+                .object("request")
+                .array("internalExperimentFlags")
+                .end()
+                .value("useSsl", true)
+                .end()
+                .object("user")
+                // TODO: provide a way to enable restricted mode with:
+                //  .value("enableSafetyMode", boolean)
+                .value("lockedSafetyMode", false)
+                .end()
                 .end();
         // @formatter:on
     }
@@ -1332,22 +1346,28 @@ YoutubeParsingHelper {
         // @formatter:off
         return JsonObject.builder()
                 .object("context")
-                    .object("client")
-                        .value("clientName", "TVHTML5_SIMPLY_EMBEDDED_PLAYER")
-                        .value("clientVersion", TVHTML5_SIMPLY_EMBED_CLIENT_VERSION)
-                        .value("clientScreen", "EMBED")
-                        .value("platform", "TV")
-                        .value("hl", localization.getLocalizationCode())
-                        .value("gl", contentCountry.getCountryCode())
-                    .end()
-                    .object("thirdParty")
-                        .value("embedUrl", "https://www.youtube.com/watch?v=" + videoId)
-                    .end()
-                    .object("user")
-                        // TO DO: provide a way to enable restricted mode with:
-                        // .value("enableSafetyMode", boolean)
-                        .value("lockedSafetyMode", false)
-                    .end()
+                .object("client")
+                .value("clientName", "TVHTML5_SIMPLY_EMBEDDED_PLAYER")
+                .value("clientVersion", TVHTML5_SIMPLY_EMBED_CLIENT_VERSION)
+                .value("clientScreen", "EMBED")
+                .value("platform", "TV")
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end()
+                .object("thirdParty")
+                .value("embedUrl", "https://www.youtube.com/watch?v=" + videoId)
+                .end()
+                .object("request")
+                .array("internalExperimentFlags")
+                .end()
+                .value("useSsl", true)
+                .end()
+                .object("user")
+                // TODO: provide a way to enable restricted mode with:
+                //  .value("enableSafetyMode", boolean)
+                .value("lockedSafetyMode", false)
+                .end()
                 .end();
         // @formatter:on
     }
@@ -1380,7 +1400,6 @@ YoutubeParsingHelper {
                 .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
     }
-
     /**
      * Get the user-agent string used as the user-agent for InnerTube requests with the Android
      * client.
