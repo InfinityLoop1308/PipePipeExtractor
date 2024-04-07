@@ -72,8 +72,10 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         String response = downloader.get(getUrl()).responseBody();
         if(!shoudldBeLive &&
-                !isLiveStream &&!(response.contains("Streamed live on")
-                && Pattern.compile("Streamed .* ago").matcher(response).find())){
+                !isLiveStream
+                && !(response.contains("Show chat replay") ||
+                (response.contains("Streamed live on") && Pattern.compile("Streamed .* ago").matcher(response).find()))
+        ){
             disabled = true;
             return ;
         }
@@ -170,6 +172,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<BulletCommentsInfoItem> getInitialPage() throws IOException, ExtractionException {
+        if(isDisabled()){
+            return null;
+        }
         executor = Executors.newSingleThreadScheduledExecutor();
         future = executor.scheduleAtFixedRate(this::fetchMessage, 1000, 1000, TimeUnit.MILLISECONDS);
         return null;
@@ -202,14 +207,14 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void disconnect() {
-        if(!future.isCancelled()){
+        if(future != null && !future.isCancelled()){
             future.cancel(true);
         }
     }
 
     @Override
     public void reconnect() {
-        if(future != null && future.isCancelled()){
+        if(!isDisabled() && future != null && future.isCancelled()){
             future = executor.scheduleAtFixedRate(this::fetchMessage, 1000, 1000, TimeUnit.MILLISECONDS);
         }
     }
