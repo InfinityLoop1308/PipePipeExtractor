@@ -47,7 +47,11 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
 
     @Override
     public long getViewCount() throws ParsingException {
-        return Long.parseLong(data.select("span[class*=___program-card-statistics-text___] > span").get(1).text());
+        try {
+            return Long.parseLong(data.select("span[class*=___program-card-statistics-text___] > span").get(1).text());
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     @Override
@@ -64,7 +68,7 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return data.select("img[class*=___program-card-provider-icon-image___]").attr("src");
+        return null;
     }
 
     @Override
@@ -75,7 +79,11 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return data.select("span[class*=___program-card-statistics-text___] > span").first().text();
+        try {
+            return data.select("span[class*=___program-card-statistics-text___] > span").get(0).text();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Nullable
@@ -87,6 +95,6 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getShortDescription() throws ParsingException {
-        return data.select("p[class*=___program-card-description___]").text();
+        return null;
     }
 }
