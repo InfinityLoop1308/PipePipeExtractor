@@ -28,7 +28,7 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
         searchFilters.setSelectedSortFilter(selectedSortFilter);
         searchFilters.setSelectedContentFilter(selectedContentFilter);
 
-        final String filterQuery = searchFilters.evaluateSelectedFilters(null);
+        String filterQuery = searchFilters.evaluateSelectedFilters(null);
 
         try {
             if(selectedContentFilter.get(0).getName().equals("lives")){
@@ -36,15 +36,10 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
             } else if(selectedContentFilter.get(0).getName().equals("playlists")){
                 return NiconicoService.PLAYLIST_SEARCH_API_URL + "&keyword=" + URLEncoder.encode(id, UTF_8) + filterQuery + "&types=mylist&pageSize=10&page=1";
             } else {
-                // Most Popular, this have different format with other filters
-                if(filterQuery.contains("&sort=")){
-                    return NiconicoService.SEARCH_URL + URLEncoder.encode(id, UTF_8) + "?sort=h&order=d&page=1";
+                if(filterQuery.length() > 0) {
+                    filterQuery = "?" + filterQuery.substring(1);
                 }
-                return SEARCH_API_URL + "?q=" + URLEncoder.encode(id, UTF_8) + filterQuery.replace("+", "%2b")
-                        + "&fields=contentId,title,userId,channelId"
-                        + ",viewCounter,lengthSeconds,thumbnailUrl,startTime"
-                        + "&_offset=0"
-                        + "&_limit=" + ITEMS_PER_PAGE;
+                return NiconicoService.SEARCH_URL + URLEncoder.encode(id, UTF_8) + filterQuery + "&page=1";
             }
         } catch (final UnsupportedEncodingException e) {
             throw new ParsingException("could not encode query.");

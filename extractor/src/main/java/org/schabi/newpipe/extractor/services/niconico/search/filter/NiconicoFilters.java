@@ -55,9 +55,9 @@ public final class NiconicoFilters extends SearchFiltersBase {
     protected void init() {
         /* content filters */
         final int contentFilterAll = builder.addFilterItem(
-                new NiconicoFilters.NiconicoContentFilterItem(ALL, "targets=title,description,tags"));
-        final int contentFilterTagsOnly = builder.addFilterItem(
-                new NiconicoFilters.NiconicoContentFilterItem(TAGS_ONLY, "targets=tagsExact"));
+                new NiconicoFilters.NiconicoContentFilterItem(ALL, ""));
+//        final int contentFilterTagsOnly = builder.addFilterItem(
+//                new NiconicoFilters.NiconicoContentFilterItem(TAGS_ONLY, "targets=tagsExact"));
         final int contentFilterLiveRooms = builder.addFilterItem(
                 new NiconicoFilters.NiconicoContentFilterItem(LIVES, ""));
         final int contentFilterPlaylists = builder.addFilterItem(
@@ -67,7 +67,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
         /* content filters with sort filters */
         addContentFilter(builder.createSortGroup(null, true, new FilterItem[]{
                 builder.getFilterForId(contentFilterAll),
-                builder.getFilterForId(contentFilterTagsOnly),
+//                builder.getFilterForId(contentFilterTagsOnly),
                 builder.getFilterForId(contentFilterLiveRooms),
                 builder.getFilterForId(contentFilterPlaylists),
         }));
@@ -76,21 +76,21 @@ public final class NiconicoFilters extends SearchFiltersBase {
         final int filterHottest = builder.addSortItem(
                 new NiconicoSortFilterItem("sort_popular", "sort=h"));
         final int filterViewCount = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_view", "_sort=viewCounter"));
+                new NiconicoSortFilterItem("sort_view", "sort=v"));
         final int filterBookmarkCount = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_bookmark", "_sort=mylistCounter"));
+                new NiconicoSortFilterItem("sort_bookmark", "sort=m"));
         final int filterLikeCount = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_likes", "_sort=likeCounter"));
-        final int filterCommentCount = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_comments", "_sort=commentCounter"));
-
-        final int filterLength = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_length", "_sort=lengthSeconds"));
+                new NiconicoSortFilterItem("sort_likes", "sort=likeCount"));
+//        final int filterCommentCount = builder.addSortItem(
+//                new NiconicoSortFilterItem("sort_comments", "sort=commentCount"));
+//
+//        final int filterLength = builder.addSortItem(
+//                new NiconicoSortFilterItem("sort_length", "_sort=lengthSeconds"));
 
         final int filterPublishAt = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_publish_time", "_sort=startTime"));
+                new NiconicoSortFilterItem("sort_publish_time", "sort=f"));
         final int filterLastCommentedAt = builder.addSortItem(
-                new NiconicoSortFilterItem("sort_last_comment_time", "_sort=lastCommentTime"));
+                new NiconicoSortFilterItem("sort_last_comment_time", "sort=n"));
 
         final int filterPlaylistMostPopular = builder.addSortItem(
                 new NiconicoSortFilterItem("sort_popular", "sortKey=_hotTotalScore"));
@@ -102,19 +102,34 @@ public final class NiconicoFilters extends SearchFiltersBase {
         final int filterSortOrderAscending = builder.addSortItem(
                 new NiconicoSortOrderFilterItem("sort_ascending"));
 
+        final int filterDurationAll = builder.addSortItem(
+                new NiconicoSortFilterItem("All", "")
+        );
+        final int filterDurationShort = builder.addSortItem(
+                new NiconicoSortFilterItem("< 5 min", "l_range=1")
+        );
+        final int filterDurationLong = builder.addSortItem(
+                new NiconicoSortFilterItem("> 20 min", "l_range=2")
+        );
+
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterHottest),
                         builder.getFilterForId(filterViewCount),
-                        builder.getFilterForId(filterCommentCount),
+//                        builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
                         builder.getFilterForId(filterLikeCount),
-                        builder.getFilterForId(filterLength),
+//                        builder.getFilterForId(filterLength),
                         builder.getFilterForId(filterPublishAt),
                         builder.getFilterForId(filterLastCommentedAt),
                         builder.getFilterForId(filterPlaylistMostPopular),
                         builder.getFilterForId(filterPlaylistMostVideos),
-                        builder.getFilterForId(filterPlaylistRecentCreated),
+                        builder.getFilterForId(filterPlaylistRecentCreated)
+                }),
+                builder.createSortGroup("duration", true, new FilterItem[]{
+                        builder.getFilterForId(filterDurationAll),
+                        builder.getFilterForId(filterDurationShort),
+                        builder.getFilterForId(filterDurationLong),
                 }),
                 builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterSortOrderAscending)
@@ -125,12 +140,17 @@ public final class NiconicoFilters extends SearchFiltersBase {
                 builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterHottest),
                         builder.getFilterForId(filterViewCount),
-                        builder.getFilterForId(filterCommentCount),
+//                        builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
                         builder.getFilterForId(filterLikeCount),
-                        builder.getFilterForId(filterLength),
+//                        builder.getFilterForId(filterLength),
                         builder.getFilterForId(filterPublishAt),
                         builder.getFilterForId(filterLastCommentedAt),
+                }),
+                builder.createSortGroup("duration", true, new FilterItem[]{
+                        builder.getFilterForId(filterDurationAll),
+                        builder.getFilterForId(filterDurationShort),
+                        builder.getFilterForId(filterDurationLong),
                 }),
                 builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterSortOrderAscending)
@@ -140,10 +160,10 @@ public final class NiconicoFilters extends SearchFiltersBase {
         final Filter tagSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterViewCount),
-                        builder.getFilterForId(filterCommentCount),
+//                        builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
                         builder.getFilterForId(filterLikeCount),
-                        builder.getFilterForId(filterLength),
+//                        builder.getFilterForId(filterLength),
                         builder.getFilterForId(filterPublishAt),
                         builder.getFilterForId(filterLastCommentedAt),
                 }),
@@ -161,7 +181,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
         }).build();
         addContentFilterSortVariant(-1, allSortFilters);
         addContentFilterSortVariant(contentFilterAll, videoSortFilters);
-        addContentFilterSortVariant(contentFilterTagsOnly, tagSortFilters);
+//        addContentFilterSortVariant(contentFilterTagsOnly, tagSortFilters);
         addContentFilterSortVariant(contentFilterPlaylists, playlistSortFilters);
     }
 
@@ -179,9 +199,9 @@ public final class NiconicoFilters extends SearchFiltersBase {
                 return query;
             }
             if (isAscending) {
-                return query.replace("=", "=+");
+                return query + "&order=a";
             } else {
-                return query.replace("=", "=-");
+                return query + "&order=d";
             }
         }
     }
