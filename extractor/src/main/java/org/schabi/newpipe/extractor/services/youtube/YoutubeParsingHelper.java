@@ -934,6 +934,10 @@ YoutubeParsingHelper {
                 return "https://www.youtube.com" + canonicalBaseUrl;
             }
 
+            if (browseId != null && browseId.contains("hashtag")) {
+                return null;
+            }
+
             throw new ParsingException("canonicalBaseUrl is null and browseId is not a channel (\""
                     + browseEndpoint + "\")");
         } else if (navigationEndpoint.has("watchEndpoint")) {
