@@ -217,6 +217,7 @@ public class utils {
 
     public static String decompressBrotli(byte[] body) throws IOException {
         try {
+            boolean test = BufferedReader.class.getMethod("lines") != null;
             return new BufferedReader(new InputStreamReader(new BrotliInputStream(
                     new ByteArrayInputStream(body)))).lines().collect(Collectors.joining());
         } catch (Exception e) {
