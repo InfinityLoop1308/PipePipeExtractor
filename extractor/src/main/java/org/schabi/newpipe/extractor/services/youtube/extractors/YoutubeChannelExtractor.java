@@ -133,8 +133,16 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Override
     public String getName() throws ParsingException {
         try {
-            return initialData.getObject("header").getObject("c4TabbedHeaderRenderer")
+            String result = initialData.getObject("header").getObject("c4TabbedHeaderRenderer")
                     .getString("title");
+            if(isNullOrEmpty(result)){
+                result = initialData.getObject("header").getObject("pageHeaderRenderer")
+                        .getObject("content").getObject("pageHeaderViewModel")
+                        .getObject("metadata").getObject("contentMetadataViewModel")
+                        .getArray("metadataRows").getObject(0).getArray("metadataParts").getObject(0)
+                        .getObject("text").getString("content").substring(1);
+            }
+            return result;
         } catch (final Exception e) {
             throw new ParsingException("Could not get channel name", e);
         }
@@ -143,8 +151,17 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Override
     public String getAvatarUrl() throws ParsingException {
         try {
-            JsonArray thumbnails = initialData.getObject("header")
-                    .getObject("c4TabbedHeaderRenderer").getObject("avatar").getArray("thumbnails");
+            JsonArray thumbnails;
+            if(initialData.getObject("header")
+                    .getObject("c4TabbedHeaderRenderer").size() > 0){
+                thumbnails = initialData.getObject("header")
+                        .getObject("c4TabbedHeaderRenderer").getObject("avatar").getArray("thumbnails");
+            } else {
+                thumbnails = initialData.getObject("header")
+                        .getObject("pageHeaderRenderer").getObject("content").getObject("pageHeaderViewModel")
+                        .getObject("image").getObject("decoratedAvatarViewModel").getObject("avatar")
+                        .getObject("avatarViewModel").getObject("image").getArray("sources");
+            }
             final String url = thumbnails.getObject(thumbnails.size() - 1).getString("url");
 
             return fixThumbnailUrl(url);
@@ -156,7 +173,15 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Override
     public String getBannerUrl() throws ParsingException {
         try {
-            JsonArray thumbnails = initialData.getObject("header").getObject("c4TabbedHeaderRenderer").getObject("banner").getArray("thumbnails");
+            JsonObject renderer = initialData.getObject("header").getObject("c4TabbedHeaderRenderer");
+            JsonArray thumbnails;
+            if(renderer.size() == 0) {
+                renderer = initialData.getObject("header").getObject("pageHeaderRenderer").getObject("content").getObject("pageHeaderViewModel");
+                thumbnails = renderer.getObject("banner").getObject("imageBannerViewModel").getObject("image").getArray("sources");
+            } else {
+                thumbnails = initialData.getObject("header").getObject("c4TabbedHeaderRenderer").getObject("banner").getArray("thumbnails");
+            }
+
             final String url = thumbnails
                     .getObject(thumbnails.size() - 1).getString("url");
 
@@ -183,12 +208,22 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     public long getSubscriberCount() throws ParsingException {
         final JsonObject c4TabbedHeaderRenderer = initialData.getObject("header")
                 .getObject("c4TabbedHeaderRenderer");
-        if (!c4TabbedHeaderRenderer.has("subscriberCountText")) {
-            return UNKNOWN_SUBSCRIBER_COUNT;
+        String result;
+        if(c4TabbedHeaderRenderer.size() != 0){
+            if (!c4TabbedHeaderRenderer.has("subscriberCountText")) {
+                return UNKNOWN_SUBSCRIBER_COUNT;
+            }
+            result = getTextFromObject(c4TabbedHeaderRenderer.getObject("subscriberCountText"));
+        } else {
+            result = initialData.getObject("header").getObject("pageHeaderRenderer")
+                    .getObject("content").getObject("pageHeaderViewModel")
+                    .getObject("metadata").getObject("contentMetadataViewModel")
+                    .getArray("metadataRows").getObject(1).getArray("metadataParts").getObject(0)
+                    .getObject("text").getString("content");
         }
+
         try {
-            return Utils.mixedNumberWordToLong(getTextFromObject(c4TabbedHeaderRenderer
-                    .getObject("subscriberCountText")));
+            return Utils.mixedNumberWordToLong(result);
         } catch (final NumberFormatException e) {
             throw new ParsingException("Could not get subscriber count", e);
         }
