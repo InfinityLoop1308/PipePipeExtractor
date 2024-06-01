@@ -29,7 +29,7 @@ import java.util.List;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
 public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
-    private final int cid;
+    private final long cid;
     private final long roomId;
     private final long startTime;
     private Document result;

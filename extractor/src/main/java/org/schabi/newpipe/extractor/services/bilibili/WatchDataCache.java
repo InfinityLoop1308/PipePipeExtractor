@@ -1,21 +1,21 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
 public class WatchDataCache {
-    private int cid;
+    private long cid;
     private long roomId;
     private long startTime;
     private String bvid;
 
     // Fuck you auto-enqueueing
-    private int lastCid;
+    private long lastCid;
     private String currentUrl;
     private String lastUrl;
 
-    public int getCid() {
+    public long getCid() {
         return cid;
     }
 
-    public void setCid(int cid) {
+    public void setCid(long cid) {
         this.cid = cid;
     }
 
@@ -52,7 +52,7 @@ public class WatchDataCache {
         currentUrl = url;
     }
 
-    public int getLastCid() {
+    public long getLastCid() {
         return lastCid;
     }
 
