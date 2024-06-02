@@ -38,6 +38,8 @@ public class NiconicoSearchQueryHandlerFactory extends SearchQueryHandlerFactory
             } else {
                 if(filterQuery.length() > 0) {
                     filterQuery = "?" + filterQuery.substring(1);
+                } else {
+                    filterQuery = "?sort=h&order=d";
                 }
                 return NiconicoService.SEARCH_URL + URLEncoder.encode(id, UTF_8) + filterQuery + "&page=1";
             }
