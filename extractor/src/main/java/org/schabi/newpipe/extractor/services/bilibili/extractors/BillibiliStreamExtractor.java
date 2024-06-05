@@ -33,7 +33,7 @@ import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 public class BillibiliStreamExtractor extends StreamExtractor {
 
     private JsonObject watch;
-    int cid = 0;
+    long cid = 0;
     int duration = 0;
     JsonObject page = null;
     String bvid;
@@ -351,7 +351,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                     }
                 }
                 bvid = watch.getString("bvid");
-                cid = watch.getInt("cid");
+                cid = watch.getLong("cid");
                 watchDataCache.setCid(cid);
                 watchDataCache.setBvid(bvid);
                 duration = watch.getInt("duration") / 1000;
@@ -370,7 +370,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 e.printStackTrace();
             }
             page = watch.getArray("pages").getObject(Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0])-1);
-            cid = page.getInt("cid");
+            cid = page.getLong("cid");
             watchDataCache.setCid(cid);
             duration = page.getInt("duration");
             isPaid = watch.getObject("rights").getInt("pay");
