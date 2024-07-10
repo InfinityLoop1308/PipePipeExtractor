@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Objects;
 
 import okio.ByteString;
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
@@ -71,7 +72,6 @@ public final class YoutubeSearchSortFilter {
             final Extras extras = extrasBuilder.build();
             searchRequestBuilder.extras(extras);
         }
-
         final SearchRequest searchRequest = searchRequestBuilder.build();
         try {
             final byte[] protoBufEncoded = searchRequest.encode();
@@ -82,21 +82,24 @@ public final class YoutubeSearchSortFilter {
         } catch (NoClassDefFoundError e){
             throw new RuntimeException("Base64 error. This shouldn't happen", e);
         }
+        if(Objects.equals(this.searchParameter, "EgA%3D")) {
+            this.searchParameter = "8AEB"; // https://github.com/InfinityLoop1308/PipePipe/issues/302
+        }
         return this.searchParameter;
     }
 
     @SuppressWarnings("NewApi")
-//    public SearchRequest deocodeSp(final String urlEncodedBase64EncodedSearchParameter)
-//            throws IOException {
-//        final String urlDecodedBase64EncodedSearchParameter
-//                = URLDecoder.decode(urlEncodedBase64EncodedSearchParameter, UTF_8);
-//        final byte[] decodedSearchParameter
-//                = Base64.decodeBase64(urlDecodedBase64EncodedSearchParameter);
-//        final SearchRequest decodedSearchRequest
-//                = new SearchRequest.Builder().build().adapter().decode(decodedSearchParameter);
-//
-//        return decodedSearchRequest;
-//    }
+    public SearchRequest decodeSp(final String urlEncodedBase64EncodedSearchParameter)
+            throws IOException {
+        final String urlDecodedBase64EncodedSearchParameter
+                = URLDecoder.decode(urlEncodedBase64EncodedSearchParameter, UTF_8);
+        final byte[] decodedSearchParameter
+                = ByteString.decodeBase64(urlDecodedBase64EncodedSearchParameter).toByteArray();
+        final SearchRequest decodedSearchRequest
+                = new SearchRequest.Builder().build().adapter().decode(decodedSearchParameter);
+
+        return decodedSearchRequest;
+    }
 
     public String getSp() {
         return this.searchParameter;
