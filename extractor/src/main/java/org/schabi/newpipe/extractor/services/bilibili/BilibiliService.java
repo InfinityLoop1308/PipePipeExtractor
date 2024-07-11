@@ -71,7 +71,8 @@ public class BilibiliService extends StreamingService {
     public static String GET_SUGGESTION_URL = "https://s.search.bilibili.com/main/suggest?term=";
     public static String COMMENT_REPLIES_URL = "https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=";
     public static String GET_SUBTITLE_META_URL = "https://api.bilibili.com/x/player/wbi/v2";
-    public static String QUERY_USER_VIDEOS_URL = "https://api.bilibili.com/x/space/wbi/arc/search";
+    public static String QUERY_USER_VIDEOS_WEB_API_URL = "https://api.bilibili.com/x/space/wbi/arc/search";
+    public static String QUERY_USER_VIDEOS_CLIENT_API_URL = "https://app.bilibili.com/x/v2/space/archive/cursor";
     public static String WBI_IMG_URL = "https://api.bilibili.com/x/web-interface/nav";
     public static String GET_PARTITION_URL = "https://api.bilibili.com/x/player/pagelist?bvid=";
     public static String FETCH_COOKIE_URL = "https://api.bilibili.com/x/frontend/finger/spi";

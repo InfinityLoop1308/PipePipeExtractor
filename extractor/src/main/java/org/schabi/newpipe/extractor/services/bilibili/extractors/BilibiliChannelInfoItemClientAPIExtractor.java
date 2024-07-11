@@ -1,6 +1,9 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.utils.getDurationFromString;
+
 import com.grack.nanojson.JsonObject;
+
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
@@ -14,15 +17,13 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.schabi.newpipe.extractor.services.bilibili.utils.getDurationFromString;
-
-public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor {
+public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
     public String name;
     public String face;
 
-    public BilibiliChannelInfoItemExtractor(final JsonObject json, String name, String face) {
+    public BilibiliChannelInfoItemClientAPIExtractor(final JsonObject json, String name, String face) {
         item = json;
         this.name = name;
         this.face = face;
@@ -40,7 +41,7 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return item.getString("pic").replace("http:", "https:");
+        return item.getString("cover").replace("http:", "https:");
     }
 
     @Override
@@ -74,16 +75,15 @@ public class BilibiliChannelInfoItemExtractor implements StreamInfoItemExtractor
     @SuppressWarnings("SimpleDateFormat")
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        if (item.getInt("created") == 0) {
-            return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date((item.getInt("pubdate")) * 1000L));
-        }
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date((item.getInt("created")) * 1000L));
+        return item.getString("publish_time_text");
     }
 
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return new DateWrapper(LocalDateTime.parse(
-                Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
+        long timestampSeconds = item.getLong("ctime", 0);
+        return new DateWrapper(LocalDateTime.ofEpochSecond(timestampSeconds, 0, ZoneOffset.UTC).atOffset(ZoneOffset.ofHours(+8)));
     }
+
+
 
 }

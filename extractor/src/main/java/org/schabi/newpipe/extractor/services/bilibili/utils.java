@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
 
 import com.grack.nanojson.*;
@@ -92,7 +93,21 @@ public class utils {
     }
 
 
-    public static String buildUserVideosUrl(String baseUrl, String id) {
+    public static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vmid", mid);
+        params.put("mobi_app", "android");
+        if (lastVideoAid > 0) {
+            params.put("aid", String.valueOf(lastVideoAid));
+        }
+        params.put("order", "pubdate");
+        String newUrl = QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + params.entrySet().stream()
+                .map(e -> e.getKey() + "=" + e.getValue())
+                .collect(Collectors.joining("&"));
+        return newUrl;
+    }
+
+    public static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
         Map<String, String> params = new LinkedHashMap<>();
 
         params.put("mid", id);
@@ -122,7 +137,7 @@ public class utils {
         params.put("w_rid", wbiResults[0]);
         params.put("wts", wbiResults[1]);
 
-        String newUrl = QUERY_USER_VIDEOS_URL + "?" + params.entrySet().stream()
+        String newUrl = QUERY_USER_VIDEOS_WEB_API_URL + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining("&"));
         return newUrl;
@@ -334,6 +349,7 @@ public class utils {
         return sb.toString();
     }
 
+    public static boolean isClientAPIMode = false;
     public static JsonObject requestUserSpaceResponse(
             Downloader downloader,
             String url,
@@ -369,6 +385,7 @@ public class utils {
                 + device.info()
                 + "\nTry to refresh, or report this!\n"
                 + responseBody;
+        isClientAPIMode = !isClientAPIMode; // flip API mode
         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
         throw new ParsingException(msg);
     }
