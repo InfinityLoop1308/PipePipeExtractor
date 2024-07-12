@@ -1308,7 +1308,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     @Nonnull
-    private <T extends Stream> List<T> getItags(
+    public <T extends Stream> List<T> getItags(
             final String streamingDataKey,
             final ItagItem.ItagType itagTypeWanted,
             final java.util.function.Function<ItagInfo, T> streamBuilderHelper,
@@ -1373,12 +1373,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private java.util.function.Function<ItagInfo, AudioStream> getAudioStreamBuilderHelper() {
         return (itagInfo) -> {
             final ItagItem itagItem = itagInfo.getItagItem();
-            final AudioStream.Builder builder = new AudioStream.Builder()
-                    .setId(String.valueOf(itagItem.id))
-                    .setContent(itagInfo.getContent(), itagInfo.getIsUrl())
-                    .setMediaFormat(itagItem.getMediaFormat())
-                    .setAverageBitrate(itagItem.getAverageBitrate())
-                    .setItagItem(itagItem);
+            final AudioStream.Builder builder;
+            try {
+                builder = new AudioStream.Builder()
+                        .setId(String.valueOf(itagItem.id))
+                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&sid="+getId()):""), itagInfo.getIsUrl())
+                        .setMediaFormat(itagItem.getMediaFormat())
+                        .setAverageBitrate(itagItem.getAverageBitrate())
+                        .setItagItem(itagItem);
+            } catch (ParsingException e) {
+                throw new RuntimeException(e);
+            }
 
             if (streamType == StreamType.LIVE_STREAM
                     || streamType == StreamType.POST_LIVE_STREAM
@@ -1431,12 +1436,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final boolean areStreamsVideoOnly) {
         return (itagInfo) -> {
             final ItagItem itagItem = itagInfo.getItagItem();
-            final VideoStream.Builder builder = new VideoStream.Builder()
-                    .setId(String.valueOf(itagItem.id))
-                    .setContent(itagInfo.getContent(), itagInfo.getIsUrl())
-                    .setMediaFormat(itagItem.getMediaFormat())
-                    .setIsVideoOnly(areStreamsVideoOnly)
-                    .setItagItem(itagItem);
+            final VideoStream.Builder builder;
+            try {
+                builder = new VideoStream.Builder()
+                        .setId(String.valueOf(itagItem.id))
+                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&sid="+getId()):""), itagInfo.getIsUrl())
+                        .setMediaFormat(itagItem.getMediaFormat())
+                        .setIsVideoOnly(areStreamsVideoOnly)
+                        .setItagItem(itagItem);
+            } catch (ParsingException e) {
+                throw new RuntimeException(e);
+            }
 
             final String resolutionString = itagItem.getResolutionString();
             builder.setResolution(resolutionString != null ? resolutionString
