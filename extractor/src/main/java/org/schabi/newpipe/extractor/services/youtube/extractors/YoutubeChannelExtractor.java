@@ -191,7 +191,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
 
             return fixThumbnailUrl(url);
         } catch (final Exception e) {
-            throw new ParsingException("Could not get banner", e);
+            return null;
         }
     }
 
