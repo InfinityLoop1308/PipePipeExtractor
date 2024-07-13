@@ -27,7 +27,7 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getName() throws ParsingException {
-        if (type == 1) {
+        if (item.getInt("live_status") == 2) {
             return getUploaderName() + "的投稿视频轮播";
         }
         return item.getString("title").replace("<em class=\"keyword\">", "").replace("</em>", "");
