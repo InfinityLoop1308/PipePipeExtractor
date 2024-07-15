@@ -45,6 +45,8 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
@@ -107,6 +109,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class YoutubeStreamExtractor extends StreamExtractor {
+    private JSONObject dislikeData;
     /*//////////////////////////////////////////////////////////////////////////
     // Exceptions
     //////////////////////////////////////////////////////////////////////////*/
@@ -851,6 +854,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
     }
 
+    @Override
+    public long getDislikeCount() throws ParsingException {
+        try {
+            return dislikeData.getLong("dislikes");
+        } catch (JSONException e) {
+            return -1;
+        }
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -972,6 +984,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
             } catch (final Exception ignored) {
             }
+        }
+
+        // fetch dislike
+
+        try {
+            dislikeData = new JSONObject(downloader.get("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId).responseBody());
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
     }
 
