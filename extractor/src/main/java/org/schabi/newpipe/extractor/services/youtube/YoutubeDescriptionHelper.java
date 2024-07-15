@@ -180,7 +180,6 @@ public final class YoutubeDescriptionHelper {
 
         return textBuilder.toString()
                 .replace("\n", "<br>")
-                .replace("  ", " &nbsp;")
                 // special link chips (e.g. for YT videos, YT channels or social media accounts):
                 // u00a0 u00a0 [/•] u00a0 <link content> u00a0 u00a0
                 .replace("\">\u00a0\u00a0/\u00a0", "\">")
