@@ -17,6 +17,7 @@ import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.*;
+import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -369,7 +370,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             } catch (JsonParserException e) {
                 e.printStackTrace();
             }
-            page = watch.getArray("pages").getObject(Integer.parseInt(getLinkHandler().getUrl().split("p=")[1].split("&")[0])-1);
+            String pageNumString = Utils.getQueryValue(Utils.stringToURL(getLinkHandler().getUrl()), "p");
+            int pageNum = 1;
+            if (pageNumString != null) {
+                pageNum = Integer.parseInt(pageNumString);
+            }
+            page = watch.getArray("pages").getObject(pageNum - 1);
             cid = page.getLong("cid");
             watchDataCache.setCid(cid);
             duration = page.getInt("duration");
