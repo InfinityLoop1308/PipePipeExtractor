@@ -64,7 +64,7 @@ public class utils {
         return new String(bytes);
     }
 
-    public static int bv2av(String bvid) {
+    public static long bv2av(String bvid) {
         char[] bvidArr = bvid.toCharArray();
         char temp = bvidArr[3];
         bvidArr[3] = bvidArr[9];
@@ -77,7 +77,7 @@ public class utils {
         for (char bvidChar : subString.toCharArray()) {
             tmp = tmp.multiply(BASE).add(BigInteger.valueOf(table.indexOf(bvidChar)));
         }
-        return tmp.and(MASK_CODE).xor(XOR_CODE).intValue();
+        return tmp.and(MASK_CODE).xor(XOR_CODE).longValue();
     }
 
     public static String getUrl(String url, String id) {
