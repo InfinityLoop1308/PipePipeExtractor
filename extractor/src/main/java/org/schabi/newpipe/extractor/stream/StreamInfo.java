@@ -898,34 +898,6 @@ public class StreamInfo extends Info {
         this.partitions = partitions;
     }
 
-    public void removeUrl(String url){
-        videoStreams = videoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
-        videoOnlyStreams = videoOnlyStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
-        audioStreams = audioStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
-    }
-
-    public void removeStreamUrl(String url){
-        ArrayList<Integer>indexs = new ArrayList<>();
-        ArrayList<VideoStream> newVideoOnlyStreams = new ArrayList<>(videoOnlyStreams);
-        List<VideoStream> newVideoStreams = new ArrayList<>(videoStreams);
-        ArrayList<AudioStream> newAudioStreams = new ArrayList<>(audioStreams);
-
-        for(int i = 0; i < videoOnlyStreams.size(); i++){
-            if(videoOnlyStreams.get(i).getContent().equals(url)
-                    || audioStreams.get(i).getContent().equals(url) ){
-                indexs.add(i);
-            }
-        }
-        newVideoStreams = newVideoStreams.stream().filter(s -> !s.getContent().equals(url)).collect(Collectors.toList());
-        for(Integer i:indexs){
-            newVideoOnlyStreams.remove(videoOnlyStreams.get(i.intValue()));
-            newAudioStreams.remove(audioStreams.get(i.intValue()));
-        }
-        videoOnlyStreams = newVideoOnlyStreams;
-        audioStreams = newAudioStreams;
-        videoStreams = newVideoStreams;
-    }
-
     public int getStreamsLength(){
         return videoOnlyStreams.size() + audioStreams.size() + videoStreams.size();
     }
