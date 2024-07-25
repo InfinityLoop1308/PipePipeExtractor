@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
+import static org.schabi.newpipe.extractor.utils.Parser.matchMultiplePatterns;
+
 /**
  * YouTube's streaming URLs of HTML5 clients are protected with a cipher, which modifies their
  * {@code n} query parameter.
@@ -43,13 +45,54 @@ public final class YoutubeThrottlingDecrypter {
     private static final String FUNCTION_NAME_REGEX = SINGLE_CHAR_VARIABLE_REGEX + "+";
 
     private static final String ARRAY_ACCESS_REGEX = "\\[(\\d+)]";
-    private static final Pattern DECRYPT_FUNCTION_NAME_PATTERN = Pattern.compile(
-            // CHECKSTYLE:OFF
-            "\\(" + SINGLE_CHAR_VARIABLE_REGEX + "=String\\.fromCharCode\\(110\\),"
+    private static final  Pattern[] DEOBFUSCATION_FUNCTION_NAME_REGEXES = {
+
+            /*
+             * The first regex matches the following text, where we want rDa and the array index
+             * accessed:
+             *
+             * a.D&&(b="nn"[+a.D],c=a.get(b))&&(c=rDa[0](c),a.set(b,c),rDa.length||rma("")
+             */
+            Pattern.compile(SINGLE_CHAR_VARIABLE_REGEX + "+=\"nn\"\\[\\+"
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+\\." + SINGLE_CHAR_VARIABLE_REGEX + "+],"
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+=" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "+\\.get\\(" + SINGLE_CHAR_VARIABLE_REGEX + "+\\)\\)&&\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+=(" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "+)\\[(\\d+)]"),
+
+            /*
+             * The second regex matches the following text, where we want rma:
+             *
+             * a.D&&(b="nn"[+a.D],c=a.get(b))&&(c=rDa[0](c),a.set(b,c),rDa.length||rma("")
+             */
+            Pattern.compile(SINGLE_CHAR_VARIABLE_REGEX + "+=\"nn\"\\[\\+"
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+\\." + SINGLE_CHAR_VARIABLE_REGEX + "+],"
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+=" + SINGLE_CHAR_VARIABLE_REGEX + "+\\.get\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "+\\)\\).+\\|\\|(" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "+)\\(\"\"\\)"),
+
+            /*
+             * The third regex matches the following text, where we want BDa and the array index
+             * accessed:
+             *
+             * (b=String.fromCharCode(110),c=a.get(b))&&(c=BDa[0](c)
+             */
+            Pattern.compile("\\(" + SINGLE_CHAR_VARIABLE_REGEX + "=String\\.fromCharCode\\(110\\),"
                     + SINGLE_CHAR_VARIABLE_REGEX + "=" + SINGLE_CHAR_VARIABLE_REGEX + "\\.get\\("
                     + SINGLE_CHAR_VARIABLE_REGEX + "\\)\\)" + "&&\\(" + SINGLE_CHAR_VARIABLE_REGEX
                     + "=(" + FUNCTION_NAME_REGEX + ")" + "(?:" + ARRAY_ACCESS_REGEX + ")?\\("
-                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)");
+                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)"),
+
+            /*
+             * The fourth regex matches the following text, where we want Yva and the array index
+             * accessed:
+             *
+             * .get("n"))&&(b=Yva[0](b)
+             */
+            Pattern.compile("\\.get\\(\"n\"\\)\\)&&\\(" + SINGLE_CHAR_VARIABLE_REGEX
+                    + "=(" + FUNCTION_NAME_REGEX + ")(?:" + ARRAY_ACCESS_REGEX + ")?\\("
+                    + SINGLE_CHAR_VARIABLE_REGEX + "\\)")
+    };
             // CHECKSTYLE:ON
 
     // Escape the curly end brace to allow compatibility with Android's regex engine
@@ -113,11 +156,14 @@ public final class YoutubeThrottlingDecrypter {
     }
 
     private static String parseDecodeFunctionName(final String playerJsCode)
-            throws Parser.RegexException {
-        final Matcher matcher = DECRYPT_FUNCTION_NAME_PATTERN.matcher(playerJsCode);
-        if (!matcher.find()) {
-            throw new Parser.RegexException("Failed to find pattern \""
-                    + DECRYPT_FUNCTION_NAME_PATTERN + "\"");
+            throws ParsingException {
+        final Matcher matcher;
+        try {
+            matcher = matchMultiplePatterns(DEOBFUSCATION_FUNCTION_NAME_REGEXES,
+                    playerJsCode);
+        } catch (final Parser.RegexException e) {
+            throw new ParsingException("Could not find deobfuscation function with any of the "
+                    + "known patterns in the base JavaScript player code", e);
         }
 
         final String functionName = matcher.group(1);

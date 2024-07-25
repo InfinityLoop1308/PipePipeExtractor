@@ -148,7 +148,7 @@ YoutubeParsingHelper {
      * The client version for InnerTube requests with the {@code WEB} client, used as the last
      * fallback if the extraction of the real one failed.
      */
-    private static final String HARDCODED_CLIENT_VERSION = "2.20220809.02.00";
+    private static final String HARDCODED_CLIENT_VERSION = "2.20240718.01.00";
 
     /**
      * The InnerTube API key which should be used by YouTube's desktop website, used as a fallback
@@ -165,7 +165,7 @@ YoutubeParsingHelper {
      * such as <a href="https://www.apkmirror.com/apk/google-inc/youtube/">APKMirror</a>.
      * </p>
      */
-    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "18.48.37";
+    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "19.28.35";
 
     /**
      * The InnerTube API key used by the {@code ANDROID} client. Found with the help of
@@ -183,7 +183,7 @@ YoutubeParsingHelper {
      * Store page of the YouTube app</a>, in the {@code What’s New} section.
      * </p>
      */
-    private static final String IOS_YOUTUBE_CLIENT_VERSION = "18.48.3";
+    private static final String IOS_YOUTUBE_CLIENT_VERSION = "19.28.1";
 
     /**
      * The InnerTube API key used by the {@code iOS} client. Found with the help of
@@ -231,7 +231,7 @@ YoutubeParsingHelper {
      * information.
      * </p>
      */
-    private static final String IOS_DEVICE_MODEL = "iPhone14,5";
+    private static final String IOS_DEVICE_MODEL = "iPhone16,2";
 
     private static Random numberGenerator = new SecureRandom();
 
@@ -1376,32 +1376,53 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
+    public static JsonObject getWebPlayerResponse(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId) throws IOException, ExtractionException {
+        final byte[] body = JsonWriter.string(
+                        prepareDesktopJsonBuilder(localization, contentCountry)
+                                .value(VIDEO_ID, videoId)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+        final String url = YOUTUBEI_V1_URL + "player" + "?" + DISABLE_PRETTY_PRINT_PARAMETER
+                + "&$fields=microformat,playabilityStatus,storyboards,videoDetails";
+
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+
+        return JsonUtils.toJsonObject(getValidJsonResponseBody(
+                getDownloader().post(
+                        url, headers, body, localization)));
+    }
+
     @Nonnull
-    public static byte[] createDesktopPlayerBody(
+    public static byte[] createTvHtml5EmbedPlayerBody(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final String videoId,
             @Nonnull final String sts,
-            final boolean isTvHtml5DesktopJsonBuilder,
             @Nonnull final String contentPlaybackNonce) throws IOException, ExtractionException {
         // @formatter:off
-        return JsonWriter.string((isTvHtml5DesktopJsonBuilder
-                        ? prepareTvHtml5EmbedJsonBuilder(localization, contentCountry, videoId)
-                        : prepareDesktopJsonBuilder(localization, contentCountry))
-                .object("playbackContext")
-                    .object("contentPlaybackContext")
+        return JsonWriter.string(
+                prepareTvHtml5EmbedJsonBuilder(localization, contentCountry, videoId)
+                        .object("playbackContext")
+                        .object("contentPlaybackContext")
                         // Signature timestamp from the JavaScript base player is needed to get
                         // working obfuscated URLs
                         .value("signatureTimestamp", sts)
                         .value("referer", "https://www.youtube.com/watch?v=" + videoId)
-                    .end()
-                .end()
-                .value(CPN, contentPlaybackNonce)
-                .value(VIDEO_ID, videoId)
-                .value(CONTENT_CHECK_OK, true)
-                .value(RACY_CHECK_OK, true)
-                .done())
-                .getBytes(StandardCharsets.UTF_8);
+                        .end()
+                        .end()
+                        .value(CPN, contentPlaybackNonce)
+                        .value(VIDEO_ID, videoId)
+                        .value(CONTENT_CHECK_OK, true)
+                        .value(RACY_CHECK_OK, true)
+                        .done())
+                        .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
     }
     /**
