@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
@@ -16,6 +17,7 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeChannelHelper;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelTabLinkHandlerFactory;
@@ -28,14 +30,11 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.ChannelResponseData;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.DISABLE_PRETTY_PRINT_PARAMETER;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.YOUTUBEI_V1_URL;
@@ -70,7 +69,7 @@ import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
  */
 
 public class YoutubeChannelExtractor extends ChannelExtractor {
-    private JsonObject initialData;
+    private JsonObject jsonResponse;
     private JsonObject videoTab;
     private List<ListLinkHandler> tabs;
 
@@ -84,7 +83,38 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
      * UCok7UTQQEP1Rsctxiv3gwSQ ┘
      * </pre>
      */
+
+    // Constants of objects used multiples from channel responses
+    private static final String IMAGE = "image";
+    private static final String CONTENTS = "contents";
+    private static final String CONTENT_PREVIEW_IMAGE_VIEW_MODEL = "contentPreviewImageViewModel";
+    private static final String PAGE_HEADER_VIEW_MODEL = "pageHeaderViewModel";
+    private static final String TAB_RENDERER = "tabRenderer";
+    private static final String CONTENT = "content";
+    private static final String METADATA = "metadata";
+    private static final String AVATAR = "avatar";
+    private static final String THUMBNAILS = "thumbnails";
+    private static final String SOURCES = "sources";
+    private static final String BANNER = "banner";
+
     private String redirectedChannelId;
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private Optional<YoutubeChannelHelper.ChannelHeader> channelHeader;
+
+    private String channelId;
+
+    /**
+     * If a channel is age-restricted, its pages are only accessible to logged-in and
+     * age-verified users, we get an {@code channelAgeGateRenderer} in this case, containing only
+     * the following metadata: channel name and channel avatar.
+     *
+     * <p>
+     * This restriction doesn't seem to apply to all countries.
+     * </p>
+     */
+    @Nullable
+    private JsonObject channelAgeGateRenderer;
 
     public YoutubeChannelExtractor(final StreamingService service,
                                    final ListLinkHandler linkHandler) {
@@ -99,8 +129,11 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
         final ChannelResponseData data = getChannelResponse(id, "EgZ2aWRlb3M%3D",
                 getExtractorLocalization(), getExtractorContentCountry());
 
-        initialData = data.responseJson;
         redirectedChannelId = data.channelId;
+        jsonResponse = data.responseJson;
+        channelHeader = YoutubeChannelHelper.getChannelHeader(jsonResponse);
+        channelId = data.channelId;
+        channelAgeGateRenderer = YoutubeChannelHelper.getChannelAgeGateRenderer(jsonResponse);
     }
 
     @Nonnull
@@ -116,84 +149,105 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public String getId() throws ParsingException {
-        final String channelId = initialData.getObject("header")
-                .getObject("c4TabbedHeaderRenderer")
-                .getString("channelId", "");
-
-        if (!channelId.isEmpty()) {
-            return channelId;
-        } else if (!isNullOrEmpty(redirectedChannelId)) {
-            return redirectedChannelId;
-        } else {
-            throw new ParsingException("Could not get channel id");
-        }
+        assertPageFetched();
+        return YoutubeChannelHelper.getChannelId(channelHeader, jsonResponse, channelId);
     }
 
     @Nonnull
     @Override
     public String getName() throws ParsingException {
-        try {
-            String result = initialData.getObject("header").getObject("c4TabbedHeaderRenderer")
-                    .getString("title");
-            if(isNullOrEmpty(result)){
-                result = initialData.getObject("header").getObject("pageHeaderRenderer")
-                        .getObject("content").getObject("pageHeaderViewModel")
-                        .getObject("metadata").getObject("contentMetadataViewModel")
-                        .getArray("metadataRows").getObject(0).getArray("metadataParts").getObject(0)
-                        .getObject("text").getString("content").substring(1);
-            }
-            return result;
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get channel name", e);
+        assertPageFetched();
+        return YoutubeChannelHelper.getChannelName(
+                channelHeader, jsonResponse, channelAgeGateRenderer);
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getAvatars() throws ParsingException {
+        assertPageFetched();
+        if (channelAgeGateRenderer != null) {
+            return Optional.ofNullable(channelAgeGateRenderer.getObject(AVATAR)
+                            .getArray(THUMBNAILS))
+                    .map(YoutubeParsingHelper::getImagesFromThumbnailsArray)
+                    .orElseThrow(() -> new ParsingException("Could not get avatars"));
         }
+
+        return channelHeader.map(header -> {
+                    switch (header.headerType) {
+                        case PAGE:
+                            final JsonObject imageObj = header.json.getObject(CONTENT)
+                                    .getObject(PAGE_HEADER_VIEW_MODEL)
+                                    .getObject(IMAGE);
+
+                            if (imageObj.has(CONTENT_PREVIEW_IMAGE_VIEW_MODEL)) {
+                                return imageObj.getObject(CONTENT_PREVIEW_IMAGE_VIEW_MODEL)
+                                        .getObject(IMAGE)
+                                        .getArray(SOURCES);
+                            }
+
+                            if (imageObj.has("decoratedAvatarViewModel")) {
+                                return imageObj.getObject("decoratedAvatarViewModel")
+                                        .getObject(AVATAR)
+                                        .getObject("avatarViewModel")
+                                        .getObject(IMAGE)
+                                        .getArray(SOURCES);
+                            }
+
+                            // Return an empty avatar array as a fallback
+                            return new JsonArray();
+                        case INTERACTIVE_TABBED:
+                            return header.json.getObject("boxArt")
+                                    .getArray(THUMBNAILS);
+
+                        case C4_TABBED:
+                        case CAROUSEL:
+                        default:
+                            return header.json.getObject(AVATAR)
+                                    .getArray(THUMBNAILS);
+                    }
+                })
+                .map(YoutubeParsingHelper::getImagesFromThumbnailsArray)
+                .orElseThrow(() -> new ParsingException("Could not get avatars"));
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getBanners() {
+        assertPageFetched();
+        if (channelAgeGateRenderer != null) {
+            return emptyList();
+        }
+
+        return channelHeader.map(header -> {
+                    if (header.headerType == YoutubeChannelHelper.ChannelHeader.HeaderType.PAGE) {
+                        final JsonObject pageHeaderViewModel = header.json.getObject(CONTENT)
+                                .getObject(PAGE_HEADER_VIEW_MODEL);
+
+                        if (pageHeaderViewModel.has(BANNER)) {
+                            return pageHeaderViewModel.getObject(BANNER)
+                                    .getObject("imageBannerViewModel")
+                                    .getObject(IMAGE)
+                                    .getArray(SOURCES);
+                        }
+
+                        // No banner is available (this should happen on pageHeaderRenderers of
+                        // system channels), use an empty JsonArray instead
+                        return new JsonArray();
+                    }
+
+                    return header.json
+                            .getObject(BANNER)
+                            .getArray(THUMBNAILS);
+                })
+                .map(YoutubeParsingHelper::getImagesFromThumbnailsArray)
+                .orElse(emptyList());
     }
 
     @Override
     public String getAvatarUrl() throws ParsingException {
-        try {
-            JsonArray thumbnails;
-            if(initialData.getObject("header")
-                    .getObject("c4TabbedHeaderRenderer").size() > 0){
-                thumbnails = initialData.getObject("header")
-                        .getObject("c4TabbedHeaderRenderer").getObject("avatar").getArray("thumbnails");
-            } else {
-                thumbnails = initialData.getObject("header")
-                        .getObject("pageHeaderRenderer").getObject("content").getObject("pageHeaderViewModel")
-                        .getObject("image").getObject("decoratedAvatarViewModel").getObject("avatar")
-                        .getObject("avatarViewModel").getObject("image").getArray("sources");
-            }
-            final String url = thumbnails.getObject(thumbnails.size() - 1).getString("url");
-
-            return fixThumbnailUrl(url);
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get avatar", e);
-        }
+        return null;
     }
 
-    @Override
-    public String getBannerUrl() throws ParsingException {
-        try {
-            JsonObject renderer = initialData.getObject("header").getObject("c4TabbedHeaderRenderer");
-            JsonArray thumbnails;
-            if(renderer.size() == 0) {
-                renderer = initialData.getObject("header").getObject("pageHeaderRenderer").getObject("content").getObject("pageHeaderViewModel");
-                thumbnails = renderer.getObject("banner").getObject("imageBannerViewModel").getObject("image").getArray("sources");
-            } else {
-                thumbnails = initialData.getObject("header").getObject("c4TabbedHeaderRenderer").getObject("banner").getArray("thumbnails");
-            }
-
-            final String url = thumbnails
-                    .getObject(thumbnails.size() - 1).getString("url");
-
-            if (url == null || url.contains("s.ytimg.com") || url.contains("default_banner")) {
-                return null;
-            }
-
-            return fixThumbnailUrl(url);
-        } catch (final Exception e) {
-            return null;
-        }
-    }
 
     @Override
     public String getFeedUrl() throws ParsingException {
@@ -206,38 +260,120 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
 
     @Override
     public long getSubscriberCount() throws ParsingException {
-        final JsonObject c4TabbedHeaderRenderer = initialData.getObject("header")
-                .getObject("c4TabbedHeaderRenderer");
-        String result;
-        if(c4TabbedHeaderRenderer.size() != 0){
-            if (!c4TabbedHeaderRenderer.has("subscriberCountText")) {
-                return UNKNOWN_SUBSCRIBER_COUNT;
-            }
-            result = getTextFromObject(c4TabbedHeaderRenderer.getObject("subscriberCountText"));
-        } else {
-            result = initialData.getObject("header").getObject("pageHeaderRenderer")
-                    .getObject("content").getObject("pageHeaderViewModel")
-                    .getObject("metadata").getObject("contentMetadataViewModel")
-                    .getArray("metadataRows").getObject(1).getArray("metadataParts").getObject(0)
-                    .getObject("text").getString("content");
+        assertPageFetched();
+        if (channelAgeGateRenderer != null) {
+            return UNKNOWN_SUBSCRIBER_COUNT;
         }
 
-        try {
-            return Utils.mixedNumberWordToLong(result);
-        } catch (final NumberFormatException e) {
-            throw new ParsingException("Could not get subscriber count", e);
+        if (channelHeader.isPresent()) {
+            final YoutubeChannelHelper.ChannelHeader header = channelHeader.get();
+
+            if (header.headerType == YoutubeChannelHelper.ChannelHeader.HeaderType.INTERACTIVE_TABBED) {
+                // No subscriber count is available on interactiveTabbedHeaderRenderer header
+                return UNKNOWN_SUBSCRIBER_COUNT;
+            }
+
+            final JsonObject headerJson = header.json;
+            if (header.headerType == YoutubeChannelHelper.ChannelHeader.HeaderType.PAGE) {
+                return getSubscriberCountFromPageChannelHeader(headerJson);
+            }
+
+            JsonObject textObject = null;
+
+            if (headerJson.has("subscriberCountText")) {
+                textObject = headerJson.getObject("subscriberCountText");
+            } else if (headerJson.has("subtitle")) {
+                textObject = headerJson.getObject("subtitle");
+            }
+
+            if (textObject != null) {
+                try {
+                    return Utils.mixedNumberWordToLong(getTextFromObject(textObject));
+                } catch (final NumberFormatException e) {
+                    throw new ParsingException("Could not get subscriber count", e);
+                }
+            }
         }
+
+        return UNKNOWN_SUBSCRIBER_COUNT;
+    }
+
+    private long getSubscriberCountFromPageChannelHeader(@Nonnull final JsonObject headerJson)
+            throws ParsingException {
+        final JsonObject metadataObject = headerJson.getObject(CONTENT)
+                .getObject(PAGE_HEADER_VIEW_MODEL)
+                .getObject(METADATA);
+        if (metadataObject.has("contentMetadataViewModel")) {
+            final JsonArray metadataPart = metadataObject.getObject("contentMetadataViewModel")
+                    .getArray("metadataRows")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(metadataRow -> metadataRow.getArray("metadataParts"))
+                    /*
+                    Find metadata parts which have two elements: channel handle and subscriber
+                    count.
+
+                    On autogenerated music channels, the subscriber count is not shown with this
+                    header.
+
+                    Use the first metadata parts object found.
+                     */
+                    .filter(metadataParts -> metadataParts.size() == 2)
+                    .findFirst()
+                    .orElse(null);
+            if (metadataPart == null) {
+                // As the parsing of the metadata parts object needed to get the subscriber count
+                // is fragile, return UNKNOWN_SUBSCRIBER_COUNT when it cannot be got
+                return UNKNOWN_SUBSCRIBER_COUNT;
+            }
+
+            try {
+                // The subscriber count is at the same position for all languages as of 02/03/2024
+                return Utils.mixedNumberWordToLong(metadataPart.getObject(0)
+                        .getObject("text")
+                        .getString(CONTENT));
+            } catch (final NumberFormatException e) {
+                throw new ParsingException("Could not get subscriber count", e);
+            }
+        }
+
+        // If the channel header has no contentMetadataViewModel (which is the case for system
+        // channels using this header), return UNKNOWN_SUBSCRIBER_COUNT
+        return UNKNOWN_SUBSCRIBER_COUNT;
     }
 
     @Override
     public String getDescription() throws ParsingException {
+        assertPageFetched();
+        if (channelAgeGateRenderer != null) {
+            return null;
+        }
+
         try {
-            return initialData.getObject("metadata").getObject("channelMetadataRenderer")
+            if (channelHeader.isPresent()) {
+                final YoutubeChannelHelper.ChannelHeader header = channelHeader.get();
+                if (header.headerType == YoutubeChannelHelper.ChannelHeader.HeaderType.INTERACTIVE_TABBED) {
+                    /*
+                    In an interactiveTabbedHeaderRenderer, the real description, is only available
+                    in its header
+                    The other one returned in non-About tabs accessible in the
+                    microformatDataRenderer object of the response may be completely different
+                    The description extracted is incomplete and the original one can be only
+                    accessed from the About tab
+                     */
+                    return getTextFromObject(header.json.getObject("description"));
+                }
+            }
+
+            return jsonResponse.getObject(METADATA)
+                    .getObject("channelMetadataRenderer")
                     .getString("description");
         } catch (final Exception e) {
             throw new ParsingException("Could not get channel description", e);
         }
     }
+
 
     @Override
     public String getParentChannelName() {
@@ -256,11 +392,14 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
 
     @Override
     public boolean isVerified() throws ParsingException {
-        final JsonArray badges = initialData.getObject("header")
-                .getObject("c4TabbedHeaderRenderer")
-                .getArray("badges");
+        assertPageFetched();
+        if (channelAgeGateRenderer != null) {
+            // Verified status is unknown with channelAgeGateRenderers, return false in this case
+            return false;
+        }
 
-        return YoutubeParsingHelper.isVerified(badges);
+        return YoutubeChannelHelper.isChannelVerified(channelHeader.orElseThrow(() ->
+                new ParsingException("Could not get verified status")));
     }
 
     @Nonnull
@@ -273,7 +412,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public List<String> getTags() throws ParsingException {
-        final JsonArray tags = initialData.getObject("microformat")
+        final JsonArray tags = jsonResponse.getObject("microformat")
                 .getObject("microformatDataRenderer").getArray("tags");
 
         return tags.stream().map(Object::toString).collect(Collectors.toList());
@@ -421,7 +560,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
             return this.videoTab;
         }
 
-        final JsonArray responseTabs = initialData.getObject("contents")
+        final JsonArray responseTabs = jsonResponse.getObject("contents")
                 .getObject("twoColumnBrowseResultsRenderer")
                 .getArray("tabs");
 

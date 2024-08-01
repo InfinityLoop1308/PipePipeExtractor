@@ -94,11 +94,17 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
         } catch (final Exception e) {
             info.addError(e);
         }
+        if (info.getAvatarUrl() == null && !info.getAvatars().isEmpty()) {
+            info.setAvatarUrl(info.getAvatars().get(info.getAvatars().size() - 1).getUrl());
+        }
 
         try {
             info.setBanners(extractor.getBanners());
         } catch (final Exception e) {
             info.addError(e);
+        }
+        if (info.getBannerUrl() == null && !info.getBanners().isEmpty()) {
+            info.setBannerUrl(info.getBanners().get(info.getBanners().size() - 1).getUrl());
         }
 
         try {
