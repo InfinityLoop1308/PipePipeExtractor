@@ -1,18 +1,5 @@
 package org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators;
 
-import org.schabi.newpipe.extractor.downloader.Response;
-import org.schabi.newpipe.extractor.services.youtube.DeliveryType;
-import org.schabi.newpipe.extractor.services.youtube.ItagItem;
-import org.schabi.newpipe.extractor.utils.ManifestCreatorCache;
-import org.w3c.dom.DOMException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-
-import javax.annotation.Nonnull;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.ALR_YES;
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.RN_0;
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.SEGMENT_TIMELINE;
@@ -23,8 +10,21 @@ import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.generateSegmentTimelineElement;
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.getInitializationResponse;
 import static org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeDashManifestCreatorsUtils.setAttribute;
-import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
+
+import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.services.youtube.DeliveryType;
+import org.schabi.newpipe.extractor.services.youtube.ItagItem;
+import org.schabi.newpipe.extractor.utils.ManifestCreatorCache;
+import org.w3c.dom.DOMException;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import javax.annotation.Nonnull;
 
 /**
  * Class which generates DASH manifests of YouTube post-live DVR streams (which use the
@@ -56,38 +56,36 @@ public final class YoutubePostLiveStreamDvrDashManifestCreator {
      * the time)
      * </p>
      *
-     * <p>This method needs:
-     *     <ul>
-     *         <li>the base URL of the stream (which, if you try to access to it, returns HTTP
-     *         status code 404 after redirects, and if the URL is valid);</li>
-     *         <li>an {@link ItagItem}, which needs to contain the following information:
-     *              <ul>
-     *                  <li>its type (see {@link ItagItem.ItagType}), to identify if the content is
-     *                  an audio or a video stream;</li>
-     *                  <li>its bitrate;</li>
-     *                  <li>its mime type;</li>
-     *                  <li>its codec(s);</li>
-     *                  <li>for an audio stream: its audio channels;</li>
-     *                  <li>for a video stream: its width and height.</li>
-     *              </ul>
-     *         </li>
-     *         <li>the duration of the video, which will be used if the duration could not be
-     *         parsed from the first sequence of the stream.</li>
-     *     </ul>
-     * </p>
+     * This method needs:
+     * <ul>
+     *     <li>the base URL of the stream (which, if you try to access to it, returns HTTP
+     *     status code 404 after redirects, and if the URL is valid);</li>
+     *     <li>an {@link ItagItem}, which needs to contain the following information:
+     *         <ul>
+     *             <li>its type (see {@link ItagItem.ItagType}), to identify if the content is
+     *             an audio or a video stream;</li>
+     *             <li>its bitrate;</li>
+     *             <li>its mime type;</li>
+     *             <li>its codec(s);</li>
+     *             <li>for an audio stream: its audio channels;</li>
+     *             <li>for a video stream: its width and height.</li>
+     *         </ul>
+     *     </li>
+     *     <li>the duration of the video, which will be used if the duration could not be
+     *     parsed from the first sequence of the stream.</li>
+     * </ul>
      *
-     * <p>In order to generate the DASH manifest, this method will:
-     *      <ul>
-     *          <li>request the first sequence of the stream (the base URL on which the first
-     *          sequence parameter is appended (see {@link YoutubeDashManifestCreatorsUtils#SQ_0}))
-     *          with a {@code POST} or {@code GET} request (depending of the client on which the
-     *          streaming URL comes from is a mobile one ({@code POST}) or not ({@code GET}));</li>
-     *          <li>follow its redirection(s), if any;</li>
-     *          <li>save the last URL, remove the first sequence parameters;</li>
-     *          <li>use the information provided in the {@link ItagItem} to generate all elements
-     *          of the DASH manifest.</li>
-     *      </ul>
-     * </p>
+     * In order to generate the DASH manifest, this method will:
+     * <ul>
+     *     <li>request the first sequence of the stream (the base URL on which the first
+     *     sequence parameter is appended (see {@link YoutubeDashManifestCreatorsUtils#SQ_0}))
+     *     with a {@code POST} or {@code GET} request (depending of the client on which the
+     *     streaming URL comes from is a mobile one ({@code POST}) or not ({@code GET}));</li>
+     *     <li>follow its redirection(s), if any;</li>
+     *     <li>save the last URL, remove the first sequence parameters;</li>
+     *     <li>use the information provided in the {@link ItagItem} to generate all elements
+     *     of the DASH manifest.</li>
+     * </ul>
      *
      * <p>
      * If the duration cannot be extracted, the {@code durationSecondsFallback} value will be used
@@ -130,8 +128,8 @@ public final class YoutubePostLiveStreamDvrDashManifestCreator {
             // from video servers.
             final Response response = getInitializationResponse(realPostLiveStreamDvrStreamingUrl,
                     itagItem, DeliveryType.LIVE);
-            realPostLiveStreamDvrStreamingUrl = response.latestUrl().replace(SQ_0, EMPTY_STRING)
-                    .replace(RN_0, EMPTY_STRING).replace(ALR_YES, EMPTY_STRING);
+            realPostLiveStreamDvrStreamingUrl = response.latestUrl().replace(SQ_0, "")
+                    .replace(RN_0, "").replace(ALR_YES, "");
 
             final int responseCode = response.responseCode();
             if (responseCode != 200) {

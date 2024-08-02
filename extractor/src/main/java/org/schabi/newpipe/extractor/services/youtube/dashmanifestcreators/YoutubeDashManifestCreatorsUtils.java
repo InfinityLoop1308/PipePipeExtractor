@@ -412,10 +412,10 @@ public final class YoutubeDashManifestCreatorsUtils {
             setAttribute(audioChannelConfigurationElement, doc, "schemeIdUri",
                     "urn:mpeg:dash:23003:3:audio_channel_configuration:2011");
 
-            if (itagItem.getAudioChannels() <= 0) {
-                throw new CreationException("the number of audioChannels in the ItagItem is <= 0: "
-                        + itagItem.getAudioChannels());
-            }
+//            if (itagItem.getAudioChannels() <= 0) {
+//                throw new CreationException("the number of audioChannels in the ItagItem is <= 0: "
+//                        + itagItem.getAudioChannels());
+//            }
             setAttribute(audioChannelConfigurationElement, doc, "value",
                     String.valueOf(itagItem.getAudioChannels()));
 
