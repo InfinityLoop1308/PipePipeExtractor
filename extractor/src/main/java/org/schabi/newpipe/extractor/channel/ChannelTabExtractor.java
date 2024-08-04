@@ -25,4 +25,5 @@ public abstract class ChannelTabExtractor extends ListExtractor<InfoItem> {
     public String getName() throws ParsingException {
         return getTab();
     }
+
 }

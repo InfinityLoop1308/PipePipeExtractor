@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 
 import java.io.IOException;
@@ -34,11 +35,20 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+        if(getLinkHandler().getContentFilters().get(0).getName() == ChannelTabs.VIDEOS) {
+            BilibiliChannelExtractor extractor = new BilibiliChannelExtractor(getService(), getLinkHandler());
+            extractor.onFetchPage(getDownloader());
+            return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getInitialPage(); // I don't want to but to support YouTube I have to...
+        }
         return getPage(new Page(getLinkHandler().getUrl()));
     }
 
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
+        if(getLinkHandler().getContentFilters().get(0).getName() == ChannelTabs.VIDEOS) {
+            BilibiliChannelExtractor extractor = new BilibiliChannelExtractor(getService(), getLinkHandler());
+            return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getPage(page); // I don't want to but to support YouTube I have to...
+        }
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
         String response = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
         try {

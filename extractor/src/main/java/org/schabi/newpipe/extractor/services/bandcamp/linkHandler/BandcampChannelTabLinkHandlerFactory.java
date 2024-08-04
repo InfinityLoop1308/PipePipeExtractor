@@ -27,15 +27,21 @@ public final class BandcampChannelTabLinkHandlerFactory extends ListLinkHandlerF
         return BandcampChannelLinkHandlerFactory.getInstance().getId(url);
     }
 
+    public static String getUrlSuffix(final String tab) throws ParsingException {
+        switch (tab) {
+            case ChannelTabs.TRACKS:
+                return "/track";
+            case ChannelTabs.ALBUMS:
+                return "/album";
+        }
+        throw new ParsingException("tab " + tab + " not supported");
+    }
+
     @Override
     public String getUrl(final String id, final List<FilterItem> contentFilter, final List<FilterItem> sortFilter)
             throws ParsingException {
-        final String tab = contentFilter.get(0).getName();
-        if (!tab.equals(ChannelTabs.ALBUMS)) {
-            throw new ParsingException("tab " + tab + " not supported");
-        }
-
-        return BandcampChannelLinkHandlerFactory.getInstance().getUrl(id) + URL_SUFFIX;
+        return BandcampChannelLinkHandlerFactory.getInstance().getUrl(id)
+                + getUrlSuffix(contentFilter.get(0).getName());
     }
 
     @Override

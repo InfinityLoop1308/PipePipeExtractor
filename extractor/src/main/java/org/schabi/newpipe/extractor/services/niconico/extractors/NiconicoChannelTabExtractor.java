@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliChannelExtractor;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
@@ -33,11 +34,20 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+        if(getLinkHandler().getContentFilters().get(0).getName() == ChannelTabs.VIDEOS) {
+            NiconicoUserExtractor extractor = new NiconicoUserExtractor(getService(), getLinkHandler());
+            extractor.onFetchPage(getDownloader());
+            return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getInitialPage();
+        }
         return getPage(new Page(getLinkHandler().getUrl()));
     }
 
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
+        if(getLinkHandler().getContentFilters().get(0).getName() == ChannelTabs.VIDEOS) {
+            NiconicoUserExtractor extractor = new NiconicoUserExtractor(getService(), getLinkHandler());
+            return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getPage(page);
+        }
         try {
             JsonObject data = JsonParser.object().from(getDownloader().get(page.getUrl(), NiconicoService.getMylistHeaders()).responseBody()).getObject("data");
             final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());

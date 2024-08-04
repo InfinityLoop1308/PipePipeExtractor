@@ -29,6 +29,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -147,7 +148,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
         String url = "https://api.bilibili.com/x/polymer/space/seasons_series_list?mid=" + getLinkHandler().getId() + "&page_num=1&page_size=10";
-        return Collections.singletonList(
+        return Arrays.asList(
+                new ListLinkHandler(getUrl(), url, getLinkHandler().getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null),
                 new ListLinkHandler(url, url, getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null)
         );

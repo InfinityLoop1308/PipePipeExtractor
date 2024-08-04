@@ -29,6 +29,8 @@ public class SoundcloudChannelTabExtractor extends ChannelTabExtractor {
 
     private String getEndpoint() {
         switch (getTab()) {
+            case ChannelTabs.TRACKS:
+                return "/tracks";
             case ChannelTabs.PLAYLISTS:
                 return "/playlists_without_albums";
             case ChannelTabs.ALBUMS:

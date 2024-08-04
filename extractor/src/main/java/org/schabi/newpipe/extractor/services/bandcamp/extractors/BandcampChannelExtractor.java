@@ -22,6 +22,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -115,12 +116,17 @@ public class BandcampChannelExtractor extends ChannelExtractor {
 
         if (discography.stream().anyMatch(o -> (
                 (JsonObject) o).getString("item_type").equals("album"))) {
-            return Collections.singletonList(
+            return Arrays.asList(
+                    new BandcampChannelTabHandler(getUrl()
+                            + BandcampChannelTabLinkHandlerFactory.URL_SUFFIX,
+                            getId(), ChannelTabs.TRACKS, discography),
                     new BandcampChannelTabHandler(getUrl()
                             + BandcampChannelTabLinkHandlerFactory.URL_SUFFIX,
                             getId(), ChannelTabs.ALBUMS, discography));
         }
-        return Collections.emptyList();
+        return Collections.singletonList(new BandcampChannelTabHandler(getUrl()
+                + BandcampChannelTabLinkHandlerFactory.URL_SUFFIX,
+                getId(), ChannelTabs.TRACKS, discography));
     }
 
     @Nonnull

@@ -20,6 +20,8 @@ public final class SoundcloudChannelTabLinkHandlerFactory extends ListLinkHandle
 
     public static String getUrlSuffix(final String tab) throws ParsingException {
         switch (tab) {
+            case ChannelTabs.TRACKS:
+                return "/tracks";
             case ChannelTabs.PLAYLISTS:
                 return "/sets";
             case ChannelTabs.ALBUMS:

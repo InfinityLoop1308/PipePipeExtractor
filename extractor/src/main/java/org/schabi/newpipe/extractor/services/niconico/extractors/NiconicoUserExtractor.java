@@ -218,6 +218,8 @@ public class NiconicoUserExtractor extends ChannelExtractor {
         String lives = String.format("https://live.nicovideo.jp/front/api/v1/user-broadcast-history?providerId=%s&providerType=user&isIncludeNonPublic=false&offset=0&limit=10&withTotalCount=true"
         , id);
         return Arrays.asList(
+                new ListLinkHandler(getUrl(), getUrl(), getLinkHandler().getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null),
                 new ListLinkHandler(mylists, mylists, getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null),
                 new ListLinkHandler(series, series, getLinkHandler().getId(),

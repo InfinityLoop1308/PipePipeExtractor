@@ -571,7 +571,8 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
             try {
                 tabs.add(YoutubeChannelTabLinkHandlerFactory.getInstance().fromQuery(
                         redirectedChannelId, Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, tab)), null));
-            } catch (final ParsingException ignored) {
+            } catch (final ParsingException e) {
+                e.printStackTrace();
             }
         };
 
@@ -587,6 +588,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
 
                     switch (urlSuffix) {
                         case "videos":
+                            addTab.accept(ChannelTabs.VIDEOS);
                             foundVideoTab = tabRenderer;
                             break;
                         case "playlists":

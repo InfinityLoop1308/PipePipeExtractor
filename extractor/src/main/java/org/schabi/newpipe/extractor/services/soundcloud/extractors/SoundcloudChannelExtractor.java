@@ -133,12 +133,16 @@ public class SoundcloudChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
+        final String urlTracks = getUrl()
+                + SoundcloudChannelTabLinkHandlerFactory.getUrlSuffix(ChannelTabs.TRACKS);
         final String urlPlaylists = getUrl()
                 + SoundcloudChannelTabLinkHandlerFactory.getUrlSuffix(ChannelTabs.PLAYLISTS);
         final String urlAlbums = getUrl()
                 + SoundcloudChannelTabLinkHandlerFactory.getUrlSuffix(ChannelTabs.ALBUMS);
 
         return Arrays.asList(
+                new ListLinkHandler(urlTracks, urlTracks, getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN,ChannelTabs.TRACKS)), null),
                 new ListLinkHandler(urlPlaylists, urlPlaylists, getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN,ChannelTabs.PLAYLISTS)), null),
                 new ListLinkHandler(urlAlbums, urlAlbums, getId(),

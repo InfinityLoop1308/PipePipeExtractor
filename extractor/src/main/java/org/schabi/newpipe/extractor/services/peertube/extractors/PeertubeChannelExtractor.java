@@ -24,6 +24,7 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -107,7 +108,9 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
-        return Collections.singletonList(
+        return Arrays.asList(
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null, getBaseUrl()),
                 PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.CHANNELS)), null, getBaseUrl())
         );

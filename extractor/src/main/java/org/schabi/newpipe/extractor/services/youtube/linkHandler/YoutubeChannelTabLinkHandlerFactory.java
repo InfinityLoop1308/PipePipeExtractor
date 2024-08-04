@@ -24,6 +24,8 @@ public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFa
 
     public static String getUrlSuffix(final String tab) throws ParsingException {
         switch (tab) {
+            case ChannelTabs.VIDEOS:
+                return "/videos";
             case ChannelTabs.PLAYLISTS:
                 return "/playlists";
             case ChannelTabs.LIVESTREAMS:
