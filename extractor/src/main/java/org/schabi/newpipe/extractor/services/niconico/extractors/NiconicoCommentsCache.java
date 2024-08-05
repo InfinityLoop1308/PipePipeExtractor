@@ -30,7 +30,7 @@ public class NiconicoCommentsCache {
         }
         this.id = lastId;
         JsonObject nvComment = watch.getObject("comment").getObject("nvComment");
-        String url = "https://nv-comment.nicovideo.jp/v1/threads";
+        String url = "https://public.nvcomment.nicovideo.jp/v1/threads";
 
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("x-frontend-id", Collections.singletonList("6"));

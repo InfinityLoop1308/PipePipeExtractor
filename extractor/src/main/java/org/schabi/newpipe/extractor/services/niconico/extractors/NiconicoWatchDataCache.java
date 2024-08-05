@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -76,7 +77,7 @@ public class NiconicoWatchDataCache {
         }
         page = Jsoup.parse(response.responseBody());
         try {
-            Element element = page.getElementById("js-initial-watch-data");
+            Element element = page.select("meta[name=\"server-response\"]").first();
             if (element == null) {
                 watchDataType = WatchDataType.LOGIN; //need login
                 if(response.responseBody().contains("チャンネル会員専用動画")){
@@ -96,8 +97,7 @@ public class NiconicoWatchDataCache {
                                 .attr("data-video"));
             } else {
                 watchData = JsonParser.object().from(
-                        page.getElementById("js-initial-watch-data")
-                                .attr("data-api-data"));
+                        Entities.unescape(element.attr("content"))).getObject("data").getObject("response");
             }
         } catch (JsonParserException e) {
             throw new ParsingException("Failed to parse content");
