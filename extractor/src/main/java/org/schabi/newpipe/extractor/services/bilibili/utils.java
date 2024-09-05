@@ -132,15 +132,17 @@ public class utils {
 //        dm_img_inter = '{"ds":[],"wh":[0,0,0],"of":[0,0,0]}'
         params.put("dm_img_inter", "{\"ds\":[],\"wh\":[0,0,0],\"of\":[0,0,0]}");
 
+        return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
+    }
+
+    public static String getWbiResult(String baseUrl, Map<String, String> params) {
         String[] wbiResults = utils.encWbi(params);
 
         params.put("w_rid", wbiResults[0]);
         params.put("wts", wbiResults[1]);
-
-        String newUrl = QUERY_USER_VIDEOS_WEB_API_URL + "?" + params.entrySet().stream()
+        return baseUrl + "?" + params.entrySet().stream()
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining("&"));
-        return newUrl;
     }
 
     public static String getRecordApiUrl(String url) {

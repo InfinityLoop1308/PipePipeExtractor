@@ -1,12 +1,10 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
-
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
-
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
@@ -17,9 +15,11 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 
-import java.io.IOException;
-
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.util.HashMap;
+
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
 
 public class BilibiliCommentExtractor extends CommentsExtractor {
     JsonObject data = new JsonObject();
@@ -30,8 +30,8 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        String response = downloader.get(getUrl()).responseBody();
         try {
+            String response = downloader.get(getUrl()).responseBody();
             data = JsonParser.object().from(response);
             data = data.getObject("data");
         } catch (JsonParserException e) {
@@ -55,13 +55,13 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             }
             results.addAll(data.getArray("replies"));
         } else {
-            final String html = getDownloader().get(page.getUrl()).responseBody();
             try {
-                data = JsonParser.object().from(html);
+                final String html = getDownloader().get(page.getUrl()).responseBody();
+                data = JsonParser.object().from(html).getObject("data");
             } catch (JsonParserException e) {
                 e.printStackTrace();
             }
-            results = data.getObject("data").getArray("replies");
+            results = data.getArray("replies");
         }
 
         if (results == null || results.size() == 0) {
@@ -72,10 +72,27 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         for (int i = 0; i < results.size(); i++) {
             collector.commit(new BilibiliCommentsInfoItemExtractor(results.getObject(i)));
         }
-        if (19 > results.size() && page.getUrl().contains("pn=1")) {
-            return new InfoItemsPage<>(collector, null);
+
+        if (page.getUrl().contains(FETCH_COMMENTS_URL)) { //comments
+            if (data.getObject("cursor").getBoolean("is_end")) {
+                return new InfoItemsPage<>(collector, null);
+            }
+            //data.cursor.pagination_reply.next_offset
+            String offset = data.getObject("cursor").getObject("pagination_reply").getString("next_offset");
+            return new InfoItemsPage<>(collector, new Page(utils.getWbiResult(FETCH_COMMENTS_URL, new HashMap<String, String>(){{
+                put("oid", getUrl().split("oid=")[1].split("&")[0]);
+                put("type", "1");
+                put("mode", "3");
+                put("pagination_str", "{\"offset\":\"" + StringEscapeUtils.escapeJson(offset) + "\"}");
+                put("plat", "1");
+                put("web_location", "1315875");
+            }})));
+        } else { //replies
+            if (19 > results.size() && page.getUrl().contains("pn=1")) {
+                return new InfoItemsPage<>(collector, null);
+            }
+            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "pn", 1)));
         }
-        return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "pn", 1)));
     }
 
     @Override
