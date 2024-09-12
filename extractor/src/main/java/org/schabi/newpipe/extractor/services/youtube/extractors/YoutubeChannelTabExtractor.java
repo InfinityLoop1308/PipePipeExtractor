@@ -267,6 +267,15 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
             } else if (richItem.has("reelItemRenderer")) {
                 commitVideo.accept(richItem.getObject("reelItemRenderer"));
+            } else if (richItem.has("shortsLockupViewModel")) {
+                collector.commit(new YoutubeShortsInfoItemExtractor(
+                        richItem.getObject("shortsLockupViewModel")
+                ) {
+                    @Override
+                    public String getUploaderName() {
+                        return channelIds.get(0);
+                    }
+                });
             }
         } else if (item.has("gridPlaylistRenderer")) {
             collector.commit(new YoutubePlaylistInfoItemExtractor(
