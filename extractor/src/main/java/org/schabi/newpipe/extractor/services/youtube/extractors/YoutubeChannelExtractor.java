@@ -290,7 +290,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                 try {
                     return Utils.mixedNumberWordToLong(getTextFromObject(textObject));
                 } catch (final NumberFormatException e) {
-                    throw new ParsingException("Could not get subscriber count", e);
+                    return UNKNOWN_SUBSCRIBER_COUNT;
                 }
             }
         }
@@ -334,7 +334,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                         .getObject("text")
                         .getString(CONTENT));
             } catch (final NumberFormatException e) {
-                throw new ParsingException("Could not get subscriber count", e);
+                return UNKNOWN_SUBSCRIBER_COUNT;
             }
         }
 
@@ -370,7 +370,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                     .getObject("channelMetadataRenderer")
                     .getString("description");
         } catch (final Exception e) {
-            throw new ParsingException("Could not get channel description", e);
+            return null;
         }
     }
 
