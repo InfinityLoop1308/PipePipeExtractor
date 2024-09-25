@@ -26,10 +26,12 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MetaInfo;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.AccountTerminatedException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -53,7 +55,10 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -1157,6 +1162,23 @@ YoutubeParsingHelper {
         return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
     }
 
+    public static JsonObject getLoggedJsonPostResponse(final String endpoint,
+                                                 final byte[] body,
+                                                 final Localization localization)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+
+        addLoggedInHeaders(headers);
+
+        final Response response = getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?key="
+                + getKey() + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization);
+
+        return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+    }
+
+
     public static String getJsonPostResponseRaw(final String endpoint,
                                                  final byte[] body,
                                                  final Localization localization)
@@ -1394,6 +1416,8 @@ YoutubeParsingHelper {
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
 
+        addLoggedInHeaders(headers);
+
         return JsonUtils.toJsonObject(getValidJsonResponseBody(
                 getDownloader().post(
                         url, headers, body, localization)));
@@ -1494,6 +1518,19 @@ YoutubeParsingHelper {
             headers.put("X-YouTube-Client-Version", singletonList(getClientVersion()));
         }
         addCookieHeader(headers);
+    }
+
+    public static void addLoggedInHeaders(@Nonnull final Map<String, List<String>> headers) throws ExtractionException {
+        if(StringUtils.isNotBlank(ServiceList.YouTube.getTokens())) {
+            headers.put("Cookie", singletonList(ServiceList.YouTube.getTokens()));
+            try {
+                headers.put("Authorization", singletonList(getAuthorizationHeader(ServiceList.YouTube.getTokens())));
+            } catch (Exception e) {
+                throw new ExtractionException("Failed to get authorization header", e);
+            }
+            headers.put("X-Origin", singletonList("https://www.youtube.com"));
+            headers.put("DNT", singletonList("1"));
+        }
     }
 
     /**
@@ -1970,5 +2007,54 @@ YoutubeParsingHelper {
         } else {
             YoutubeParsingHelper.visitorData = visitorData;
         }
+    }
+
+    /**
+     * Auth
+     */
+    public static Map<String, String> parseCookies(String cookie) {
+        Map<String, String> cookies = new HashMap<>();
+        String[] cookiePairs = cookie.split("; ");
+        for (String pair : cookiePairs) {
+            String[] keyValue = pair.split("=", 2);
+            if (keyValue.length == 2) {
+                cookies.put(keyValue[0], keyValue[1]);
+            } else {
+                throw new IllegalArgumentException("Cookie has invalid format");
+            }
+        }
+        return cookies;
+    }
+
+    public static String sha1(String input) throws NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-1");
+        byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hexString = new StringBuilder();
+        for (byte b : hash) {
+            String hex = Integer.toHexString(0xff & b);
+            if (hex.length() == 1) hexString.append('0');
+            hexString.append(hex);
+        }
+        return hexString.toString();
+    }
+
+    public static String getAuthorizationHeader(String cookie) throws NoSuchAlgorithmException {
+        String ytURL = "https://www.youtube.com";
+
+        Map<String, String> cookies = parseCookies(cookie);
+        String sapisid = cookies.get("SAPISID");
+
+        if (sapisid == null) {
+            sapisid = cookies.get("__Secure-3PAPISID");
+            if (sapisid == null) {
+                throw new IllegalArgumentException("SAPISID not found in cookies");
+            }
+        }
+
+        long currentTimestamp = Instant.now().getEpochSecond();
+        String initialData = currentTimestamp + " " + sapisid + " " + ytURL;
+        String hash = sha1(initialData);
+
+        return "SAPISIDHASH " + currentTimestamp + "_" + hash;
     }
 }

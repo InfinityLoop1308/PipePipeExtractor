@@ -35,11 +35,7 @@ import org.json.JSONObject;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
-import org.schabi.newpipe.extractor.Image;
-import org.schabi.newpipe.extractor.MediaFormat;
-import org.schabi.newpipe.extractor.MetaInfo;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -1091,9 +1087,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
-        final JsonObject iosPlayerResponse = getJsonIosPostResponse(PLAYER,
+        final JsonObject iosPlayerResponse = ServiceList.YouTube.getTokens() == null ? getJsonIosPostResponse(PLAYER,
                 mobileBody, localization, "&t=" + generateTParameter()
-                        + "&id=" + videoId);
+                        + "&id=" + videoId): getLoggedJsonPostResponse(PLAYER, mobileBody, localization);
 
         if (isPlayerResponseNotValid(iosPlayerResponse, videoId)) {
             throw new ExtractionException("IOS player response is not valid");

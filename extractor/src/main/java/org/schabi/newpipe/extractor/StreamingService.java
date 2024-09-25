@@ -97,6 +97,7 @@ public abstract class StreamingService {
     public final int serviceId;
     private final ServiceInfo serviceInfo;
     private String tokens = null;
+    private String additionalTokens = null;
     private Set<String> cookieFunctions = null;
 
     /**
@@ -474,6 +475,14 @@ public abstract class StreamingService {
 
     public String getTokens() {
         return this.tokens;
+    }
+
+    public String getAdditionalTokens() {
+        return additionalTokens;
+    }
+
+    public void setAdditionalTokens(String additionalTokens) {
+        this.additionalTokens = additionalTokens;
     }
 
     public Set<String> getCookieFunctions() {
