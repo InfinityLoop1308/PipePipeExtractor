@@ -77,13 +77,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
@@ -1475,13 +1469,26 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return java.util.stream.Stream.empty();
         }
 
+        String contentLanguage = ServiceList.YouTube.getContentLanguage();
+        String foundLangCode = streamingData.getArray(streamingDataKey).stream().filter(element -> element instanceof JsonObject)
+                .map(element -> (JsonObject) element).filter(data -> data.has("audioTrack")).map(data -> data.getObject("audioTrack"))
+                .filter(audioTrack -> audioTrack.has("id")).map(audioTrack -> audioTrack.getString("id"))
+                .map(audioId -> audioId.split("\\.")[0]).filter(langCode -> langCode.equals(contentLanguage))
+                .findFirst().orElse(null);
+
+
         return streamingData.getArray(streamingDataKey).stream()
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
                 .filter(data -> {
                     try {
-                        if(!data.has("audioTrack")) return true;
-                        return data.getObject("audioTrack").getBoolean("audioIsDefault");
+                        if(foundLangCode != null) {
+                            return data.has("audioTrack") && data.getObject("audioTrack").has("id") &&
+                                    data.getObject("audioTrack").getString("id").split("\\.")[0].equals(foundLangCode);
+                        } else {
+                            if(!data.has("audioTrack")) return true;
+                            return data.getObject("audioTrack").getBoolean("audioIsDefault");
+                        }
                     } catch (final Exception ignored) {
                         return true;
                     }

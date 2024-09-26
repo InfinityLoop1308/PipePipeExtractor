@@ -99,6 +99,7 @@ public abstract class StreamingService {
     private String tokens = null;
     private String additionalTokens = null;
     private Set<String> cookieFunctions = null;
+    private String contentLanguage = null;
 
     /**
      * Creates a new Streaming service.
@@ -494,5 +495,13 @@ public abstract class StreamingService {
 
     public void setCookieFunctions(Set<String> cookieFunctions) {
         this.cookieFunctions = cookieFunctions;
+    }
+
+    public void setContentLanguage(String contentLanguage) {
+        this.contentLanguage = contentLanguage;
+    }
+
+    public String getContentLanguage() {
+        return contentLanguage;
     }
 }
