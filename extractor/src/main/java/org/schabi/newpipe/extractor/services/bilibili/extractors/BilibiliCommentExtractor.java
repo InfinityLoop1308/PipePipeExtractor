@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 public class BilibiliCommentExtractor extends CommentsExtractor {
     JsonObject data = new JsonObject();
@@ -31,7 +32,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            String response = downloader.get(getUrl()).responseBody();
+            String response = downloader.get(getUrl(), getHeaders()).responseBody();
             data = JsonParser.object().from(response);
             data = data.getObject("data");
         } catch (JsonParserException e) {
@@ -56,7 +57,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             results.addAll(data.getArray("replies"));
         } else {
             try {
-                final String html = getDownloader().get(page.getUrl()).responseBody();
+                final String html = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
                 data = JsonParser.object().from(html).getObject("data");
             } catch (JsonParserException e) {
                 e.printStackTrace();
