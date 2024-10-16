@@ -86,6 +86,12 @@ public class BilibiliService extends StreamingService {
         return headers;
     }
 
+    static public Map<String, List<String>> getUserAgentHeaders() {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
+        return headers;
+    }
+
     static public Map<String, String> getWebSocketHeaders() {
         Map<String, String> httpHeaders = new HashMap<String, String>();
         httpHeaders.put("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:106.0) Gecko/20100101 Firefox/106.0");

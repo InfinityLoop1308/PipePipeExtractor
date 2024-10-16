@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUserAgentHeaders;
 
 public class BilibiliCommentExtractor extends CommentsExtractor {
     JsonObject data = new JsonObject();
@@ -36,7 +36,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         try {
             String url = getUrl();
             String response = isRepliesOfComment(url)
-                    ? getDownloader().get(url, getHeaders()).responseBody()
+                    ? getDownloader().get(url, getUserAgentHeaders()).responseBody()
                     : getDownloader().get(url).responseBody();
             data = JsonParser.object().from(response);
             data = data.getObject("data");
@@ -67,7 +67,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             try {
                 final String responseJson =
                         isRepliesOfComment(pageUrl)
-                                ? getDownloader().get(pageUrl, getHeaders()).responseBody()
+                                ? getDownloader().get(pageUrl, getUserAgentHeaders()).responseBody()
                                 : getDownloader().get(pageUrl).responseBody();
                 data = JsonParser.object().from(responseJson).getObject("data");
             } catch (JsonParserException e) {
