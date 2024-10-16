@@ -82,7 +82,13 @@ public class BilibiliService extends StreamingService {
     static public Map<String, List<String>> getHeaders() {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Cookie", Collections.singletonList("buvid3=1DCAF0E0-E1BF-FA62-7963-5503227CF1B124755infoc;"));
-        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (Linux; Android 13; KB2000) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Mobile Safari/537.36"));
+        headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
+        return headers;
+    }
+
+    static public Map<String, List<String>> getUserAgentHeaders() {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
         return headers;
     }
 
