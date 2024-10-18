@@ -916,18 +916,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
         if (isAgeRestricted) {
-//            fetchTvHtml5EmbedJsonPlayer(contentCountry, localization, videoId);
+            fetchTvHtml5EmbedJsonPlayer(contentCountry, localization, videoId);
 
             // If no streams can be fetched in the TVHTML5 simply embed client, the video should be
             // age-restricted, therefore throw an AgeRestrictedContentException explicitly.
-//            if (tvHtml5SimplyEmbedStreamingData == null) {
+            if (tvHtml5SimplyEmbedStreamingData == null) {
                 throw new AgeRestrictedContentException(
-                        "This age-restricted video cannot be watched without logging in.");
-//            }
+                        "This age-restricted video cannot be watched.");
+            }
 
             // Refresh the stream type because the stream type may be not properly known for
             // age-restricted videos
-//            setStreamType();
+            setStreamType();
         } else {
             checkPlayabilityStatus(webPlayerResponse, playabilityStatus);
             // Fetching successfully the iOS player is mandatory to get streams
