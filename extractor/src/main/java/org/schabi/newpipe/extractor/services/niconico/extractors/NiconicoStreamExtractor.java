@@ -51,7 +51,6 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     private final NiconicoWatchDataCache niconicoWatchDataCache;
     private Document page = null;
     private String liveMessageServer;
-    private String liveThreadId;
     private JsonObject liveData;
     private Document liveResponse;
     private JsonObject liveDataRoot;
@@ -216,8 +215,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         do {
             String liveUrl = nicoWebSocketClient.getUrl();
             liveMessageServer = nicoWebSocketClient.getServerUrl();
-            liveThreadId = nicoWebSocketClient.getThreadId();
-            if (liveUrl != null && liveMessageServer != null && liveThreadId != null) {
+            if (liveUrl != null && liveMessageServer != null) {
                 webSocketClient.close();
                 return ;
             }
@@ -359,7 +357,6 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                         .first().attr("data-props"));
                 liveData = liveDataRoot.getObject("program");
                 niconicoWatchDataCache.setStartAt(liveData.getLong("beginTime") * 1000);
-                niconicoWatchDataCache.setThreadId(liveThreadId);
                 niconicoWatchDataCache.setThreadServer(liveMessageServer);
             } catch (JsonParserException e) {
                 throw new RuntimeException(e);

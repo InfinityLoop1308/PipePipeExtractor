@@ -123,16 +123,8 @@ public class NiconicoWatchDataCache {
         return response;
     }
 
-    public String getThreadId() {
-        return threadId;
-    }
-
     public String getThreadServer() {
         return threadServer;
-    }
-
-    public void setThreadId(String threadId) {
-        this.threadId = threadId;
     }
 
     public void setThreadServer(String threadServer) {
