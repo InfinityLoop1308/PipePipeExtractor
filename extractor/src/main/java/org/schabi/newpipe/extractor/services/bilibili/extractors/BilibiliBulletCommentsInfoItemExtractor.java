@@ -58,6 +58,6 @@ public class BilibiliBulletCommentsInfoItemExtractor implements BulletCommentsIn
 
     @Override
     public Duration getDuration() throws ParsingException {
-        return Duration.ofMillis((long) (Double.parseDouble(attr[0])*1000));
+        return Duration.ofMillis((long) (Double.parseDouble(attr[0])*1000) + 2500); //2500 for sync
     }
 }
