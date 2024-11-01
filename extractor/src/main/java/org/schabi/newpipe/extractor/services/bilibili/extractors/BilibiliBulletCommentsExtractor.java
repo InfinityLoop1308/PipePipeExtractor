@@ -104,6 +104,9 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
             } else {
                 Elements elements = result.select("d");
                 for (final Element element : elements) {
+                    if (Integer.parseInt(element.attr("p").split(",")[5]) == 3) { // voting
+                        continue;
+                    }
                     collector.commit(new BilibiliBulletCommentsInfoItemExtractor(element));
                 }
             }
