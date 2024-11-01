@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.*;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -30,6 +31,7 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -117,7 +119,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             } else if (liveData.getObject("thumbnail").has("large")) {
                 return liveData.getObject("thumbnail").getString("large");
             } else {
-                return liveData.getObject("thumbnail").getString("small");
+                return URLDecoder.decode((liveResponse.select("meta[property=og:image]").attr("content")));
             }
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
@@ -166,7 +168,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return liveResponse.select(".___resource___2_bdf").attr("src");
+            return liveResponse.select("div.thumbnail-area > a > img").attr("src");
         }
         if (type == NiconicoWatchDataCache.WatchDataType.LOGIN) {
             return getThumbnailUrl();
