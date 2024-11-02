@@ -6,6 +6,8 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_RECOMMENDED_LIVES_URL;
+
 public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
 
     @Override
@@ -18,7 +20,7 @@ public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
             case "Top 100":
                 return "https://api.bilibili.com/x/web-interface/ranking/v2";
             case "Recommended Lives":
-                return "https://live.bilibili.com/all";
+                return FETCH_RECOMMENDED_LIVES_URL;
         }
     }
 
@@ -27,7 +29,7 @@ public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
         switch (url){
             case "https://www.bilibili.com":
                 return "Recommended Videos";
-            case "https://live.bilibili.com/all":
+            case FETCH_RECOMMENDED_LIVES_URL:
                 return "Recommended Lives";
             case "https://api.bilibili.com/x/web-interface/ranking/v2":
                 return "Top 100";
@@ -39,7 +41,7 @@ public class BilibiliFeedLinkHandlerFactory extends ListLinkHandlerFactory{
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
         return url.equals("https://www.bilibili.com")
-                || url.equals("https://live.bilibili.com/all")
+                || url.contains(FETCH_RECOMMENDED_LIVES_URL)
                 || url.equals("https://api.bilibili.com/x/web-interface/ranking/v2");
     }
     

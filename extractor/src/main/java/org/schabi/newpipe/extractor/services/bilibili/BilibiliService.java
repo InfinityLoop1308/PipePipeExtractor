@@ -77,6 +77,7 @@ public class BilibiliService extends StreamingService {
     public static String GET_PARTITION_URL = "https://api.bilibili.com/x/player/pagelist?bvid=";
     public static String FETCH_COOKIE_URL = "https://api.bilibili.com/x/frontend/finger/spi";
     public static String FETCH_COMMENTS_URL = "https://api.bilibili.com/x/v2/reply/wbi/main";
+    public final static String FETCH_RECOMMENDED_LIVES_URL = "https://api.live.bilibili.com/xlive/web-interface/v1/second/getUserRecommend?page_size=30&platform=web";
 
 
     static public Map<String, List<String>> getHeaders() {

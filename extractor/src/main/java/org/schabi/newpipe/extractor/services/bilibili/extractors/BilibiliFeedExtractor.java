@@ -52,30 +52,9 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
                 }
                 break;
             case "Recommended Lives":
-                Elements elements = document.select("div.index_1Jokt5rg");
-                for (final Element parent : elements) {
-                    Elements lives = parent.children();
-                    for (final Element live : lives) {
-                        String views = live.select(".Item_3Iz_3buh").text();
-                        int flag = 1;
-                        if (views.contains("万")) {
-                            views = views.replace("万", "");
-                            flag = 10000;
-                        } else if (views.contains("亿")) {
-                            views = views.replace("亿", "");
-                            flag = 100000000;
-                        }
-                        collector.commit(new BilibiliRecommendLiveInfoItemExtractor(
-                                "https:" + live.select("a").first().attr("href"),
-                                live.select(".Item_2n7ef9LN.bg-bright-filter")
-                                        .attr("style")
-                                        .split("background-image:url\\(")[1].split("\\)")[0]
-                                        .replace("http:", "https:"),
-                                live.select(".Item_2GEmdhg6").text(),
-                                live.select(".Item_QAOnosoB").text(),
-                                (long) (Double.parseDouble(views) * flag)
-                        ));
-                    }
+                results = response.getObject("data").getArray("list");
+                for (int i = 0; i < results.size(); i++) {
+                    collector.commit(new BilibiliRecommendLiveInfoItemExtractor(results.getObject(i)));
                 }
                 break;
             case "Top 100":
@@ -112,7 +91,11 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
                 }
                 break;
             case "Recommended Lives":
-                document = Jsoup.parse(downloader.get(getUrl(), getHeaders()).responseBody());
+                try {
+                    response = JsonParser.object().from(downloader.get(getUrl() + "&page=1", getHeaders()).responseBody());
+                } catch (JsonParserException e) {
+                    throw new RuntimeException(e);
+                }
                 break;
         }
     }

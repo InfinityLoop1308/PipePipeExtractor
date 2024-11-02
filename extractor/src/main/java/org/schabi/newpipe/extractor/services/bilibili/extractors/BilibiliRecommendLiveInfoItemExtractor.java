@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import com.grack.nanojson.JsonObject;
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
@@ -7,35 +9,33 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 
 import javax.annotation.Nullable;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.LIVE_BASE_URL;
+
 public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExtractor {
-    private final String url;
-    private final String thumbnail;
-    private final String title;
-    private final String name;
-    private final Long views;
+    private final JsonObject data;
 
 
-    public BilibiliRecommendLiveInfoItemExtractor(String url, String thumbnail, String title, String name, Long views) {
-        this.url = url;
-        this.thumbnail = thumbnail;
-        this.title = title;
-        this.name = name;
-        this.views = views;
+    public BilibiliRecommendLiveInfoItemExtractor(JsonObject data) {
+        this.data = data;
     }
 
     @Override
     public String getName() throws ParsingException {
-        return title;
+        return this.data.getString("title");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return url;
+        return "https://" + LIVE_BASE_URL + "/" + data.getLong("roomid");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return thumbnail;
+        String result = data.getString("user_cover");
+        if(!StringUtils.isNotBlank(result)){
+            result = data.getString("system_cover");
+        }
+        return result.replace("http:", "https:");
     }
 
     @Override
@@ -50,12 +50,12 @@ public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExt
 
     @Override
     public long getViewCount() throws ParsingException {
-        return views;
+        return this.data.getObject("watched_show").getLong("num");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return name;
+        return this.data.getString("uname");
     }
 
     @Nullable
