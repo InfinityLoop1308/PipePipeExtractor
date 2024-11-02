@@ -36,4 +36,9 @@ public class NiconicoBulletCommentsNewInfoItemExtractor  implements BulletCommen
         System.out.println(decodeVarInt(this.data, (byte) 0x18));
         return Duration.ofMillis(decodeVarInt(this.data, (byte) 0x18) * 10L + 15000L);
     }
+
+    @Override
+    public boolean isLive() throws ParsingException {
+        return true;
+    }
 }

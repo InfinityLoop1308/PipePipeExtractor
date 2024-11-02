@@ -20,21 +20,6 @@ public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInf
     }
 
     @Override
-    public String getName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
     public String getCommentText() throws ParsingException {
         JsonArray array = data.getObject("message").getArray("runs");
         StringBuilder result = new StringBuilder();
@@ -68,7 +53,7 @@ public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInf
     }
 
     @Override
-    public int getLastingTime() {
-        return BulletCommentsInfoItemExtractor.super.getLastingTime();
+    public boolean isLive() throws ParsingException {
+        return true;
     }
 }

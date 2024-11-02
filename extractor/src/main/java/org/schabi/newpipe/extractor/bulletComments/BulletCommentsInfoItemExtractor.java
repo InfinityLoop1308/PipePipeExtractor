@@ -46,6 +46,10 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
         return -1;
     }
 
+    default boolean isLive() throws ParsingException {
+        return false;
+    }
+
     // Must be implemented. If that is a live stream you should at least calculate the time from the start of the stream.
     Duration getDuration() throws ParsingException;
 }

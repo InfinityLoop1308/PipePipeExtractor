@@ -41,6 +41,16 @@ public class BulletCommentsInfoItemsCollector
         } catch (final Exception e) {
             addError(e);
         }
+        try{
+            resultItem.setLastingTime(extractor.getLastingTime());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
+            resultItem.setLive(extractor.isLive());
+        } catch (final Exception e) {
+            addError(e);
+        }
         return resultItem;
     }
 }

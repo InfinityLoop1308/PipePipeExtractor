@@ -43,7 +43,12 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
         return Duration.ofSeconds(data.getLong("start_time") - startTime);
     }
 
-//    @Override
+    @Override
+    public boolean isLive() throws ParsingException {
+        return true;
+    }
+
+    //    @Override
 //    public int getLastingTime() {
 //        int price = data.getInt("price");
 //        if(price > 700){

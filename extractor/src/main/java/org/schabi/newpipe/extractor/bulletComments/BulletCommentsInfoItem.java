@@ -26,6 +26,7 @@ public class BulletCommentsInfoItem extends InfoItem implements Comparable<Bulle
     /* It really should be named as timePosition or some other thing*/
     private Duration duration;
     private int lastingTime;
+    private boolean isLive;
 
     public BulletCommentsInfoItem(final int serviceId, final String url, final String name) {
         super(InfoType.COMMENT, serviceId, url, name);
@@ -77,5 +78,13 @@ public class BulletCommentsInfoItem extends InfoItem implements Comparable<Bulle
 
     public void setLastingTime(int lastingTime) {
         this.lastingTime = lastingTime;
+    }
+
+    public boolean isLive() {
+        return isLive;
+    }
+
+    public void setLive(boolean live) {
+        isLive = live;
     }
 }
