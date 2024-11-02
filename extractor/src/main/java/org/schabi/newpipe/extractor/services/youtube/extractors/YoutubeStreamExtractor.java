@@ -1482,7 +1482,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .map(JsonObject.class::cast)
                 .filter(data -> {
                     try {
-                        if(foundLangCode != null) {
+                        if(foundLangCode != null && itagTypeWanted == ItagItem.ItagType.AUDIO) {
                             return data.has("audioTrack") && data.getObject("audioTrack").has("id") &&
                                     data.getObject("audioTrack").getString("id").split("\\.")[0].equals(foundLangCode);
                         } else {
