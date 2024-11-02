@@ -26,12 +26,11 @@ public class BilibiliWebSocketClient {
     private final String token;
     WrappedWebSocketClient webSocketClient;
     long id;
+    private final AtomicBoolean shouldStop = new AtomicBoolean(false);
 
     private final ArrayList<JsonObject> messages  = new ArrayList<>();
 
     public class WrappedWebSocketClient extends WebSocketClient {
-        private final AtomicBoolean shouldStop = new AtomicBoolean(false);
-
         private ScheduledExecutorService executor;
 
         public WrappedWebSocketClient() throws URISyntaxException {
@@ -123,7 +122,7 @@ public class BilibiliWebSocketClient {
         @Override
         public void onClose(int code, String reason, boolean remote) {
             System.out.println(code);
-            if(code != -1){
+            if(code != -1 && !shouldStop.get()){
                 try {
                     wrappedReconnect();
                 } catch (URISyntaxException e) {
@@ -167,7 +166,8 @@ public class BilibiliWebSocketClient {
         return temp;
     }
     public void disconnect(){
-        webSocketClient.closeConnection(-1, "Scheduled terminate");;
+        shouldStop.set(true);
+        webSocketClient.closeConnection(-1, "Scheduled terminate");
         webSocketClient.stopTimer();
     }
 }
