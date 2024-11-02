@@ -53,6 +53,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
         if(watchDataCache.getThreadServer() == null){
             isLive = false;
             this.watch = watchDataCache.refreshAndGetWatchData(downloader, getId());
+            return;
         }
         executor = Executors.newSingleThreadScheduledExecutor();
         future = executor.scheduleAtFixedRate(this::fetchMessage, 1000, 10000, TimeUnit.MILLISECONDS);

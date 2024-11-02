@@ -366,6 +366,8 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             return ;
         }
         watch = niconicoWatchDataCache.refreshAndGetWatchData(downloader, getId());
+        niconicoWatchDataCache.setStartAt(-1);
+        niconicoWatchDataCache.setThreadServer(null);
 
         JsonStringWriter resolutionObject = JsonWriter.string().object()
                 .array("outputs");
