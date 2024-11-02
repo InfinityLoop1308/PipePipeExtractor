@@ -1224,8 +1224,7 @@ YoutubeParsingHelper {
         headers.put("User-Agent", singletonList(userAgent));
         headers.put("X-Goog-Api-Format-Version", singletonList("2"));
 
-        final String baseEndpointUrl = YOUTUBEI_V1_GAPIS_URL + endpoint + "?key=" + innerTubeApiKey
-                + DISABLE_PRETTY_PRINT_PARAMETER;
+        final String baseEndpointUrl = YOUTUBEI_V1_GAPIS_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER.substring(1);
 
         final Response response = getDownloader().post(isNullOrEmpty(endPartOfUrlRequest)
                         ? baseEndpointUrl : baseEndpointUrl + endPartOfUrlRequest,
@@ -1345,7 +1344,7 @@ YoutubeParsingHelper {
                 The build version corresponding to the iOS version used can be found on
                 https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15
                  */
-                .value("osVersion", "17.1.2.21B101")
+                .value("osVersion", "17.5.1.21F90")
                 .value("hl", localization.getLocalizationCode())
                 .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)
@@ -1488,7 +1487,7 @@ YoutubeParsingHelper {
     public static String getIosUserAgent(@Nullable final Localization localization) {
         // Spoofing an iPhone 13 running iOS 15.6 with the hardcoded version of the iOS app
         return "com.google.ios.youtube/" + IOS_YOUTUBE_CLIENT_VERSION
-                + "(" + IOS_DEVICE_MODEL + "; U; CPU iOS 15_6 like Mac OS X; "
+                + "(" + IOS_DEVICE_MODEL + "; U; CPU iOS 17_5_1 like Mac OS X; "
                 + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
                 + ")";
     }
