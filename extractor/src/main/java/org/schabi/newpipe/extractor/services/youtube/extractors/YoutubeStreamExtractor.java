@@ -683,8 +683,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public List<AudioStream> getAudioStreams() throws ExtractionException {
         assertPageFetched();
-        return getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO,
+        List<AudioStream> result = getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO,
                 getAudioStreamBuilderHelper(), "audio");
+        Collections.sort(result, Comparator.comparingInt(AudioStream::getBitrate).reversed());
+        return result;
     }
 
     @Override
