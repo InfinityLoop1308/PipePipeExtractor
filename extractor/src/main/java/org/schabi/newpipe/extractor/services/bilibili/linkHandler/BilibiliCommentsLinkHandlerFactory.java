@@ -24,7 +24,7 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
             return "LIVE";
         }
         if(url.contains("bangumi/play/")){
-            return watchDataCache.getBvid();
+            return watchDataCache.getBvid(url.split("bangumi/play/")[1].split("\\?")[0]);
         }
         try {
             return utils.getPureBV(new BilibiliStreamLinkHandlerFactory().getId(url));

@@ -29,32 +29,25 @@ import java.util.List;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 
 public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
-    private final long cid;
-    private final long roomId;
-    private final long startTime;
+    private long cid;
+    private long roomId;
+    private long startTime;
     private Document result;
     private BilibiliWebSocketClient webSocketClient;
     private boolean isLive = false;
+    private WatchDataCache watchDataCache;
 
     public BilibiliBulletCommentsExtractor(StreamingService service, ListLinkHandler uiHandler, WatchDataCache watchDataCache) {
         super(service, uiHandler);
-        // Because of the auto-enqueueing, the new cid is fetched
-        if(watchDataCache.getCurrentUrl().equals(uiHandler.getUrl())){
-            cid = watchDataCache.getCid();
-        } else if (watchDataCache.getLastUrl().equals(uiHandler.getUrl())){
-            cid = watchDataCache.getLastCid();
-        } else {
-            throw new IllegalArgumentException("The url is not in the watch data cache");
-        }
-        // live rooms have no related items(expect round-play, but that is handled), so it is ok here
-        roomId = watchDataCache.getRoomId();
-        startTime = watchDataCache.getStartTime();
+        this.watchDataCache = watchDataCache;
     }
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         if (getUrl().contains(LIVE_BASE_URL)) {
             try {
+                roomId = watchDataCache.getRoomId();
+                startTime = watchDataCache.getStartTime();
                 String token = new JSONObject(downloader.get(QUERY_DANMU_INFO_URL + roomId).responseBody()).getJSONObject("data").getString("token");
                 webSocketClient = new BilibiliWebSocketClient(roomId, token);
                 webSocketClient.getWebSocketClient().connectBlocking();
@@ -66,6 +59,7 @@ public class BilibiliBulletCommentsExtractor extends BulletCommentsExtractor {
             }
             return;
         }
+        cid = watchDataCache.getCid(getId());
         result = Jsoup.parse(new String(utils.decompress(downloader.get(
                 QUERY_VIDEO_BULLET_COMMENTS_URL + cid).rawResponseBody())));
     }

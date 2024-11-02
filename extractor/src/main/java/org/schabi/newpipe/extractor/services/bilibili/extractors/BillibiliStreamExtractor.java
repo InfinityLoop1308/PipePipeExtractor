@@ -353,8 +353,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 }
                 bvid = watch.getString("bvid");
                 cid = watch.getLong("cid");
-                watchDataCache.setCid(cid);
-                watchDataCache.setBvid(bvid);
+                watchDataCache.setCid(getId(), cid);
+                watchDataCache.setBvid(getId(), bvid);
                 duration = watch.getInt("duration") / 1000;
                 isPaid = watch.getObject("rights").getInt("pay");
             } catch (JsonParserException e) {
@@ -377,7 +377,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             }
             page = watch.getArray("pages").getObject(pageNum - 1);
             cid = page.getLong("cid");
-            watchDataCache.setCid(cid);
+            watchDataCache.setCid(getId(), cid);
+            watchDataCache.setBvid(getId(), bvid);
             duration = page.getInt("duration");
             isPaid = watch.getObject("rights").getInt("pay");
         }

@@ -1,5 +1,13 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import com.grack.nanojson.JsonObject;
+import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+
+import javax.annotation.Nonnull;
+import java.util.HashMap;
+import java.util.Map;
+
 public class WatchDataCache {
     private long cid;
     private long roomId;
@@ -10,13 +18,16 @@ public class WatchDataCache {
     private long lastCid;
     private String currentUrl;
     private String lastUrl;
+    private final Map<String, Long> cidMap = new HashMap<>();
+    private final Map<String, String> bvidMap = new HashMap<>();
 
-    public long getCid() {
-        return cid;
+    public long getCid(String id) {
+        return cidMap.get(id);
     }
 
-    public void setCid(long cid) {
+    public void setCid(String id, long cid) {
         this.cid = cid;
+        cidMap.put(id, cid);
     }
 
     public long getRoomId() {
@@ -35,12 +46,13 @@ public class WatchDataCache {
         this.startTime = startTime;
     }
 
-    public void setBvid(String bvid) {
+    public void setBvid(String id, String bvid) {
         this.bvid = bvid;
+        bvidMap.put(id, bvid);
     }
 
-    public String getBvid() {
-        return bvid;
+    public String getBvid(String id) {
+        return bvidMap.get(id);
     }
 
     public void init(String url){
