@@ -34,11 +34,6 @@ public class NiconicoBulletCommentsNewInfoItemExtractor  implements BulletCommen
     public Duration getDuration() throws ParsingException {
 //        return Duration.ofMillis(new Date().getTime() - startAt);
         System.out.println(decodeVarInt(this.data, (byte) 0x18));
-        return Duration.ofMillis(decodeVarInt(this.data, (byte) 0x18) * 10L - 20000);
-    }
-
-    @Override
-    public int getTimeOut() {
-        return 30000;
+        return Duration.ofMillis(decodeVarInt(this.data, (byte) 0x18) * 10L + 15000L);
     }
 }

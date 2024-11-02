@@ -63,7 +63,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
             return;
         }
         try {
-            byte[] response = getDownloader().get(watchDataCache.getThreadServer() + "?at=" + ((System.currentTimeMillis() / 1000 - 10))).rawResponseBody();
+            byte[] response = getDownloader().get(watchDataCache.getThreadServer() + "?at=" + (System.currentTimeMillis() / 1000)).rawResponseBody();
             try {
 //                List<String> segments = BulletComment.ADAPTER.decode(response).segments;
                 String urls = new String(response, StandardCharsets.UTF_8);
