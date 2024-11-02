@@ -386,7 +386,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
         String params = "?cid=" + cid + "&bvid=" + bvid + "&fnval=2000&qn=120&fourk=1";
         Map<String, List<String>> headers = getHeaders();
-        if(StringUtils.isNotBlank(ServiceList.BiliBili.getTokens()) && ServiceList.BiliBili.getCookieFunctions().contains("high_res")){
+        if(ServiceList.BiliBili.hasTokens() && ServiceList.BiliBili.getCookieFunctions().contains("high_res")){
             headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
         } else {
             // https://codeberg.org/NullPointerException/PipePipe/issues/42

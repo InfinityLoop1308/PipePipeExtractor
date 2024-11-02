@@ -135,7 +135,7 @@ public class BilibiliService extends StreamingService {
 
     static public Map<String, List<String>> getLoggedHeadersOrNull(String condition){
         Map<String, List<String>> headers = getHeaders();
-        if(StringUtils.isNotBlank(ServiceList.BiliBili.getTokens()) && ServiceList.BiliBili.getCookieFunctions() != null
+        if(ServiceList.BiliBili.hasTokens() && ServiceList.BiliBili.getCookieFunctions() != null
                 && ServiceList.BiliBili.getCookieFunctions().contains(condition)){
             headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
             return headers;

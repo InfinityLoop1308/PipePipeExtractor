@@ -202,7 +202,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
     public void getLiveUrl() throws ExtractionException, IOException, JsonParserException {
         String url = getUrl();
         HashMap<String, List<String>> tokens = new HashMap<>();
-        if(ServiceList.NicoNico.getTokens() != null){
+        if(ServiceList.NicoNico.hasTokens()){
             tokens.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
         }
         String responseBody = getDownloader().get(url, tokens).responseBody();

@@ -1083,7 +1083,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
-        final JsonObject iosPlayerResponse = ServiceList.YouTube.getTokens() == null ? getJsonIosPostResponse(PLAYER,
+        final JsonObject iosPlayerResponse = ServiceList.YouTube.hasTokens() ? getJsonIosPostResponse(PLAYER,
                 mobileBody, localization, "&t=" + generateTParameter()
                         + "&id=" + videoId): getLoggedJsonPostResponse(PLAYER, mobileBody, localization);
 

@@ -68,7 +68,7 @@ public class NiconicoWatchDataCache {
         }
         try {
             HashMap<String, List<String>> headers = new HashMap<>();
-            if(ServiceList.NicoNico.getTokens() != null){
+            if(ServiceList.NicoNico.hasTokens()){
                 headers.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
             }
             response = downloader.get(url, headers, NiconicoService.LOCALE);
@@ -140,7 +140,7 @@ public class NiconicoWatchDataCache {
     }
 
     public String getStreamCookie() {
-        if(ServiceList.NicoNico.getTokens() != null){
+        if(ServiceList.NicoNico.hasTokens()){
             String cookie = ServiceList.NicoNico.getTokens();
             if(cookie.endsWith(";")){
                 cookie = cookie.substring(0, cookie.length() - 1);

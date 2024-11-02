@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
@@ -476,6 +477,10 @@ public abstract class StreamingService {
 
     public String getTokens() {
         return this.tokens;
+    }
+
+    public boolean hasTokens() {
+        return StringUtils.isNotBlank(this.tokens);
     }
 
     public String getAdditionalTokens() {

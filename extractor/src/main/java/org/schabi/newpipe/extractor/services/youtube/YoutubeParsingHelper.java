@@ -1521,7 +1521,7 @@ YoutubeParsingHelper {
     }
 
     public static void addLoggedInHeaders(@Nonnull final Map<String, List<String>> headers) throws ExtractionException {
-        if(StringUtils.isNotBlank(ServiceList.YouTube.getTokens())) {
+        if(ServiceList.YouTube.hasTokens()) {
             headers.put("Cookie", singletonList(ServiceList.YouTube.getTokens()));
             try {
                 headers.put("Authorization", singletonList(getAuthorizationHeader(ServiceList.YouTube.getTokens())));
