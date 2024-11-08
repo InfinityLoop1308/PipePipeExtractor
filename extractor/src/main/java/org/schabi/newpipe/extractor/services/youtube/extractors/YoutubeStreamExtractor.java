@@ -112,6 +112,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     public WatchDataCache watchDataCache;
 
+    public final ArrayList<Throwable> errors = new ArrayList<>();
+
     public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
         this.watchDataCache = watchDataCache;
@@ -881,6 +883,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final String videoId = getId();
         final Localization localization = getExtractorLocalization();
         final ContentCountry contentCountry = getExtractorContentCountry();
+
         YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
@@ -905,8 +908,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             public void onSuccess(Response response) throws ExtractionException {
                 try {
                     nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                } catch (MalformedURLException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
+                    errors.add(e);
                 }
             }
         });
@@ -929,6 +933,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+        for (Throwable error: errors) {
+            throw new ExtractionException(error);
+        }
         if ((iosStreamingData == null && androidStreamingData == null) || nextResponse == null) {
             throw new ExtractionException("Failed to extract streaming data");
         }
@@ -1029,8 +1036,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                     .getObject("playerCaptionsTracklistRenderer");
                         }
                     }
-                } catch (MalformedURLException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
+                    errors.add(e);
                 }
             }
         };
@@ -1073,8 +1081,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         playerCaptionsTracklistRenderer = iosPlayerResponse.getObject("captions")
                                 .getObject("playerCaptionsTracklistRenderer");
                     }
-                } catch (MalformedURLException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
+                    errors.add(e);
                 }
             }
         };

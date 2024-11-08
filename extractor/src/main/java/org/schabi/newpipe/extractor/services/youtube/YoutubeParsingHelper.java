@@ -1518,10 +1518,9 @@ YoutubeParsingHelper {
                                     .getObject("playerMicroformatRenderer");
 
                            streamExtractor.watchDataCache.startAt = streamExtractor.getStartAt();
-                        } catch (ParsingException e) {
-                            throw new RuntimeException(e);
-                        } catch (MalformedURLException e) {
-                            throw new RuntimeException(e);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            streamExtractor.errors.add(e);
                         }
                     }
                 });
