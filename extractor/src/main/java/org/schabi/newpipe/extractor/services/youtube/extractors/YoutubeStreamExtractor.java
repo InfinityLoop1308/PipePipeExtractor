@@ -884,6 +884,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final Localization localization = getExtractorLocalization();
         final ContentCountry contentCountry = getExtractorContentCountry();
 
+        errors.clear();
+
         YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 

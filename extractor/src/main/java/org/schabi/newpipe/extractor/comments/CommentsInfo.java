@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
@@ -51,6 +52,14 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
         commentsInfo.setNextPage(initialCommentsPage.getNextPage());
 
         return commentsInfo;
+    }
+
+    public static CommentsInfo getInfoTemplate(final CommentsExtractor commentsExtractor) throws ParsingException {
+        final String name = commentsExtractor.getName();
+        final int serviceId = commentsExtractor.getServiceId();
+        final ListLinkHandler listUrlIdHandler = commentsExtractor.getLinkHandler();
+
+        return new CommentsInfo(serviceId, listUrlIdHandler, name);
     }
 
     public static InfoItemsPage<CommentsInfoItem> getMoreItems(

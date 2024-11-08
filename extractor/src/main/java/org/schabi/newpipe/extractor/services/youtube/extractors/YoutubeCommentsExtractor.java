@@ -43,6 +43,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
      * The second ajax <b>/next</b> response.
      */
     private JsonObject ajaxJson;
+    private JSONObject ajaxJsonSafe;
 
     public YoutubeCommentsExtractor(
             final StreamingService service,
@@ -59,7 +60,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
             return getInfoItemsPageForDisabledComments();
         }
 
-        return getPage(extractComments(ajaxJson, null).getNextPage());
+        return extractComments(ajaxJson, ajaxJsonSafe);
     }
 
     /**
@@ -420,7 +421,13 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
-        ajaxJson = getJsonPostResponse("next", ajaxBody, localization);
+        String resp = getJsonPostResponseRaw("next", ajaxBody, localization);
+        ajaxJson = JsonUtils.toJsonObject(resp);
+        try {
+            ajaxJsonSafe = new JSONObject(resp);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
 
