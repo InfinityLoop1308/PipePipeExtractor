@@ -26,12 +26,13 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
-import org.apache.commons.lang3.StringUtils;
-import org.json.JSONObject;
+
 import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MetaInfo;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.downloader.CancellableCall;
+import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.AccountTerminatedException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -41,6 +42,7 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
@@ -77,6 +79,8 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
+import static org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.checkPlayabilityStatus;
+import static org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.isPlayerResponseNotValid;
 import static org.schabi.newpipe.extractor.utils.Utils.HTTP;
 import static org.schabi.newpipe.extractor.utils.Utils.HTTPS;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
@@ -1162,6 +1166,19 @@ YoutubeParsingHelper {
         return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
     }
 
+    public static CancellableCall getJsonPostResponseAsync(final String endpoint,
+                                                final byte[] body,
+                                                final Localization localization,
+                                                final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+
+        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?key="
+                + getKey() + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
+    }
+
     public static JsonObject getLoggedJsonPostResponse(final String endpoint,
                                                  final byte[] body,
                                                  final Localization localization)
@@ -1176,6 +1193,21 @@ YoutubeParsingHelper {
                 + getKey() + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization);
 
         return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+    }
+
+    public static CancellableCall getLoggedJsonPostResponseAsync(final String endpoint,
+                                                                 final byte[] body,
+                                                                 final Localization localization,
+                                                                 final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+
+        addLoggedInHeaders(headers);
+
+        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?key="
+                + getKey() + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
     }
 
 
@@ -1203,6 +1235,16 @@ YoutubeParsingHelper {
                 getAndroidUserAgent(localization), ANDROID_YOUTUBE_KEY, endPartOfUrlRequest);
     }
 
+    public static CancellableCall getJsonAndroidPostResponseAsync(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nullable final String endPartOfUrlRequest,
+            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
+        return getMobilePostResponseAsync(endpoint, body, localization,
+                getAndroidUserAgent(localization), ANDROID_YOUTUBE_KEY, endPartOfUrlRequest, callback);
+    }
+
     public static JsonObject getJsonIosPostResponse(
             final String endpoint,
             final byte[] body,
@@ -1210,6 +1252,16 @@ YoutubeParsingHelper {
             @Nullable final String endPartOfUrlRequest) throws IOException, ExtractionException {
         return getMobilePostResponse(endpoint, body, localization, getIosUserAgent(localization),
                 IOS_YOUTUBE_KEY, endPartOfUrlRequest);
+    }
+
+    public static CancellableCall getJsonIosPostResponseAsync(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nullable final String endPartOfUrlRequest,
+            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
+        return getMobilePostResponseAsync(endpoint, body, localization, getIosUserAgent(localization),
+                IOS_YOUTUBE_KEY, endPartOfUrlRequest, callback);
     }
 
     private static JsonObject getMobilePostResponse(
@@ -1230,6 +1282,26 @@ YoutubeParsingHelper {
                         ? baseEndpointUrl : baseEndpointUrl + endPartOfUrlRequest,
                 headers, body, localization);
         return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+    }
+
+    private static CancellableCall getMobilePostResponseAsync(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final String userAgent,
+            @Nonnull final String innerTubeApiKey,
+            @Nullable final String endPartOfUrlRequest,
+            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(userAgent));
+        headers.put("X-Goog-Api-Format-Version", singletonList("2"));
+
+        final String baseEndpointUrl = YOUTUBEI_V1_GAPIS_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER.substring(1);
+
+        return getDownloader().postAsync(isNullOrEmpty(endPartOfUrlRequest)
+                        ? baseEndpointUrl : baseEndpointUrl + endPartOfUrlRequest,
+                headers, body, localization, callback);
     }
 
     @Nonnull
@@ -1397,10 +1469,11 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
-    public static JsonObject getWebPlayerResponse(
+    public static void getWebPlayerResponse(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
-            @Nonnull final String videoId) throws IOException, ExtractionException {
+            @Nonnull final String videoId,
+            final YoutubeStreamExtractor streamExtractor) throws IOException, ExtractionException {
         final byte[] body = JsonWriter.string(
                         prepareDesktopJsonBuilder(localization, contentCountry)
                                 .value(VIDEO_ID, videoId)
@@ -1417,9 +1490,41 @@ YoutubeParsingHelper {
 
         addLoggedInHeaders(headers);
 
-        return JsonUtils.toJsonObject(getValidJsonResponseBody(
-                getDownloader().post(
-                        url, headers, body, localization)));
+        getDownloader().postAsync(
+                url, headers, body, localization, new Downloader.AsyncCallback() {
+                    @Override
+                    public void onSuccess(Response response) throws ExtractionException {
+                        final JsonObject webPlayerResponse;
+                        try {
+                            webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+                            if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
+                                // Check the playability status, as private and deleted videos and invalid video IDs do
+                                // not return the ID provided in the player response
+                                // When the requested video is playable and a different video ID is returned, it has
+                                // the OK playability status, meaning the ExtractionException after this check will be
+                                // thrown
+                                checkPlayabilityStatus(
+                                        webPlayerResponse, webPlayerResponse.getObject("playabilityStatus"));
+                                throw new ExtractionException("Initial WEB player response is not valid");
+                            }
+                            // Save the playerResponse from the player endpoint of the desktop internal API because
+                            // Save the webPlayerResponse into playerResponse in the case the video cannot be played,
+                            // so some metadata can be retrieved
+                            streamExtractor.playerResponse = webPlayerResponse;
+                            streamExtractor.setStreamType();
+                            // The microformat JSON object of the content is only returned on the WEB client,
+                            // so we need to store it instead of getting it directly from the playerResponse
+                            streamExtractor.playerMicroFormatRenderer = webPlayerResponse.getObject("microformat")
+                                    .getObject("playerMicroformatRenderer");
+
+                           streamExtractor.watchDataCache.startAt = streamExtractor.getStartAt();
+                        } catch (ParsingException e) {
+                            throw new RuntimeException(e);
+                        } catch (MalformedURLException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                });
     }
 
     @Nonnull

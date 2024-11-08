@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.downloader;
 
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.localization.Localization;
 
@@ -28,6 +29,10 @@ public abstract class Downloader {
      */
     public Response get(final String url) throws IOException, ReCaptchaException {
         return get(url, null, NewPipe.getPreferredLocalization());
+    }
+
+    public CancellableCall getAsync(final String url, AsyncCallback callback) throws IOException, ReCaptchaException {
+        return getAsync(url, null, NewPipe.getPreferredLocalization(), callback);
     }
 
     /**
@@ -77,6 +82,15 @@ public abstract class Downloader {
                 .headers(headers)
                 .localization(localization)
                 .build());
+    }
+
+    public CancellableCall getAsync(final String url, @Nullable final Map<String, List<String>> headers, @Nullable final Localization localization,
+                             final AsyncCallback callback) throws IOException, ReCaptchaException {
+        return executeAsync(Request.newBuilder()
+                .get(url)
+                .headers(headers)
+                .localization(localization)
+                .build(), callback);
     }
 
     /**
@@ -145,6 +159,19 @@ public abstract class Downloader {
                 .build());
     }
 
+    public CancellableCall postAsync(final String url,
+                          @Nullable final Map<String, List<String>> headers,
+                          @Nullable final byte[] dataToSend,
+                          @Nullable final Localization localization,
+                          AsyncCallback callback)
+            throws IOException, ReCaptchaException {
+        return executeAsync(Request.newBuilder()
+                .post(url, dataToSend)
+                .headers(headers)
+                .localization(localization)
+                .build(), callback);
+    }
+
     public Response options(final String url,@Nullable final Map<String, List<String>> headers) throws IOException, ReCaptchaException {
         return execute(Request.newBuilder()
                 .options(url)
@@ -158,4 +185,13 @@ public abstract class Downloader {
      */
     public abstract Response execute(@Nonnull Request request)
             throws IOException, ReCaptchaException;
+    public abstract CancellableCall executeAsync(@Nonnull Request request, AsyncCallback callback)
+            throws IOException, ReCaptchaException;
+
+    public interface AsyncCallback {
+        void onSuccess(Response response) throws ExtractionException;
+        default void onError(Exception e) {
+            e.printStackTrace();
+        }
+    }
 }
