@@ -62,6 +62,11 @@ public abstract class Downloader {
         return get(url, headers, NewPipe.getPreferredLocalization());
     }
 
+    public CancellableCall getAsync(final String url, @Nullable final Map<String, List<String>> headers, AsyncCallback callback)
+            throws IOException, ReCaptchaException {
+        return getAsync(url, headers, NewPipe.getPreferredLocalization(), callback);
+    }
+
     /**
      * Do a GET request with the specified headers.<br>
      * <br>
