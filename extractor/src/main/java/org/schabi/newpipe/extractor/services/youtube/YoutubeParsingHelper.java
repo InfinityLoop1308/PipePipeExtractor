@@ -1203,6 +1203,7 @@ YoutubeParsingHelper {
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(getIosUserAgent(localization)));
 
         addLoggedInHeaders(headers);
 
