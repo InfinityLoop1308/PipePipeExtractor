@@ -445,7 +445,7 @@ public class utils {
             String url,
             Map<String, List<String>> headers
     ) throws ParsingException, IOException, ReCaptchaException {
-        int maxTry = 6;
+        int maxTry = 2;
         int currentTry = maxTry;
 
         String responseBody = "";
