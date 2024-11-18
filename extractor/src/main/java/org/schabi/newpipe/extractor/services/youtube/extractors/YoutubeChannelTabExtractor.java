@@ -223,10 +223,43 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         return foundTab;
     }
 
+    private void commitPlaylistLockup(@Nonnull final MultiInfoItemsCollector collector,
+                                      @Nonnull final JsonObject playlistLockupViewModel,
+//                                      @Nonnull final VerifiedStatus channelVerifiedStatus,
+                                      @Nullable final String channelName,
+                                      @Nullable final String channelUrl) {
+        collector.commit(
+                new YoutubeMixOrPlaylistLockupInfoItemExtractor(playlistLockupViewModel) {
+                    @Override
+                    public String getUploaderName() throws ParsingException {
+                        return isNullOrEmpty(channelName) ? super.getUploaderName() : channelName;
+                    }
+
+//                    @Override
+//                    public String getUploaderUrl() throws ParsingException {
+//                        return isNullOrEmpty(channelUrl) ? super.getUploaderName() : channelUrl;
+//                    }
+//
+//                    @Override
+//                    public boolean isUploaderVerified() throws ParsingException {
+//                        switch (channelVerifiedStatus) {
+//                            case VERIFIED:
+//                                return true;
+//                            case UNVERIFIED:
+//                                return false;
+//                            default:
+//                                return super.isUploaderVerified();
+//                        }
+//                    }
+                });
+    }
+
+
+
     @Nullable
     private JsonObject collectItemsFrom(@Nonnull final MultiInfoItemsCollector collector,
                                         @Nonnull final JsonArray items,
-                                        @Nonnull final List<String> channelIds) {
+                                        @Nonnull final List<String> channelIds) throws ParsingException {
         JsonObject continuation = null;
 
         for (final Object object : items) {
@@ -243,7 +276,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     @Nullable
     private JsonObject collectItem(@Nonnull final MultiInfoItemsCollector collector,
                                    @Nonnull final JsonObject item,
-                                   @Nonnull final List<String> channelIds) {
+                                   @Nonnull final List<String> channelIds) throws ParsingException {
         final Consumer<JsonObject> commitVideo = videoRenderer -> collector.commit(
                 new YoutubeStreamInfoItemExtractor(videoRenderer, getTimeAgoParser()) {
                     @Override
@@ -302,6 +335,12 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                     .getArray("items"), channelIds);
         } else if (item.has("continuationItemRenderer")) {
             return item.getObject("continuationItemRenderer");
+        } else if (item.has("lockupViewModel")) {
+            final JsonObject lockupViewModel = item.getObject("lockupViewModel");
+            if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(lockupViewModel.getString("contentType"))) {
+                commitPlaylistLockup(collector, lockupViewModel,
+                        getChannelName(), null);
+            }
         }
         return null;
     }
