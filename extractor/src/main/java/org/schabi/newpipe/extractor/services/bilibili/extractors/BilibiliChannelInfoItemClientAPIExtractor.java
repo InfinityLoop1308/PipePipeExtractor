@@ -81,9 +81,6 @@ public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItem
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
         long timestampSeconds = item.getLong("ctime", 0);
-        return new DateWrapper(LocalDateTime.ofEpochSecond(timestampSeconds, 0, ZoneOffset.UTC).atOffset(ZoneOffset.ofHours(+8)));
+        return new DateWrapper(LocalDateTime.ofEpochSecond(timestampSeconds, 0, ZoneOffset.ofHours(+8)).atOffset(ZoneOffset.ofHours(+8)));
     }
-
-
-
 }
