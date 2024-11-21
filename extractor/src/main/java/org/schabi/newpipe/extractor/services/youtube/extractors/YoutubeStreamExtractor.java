@@ -839,7 +839,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public long getDislikeCount() throws ParsingException {
         try {
             return dislikeData.getLong("dislikes");
-        } catch (JSONException e) {
+        } catch (Exception e) {
             return -1;
         }
     }
@@ -942,11 +942,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
-        for (Throwable error: errors) {
-            throw new ExtractionException(error);
-        }
         if ((iosStreamingData == null && androidStreamingData == null) || nextResponse == null) {
-            throw new ExtractionException("Failed to extract streaming data");
+
+            if(errors.size() > 0) {
+                for (Throwable error: errors) {
+                    throw new ExtractionException(error);
+                }
+            } else {
+                throw new ExtractionException("Failed to extract streaming data");
+            }
         }
     }
 
