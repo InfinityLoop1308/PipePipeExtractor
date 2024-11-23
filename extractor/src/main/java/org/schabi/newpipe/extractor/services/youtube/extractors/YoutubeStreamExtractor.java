@@ -1041,7 +1041,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         return;
                     }
 
-                    final JsonObject streamingData = androidPlayerResponse.getObject(STREAMING_DATA);
+                    final JsonObject streamingData = playerResponseObject.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         androidStreamingData = streamingData;
                         if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
@@ -1480,7 +1480,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String contentLanguage = ServiceList.YouTube.getContentLanguage().getLanguageCode();
         String foundLangCode = streamingData.getArray(streamingDataKey).stream().filter(element -> element instanceof JsonObject)
-                .map(element -> (JsonObject) element).filter(data -> data.has("audioTrack")).map(data -> data.getObject("audioTrack"))
+                .map(element -> (JsonObject) element).filter(data -> data.has("audioTrack") && data.getString("mimeType").contains("audio")).map(data -> data.getObject("audioTrack"))
                 .filter(audioTrack -> audioTrack.has("id")).map(audioTrack -> audioTrack.getString("id"))
                 .map(audioId -> audioId.split("\\.")[0]).filter(langCode -> langCode.equals(contentLanguage))
                 .findFirst().orElse(null);
