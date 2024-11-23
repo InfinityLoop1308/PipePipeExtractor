@@ -897,13 +897,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 localization, contentCountry, videoId, this);
 
         CancellableCall iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
-        CancellableCall androidCall = null;
-        try {
-            androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
-        } catch (final Exception ignored) {
-            // Ignore exceptions related to ANDROID client fetch or parsing, as it is not
-            // compulsory to play contents
-        }
+        CancellableCall androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(localization, contentCountry)
@@ -949,7 +943,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     throw new ExtractionException(error);
                 }
             } else {
-                throw new ExtractionException("Failed to extract streaming data");
+                throw new ExtractionException("Failed to extract streaming data. Android call: " + androidCall.isFinished() + " iOS call: " + iosCall.isFinished() + " Next call: " + nextDataCall.isFinished() + " Dislike call: " + dislikeCall.isFinished());
             }
         }
     }
