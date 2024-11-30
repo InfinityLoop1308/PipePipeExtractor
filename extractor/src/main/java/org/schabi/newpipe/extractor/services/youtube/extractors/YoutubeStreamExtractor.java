@@ -75,22 +75,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     /*////////////////////////////////////////////////////////////////////////*/
-
-    @Nullable
-    private static String cachedDeobfuscationCode = null;
-    @Nullable
-    private static String sts = null;
-    @Nullable
-    private static String playerCode = null;
-
-    private static boolean isAndroidClientFetchForced = false;
-    private static boolean isIosClientFetchForced = false;
-
     public JsonObject playerResponse;
     private JsonObject nextResponse;
 
-    @Nullable
-    private JsonObject tvHtml5SimplyEmbedStreamingData;
     @Nullable
     private JsonObject androidStreamingData;
     @Nullable
@@ -336,7 +323,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    iosStreamingData, androidStreamingData, tvHtml5SimplyEmbedStreamingData));
+                    iosStreamingData, androidStreamingData));
         }
     }
 
@@ -631,7 +618,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // Android client doesn't contain all available streams (mainly the WEBM ones)
         return getManifestUrl(
                 "dash",
-                Arrays.asList(androidStreamingData, tvHtml5SimplyEmbedStreamingData));
+                Arrays.asList(androidStreamingData));
     }
 
     @Nonnull
@@ -644,7 +631,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // Also, on videos, non-iOS clients don't have an HLS manifest URL in their player response
         return getManifestUrl(
                 "hls",
-                Arrays.asList(iosStreamingData, tvHtml5SimplyEmbedStreamingData, androidStreamingData));
+                Arrays.asList(iosStreamingData, androidStreamingData));
     }
 
     @Nonnull
@@ -681,25 +668,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         assertPageFetched();
         return getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY,
                 getVideoStreamBuilderHelper(true), "video-only");
-    }
-
-    /**
-     * Try to decrypt a streaming URL and fall back to the given URL, because decryption may fail
-     * if YouTube changes break something.
-     *
-     * <p>
-     * This way a breaking change from YouTube does not result in a broken extractor.
-     * </p>
-     *
-     * @param streamingUrl the streaming URL to decrypt with {@link YoutubeThrottlingDecrypter}
-     * @param videoId      the video ID to use when extracting JavaScript player code, if needed
-     */
-    private String tryDecryptUrl(final String streamingUrl, final String videoId) {
-        try {
-            return YoutubeThrottlingDecrypter.apply(streamingUrl, videoId);
-        } catch (final ParsingException e) {
-            return streamingUrl;
-        }
     }
 
     @Override
@@ -868,28 +836,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     private static final String FORMATS = "formats";
     private static final String ADAPTIVE_FORMATS = "adaptiveFormats";
-    private static final String DEOBFUSCATION_FUNC_NAME = "deobfuscate";
     private static final String STREAMING_DATA = "streamingData";
     private static final String PLAYER = "player";
     private static final String NEXT = "next";
-    private static final String SIGNATURE_CIPHER = "signatureCipher";
-    private static final String CIPHER = "cipher";
 
-    private static final String[] REGEXES = {
-            "(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2,})\\s*=\\s*function\\(\\s*a\\s*\\)"
-                    + "\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)",
-            "\\bm=([a-zA-Z0-9$]{2,})\\(decodeURIComponent\\(h\\.s\\)\\)",
-            "\\bc&&\\(c=([a-zA-Z0-9$]{2,})\\(decodeURIComponent\\(c\\)\\)",
-            "([\\w$]+)\\s*=\\s*function\\((\\w+)\\)\\{\\s*\\2=\\s*\\2\\.split\\(\"\"\\)\\s*;",
-            "\\b([\\w$]{2,})\\s*=\\s*function\\((\\w+)\\)\\{\\s*\\2=\\s*\\2\\.split\\(\"\"\\)\\s*;",
-            "\\bc\\s*&&\\s*d\\.set\\([^,]+\\s*,\\s*(:encodeURIComponent\\s*\\()([a-zA-Z0-9$]+)\\("
-    };
-    private static final String STS_REGEX = "signatureTimestamp[=:](\\d+)";
 
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
-        initStsFromPlayerJsIfNeeded();
 
         final String videoId = getId();
         final Localization localization = getExtractorLocalization();
@@ -940,16 +894,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
-//        if ((iosStreamingData == null && androidStreamingData == null) || nextResponse == null) {
-//
-//            if(errors.size() > 0) {
-//                for (Throwable error: errors) {
-//                    throw new ExtractionException(error);
-//                }
-//            } else {
-//                throw new ExtractionException("Failed to extract streaming data. Android call: " + androidCall.isFinished() + " iOS call: " + iosCall.isFinished() + " Next call: " + nextDataCall.isFinished() + " Dislike call: " + dislikeCall.isFinished());
-//            }
-//        }
     }
 
     public static void checkPlayabilityStatus(final JsonObject youtubePlayerResponse,
@@ -1104,35 +1048,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         + "&id=" + videoId, callback);
     }
 
-    /**
-     * Download the {@code TVHTML5_SIMPLY_EMBEDDED_PLAYER} JSON player as an embed client to bypass
-     * some age-restrictions and assign the streaming data to the {@code html5StreamingData} JSON
-     * object.
-     *
-     * @param contentCountry the content country to use
-     * @param localization   the localization to use
-     * @param videoId        the video id
-     */
-    private void fetchTvHtml5EmbedJsonPlayer(@Nonnull final ContentCountry contentCountry,
-                                             @Nonnull final Localization localization,
-                                             @Nonnull final String videoId)
-            throws IOException, ExtractionException {
-        initStsFromPlayerJsIfNeeded();
-
-        // Because a cpn is unique to each request, we need to generate it again
-        tvHtml5SimplyEmbedCpn = generateContentPlaybackNonce();
-
-        final JsonObject tvHtml5EmbedPlayerResponse = getJsonPostResponse(PLAYER,
-                createTvHtml5EmbedPlayerBody(localization, contentCountry, videoId, sts, tvHtml5SimplyEmbedCpn), localization);
-        final JsonObject streamingData = tvHtml5EmbedPlayerResponse.getObject(
-                STREAMING_DATA);
-        if (!isNullOrEmpty(streamingData)) {
-            playerResponse = tvHtml5EmbedPlayerResponse;
-            tvHtml5SimplyEmbedStreamingData = streamingData;
-            playerCaptionsTracklistRenderer = playerResponse.getObject("captions")
-                    .getObject("playerCaptionsTracklistRenderer");
-        }
-    }
 
     /**
      * Checks whether an additional player response is not valid.
@@ -1166,104 +1081,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .getString("videoId", ""));
     }
 
-    private static void storePlayerJs() throws ParsingException {
-        try {
-            playerCode = YoutubeJavaScriptExtractor.extractJavaScriptCode();
-        } catch (final Exception e) {
-            throw new ParsingException("Could not store JavaScript player", e);
-        }
-    }
-
-    private static String getDeobfuscationFuncName(final String thePlayerCode)
-            throws DeobfuscateException {
-        Parser.RegexException exception = null;
-        for (final String regex : REGEXES) {
-            try {
-                return Parser.matchGroup1(regex, thePlayerCode);
-            } catch (final Parser.RegexException re) {
-                if (exception == null) {
-                    exception = re;
-                }
-            }
-        }
-        throw new DeobfuscateException(
-                "Could not find deobfuscate function with any of the given patterns.", exception);
-    }
-
-    @Nonnull
-    private static String loadDeobfuscationCode() throws DeobfuscateException {
-        try {
-            final String deobfuscationFunctionName = getDeobfuscationFuncName(playerCode);
-
-            final String functionPattern = "("
-                    + deobfuscationFunctionName.replace("$", "\\$")
-                    + "=function\\([a-zA-Z0-9_]+\\)\\{.+?\\})";
-            final String deobfuscateFunction = "var " + Parser.matchGroup1(functionPattern,
-                    playerCode) + ";";
-
-            final String helperObjectName =
-                    Parser.matchGroup1(";([A-Za-z0-9_\\$]{2})\\...\\(",
-                            deobfuscateFunction);
-            final String helperPattern =
-                    "(var " + helperObjectName.replace("$", "\\$")
-                            + "=\\{.+?\\}\\};)";
-            final String helperObject =
-                    Parser.matchGroup1(helperPattern, Objects.requireNonNull(playerCode).replace(
-                            "\n", ""));
-
-            final String callerFunction =
-                    "function " + DEOBFUSCATION_FUNC_NAME + "(a){return "
-                            + deobfuscationFunctionName + "(a);}";
-
-            return helperObject + deobfuscateFunction + callerFunction;
-        } catch (final Exception e) {
-            throw new DeobfuscateException("Could not parse deobfuscate function ", e);
-        }
-    }
-
-    @Nonnull
-    private static String getDeobfuscationCode() throws ParsingException {
-        if (cachedDeobfuscationCode == null) {
-            if (isNullOrEmpty(playerCode)) {
-                throw new ParsingException("playerCode is null");
-            }
-
-            cachedDeobfuscationCode = loadDeobfuscationCode();
-        }
-        return cachedDeobfuscationCode;
-    }
-
-    private static void initStsFromPlayerJsIfNeeded() throws ParsingException {
-        if (!isNullOrEmpty(sts)) {
-            return;
-        }
-        if (playerCode == null) {
-            storePlayerJs();
-            if (playerCode == null) {
-                throw new ParsingException("playerCode is null");
-            }
-        }
-        sts = Parser.matchGroup1(STS_REGEX, playerCode);
-    }
-
-    private String deobfuscateSignature(final String obfuscatedSig) throws ParsingException {
-        final String deobfuscationCode = getDeobfuscationCode();
-
-        final Context context = Context.enter();
-        context.setOptimizationLevel(-1);
-        final Object result;
-        try {
-            final ScriptableObject scope = context.initSafeStandardObjects();
-            context.evaluateString(scope, deobfuscationCode, "deobfuscationCode", 1, null);
-            final Function deobfuscateFunc = (Function) scope.get(DEOBFUSCATION_FUNC_NAME, scope);
-            result = deobfuscateFunc.call(context, scope, scope, new Object[]{obfuscatedSig});
-        } catch (final Exception e) {
-            throw new DeobfuscateException("Could not get deobfuscate signature", e);
-        } finally {
-            Context.exit();
-        }
-        return Objects.toString(result, "");
-    }
 
     /*//////////////////////////////////////////////////////////////////////////
     // Utils
@@ -1326,8 +1143,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     last, which will be the only one not empty for age-restricted content
                      */
                     new Pair<>(iosStreamingData, iosCpn),
-                    new Pair<>(androidStreamingData, androidCpn),
-                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
+                    new Pair<>(androidStreamingData, androidCpn)
 
             )
                     .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
@@ -1525,21 +1341,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         if (formatData.has("url")) {
             streamUrl = formatData.getString("url");
         } else {
-            // This url has an obfuscated signature
-            final String cipherString = formatData.has(CIPHER)
-                    ? formatData.getString(CIPHER)
-                    : formatData.getString(SIGNATURE_CIPHER);
-            final Map<String, String> cipher = Parser.compatParseMap(
-                    cipherString);
-            streamUrl = cipher.get("url") + "&" + cipher.get("sp") + "="
-                    + deobfuscateSignature(cipher.get("s"));
+            throw new ExtractionException("The response is encrypted");
         }
 
         // Add the content playback nonce to the stream URL
         streamUrl += "&" + CPN + "=" + contentPlaybackNonce;
-
-        // Decrypt the n parameter if it is present
-        streamUrl = tryDecryptUrl(streamUrl, videoId);
 
         final JsonObject initRange = formatData.getObject("initRange");
         final JsonObject indexRange = formatData.getObject("indexRange");
@@ -1779,61 +1585,5 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .getObject("results")
                 .getObject("results")
                 .getArray("contents"));
-    }
-
-    /**
-     * Reset YouTube's deobfuscation code.
-     *
-     * <p>
-     * This is needed for mocks in YouTube stream tests, because when they are ran, the
-     * {@code signatureTimestamp} is known (the {@code sts} string) so a different body than the
-     * body present in the mocks is send by the extractor instance. As a result, running all
-     * YouTube stream tests with the MockDownloader (like the CI does) will fail if this method is
-     * not called before fetching the page of a test.
-     * </p>
-     */
-    public static void resetDeobfuscationCode() {
-        cachedDeobfuscationCode = null;
-        playerCode = null;
-        sts = null;
-        YoutubeJavaScriptExtractor.resetJavaScriptCode();
-    }
-
-    /**
-     * Enable or disable the fetch of the Android client for all stream types.
-     *
-     * <p>
-     * By default, the fetch of the Android client will be made only on videos, in order to reduce
-     * data usage, because available streams of the Android client will be almost equal to the ones
-     * available on the {@code WEB} client: you can get exclusively a 48kbps audio stream and a
-     * 3GPP very low stream (which is, most of times, a 144p8 stream).
-     * </p>
-     *
-     * @param forceFetchAndroidClientValue whether to always fetch the Android client and not only
-     *                                     for videos
-     */
-    public static void forceFetchAndroidClient(final boolean forceFetchAndroidClientValue) {
-        isAndroidClientFetchForced = forceFetchAndroidClientValue;
-    }
-
-    /**
-     * Enable or disable the fetch of the iOS client for all stream types.
-     *
-     * <p>
-     * By default, the fetch of the iOS client will be made only on livestreams, in order to get an
-     * HLS manifest with separated audio and video which has also an higher replay time (up to one
-     * hour, depending of the content instead of 30 seconds with non-iOS clients).
-     * </p>
-     *
-     * <p>
-     * Enabling this option will allow you to get an HLS manifest also for regular videos, which
-     * contains resolutions up to 1080p60.
-     * </p>
-     *
-     * @param forceFetchIosClientValue whether to always fetch the iOS client and not only for
-     *                                 livestreams
-     */
-    public static void forceFetchIosClient(final boolean forceFetchIosClientValue) {
-        isIosClientFetchForced = forceFetchIosClientValue;
     }
 }
