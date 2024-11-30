@@ -195,7 +195,7 @@ public class StreamInfo extends Info {
 
         // Either audio or video has to be available, otherwise we didn't get a stream (since
         // videoOnly are optional, they don't count).
-        if ((streamInfo.videoStreams.isEmpty()) && (streamInfo.audioStreams.isEmpty())) {
+        if (streamInfo.getServiceId() != ServiceList.YouTube.getServiceId() && (streamInfo.videoStreams.isEmpty()) && (streamInfo.audioStreams.isEmpty())) {
             throw new StreamExtractException(
                     "Could not get any stream. See error variable to get further details.");
         }

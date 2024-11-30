@@ -713,6 +713,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public List<SubtitlesStream> getSubtitles(final MediaFormat format) throws ParsingException {
         assertPageFetched();
 
+        if(playerCaptionsTracklistRenderer == null) {
+            return new ArrayList<>();
+        }
+
         // We cannot store the subtitles list because the media format may change
         final List<SubtitlesStream> subtitlesToReturn = new ArrayList<>();
         final JsonArray captionsArray = playerCaptionsTracklistRenderer.getArray("captionTracks");
@@ -893,7 +897,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         errors.clear();
 
-        YoutubeParsingHelper.getWebPlayerResponse(
+        CancellableCall webCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
         CancellableCall iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
@@ -932,20 +936,20 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         });
         long startTime = System.nanoTime();
         do {
-            if (iosCall.isFinished() && androidCall.isFinished() && nextDataCall.isFinished() && dislikeCall.isFinished()) {
+            if (webCall.isFinished() && iosCall.isFinished() && androidCall.isFinished() && nextDataCall.isFinished() && dislikeCall.isFinished()) {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
-        if ((iosStreamingData == null && androidStreamingData == null) || nextResponse == null) {
-
-            if(errors.size() > 0) {
-                for (Throwable error: errors) {
-                    throw new ExtractionException(error);
-                }
-            } else {
-                throw new ExtractionException("Failed to extract streaming data. Android call: " + androidCall.isFinished() + " iOS call: " + iosCall.isFinished() + " Next call: " + nextDataCall.isFinished() + " Dislike call: " + dislikeCall.isFinished());
-            }
-        }
+//        if ((iosStreamingData == null && androidStreamingData == null) || nextResponse == null) {
+//
+//            if(errors.size() > 0) {
+//                for (Throwable error: errors) {
+//                    throw new ExtractionException(error);
+//                }
+//            } else {
+//                throw new ExtractionException("Failed to extract streaming data. Android call: " + androidCall.isFinished() + " iOS call: " + iosCall.isFinished() + " Next call: " + nextDataCall.isFinished() + " Dislike call: " + dislikeCall.isFinished());
+//            }
+//        }
     }
 
     public static void checkPlayabilityStatus(final JsonObject youtubePlayerResponse,
@@ -1095,9 +1099,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         };
 
-        return !ServiceList.YouTube.hasTokens() ? getJsonIosPostResponseAsync(PLAYER,
+        return getJsonIosPostResponseAsync(PLAYER,
                 mobileBody, localization, "&t=" + generateTParameter()
-                        + "&id=" + videoId, callback): getLoggedJsonPostResponseAsync(PLAYER, mobileBody, localization, callback);
+                        + "&id=" + videoId, callback);
     }
 
     /**

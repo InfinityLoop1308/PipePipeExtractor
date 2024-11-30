@@ -1470,7 +1470,7 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
-    public static void getWebPlayerResponse(
+    public static CancellableCall getWebPlayerResponse(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final String videoId,
@@ -1491,7 +1491,7 @@ YoutubeParsingHelper {
 
         addLoggedInHeaders(headers);
 
-        getDownloader().postAsync(
+        return getDownloader().postAsync(
                 url, headers, body, localization, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(Response response) throws ExtractionException {
