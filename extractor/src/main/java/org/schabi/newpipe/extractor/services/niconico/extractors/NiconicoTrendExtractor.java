@@ -24,7 +24,6 @@ import java.io.IOException;
 import javax.annotation.Nonnull;
 
 public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
-    private Document rss;
     private JsonArray data;
     private Document document;
 
@@ -46,7 +45,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 }
             case "Trending":
             default:
-                rss = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL).responseBody());
+                document = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL).responseBody());
                 return;
             case "Top Lives":
                 document = Jsoup.parse(downloader.get(getUrl()).responseBody());
@@ -66,12 +65,10 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 return new InfoItemsPage<>(collector, null);
             case "Trending":
             default:
-                final Elements arrays = rss.getElementsByTag("item");
-                final String uploaderName = rss.getElementsByTag("dc:creator").text();
-                final String uploaderUrl = rss.getElementsByTag("link").text();
+                final Elements dataArray1 = document.select("div.NC-VideoMediaObjectWrapper");
 
-                for (final Element e : arrays) {
-                    collector.commit(new NiconicoTrendRSSExtractor(e, uploaderName, uploaderUrl, null));
+                for (final Element e : dataArray1) {
+                    collector.commit(new NiconicoSeriesContentItemExtractor(e, null, null));
                 }
 
                 return new InfoItemsPage<>(collector, null);
