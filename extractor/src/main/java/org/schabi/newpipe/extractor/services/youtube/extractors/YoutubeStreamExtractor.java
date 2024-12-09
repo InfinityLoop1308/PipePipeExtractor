@@ -894,6 +894,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+        if (getStreamType() == null || nextResponse == null) {
+            for(Throwable e : errors) {
+                throw new ExtractionException(e);
+            }
+            throw new ExtractionException("Could not get stream type or next response");
+        }
     }
 
     public static void checkPlayabilityStatus(final JsonObject youtubePlayerResponse,
