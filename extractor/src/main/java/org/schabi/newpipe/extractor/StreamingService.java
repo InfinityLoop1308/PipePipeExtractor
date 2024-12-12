@@ -101,6 +101,7 @@ public abstract class StreamingService {
     private String additionalTokens = null;
     private Set<String> cookieFunctions = null;
     private Localization contentLanguage = null;
+    private String audioLanguage = "original";
 
     /**
      * Creates a new Streaming service.
@@ -508,5 +509,13 @@ public abstract class StreamingService {
 
     public Localization getContentLanguage() {
         return contentLanguage;
+    }
+
+    public String getAudioLanguage() {
+        return audioLanguage;
+    }
+
+    public void setAudioLanguage(String audioLanguage) {
+        this.audioLanguage = audioLanguage;
     }
 }

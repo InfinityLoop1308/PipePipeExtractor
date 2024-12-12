@@ -1200,8 +1200,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final ItagItem itagItem = itagInfo.getItagItem();
             final AudioStream.Builder builder;
             try {
+                final String randomString = UUID.randomUUID().toString().replaceAll("[^a-zA-Z]", "");
                 builder = new AudioStream.Builder()
-                        .setId(String.valueOf(itagItem.id))
+                        .setId(randomString)
                         .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&sid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
                         .setAverageBitrate(itagItem.getAverageBitrate())
@@ -1298,11 +1299,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return java.util.stream.Stream.empty();
         }
 
-        String contentLanguage = ServiceList.YouTube.getContentLanguage().getLanguageCode();
+        String contentLanguage = ServiceList.YouTube.getAudioLanguage();
         String foundLangCode = streamingData.getArray(streamingDataKey).stream().filter(element -> element instanceof JsonObject)
                 .map(element -> (JsonObject) element).filter(data -> data.has("audioTrack") && data.getString("mimeType").contains("audio")).map(data -> data.getObject("audioTrack"))
                 .filter(audioTrack -> audioTrack.has("id")).map(audioTrack -> audioTrack.getString("id"))
-                .map(audioId -> audioId.split("\\.")[0]).filter(langCode -> langCode.equals(contentLanguage))
+                .map(audioId -> audioId.split("\\.")[0].split("-")[0]).filter(langCode -> langCode.equals(contentLanguage))
                 .findFirst().orElse(null);
 
 
@@ -1311,13 +1312,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .map(JsonObject.class::cast)
                 .filter(data -> {
                     try {
-                        if(foundLangCode != null && itagTypeWanted == ItagItem.ItagType.AUDIO) {
-                            return data.has("audioTrack") && data.getObject("audioTrack").has("id") &&
-                                    data.getObject("audioTrack").getString("id").split("\\.")[0].equals(foundLangCode);
-                        } else {
-                            if(!data.has("audioTrack")) return true;
-                            return data.getObject("audioTrack").getBoolean("audioIsDefault");
+                        if (data.getString("mimeType").contains("audio")) {
+                            if (foundLangCode != null) {
+                                return data.has("audioTrack") && data.getObject("audioTrack").has("id") &&
+                                        data.getObject("audioTrack").getString("id").split("\\.")[0].split("-")[0].equals(foundLangCode);
+                            } else {
+                                if(!data.has("audioTrack")) return true;
+                                return data.getObject("audioTrack").getString("displayName").contains("original");
+                            }
                         }
+                        return true;
                     } catch (final Exception ignored) {
                         return true;
                     }

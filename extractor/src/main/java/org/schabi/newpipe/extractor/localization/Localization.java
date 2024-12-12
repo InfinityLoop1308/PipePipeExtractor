@@ -72,6 +72,10 @@ public class Localization implements Serializable {
         return countryCode == null ? "" : countryCode;
     }
 
+    public String getEnglishName() {
+        return getEnglishName(languageCode);
+    }
+
     public Locale asLocale() {
         return new Locale(getLanguageCode(), getCountryCode());
     }
@@ -135,6 +139,45 @@ public class Localization implements Serializable {
         } else {
             throw new ParsingException(
                     "Could not get Locale from this three letter language code" + code);
+        }
+    }
+
+    public static String getEnglishName(@Nonnull final String code) {
+        switch (code) {
+            case "fr":
+                return "French";
+            case "zh-Hans":
+                return "Chinese (Simplified)";
+            case "hi":
+                return "Hindi";
+            case "ko":
+                return "Korean";
+            case "es":
+                return "Spanish";
+            case "pt":
+                return "Portuguese";
+            case "ru":
+                return "Russian";
+            case "ar":
+                return "Arabic";
+            case "tr":
+                return "Turkish";
+            case "th":
+                return "Thai";
+            case "ja":
+                return "Japanese";
+            case "id":
+                return "Indonesian";
+            case "de":
+                return "German";
+            case "vi":
+                return "Vietnamese";
+            case "bn":
+                return "Bangla";
+            case "en":
+                return "English";
+            default:
+                return "Not Found";
         }
     }
 }
