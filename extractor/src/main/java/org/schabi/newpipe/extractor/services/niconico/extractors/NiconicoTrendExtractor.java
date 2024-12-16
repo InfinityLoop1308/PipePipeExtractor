@@ -68,6 +68,9 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 final Elements dataArray1 = document.select("div.NC-VideoMediaObjectWrapper");
 
                 for (final Element e : dataArray1) {
+                    if (e.html().contains("設定を変更")) {
+                        continue;
+                    }
                     collector.commit(new NiconicoSeriesContentItemExtractor(e, null, null));
                 }
 

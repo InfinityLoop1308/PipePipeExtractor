@@ -59,7 +59,7 @@ public class NiconicoSeriesContentItemExtractor implements StreamInfoItemExtract
     public long getViewCount() throws ParsingException {
         long value = 0;
         Pattern pattern = Pattern.compile("(\\d+)([KM]?)");
-        Matcher matcher = pattern.matcher(data.select("div.NC-VideoMetaCount_view").text());
+        Matcher matcher = pattern.matcher(data.select("div.NC-VideoMetaCount_view").text().replaceAll(",", ""));
         if (matcher.matches()) {
             value = Integer.parseInt(matcher.group(1));
             String unit = matcher.group(2);
