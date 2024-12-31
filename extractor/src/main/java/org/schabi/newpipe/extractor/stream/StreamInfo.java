@@ -58,6 +58,10 @@ public class StreamInfo extends Info {
         }
     }
 
+    public StreamInfo(final int serviceId, final String id, final String url, final String name) {
+        super(serviceId, id, url, url, name);
+    }
+
     public StreamInfo(final int serviceId,
                       final String url,
                       final String originalUrl,

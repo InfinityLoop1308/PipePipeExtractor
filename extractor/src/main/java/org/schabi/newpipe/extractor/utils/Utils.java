@@ -434,4 +434,11 @@ public final class Utils {
 
         throw new Parser.RegexException("No regex matched the input on group " + group);
     }
+    public static long parseLong(final String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (final NumberFormatException e) {
+            return -1;
+        }
+    }
 }

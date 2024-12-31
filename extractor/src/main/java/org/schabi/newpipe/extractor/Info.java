@@ -30,7 +30,7 @@ public abstract class Info implements Serializable {
      * @see Extractor#getOriginalUrl()
      */
     private String originalUrl;
-    private final String name;
+    protected String name;
 
     private final List<Throwable> errors = new ArrayList<>();
 
@@ -103,6 +103,10 @@ public abstract class Info implements Serializable {
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public List<Throwable> getErrors() {
