@@ -801,6 +801,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     .filter(Objects::nonNull)
                     .forEach(collector::commit);
 
+            if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
+                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+            }
             return collector;
         } catch (final Exception e) {
             throw new ParsingException("Could not get related videos", e);

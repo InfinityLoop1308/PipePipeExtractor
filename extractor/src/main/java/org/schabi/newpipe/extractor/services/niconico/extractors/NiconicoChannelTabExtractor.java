@@ -5,10 +5,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -62,6 +59,9 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                 String currentPageString = page.getUrl().split("offset=")[1].split("&")[0];
                 int currentPage = Integer.parseInt(currentPageString);
                 String nextPage = page.getUrl().replace(String.format("offset=%s", currentPage), String.format("offset=%s", String.valueOf(currentPage + 10)));
+                if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
+                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+                }
                 return new InfoItemsPage<>(collector, new Page(nextPage));
             }else if(getTab().equals(ChannelTabs.ALBUMS)){
                 JsonArray datalist = data.getArray("items");
@@ -74,11 +74,17 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                 String currentPageString = page.getUrl().split("page=")[1].split("&")[0];
                 int currentPage = Integer.parseInt(currentPageString);
                 String nextPage = page.getUrl().replace(String.format("page=%s", currentPage), String.format("page=%s", String.valueOf(currentPage + 1)));
+                if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
+                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+                }
                 return new InfoItemsPage<>(collector, new Page(nextPage));
             }else{
                 JsonArray datalist = data.getArray("mylists");
                 for(int i = 0; i< datalist.size(); i++){
                     collector.commit(new NiconicoPlaylistInfoItemExtractor(datalist.getObject(i)));
+                }
+                if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
+                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
                 }
                 return new InfoItemsPage<>(collector, null);
             }

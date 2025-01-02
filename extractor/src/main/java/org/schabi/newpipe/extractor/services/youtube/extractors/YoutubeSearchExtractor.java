@@ -10,6 +10,7 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonBuilder;
@@ -18,17 +19,12 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
 
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MetaInfo;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
@@ -159,7 +155,9 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                         .getObject("continuationItemRenderer"));
             }
         }
-
+        if (ServiceList.YouTube.getFilterTypes().contains("search_result")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, nextPage);
     }
 
@@ -199,6 +197,9 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                 .getObject("itemSectionRenderer").getArray("contents");
         collectStreamsFrom(collector, contents);
 
+        if (ServiceList.YouTube.getFilterTypes().contains("search_result")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, getNextPageFrom(continuationItems.getObject(1)
                 .getObject("continuationItemRenderer")));
     }

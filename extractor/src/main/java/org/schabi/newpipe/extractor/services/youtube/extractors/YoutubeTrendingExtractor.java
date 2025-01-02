@@ -25,6 +25,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -186,6 +187,9 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
         }
         if (collector.getItems().isEmpty()) {
             throw new ParsingException("Could not get trending page");
+        }
+        if (ServiceList.YouTube.getFilterTypes().contains("recommendations")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
         }
         return new InfoItemsPage<>(collector, null);
     }

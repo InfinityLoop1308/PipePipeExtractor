@@ -8,10 +8,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -76,6 +73,9 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
             }
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
+        }
+        if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
         }
         return new InfoItemsPage<>(collector, new Page(getNextPageFromCurrentUrl(page.getUrl(), "page_num", 1)));
     }

@@ -2,12 +2,11 @@ package org.schabi.newpipe.extractor;
 
 import org.schabi.newpipe.extractor.exceptions.FoundAdException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.stream.StreamInfo;
+import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 /*
  * Created by Christian Schabesberger on 12.02.17.
@@ -106,6 +105,23 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             // found an ad. Maybe a debug line could be placed here
         } catch (final ParsingException e) {
             addError(e);
+        }
+    }
+
+    public void applyBlocking(ArrayList<String> keywords, ArrayList<String> channels) {
+        Iterator<I> iterator = itemList.iterator();
+        while (iterator.hasNext()) {
+            I item = iterator.next();
+            for (String keyword : keywords) {
+                if (item.getName().contains(keyword)) {
+                    iterator.remove();
+                }
+            }
+            for (String channel : channels) {
+                if (item instanceof StreamInfoItem && ((StreamInfoItem) item).getUploaderName().equals(channel)) {
+                    iterator.remove();
+                }
+            }
         }
     }
 }

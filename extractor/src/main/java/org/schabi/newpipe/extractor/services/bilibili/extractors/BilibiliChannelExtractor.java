@@ -14,6 +14,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -92,6 +93,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         if (hasVideos) nextPage = new Page(getNextPageFromCurrentUrl(
                 getUrl(), "pn", 1, true, "1", "?"), String.valueOf(videoImpl.lastVideo())
         );
+        if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, nextPage);
     }
 
@@ -115,6 +119,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         if (hasVideos) nextPage = new Page(
                 getNextPageFromCurrentUrl(page.getUrl(), "pn", 1), String.valueOf(videoImpl.lastVideo())
         );
+        if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, nextPage);
     }
 

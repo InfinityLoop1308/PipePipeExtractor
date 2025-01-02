@@ -3,10 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -149,7 +146,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
             nextPage = getNextPageFrom(continuation, channelIds);
         }
-
+        if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, nextPage);
     }
 
@@ -177,7 +176,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
         final JsonObject continuation = collectItemsFrom(collector, sectionListContinuation
                 .getArray("continuationItems"), channelIds);
-
+        if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector,
                 getNextPageFrom(continuation, channelIds));
     }

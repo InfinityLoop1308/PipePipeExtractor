@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -443,7 +444,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
 
             nextPage = getNextPageFrom(continuation, channelIds);
         }
-
+        if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, nextPage);
     }
 
@@ -472,6 +475,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
         final JsonObject continuation = collectStreamsFrom(collector, sectionListContinuation
                 .getArray("continuationItems"), channelIds);
 
+        if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(collector, getNextPageFrom(continuation, channelIds));
     }
 

@@ -102,6 +102,10 @@ public abstract class StreamingService {
     private Set<String> cookieFunctions = null;
     private Localization contentLanguage = null;
     private String audioLanguage = "original";
+    public ArrayList<String> streamKeywordFilter = new ArrayList<>();
+    public ArrayList<String> streamChannelFilter = new ArrayList<>();
+    public Set<String> filterTypes = new HashSet<>();
+
 
     /**
      * Creates a new Streaming service.
@@ -517,5 +521,29 @@ public abstract class StreamingService {
 
     public void setAudioLanguage(String audioLanguage) {
         this.audioLanguage = audioLanguage;
+    }
+
+    public ArrayList<String> getStreamKeywordFilter() {
+        return streamKeywordFilter;
+    }
+
+    public void setStreamKeywordFilter(ArrayList<String> streamKeywordFilter) {
+        this.streamKeywordFilter = streamKeywordFilter;
+    }
+
+    public ArrayList<String> getStreamChannelFilter() {
+        return streamChannelFilter;
+    }
+
+    public void setStreamChannelFilter(ArrayList<String> streamChannelFilter) {
+        this.streamChannelFilter = streamChannelFilter;
+    }
+
+    public Set<String> getFilterTypes() {
+        return filterTypes;
+    }
+
+    public void setFilterTypes(Set<String> filterTypes) {
+        this.filterTypes = filterTypes;
     }
 }

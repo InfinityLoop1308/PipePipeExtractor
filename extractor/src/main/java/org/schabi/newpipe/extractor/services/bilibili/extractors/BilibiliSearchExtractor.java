@@ -10,11 +10,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.MetaInfo;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -76,6 +72,9 @@ public class BilibiliSearchExtractor extends SearchExtractor{
                 case "media_ft":
                     collector.commit(new BilibiliPremiumContentInfoItemExtractor(result.getObject(i)));
             }
+        }
+        if (ServiceList.BiliBili.getFilterTypes().contains("search_result")) {
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
         }
         return collector;
     }

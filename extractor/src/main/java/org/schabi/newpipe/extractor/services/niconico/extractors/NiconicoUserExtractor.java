@@ -12,6 +12,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -108,7 +109,9 @@ public class NiconicoUserExtractor extends ChannelExtractor {
         }
 
         final String currentPageUrl = getLinkHandler().getUrl() + "/video?rss=2.0&page=1";
-
+        if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
+            streamInfoItemsCollector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(streamInfoItemsCollector,
                 getNextPageFromCurrentUrl(currentPageUrl));
     }
@@ -135,7 +138,9 @@ public class NiconicoUserExtractor extends ChannelExtractor {
             return new InfoItemsPage<>(streamInfoItemsCollector,
                     null);
         }
-
+        if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
+            streamInfoItemsCollector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+        }
         return new InfoItemsPage<>(streamInfoItemsCollector,
                 getNextPageFromCurrentUrl(page.getUrl()));
     }

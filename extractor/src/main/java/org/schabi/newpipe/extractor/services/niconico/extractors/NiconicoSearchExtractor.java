@@ -11,13 +11,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.InfoItemExtractor;
-import org.schabi.newpipe.extractor.InfoItemsCollector;
-import org.schabi.newpipe.extractor.MetaInfo;
-import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
-import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -94,6 +88,10 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             if(videos.size() == 0){
                 return new InfoItemsPage<>(collector, null);
             }
+
+            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+            }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
             Elements lives = Jsoup.parse(response).select("div.program-search-result").first()
@@ -105,6 +103,10 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
             if(lives.size() == 0){
                 return new InfoItemsPage<>(collector, null);
+            }
+
+            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
@@ -120,6 +122,10 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
             for (Object item : searchCollection.getArray("items")) {
                 collector.commit(new NiconicoPlaylistInfoItemExtractor((JsonObject) item));
+            }
+
+            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         }
@@ -165,7 +171,9 @@ public class NiconicoSearchExtractor extends SearchExtractor {
                     new NiconicoStreamInfoItemExtractor(
                             collection.getArray("data").getObject(i)));
         }
-
+        if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
+            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+        }
         return collector;
     }
 

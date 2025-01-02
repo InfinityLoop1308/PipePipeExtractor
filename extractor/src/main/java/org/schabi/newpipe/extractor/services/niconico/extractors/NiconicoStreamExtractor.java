@@ -346,6 +346,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
         }
+        if (ServiceList.NicoNico.getFilterTypes().contains("related_item")) {
+            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+        }
         return collector;
     }
 

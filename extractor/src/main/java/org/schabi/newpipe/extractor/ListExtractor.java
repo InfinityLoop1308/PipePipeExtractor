@@ -121,8 +121,11 @@ public abstract class ListExtractor<R extends InfoItem> extends Extractor {
         }
 
         public InfoItemsPage(final List<T> itemsList,
-                             final Page nextPage,
+                             Page nextPage,
                              final List<Throwable> errors) {
+            if (itemsList.isEmpty()) {
+                nextPage = null;
+            }
             this.itemsList = itemsList;
             this.nextPage = nextPage;
             this.errors = errors;

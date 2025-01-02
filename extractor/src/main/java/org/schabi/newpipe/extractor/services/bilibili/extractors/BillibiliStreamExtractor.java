@@ -588,6 +588,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                             getThumbnailUrl(), getUploaderName(), partitions));
                 }
             }
+            if (ServiceList.BiliBili.getFilterTypes().contains("related_item")) {
+                collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+            }
             return collector;
         } catch (ParsingException | IOException e) {
             e.printStackTrace();

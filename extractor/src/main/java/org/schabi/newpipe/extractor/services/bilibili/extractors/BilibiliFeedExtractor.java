@@ -14,6 +14,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -63,6 +64,9 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
                     collector.commit(new BilibiliTrendingInfoItemExtractor(results.getObject(i)));
                 }
                 break;
+        }
+        if (ServiceList.BiliBili.getFilterTypes().contains("recommendations")) {
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
         }
         return new InfoItemsPage<>(collector, null);
     }

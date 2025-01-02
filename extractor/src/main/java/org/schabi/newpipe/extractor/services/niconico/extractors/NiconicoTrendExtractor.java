@@ -9,6 +9,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -62,7 +63,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 for(int i = 0; i< data.size(); i++){
                     collector.commit(new NiconicoLiveRecommendVideoExtractor(data.getObject(i), null,  null));
                 }
-                return new InfoItemsPage<>(collector, null);
+                break;
             case "Trending":
             default:
                 final Elements dataArray1 = document.select("div.NC-VideoMediaObjectWrapper");
@@ -73,15 +74,18 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                     }
                     collector.commit(new NiconicoSeriesContentItemExtractor(e, null, null));
                 }
-
-                return new InfoItemsPage<>(collector, null);
+                break;
             case "Top Lives":
                 final Elements dataArray = document.select("[class^=___rk-program-card___]");
                 for (final Element e : dataArray) {
                     collector.commit(new NiconicoTopLivesInfoItemExtractor(e));
                 }
-                return new InfoItemsPage<>(collector, null);
+                break;
         }
+        if (ServiceList.NicoNico.getFilterTypes().contains("recommendations")) {
+            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+        }
+        return new InfoItemsPage<>(collector, null);
     }
 
     @Override
