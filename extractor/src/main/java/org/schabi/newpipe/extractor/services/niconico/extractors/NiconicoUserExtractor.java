@@ -103,10 +103,6 @@ public class NiconicoUserExtractor extends ChannelExtractor {
             streamInfoItemsCollector.commit(new NiconicoTrendRSSExtractor(e, uploaderName,
                     uploaderUrl, uploaderAvatarUrl));
         }
-        if (arrays.size() < 30) {
-            return new InfoItemsPage<>(streamInfoItemsCollector,
-                    null);
-        }
 
         final String currentPageUrl = getLinkHandler().getUrl() + "/video?rss=2.0&page=1";
         if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
