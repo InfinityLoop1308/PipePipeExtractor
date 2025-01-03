@@ -112,15 +112,30 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         Iterator<I> iterator = itemList.iterator();
         while (iterator.hasNext()) {
             I item = iterator.next();
+            boolean shouldRemove = false;
+
+            // Check keywords
             for (String keyword : keywords) {
                 if (item.getName().contains(keyword)) {
-                    iterator.remove();
+                    shouldRemove = true;
+                    break;  // No need to check other keywords
                 }
             }
-            for (String channel : channels) {
-                if (item instanceof StreamInfoItem && ((StreamInfoItem) item).getUploaderName().equals(channel)) {
-                    iterator.remove();
+
+            // Only check channels if we haven't already marked for removal
+            if (!shouldRemove) {
+                for (String channel : channels) {
+                    if (item instanceof StreamInfoItem &&
+                            ((StreamInfoItem) item).getUploaderName().equals(channel)) {
+                        shouldRemove = true;
+                        break;  // No need to check other channels
+                    }
                 }
+            }
+
+            // Remove only once if needed
+            if (shouldRemove) {
+                iterator.remove();
             }
         }
     }
