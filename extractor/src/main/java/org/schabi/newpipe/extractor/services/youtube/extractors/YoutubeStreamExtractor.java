@@ -857,8 +857,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         CancellableCall webCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
-        CancellableCall iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
-        CancellableCall androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
+//        CancellableCall iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
+//        CancellableCall androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(localization, contentCountry)
@@ -893,7 +893,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         });
         long startTime = System.nanoTime();
         do {
-            if (webCall.isFinished() && iosCall.isFinished() && androidCall.isFinished() && nextDataCall.isFinished() && dislikeCall.isFinished()) {
+            if (webCall.isFinished() && nextDataCall.isFinished() && dislikeCall.isFinished()) {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
