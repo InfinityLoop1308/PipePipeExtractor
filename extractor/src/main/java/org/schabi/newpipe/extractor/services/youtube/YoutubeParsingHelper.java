@@ -79,8 +79,6 @@ import java.util.stream.Stream;
 
 import static java.util.Collections.singletonList;
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
-import static org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.checkPlayabilityStatus;
-import static org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor.isPlayerResponseNotValid;
 import static org.schabi.newpipe.extractor.utils.Utils.HTTP;
 import static org.schabi.newpipe.extractor.utils.Utils.HTTPS;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
@@ -1470,89 +1468,7 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
-    public static CancellableCall getWebPlayerResponse(
-            @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry,
-            @Nonnull final String videoId,
-            final YoutubeStreamExtractor streamExtractor) throws IOException, ExtractionException {
-        final byte[] body = JsonWriter.string(
-                        prepareDesktopJsonBuilder(localization, contentCountry)
-                                .value(VIDEO_ID, videoId)
-                                .value(CONTENT_CHECK_OK, true)
-                                .value(RACY_CHECK_OK, true)
-                                .done())
-                .getBytes(StandardCharsets.UTF_8);
-        final String url = YOUTUBEI_V1_URL + "player" + "?" + DISABLE_PRETTY_PRINT_PARAMETER
-                + "&$fields=microformat,playabilityStatus,storyboards,videoDetails";
 
-        final Map<String, List<String>> headers = new HashMap<>();
-        addYoutubeHeaders(headers);
-        headers.put("Content-Type", singletonList("application/json"));
-
-        addLoggedInHeaders(headers);
-
-        return getDownloader().postAsync(
-                url, headers, body, localization, new Downloader.AsyncCallback() {
-                    @Override
-                    public void onSuccess(Response response) throws ExtractionException {
-                        final JsonObject webPlayerResponse;
-                        try {
-                            webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                            if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
-                                // Check the playability status, as private and deleted videos and invalid video IDs do
-                                // not return the ID provided in the player response
-                                // When the requested video is playable and a different video ID is returned, it has
-                                // the OK playability status, meaning the ExtractionException after this check will be
-                                // thrown
-                                checkPlayabilityStatus(
-                                        webPlayerResponse, webPlayerResponse.getObject("playabilityStatus"));
-                                throw new ExtractionException("Initial WEB player response is not valid");
-                            }
-                            // Save the playerResponse from the player endpoint of the desktop internal API because
-                            // Save the webPlayerResponse into playerResponse in the case the video cannot be played,
-                            // so some metadata can be retrieved
-                            streamExtractor.playerResponse = webPlayerResponse;
-                            streamExtractor.setStreamType();
-                            // The microformat JSON object of the content is only returned on the WEB client,
-                            // so we need to store it instead of getting it directly from the playerResponse
-                            streamExtractor.playerMicroFormatRenderer = webPlayerResponse.getObject("microformat")
-                                    .getObject("playerMicroformatRenderer");
-
-                           streamExtractor.watchDataCache.startAt = streamExtractor.getStartAt();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                            streamExtractor.errors.add(e);
-                        }
-                    }
-                });
-    }
-
-    @Nonnull
-    public static byte[] createTvHtml5EmbedPlayerBody(
-            @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry,
-            @Nonnull final String videoId,
-            @Nonnull final String sts,
-            @Nonnull final String contentPlaybackNonce) throws IOException, ExtractionException {
-        // @formatter:off
-        return JsonWriter.string(
-                prepareTvHtml5EmbedJsonBuilder(localization, contentCountry, videoId)
-                        .object("playbackContext")
-                        .object("contentPlaybackContext")
-                        // Signature timestamp from the JavaScript base player is needed to get
-                        // working obfuscated URLs
-                        .value("signatureTimestamp", sts)
-                        .value("referer", "https://www.youtube.com/watch?v=" + videoId)
-                        .end()
-                        .end()
-                        .value(CPN, contentPlaybackNonce)
-                        .value(VIDEO_ID, videoId)
-                        .value(CONTENT_CHECK_OK, true)
-                        .value(RACY_CHECK_OK, true)
-                        .done())
-                        .getBytes(StandardCharsets.UTF_8);
-        // @formatter:on
-    }
     /**
      * Get the user-agent string used as the user-agent for InnerTube requests with the Android
      * client.

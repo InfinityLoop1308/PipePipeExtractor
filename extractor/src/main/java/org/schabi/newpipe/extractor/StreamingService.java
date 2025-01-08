@@ -99,6 +99,8 @@ public abstract class StreamingService {
     private final ServiceInfo serviceInfo;
     private String tokens = null;
     private String additionalTokens = null;
+    private String proxyToken = null;
+    private Boolean proxyEnabled = false;
     private Set<String> cookieFunctions = null;
     private Localization contentLanguage = null;
     private String audioLanguage = "original";
@@ -545,5 +547,21 @@ public abstract class StreamingService {
 
     public void setFilterTypes(Set<String> filterTypes) {
         this.filterTypes = filterTypes;
+    }
+
+    public String getProxyToken() {
+        return proxyToken;
+    }
+
+    public void setProxyToken(String proxyToken) {
+        this.proxyToken = proxyToken;
+    }
+
+    public void setProxyEnabled(Boolean proxyEnabled) {
+        this.proxyEnabled = proxyEnabled;
+    }
+
+    public Boolean getProxyEnabled() {
+        return proxyEnabled;
     }
 }

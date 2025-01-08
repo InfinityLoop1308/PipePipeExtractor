@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.stream;
 
+import org.json.JSONObject;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -126,11 +127,12 @@ public class StreamInfo extends Info {
 
         // Suppress always-non-null warning as here we double-check it really is not null
         //noinspection ConstantConditions
-        if (streamType == StreamType.NONE
+        if (extractor.getService() != ServiceList.YouTube && (streamType == StreamType.NONE
                 || isNullOrEmpty(url)
                 || isNullOrEmpty(id)
                 || name == null /* but it can be empty of course */
-                || ageLimit == -1) {
+                || ageLimit == -1)
+        ) {
             throw new ExtractionException(String.format("Some important stream information was not given. " +
                     "streamType: %s, url: %s, id: %s, name: %s, ageLimit: %d", streamType, url, id, name, ageLimit));
         }
@@ -407,12 +409,20 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+
+        try {
+            streamInfo.setExtraData(extractor.getExtraData());
+        } catch (final Exception e) {
+            streamInfo.addError(e);
+        }
+
         try {
             streamInfo.setPartitions(ExtractorHelper.getPartitionsOrLogError(streamInfo,
                     extractor));
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
+
         if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
                     extractor));
@@ -478,6 +488,7 @@ public class StreamInfo extends Info {
     private long startAt = -1;
     private List<StreamInfoItem> partitions = new ArrayList<>();
     private boolean shortFormContent = false;
+    private JSONObject extraData = new JSONObject();
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -912,5 +923,13 @@ public class StreamInfo extends Info {
 
     public void setShortFormContent(final boolean isShortFormContent) {
         this.shortFormContent = isShortFormContent;
+    }
+
+    public JSONObject getExtraData() {
+        return extraData;
+    }
+
+    public void setExtraData(JSONObject extraData) {
+        this.extraData = extraData;
     }
 }
