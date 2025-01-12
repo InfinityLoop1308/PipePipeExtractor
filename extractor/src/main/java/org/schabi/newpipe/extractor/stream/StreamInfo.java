@@ -1,12 +1,10 @@
 package org.schabi.newpipe.extractor.stream;
 
-import org.json.JSONObject;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
@@ -18,7 +16,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -409,13 +406,6 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
-
-        try {
-            streamInfo.setExtraData(extractor.getExtraData());
-        } catch (final Exception e) {
-            streamInfo.addError(e);
-        }
-
         try {
             streamInfo.setPartitions(ExtractorHelper.getPartitionsOrLogError(streamInfo,
                     extractor));
@@ -488,7 +478,6 @@ public class StreamInfo extends Info {
     private long startAt = -1;
     private List<StreamInfoItem> partitions = new ArrayList<>();
     private boolean shortFormContent = false;
-    private JSONObject extraData = new JSONObject();
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -923,13 +912,5 @@ public class StreamInfo extends Info {
 
     public void setShortFormContent(final boolean isShortFormContent) {
         this.shortFormContent = isShortFormContent;
-    }
-
-    public JSONObject getExtraData() {
-        return extraData;
-    }
-
-    public void setExtraData(JSONObject extraData) {
-        this.extraData = extraData;
     }
 }

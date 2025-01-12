@@ -448,39 +448,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
 
-        final String videoId = getId();
-        final Localization localization = getExtractorLocalization();
-        final ContentCountry contentCountry = getExtractorContentCountry();
-
-        if (!ServiceList.YouTube.getProxyEnabled()) {
-            return;
-        } else {
-            Map<String, List<String>> headers = new HashMap<>();
-            headers.put("Authorization", Collections.singletonList("Bearer " + ServiceList.YouTube.getProxyToken()));
-            try {
-                Response proxyResp = downloader.get("https://api.pipepipe.dev/get-youtube-stream?id=" + getId(), headers);
-                proxyData = new JSONObject(proxyResp.responseBody());
-                if (proxyResp.responseCode()  >= 400) {
-                    throw new ExtractionException("Error: " + proxyData.getString("error"));
-                }
-                nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(proxyResp)).getArray("results").getObject(1).getObject("data");
-                dislikeData = proxyData.getJSONArray("results").getJSONObject(2).getJSONObject("data");
-            } catch (Exception e) {
-                throw new ExtractionException("Proxy failed: " + e.getMessage());
-            }
-        }
-    }
-
-    @Override
-    public JSONObject getExtraData() {
-        if (proxyData != null) {
-            try {
-                return proxyData.getJSONArray("results").getJSONObject(0).getJSONObject("data");
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
+        return;
     }
 
 
