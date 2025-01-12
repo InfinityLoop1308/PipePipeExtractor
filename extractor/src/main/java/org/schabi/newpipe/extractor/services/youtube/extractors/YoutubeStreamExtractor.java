@@ -329,6 +329,46 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return streamType;
     }
 
+    public MultiInfoItemsCollector getRelatedItemsFromResults(JsonArray results) throws ExtractionException {
+        try {
+            final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
+
+            final TimeAgoParser timeAgoParser = getTimeAgoParser();
+            results.stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(result -> {
+                        if (result.has("compactVideoRenderer")) {
+                            return new YoutubeStreamInfoItemExtractor(
+                                    result.getObject("compactVideoRenderer"), timeAgoParser);
+                        } else if (result.has("compactRadioRenderer")) {
+                            return new YoutubeMixOrPlaylistInfoItemExtractor(
+                                    result.getObject("compactRadioRenderer"));
+                        } else if (result.has("compactPlaylistRenderer")) {
+                            return new YoutubeMixOrPlaylistInfoItemExtractor(
+                                    result.getObject("compactPlaylistRenderer"));
+                        } else if (result.has("lockupViewModel")) {
+                            final JsonObject lockupViewModel = result.getObject("lockupViewModel");
+                            if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(
+                                    lockupViewModel.getString("contentType"))) {
+                                return new YoutubeMixOrPlaylistLockupInfoItemExtractor(
+                                        lockupViewModel);
+                            }
+                        }
+                        return null;
+                    })
+                    .filter(Objects::nonNull)
+                    .forEach(collector::commit);
+
+            if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
+                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+            }
+            return collector;
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get related videos", e);
+        }
+    }
+
     @Nullable
     @Override
     public MultiInfoItemsCollector getRelatedItems() throws ExtractionException {
@@ -413,44 +453,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final ContentCountry contentCountry = getExtractorContentCountry();
 
         if (!ServiceList.YouTube.getProxyEnabled()) {
-            errors.clear();
-            final byte[] body = JsonWriter.string(
-                            prepareDesktopJsonBuilder(localization, contentCountry)
-                                    .value(VIDEO_ID, videoId)
-                                    .value(CONTENT_CHECK_OK, true)
-                                    .value(RACY_CHECK_OK, true)
-                                    .done())
-                    .getBytes(StandardCharsets.UTF_8);
-            CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
-                @Override
-                public void onSuccess(Response response) throws ExtractionException {
-                    try {
-                        nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        errors.add(e);
-                    }
-                }
-            });
-
-            // fetch dislike
-
-            CancellableCall dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
-                @Override
-                public void onSuccess(Response response) throws ExtractionException {
-                    try {
-                        dislikeData = new JSONObject(getValidJsonResponseBody(response));
-                    } catch (JSONException | MalformedURLException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
-            long startTime = System.nanoTime();
-            do {
-                if (nextDataCall.isFinished() && dislikeCall.isFinished()) {
-                    break;
-                }
-            } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+            return;
         } else {
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", Collections.singletonList("Bearer " + ServiceList.YouTube.getProxyToken()));
@@ -572,23 +575,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
     }
 
-    @Nonnull
-    @Override
-    public String getLicence() throws ParsingException {
-        final JsonObject metadataRowRenderer = getVideoSecondaryInfoRenderer()
-                .getObject("metadataRowContainer")
-                .getObject("metadataRowContainerRenderer")
-                .getArray("rows")
-                .getObject(0)
-                .getObject("metadataRowRenderer");
-
-        final JsonArray contents = metadataRowRenderer.getArray("contents");
-        final String license = getTextFromObject(contents.getObject(0));
-        return license != null
-                && "Licence".equals(getTextFromObject(metadataRowRenderer.getObject("title")))
-                ? license
-                : "YouTube licence";
-    }
 
     @Nonnull
     @Override
