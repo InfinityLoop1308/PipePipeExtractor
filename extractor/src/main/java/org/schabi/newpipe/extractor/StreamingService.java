@@ -108,6 +108,8 @@ public abstract class StreamingService {
     public ArrayList<String> streamChannelFilter = new ArrayList<>();
     public Set<String> filterTypes = new HashSet<>();
 
+    public String ytdlpConfig = null;
+
 
     /**
      * Creates a new Streaming service.
@@ -563,5 +565,13 @@ public abstract class StreamingService {
 
     public Boolean getProxyEnabled() {
         return proxyEnabled;
+    }
+
+    public void setYtdlpConfig(String ytdlpConfig) {
+        this.ytdlpConfig = ytdlpConfig;
+    }
+
+    public String getYtdlpConfig() {
+        return ytdlpConfig;
     }
 }

@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
@@ -441,4 +442,44 @@ public final class Utils {
             return -1;
         }
     }
+
+    /**
+     * Finds all matches in the input string based on the given regex pattern
+     * @param input The input string to search in
+     * @param regex The regular expression pattern to match
+     * @return List of all matched strings
+     */
+    public static List<String> findAllMatches(String input, String regex) {
+        List<String> matches = new ArrayList<>();
+
+        // Compile the regex pattern
+        Pattern pattern = Pattern.compile(regex);
+        // Create matcher object
+        Matcher matcher = pattern.matcher(input);
+
+        // Find all matches and add them to the list
+        while (matcher.find()) {
+            matches.add(matcher.group());
+        }
+
+        return matches;
+    }
+
+    /**
+     * Returns the first group of the first match found in the input string
+     * @param input The input string to search in
+     * @param regex The regular expression pattern to match
+     * @return The first group of the first match, or null if no match found
+     */
+    public static String findFirstMatchFirstGroup(String input, String regex) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(input);
+
+        if (matcher.find() && matcher.groupCount() >= 1) {
+            return matcher.group(1);
+        }
+
+        return null;
+    }
+
 }
