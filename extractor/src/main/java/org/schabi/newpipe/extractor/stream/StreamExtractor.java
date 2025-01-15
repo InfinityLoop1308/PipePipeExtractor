@@ -20,7 +20,6 @@ package org.schabi.newpipe.extractor.stream;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.json.JSONObject;
 import org.schabi.newpipe.extractor.Extractor;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -690,9 +689,5 @@ public abstract class StreamExtractor extends Extractor {
         PRIVATE,
         INTERNAL,
         OTHER
-    }
-
-    public JSONObject getExtraData() {
-        return null;
     }
 }

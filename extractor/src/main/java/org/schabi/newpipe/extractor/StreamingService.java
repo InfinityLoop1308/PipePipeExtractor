@@ -109,6 +109,7 @@ public abstract class StreamingService {
     public Set<String> filterTypes = new HashSet<>();
 
     public String ytdlpConfig = null;
+    public boolean ytdlpEnabled = false;
 
 
     /**
@@ -573,5 +574,13 @@ public abstract class StreamingService {
 
     public String getYtdlpConfig() {
         return ytdlpConfig;
+    }
+
+    public void setYtdlpEnabled(boolean ytdlpEnabled) {
+        this.ytdlpEnabled = ytdlpEnabled;
+    }
+
+    public boolean isYtdlpEnabled() {
+        return ytdlpEnabled;
     }
 }
