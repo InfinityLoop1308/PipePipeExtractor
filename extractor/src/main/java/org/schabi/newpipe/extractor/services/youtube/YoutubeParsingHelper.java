@@ -197,7 +197,7 @@ YoutubeParsingHelper {
      * Store page of the YouTube app</a>, in the {@code What’s New} section.
      * </p>
      */
-    private static final String IOS_YOUTUBE_CLIENT_VERSION = "19.28.1";
+    private static final String IOS_YOUTUBE_CLIENT_VERSION = "19.45.4";
 
     /**
      * The InnerTube API key used by the {@code iOS} client. Found with the help of
@@ -262,7 +262,7 @@ YoutubeParsingHelper {
      *
      * @see #IOS_USER_AGENT_VERSION
      */
-    private static final String IOS_OS_VERSION = "17.5.1.21F90";
+    private static final String IOS_OS_VERSION = "18.1.0.22B83";
 
     /**
      * Spoofing an iPhone 15 running iOS 17.5.1 with the hardcoded version of the iOS app. To be
@@ -270,7 +270,7 @@ YoutubeParsingHelper {
      *
      * @see #IOS_OS_VERSION
      */
-    private static final String IOS_USER_AGENT_VERSION = "17_5_1";
+    private static final String IOS_USER_AGENT_VERSION = "18_1_0";
 
     private static Random numberGenerator = new Random();
 
@@ -1447,7 +1447,7 @@ YoutubeParsingHelper {
                 The build version corresponding to the iOS version used can be found on
                 https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15
                  */
-                .value("osVersion", "17.5.1.21F90")
+                .value("osVersion", IOS_OS_VERSION)
                 .value("hl", localization.getLocalizationCode())
                 .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)

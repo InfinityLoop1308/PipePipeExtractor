@@ -901,9 +901,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
-        CancellableCall iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
-        CancellableCall tvCall = fetchTvHtml5EmbedJsonPlayer(contentCountry, localization, videoId);
-        CancellableCall webCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
+        CancellableCall iosCall = null;
+        CancellableCall tvCall = null;
+        CancellableCall webCall = null;
+
+        if (StringUtils.isBlank(ServiceList.YouTube.getTokens())) {
+            iosCall = fetchIosMobileJsonPlayer(contentCountry, localization, videoId);
+        } else {
+            tvCall = fetchTvHtml5EmbedJsonPlayer(contentCountry, localization, videoId);
+            webCall = fetchWebJsonPlayer(contentCountry, localization, videoId);
+        }
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(localization, contentCountry)
@@ -944,6 +951,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+
+        for (Throwable e: errors) {
+            if (e instanceof NotLoginException) {
+                throw (NotLoginException) e;
+            }
+            if (e instanceof ContentNotAvailableException) {
+                throw (ContentNotAvailableException) e;
+            }
+        }
     }
 
 
@@ -998,6 +1014,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     throw new ContentNotAvailableException(reason);
                 }
             }
+        }
+        if (reason != null && reason.contains("Sign in to confirm")) {
+            throw new NotLoginException(reason);
         }
 
         throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
@@ -1079,6 +1098,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 try {
                     JsonObject iosPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(iosPlayerResponse, videoId)) {
+                        if (iosPlayerResponse.toString().contains("Sign in to confirm")) {
+                            throw new NotLoginException("IOS player response is not valid");
+                        }
                         throw new ExtractionException("IOS player response is not valid");
                     }
 
@@ -1122,6 +1144,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 try {
                     webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
+                        if (webPlayerResponse.toString().contains("Sign in to confirm")) {
+                            throw new NotLoginException("Web player response is not valid");
+                        }
                         throw new ExtractionException("Web player response is not valid");
                     }
 
@@ -1159,6 +1184,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 try {
                     tvHtml5EmbedPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(tvHtml5EmbedPlayerResponse, videoId)) {
+                        if (tvHtml5EmbedPlayerResponse.toString().contains("Sign in to confirm")) {
+                            throw new NotLoginException("TVHTML5 player response is not valid");
+                        }
                         throw new ExtractionException("TVHTML5 embed player response is not valid");
                     }
 
@@ -1333,7 +1361,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final String randomString = UUID.randomUUID().toString().replaceAll("[^a-zA-Z]", "");
                 builder = new AudioStream.Builder()
                         .setId(randomString)
-                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&sid="+getId()):""), itagInfo.getIsUrl())
+                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
                         .setAverageBitrate(itagItem.getAverageBitrate())
                         .setItagItem(itagItem);
@@ -1396,7 +1424,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             try {
                 builder = new VideoStream.Builder()
                         .setId(String.valueOf(itagItem.id))
-                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&sid="+getId()):""), itagInfo.getIsUrl())
+                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
                         .setIsVideoOnly(areStreamsVideoOnly)
                         .setItagItem(itagItem);
