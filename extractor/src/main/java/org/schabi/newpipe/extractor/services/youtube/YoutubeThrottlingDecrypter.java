@@ -93,7 +93,7 @@ public final class YoutubeThrottlingDecrypter {
                     + "=(" + FUNCTION_NAME_REGEX + ")(?:" + ARRAY_ACCESS_REGEX + ")?\\("
                     + SINGLE_CHAR_VARIABLE_REGEX + "\\)")
     };
-            // CHECKSTYLE:ON
+    // CHECKSTYLE:ON
 
     // Escape the curly end brace to allow compatibility with Android's regex engine
     // See https://stackoverflow.com/q/45074813
@@ -120,7 +120,7 @@ public final class YoutubeThrottlingDecrypter {
      *
      * <p>
      * If the JavaScript code has been not extracted, it is extracted with the given video ID using
-     * {@link YoutubeJavaScriptExtractor#extractJavaScriptCode(String)}.
+     * {@link YoutubeJavaScriptExtractor#extractJavaScriptPlayerCode(String)}.
      * </p>
      *
      * @param streamingUrl The streaming URL to decrypt, if needed.
@@ -141,7 +141,7 @@ public final class YoutubeThrottlingDecrypter {
         try {
             if (decryptFunction == null) {
                 final String playerJsCode
-                        = YoutubeJavaScriptExtractor.extractJavaScriptCode(videoId);
+                        = YoutubeJavaScriptExtractor.extractJavaScriptPlayerCode(videoId);
 
                 decryptFunctionName = parseDecodeFunctionName(playerJsCode);
                 decryptFunction = parseDecodeFunction(playerJsCode, decryptFunctionName);

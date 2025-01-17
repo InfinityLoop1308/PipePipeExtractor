@@ -154,6 +154,11 @@ YoutubeParsingHelper {
     public static final String RACY_CHECK_OK = "racyCheckOk";
 
     /**
+     * The hardcoded client ID used for InnerTube requests with the {@code WEB} client.
+     */
+    private static final String WEB_CLIENT_ID = "1";
+
+    /**
      * The client version for InnerTube requests with the {@code WEB} client, used as the last
      * fallback if the extraction of the real one failed.
      */
@@ -203,7 +208,8 @@ YoutubeParsingHelper {
     /**
      * The hardcoded client version used for InnerTube requests with the TV HTML5 embed client.
      */
-    private static final String TVHTML5_SIMPLY_EMBED_CLIENT_VERSION = "2.0";
+    private static final String TVHTML5_SIMPLY_EMBED_CLIENT_VERSION = "7.20241201.18.00";
+    private static final String WEB_CLIENT_VERSION = "2.20241126.01.00";
 
     private static String clientVersion;
     private static String key;
@@ -242,7 +248,31 @@ YoutubeParsingHelper {
      */
     private static final String IOS_DEVICE_MODEL = "iPhone16,2";
 
-    private static Random numberGenerator = new SecureRandom();
+    /**
+     * Spoofing an iPhone 15 Pro Max running iOS 17.5.1 with the hardcoded version of the iOS app.
+     * To be used for the {@code "osVersion"} field in JSON POST requests.
+     * <p>
+     * The value of this field seems to use the following structure:
+     * "iOS major version.minor version.patch version.build version", where
+     * "patch version" is equal to 0 if it isn't set
+     * The build version corresponding to the iOS version used can be found on
+     * <a href="https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15_Pro_Max">
+     *     https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15_Pro_Max</a>
+     * </p>
+     *
+     * @see #IOS_USER_AGENT_VERSION
+     */
+    private static final String IOS_OS_VERSION = "17.5.1.21F90";
+
+    /**
+     * Spoofing an iPhone 15 running iOS 17.5.1 with the hardcoded version of the iOS app. To be
+     * used in the user agent for requests.
+     *
+     * @see #IOS_OS_VERSION
+     */
+    private static final String IOS_USER_AGENT_VERSION = "17_5_1";
+
+    private static Random numberGenerator = new Random();
 
     private static final String FEED_BASE_CHANNEL_ID =
             "https://www.youtube.com/feeds/videos.xml?channel_id=";
@@ -1203,7 +1233,7 @@ YoutubeParsingHelper {
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
-        headers.put("User-Agent", singletonList(getIosUserAgent(localization)));
+        headers.put("User-Agent", singletonList("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"));
 
         addLoggedInHeaders(headers);
 
@@ -1437,6 +1467,24 @@ YoutubeParsingHelper {
     }
 
     @Nonnull
+    public static JsonBuilder<JsonObject> prepareWebJsonBuilder(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId) {
+        // @formatter:off
+        return JsonObject.builder()
+                .object("context")
+                    .object("client")
+                        .value("clientName", "WEB")
+                        .value("clientVersion", WEB_CLIENT_VERSION)
+                        .value("hl", localization.getLocalizationCode())
+                        .value("gl", contentCountry.getCountryCode())
+                        .value("utcOffsetMinutes", 0)
+                    .end()
+                .end();
+        // @formatter:on
+    }
+
     public static JsonBuilder<JsonObject> prepareTvHtml5EmbedJsonBuilder(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
@@ -1445,26 +1493,11 @@ YoutubeParsingHelper {
         return JsonObject.builder()
                 .object("context")
                 .object("client")
-                .value("clientName", "TVHTML5_SIMPLY_EMBEDDED_PLAYER")
+                .value("clientName", "TVHTML5")
                 .value("clientVersion", TVHTML5_SIMPLY_EMBED_CLIENT_VERSION)
-                .value("clientScreen", "EMBED")
-                .value("platform", "TV")
                 .value("hl", localization.getLocalizationCode())
                 .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)
-                .end()
-                .object("thirdParty")
-                .value("embedUrl", "https://www.youtube.com/watch?v=" + videoId)
-                .end()
-                .object("request")
-                .array("internalExperimentFlags")
-                .end()
-                .value("useSsl", true)
-                .end()
-                .object("user")
-                // TODO: provide a way to enable restricted mode with:
-                //  .value("enableSafetyMode", boolean)
-                .value("lockedSafetyMode", false)
                 .end()
                 .end();
         // @formatter:on
@@ -1488,6 +1521,7 @@ YoutubeParsingHelper {
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
+        addLoggedInHeaders(headers);
 
         addLoggedInHeaders(headers);
 
@@ -1532,27 +1566,56 @@ YoutubeParsingHelper {
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final String videoId,
-            @Nonnull final String sts,
-            @Nonnull final String contentPlaybackNonce) throws IOException, ExtractionException {
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce) {
         // @formatter:off
         return JsonWriter.string(
-                prepareTvHtml5EmbedJsonBuilder(localization, contentCountry, videoId)
-                        .object("playbackContext")
-                        .object("contentPlaybackContext")
-                        // Signature timestamp from the JavaScript base player is needed to get
-                        // working obfuscated URLs
-                        .value("signatureTimestamp", sts)
-                        .value("referer", "https://www.youtube.com/watch?v=" + videoId)
-                        .end()
-                        .end()
-                        .value(CPN, contentPlaybackNonce)
-                        .value(VIDEO_ID, videoId)
-                        .value(CONTENT_CHECK_OK, true)
-                        .value(RACY_CHECK_OK, true)
-                        .done())
-                        .getBytes(StandardCharsets.UTF_8);
+                        prepareTvHtml5EmbedJsonBuilder(localization, contentCountry, videoId)
+                                .object("playbackContext")
+                                .object("contentPlaybackContext")
+                                // Signature timestamp from the JavaScript base player is needed to get
+                                // working obfuscated URLs
+                                .value("signatureTimestamp", sts)
+                                .value("html5Preference", "HTML5_PREF_WANTS")
+                                .end()
+                                .end()
+                                .value(CPN, contentPlaybackNonce)
+                                .value(VIDEO_ID, videoId)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
     }
+
+    @Nonnull
+    public static byte[] createWebEmbedPlayerBody(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce) {
+        // @formatter:off
+        return JsonWriter.string(
+                        prepareWebJsonBuilder(localization, contentCountry, videoId)
+                                .object("playbackContext")
+                                .object("contentPlaybackContext")
+                                // Signature timestamp from the JavaScript base player is needed to get
+                                // working obfuscated URLs
+                                .value("signatureTimestamp", sts)
+                                .value("html5Preference", "HTML5_PREF_WANTS")
+                                .end()
+                                .end()
+                                .value(CPN, contentPlaybackNonce)
+                                .value(VIDEO_ID, videoId)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+        // @formatter:on
+    }
+
+
     /**
      * Get the user-agent string used as the user-agent for InnerTube requests with the Android
      * client.
@@ -1568,9 +1631,9 @@ YoutubeParsingHelper {
      */
     @Nonnull
     public static String getAndroidUserAgent(@Nullable final Localization localization) {
-        // Spoofing an Android 12 device with the hardcoded version of the Android app
+        // Spoofing an Android 14 device with the hardcoded version of the Android app
         return "com.google.android.youtube/" + ANDROID_YOUTUBE_CLIENT_VERSION
-                + " (Linux; U; Android 12; "
+                + " (Linux; U; Android 14; "
                 + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
                 + ") gzip";
     }
@@ -1590,9 +1653,10 @@ YoutubeParsingHelper {
      */
     @Nonnull
     public static String getIosUserAgent(@Nullable final Localization localization) {
-        // Spoofing an iPhone 13 running iOS 15.6 with the hardcoded version of the iOS app
+        // Spoofing an iPhone 15 running iOS 17.5.1 with the hardcoded version of the iOS app
         return "com.google.ios.youtube/" + IOS_YOUTUBE_CLIENT_VERSION
-                + "(" + IOS_DEVICE_MODEL + "; U; CPU iOS 17_5_1 like Mac OS X; "
+                + "(" + IOS_DEVICE_MODEL + "; U; CPU iOS "
+                + IOS_USER_AGENT_VERSION + " like Mac OS X; "
                 + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
                 + ")";
     }

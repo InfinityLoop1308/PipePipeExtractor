@@ -86,6 +86,11 @@ public final class Parser {
         }
     }
 
+    public static String matchGroup1MultiplePatterns(final Pattern[] patterns, final String input)
+            throws RegexException {
+        return matchMultiplePatterns(patterns, input).group(1);
+    }
+
     public static Matcher matchMultiplePatterns(final Pattern[] patterns, final String input)
             throws RegexException {
         Parser.RegexException exception = null;
