@@ -1127,7 +1127,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
                     final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
-                        playerResponse = webPlayerResponse;
                         webStreamingData = streamingData;
                         playerCaptionsTracklistRenderer = playerResponse.getObject("captions")
                                 .getObject("playerCaptionsTracklistRenderer");
@@ -1165,7 +1164,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
                     final JsonObject streamingData = tvHtml5EmbedPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
-                        playerResponse = tvHtml5EmbedPlayerResponse;
                         tvHtml5SimplyEmbedStreamingData = streamingData;
                         playerCaptionsTracklistRenderer = playerResponse.getObject("captions")
                                 .getObject("playerCaptionsTracklistRenderer");
