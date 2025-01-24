@@ -149,12 +149,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
-        List<AudioStream> result = new ArrayList<>();
-        int length = videoOnlyStreams.size();
-        for (AudioStream item : audioStreams) {
-            result.addAll(Collections.nCopies(length, item));
-        }
-        return result;
+        return audioStreams;
     }
 
     public List<AudioStream> getAudioStreamsForDownloader() throws IOException, ExtractionException {
@@ -180,9 +175,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
 
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
-        int videoSize = videoOnlyStreams.size();
-        return Arrays.asList(repeat(videoOnlyStreams.toArray(new VideoStream[videoSize]),
-                audioStreams.size() * videoSize));
+        return videoOnlyStreams;
     }
 
     @Override
@@ -196,13 +189,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                             .setId("bilibili-" + watch.getLong("cid"))
                             .setIsVideoOnly(false).setResolution(resolution)
                             .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
-                    JsonArray backupUrl = dataArray.getObject(j).getArray("backup_url");
-                    for (int i = 0; i < backupUrl.size(); i++) {
-                        videoStreams.add(new VideoStream.Builder().setContent(backupUrl.getString(i), true)
-                                .setId("bilibili-" + watch.getLong("cid"))
-                                .setIsVideoOnly(false).setResolution(resolution)
-                                .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP).build());
-                    }
                 }
                 return videoStreams;
             }
@@ -253,24 +239,14 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return;
         }
         JsonArray videoArray = dataObject.getArray("video");
-        ArrayList<VideoStream> h264Streams = new ArrayList<>();
         for (int i = 0; i < videoArray.size(); i++) {
             JsonObject object = videoArray.getObject(i);
             int code = object.getInt("id");
-            boolean isH264 = object.getString("codecs").contains("avc");
             String resolution = BilibiliService.getResolution(code);
-            (isH264 ? h264Streams : videoOnlyStreams).add(new VideoStream.Builder().setContent(object.getString("baseUrl"), true)
-                    .setMediaFormat(MediaFormat.MPEG_4).setId("bilibili-" + bvid + "-video")
+            videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"), true)
+                    .setMediaFormat(MediaFormat.MPEG_4).setId("bilibili-" + bvid + "-video").setCodec(object.getString("codecs"))
                     .setIsVideoOnly(true).setResolution(resolution).build());
-            JsonArray backupUrls = object.getArray("backupUrl");
-            for (int j = 0; j < backupUrls.size(); j++) {
-                (isH264 ? h264Streams : videoOnlyStreams).add(new VideoStream.Builder().setContent(backupUrls.getString(j), true)
-                        .setMediaFormat(MediaFormat.MPEG_4).setId("bilibili-" + bvid + "-video")
-                        .setIsVideoOnly(true).setResolution(resolution).build());
-            }
         }
-        // append h264 streams to videoOnlyStreams
-        videoOnlyStreams.addAll(0, h264Streams);
     }
 
     @Override

@@ -46,6 +46,7 @@ public final class VideoStream extends Stream {
     private int indexEnd;
     private int width;
     private int height;
+
     private int fps;
     private String quality;
     private String codec;
@@ -67,6 +68,7 @@ public final class VideoStream extends Stream {
         // Use of the Boolean class instead of the primitive type needed for setter call check
         private Boolean isVideoOnly;
         private String resolution;
+        private String codec;
         @Nullable
         private ItagItem itagItem;
 
@@ -225,6 +227,11 @@ public final class VideoStream extends Stream {
             return this;
         }
 
+        public Builder setCodec(String codec) {
+            this.codec = codec;
+            return this;
+        }
+
         /**
          * Build a {@link VideoStream} using the builder's current values.
          *
@@ -271,7 +278,7 @@ public final class VideoStream extends Stream {
                                 + "get it).");
             }
 
-            return new VideoStream(id, content, isUrl, mediaFormat, deliveryMethod, resolution,
+            return new VideoStream(id, content, isUrl, mediaFormat, deliveryMethod, resolution, codec,
                     isVideoOnly, manifestUrl, itagItem);
         }
     }
@@ -300,6 +307,7 @@ public final class VideoStream extends Stream {
                         @Nullable final MediaFormat format,
                         @Nonnull final DeliveryMethod deliveryMethod,
                         @Nonnull final String resolution,
+                        String codec,
                         final boolean isVideoOnly,
                         @Nullable final String manifestUrl,
                         @Nullable final ItagItem itagItem) {
@@ -317,6 +325,9 @@ public final class VideoStream extends Stream {
             this.width = itagItem.getWidth();
             this.quality = itagItem.getQuality();
             this.fps = itagItem.getFps();
+        }
+        if (codec != null) {
+            this.codec = codec;
         }
         this.resolution = resolution;
         this.isVideoOnly = isVideoOnly;
