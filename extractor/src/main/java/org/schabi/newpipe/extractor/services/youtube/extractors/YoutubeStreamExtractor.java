@@ -1539,6 +1539,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final String mimeType = formatData.getString("mimeType", EMPTY_STRING);
         final String codec = mimeType.contains("codecs")
                 ? mimeType.split("\"")[1] : EMPTY_STRING;
+        final int fps = formatData.getInt("fps", -1);
 
         itagItem.setBitrate(formatData.getInt("bitrate"));
         itagItem.setWidth(formatData.getInt("width"));
@@ -1549,6 +1550,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         itagItem.setIndexEnd(Integer.parseInt(indexRange.getString("end", "-1")));
         itagItem.setQuality(formatData.getString("quality"));
         itagItem.setCodec(codec);
+        if (fps != -1) {
+            itagItem.setFps(fps);
+        }
 
         if (streamType == StreamType.LIVE_STREAM || streamType == StreamType.POST_LIVE_STREAM) {
             itagItem.setTargetDurationSec(formatData.getInt("targetDurationSec"));
