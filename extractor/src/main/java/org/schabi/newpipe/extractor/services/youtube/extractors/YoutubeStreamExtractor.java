@@ -947,7 +947,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         do {
             if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidCall.isFinished())
                     || (StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webCall.isFinished() && tvCall.isFinished())) &&
-                    webPageCall.isFinished() && nextDataCall.isFinished() && dislikeCall.isFinished()) {
+                    webPageCall.isFinished() && nextDataCall.isFinished()) {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
