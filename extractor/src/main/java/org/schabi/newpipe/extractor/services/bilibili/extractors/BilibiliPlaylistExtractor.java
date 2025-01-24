@@ -40,7 +40,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
             data = JsonParser.object().from(getDownloader().get(getLinkHandler().getUrl(), getHeaders()).responseBody());
-            if (getLinkHandler().getUrl().contains(GET_SEASON_ARCHIVES_LIST_BASE_URL)) {
+            if (getLinkHandler().getUrl().contains(GET_SEASON_ARCHIVES_ARCHIVE_BASE_URL)) {
                 type = "seasons_archives";
             } else if (getLinkHandler().getUrl().contains(GET_SERIES_BASE_URL)) {
                 type = "series";

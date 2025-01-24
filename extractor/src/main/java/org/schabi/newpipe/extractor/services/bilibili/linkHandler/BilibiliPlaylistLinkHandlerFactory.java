@@ -17,7 +17,7 @@ public class BilibiliPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public boolean onAcceptUrl(String url) throws ParsingException {
-        return url.contains(GET_SEASON_ARCHIVES_LIST_BASE_URL) ||
+        return url.contains(GET_SEASON_ARCHIVES_ARCHIVE_BASE_URL) ||
                 url.contains(GET_SERIES_BASE_URL) ||
                 url.contains(GET_PARTITION_URL);
     }

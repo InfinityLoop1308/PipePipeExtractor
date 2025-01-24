@@ -1,8 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_LIVEROOM_STATUS_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_INFO_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUpToDateHeaders;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlWebAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlClientAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
@@ -154,7 +152,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
-        String url = "https://api.bilibili.com/x/polymer/space/seasons_series_list?mid=" + getLinkHandler().getId() + "&page_num=1&page_size=10";
+        String url = GET_SEASON_ARCHIVES_LIST_BASE_URL + "?mid=" + getLinkHandler().getId() + "&page_num=1&page_size=10";
         return Arrays.asList(
                 new ListLinkHandler(getUrl(), url, getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null),

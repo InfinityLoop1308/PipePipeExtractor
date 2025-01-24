@@ -64,10 +64,11 @@ public class BilibiliService extends StreamingService {
     public static String QUERY_USER_INFO_URL = "https://api.bilibili.com/x/web-interface/card?photo=true&mid=";
     public static String QUERY_LIVEROOM_STATUS_URL = "https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids?uids[]=";
     public static String QUERY_DANMU_INFO_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?type=0&id=";
-    public static String GET_SEASON_ARCHIVES_LIST_RAW_URL = "https://api.bilibili.com/x/polymer/space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&name=%s&page_num=1&page_size=30";
+    public static String GET_SEASON_ARCHIVES_LIST_RAW_URL = "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?mid=%s&season_id=%s&sort_reverse=false&name=%s&page_num=1&page_size=30";
     public static String GET_SERIES_RAW_URL = "https://api.bilibili.com/x/series/archives?mid=%s&series_id=%s&only_normal=true&sort=desc&name=%s&pn=1&ps=30";
     public static String GET_SERIES_BASE_URL = "https://api.bilibili.com/x/series/archives";
-    public static String GET_SEASON_ARCHIVES_LIST_BASE_URL = "https://api.bilibili.com/x/polymer/space/seasons_archives_list";
+    public static String GET_SEASON_ARCHIVES_LIST_BASE_URL = "https://api.bilibili.com/x/polymer/web-space/seasons_series_list";
+    public static String GET_SEASON_ARCHIVES_ARCHIVE_BASE_URL = "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list";
     public static String GET_SUGGESTION_URL = "https://s.search.bilibili.com/main/suggest?term=";
     public static String GET_RELATED_URL = "https://api.bilibili.com/x/web-interface/archive/related?bvid=";
     public static String COMMENT_REPLIES_URL = "https://api.bilibili.com/x/v2/reply/reply?type=1&pn=1&ps=20&oid=";
