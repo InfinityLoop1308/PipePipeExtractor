@@ -167,7 +167,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         for (int i = 0; i < audioObjects.size(); i++) {
             JsonObject audioObject = audioObjects.getObject(i);
             audioStreamsForDownloader.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
-                    .setContent(audioObject.getString("baseUrl"), true)
+                    .setContent(audioObject.getString("baseUrl"), true).setCodec(audioObject.getString("codecs").split("\\.")[0])
                     .setMediaFormat(MediaFormat.M4A).setQuality(getBitrate(audioObject.getInt("id"))).build());
         }
         return audioStreamsForDownloader;

@@ -60,6 +60,7 @@ public final class AudioStream extends Stream {
         @Nullable
         private ItagItem itagItem;
         private String quality;
+        private String codec;
         /**
          * Create a new {@link Builder} instance with its default values.
          */
@@ -198,6 +199,11 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        public Builder setCodec(String codec) {
+            this.codec = codec;
+            return this;
+        }
+
         /**
          * Build an {@link AudioStream} using the builder's current values.
          *
@@ -230,7 +236,7 @@ public final class AudioStream extends Stream {
                                 + "not allowed. Pass a valid one instead with setDeliveryMethod.");
             }
 
-            return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate,
+            return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate, codec,
                     manifestUrl, itagItem, quality);
         }
     }
@@ -261,6 +267,7 @@ public final class AudioStream extends Stream {
                         @Nullable final MediaFormat format,
                         @Nonnull final DeliveryMethod deliveryMethod,
                         final int averageBitrate,
+                        String codec,
                         @Nullable final String manifestUrl,
                         @Nullable final ItagItem itagItem, String quality) {
         super(id, content, isUrl, format, deliveryMethod, manifestUrl);
@@ -278,6 +285,9 @@ public final class AudioStream extends Stream {
         this.averageBitrate = averageBitrate;
         if(quality != null) {
             this.quality = quality;
+        }
+        if(codec != null) {
+            this.codec = codec;
         }
     }
 
