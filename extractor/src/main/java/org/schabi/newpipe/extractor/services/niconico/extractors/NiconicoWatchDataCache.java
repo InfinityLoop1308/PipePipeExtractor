@@ -103,6 +103,15 @@ public class NiconicoWatchDataCache {
             throw new ParsingException("Failed to parse content");
         }
 
+        if (watchData.getString("errorCode").equals("FORBIDDEN")) { //TODO: also for other types such as member limited vids
+            switch (watchData.getString("reasonCode")) {
+                case "DOMESTIC_VIDEO":
+                    throw new GeographicRestrictionException("This video is only available in Japan");
+                default:
+                    throw new ContentNotAvailableException(watchData.getString("reasonCode"));
+            }
+        }
+
         lastId = id;
         return watchData;
     }
