@@ -147,12 +147,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 );
     }
 
-    @Override
     public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
-        return audioStreams;
-    }
-
-    public List<AudioStream> getAudioStreamsForDownloader() throws IOException, ExtractionException {
         if (getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay) {
             return null;
         }
@@ -167,7 +162,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         for (int i = 0; i < audioObjects.size(); i++) {
             JsonObject audioObject = audioObjects.getObject(i);
             audioStreamsForDownloader.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
-                    .setContent(audioObject.getString("baseUrl"), true).setCodec(audioObject.getString("codecs").split("\\.")[0])
+                    .setContent(audioObject.getString("base_url"), true).setCodec(audioObject.getString("codecs").split("\\.")[0])
                     .setMediaFormat(MediaFormat.M4A).setQuality(getBitrate(audioObject.getInt("id"))).build());
         }
         return audioStreamsForDownloader;

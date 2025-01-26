@@ -202,6 +202,7 @@ public class BilibiliService extends StreamingService {
             case 30280:
                 return "192K";
             case 30250:
+            case 30255:
                 return "杜比全景声";
             case 30251:
                 return "Hi-Res无损";

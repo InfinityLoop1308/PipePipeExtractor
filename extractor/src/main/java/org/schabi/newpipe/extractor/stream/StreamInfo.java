@@ -160,11 +160,7 @@ public class StreamInfo extends Info {
 
         /* Load and extract audio */
         try {
-            if(streamInfo.getService() == ServiceList.BiliBili){
-                streamInfo.setAudioStreams(((BillibiliStreamExtractor)extractor).getAudioStreamsForDownloader());
-            } else {
-                streamInfo.setAudioStreams(extractor.getAudioStreams());
-            }
+            streamInfo.setAudioStreams(extractor.getAudioStreams());
         } catch (final ContentNotSupportedException e) {
             throw e;
         } catch (final Exception e) {
