@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
+import java.util.Locale;
 import java.util.Random;
 
 import javax.annotation.Nonnull;
@@ -89,7 +90,7 @@ public class DeviceForger {
     final static String ChromiumAngleRendererInfoTemplate = "ANGLE (%s, %s Direct3D11 vs_5_0 ps_5_0, D3D11)Google Inc. (%s)";
 
     static String buildUserAgent(String platform, int version) {
-        return String.format(UserAgentTemplate, platform, version);
+        return String.format(Locale.US, UserAgentTemplate, platform, version);
     }
 
     static String buildChromiumAngleRendererInfo(String vendor, String gpuWithApi) {
