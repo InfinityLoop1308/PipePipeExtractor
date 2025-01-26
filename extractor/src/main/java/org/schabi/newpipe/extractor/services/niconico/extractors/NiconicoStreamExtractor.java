@@ -160,6 +160,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             if (StringUtils.isEmpty(result)) {
                 return "Unknown";
             }
+            return result;
         }
         return watch.getObject("owner").getString("nickname");
     }
@@ -175,10 +176,11 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         }
         if (isChannel()) {
             String result = watch.getObject("channel")
-                    .getObject("thumbnail").getString("ogp");
+                    .getObject("thumbnail").getString("url");
             if (StringUtils.isEmpty(result)) {
                 return "";
             }
+            return result;
         }
         return watch.getObject("owner").getString("iconUrl");
     }
