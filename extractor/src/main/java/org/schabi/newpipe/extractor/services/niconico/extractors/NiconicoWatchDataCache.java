@@ -103,12 +103,18 @@ public class NiconicoWatchDataCache {
             throw new ParsingException("Failed to parse content");
         }
 
-        if (watchData.getString("errorCode").equals("FORBIDDEN")) { //TODO: also for other types such as member limited vids
+        if (watchData.getString("errorCode") != null && watchData.getString("errorCode").equals("FORBIDDEN")) { //TODO: also for other types such as member limited vids
             switch (watchData.getString("reasonCode")) {
                 case "DOMESTIC_VIDEO":
                     throw new GeographicRestrictionException("This video is only available in Japan");
                 default:
                     throw new ContentNotAvailableException(watchData.getString("reasonCode"));
+            }
+        } else if (watchData.getString("okReason") != null && watchData.getString("okReason").equals("PAYMENT_PREVIEW_SUPPORTED")) {
+            if (watchData.getObject("payment").getObject("video").getBoolean("isPremium") == true) {
+                throw new PaidContentException("This content is limited to premium users");
+            } else if (watchData.getObject("payment").getObject("video").getString("billingType").equals("member_only")) {
+                throw new PaidContentException("This content is limited to channel members");
             }
         }
 
