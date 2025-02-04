@@ -6,6 +6,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,6 +39,25 @@ public final class Utils {
 
     private Utils() {
         // no instance
+    }
+
+    /**
+     * Encodes a string to URL format using the UTF-8 character set.
+     *
+     * @param string The string to be encoded.
+     * @return The encoded URL.
+     */
+    public static String encodeUrlUtf8(final String string) throws UnsupportedEncodingException {
+        return URLEncoder.encode(string, UTF_8);
+    }
+
+    /**
+     * Decodes a URL using the UTF-8 character set.
+     * @param url The URL to be decoded.
+     * @return The decoded URL.
+     */
+    public static String decodeUrlUtf8(final String url) throws UnsupportedEncodingException {
+        return URLDecoder.decode(url, UTF_8);
     }
 
     /**
@@ -482,4 +505,22 @@ public final class Utils {
         return null;
     }
 
+
+    public static String toSha256(final String videoId) throws NoSuchAlgorithmException {
+        final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        final byte[] bytes = digest.digest(videoId.getBytes(StandardCharsets.UTF_8));
+        final StringBuilder sb = new StringBuilder();
+
+        for (final byte b : bytes) {
+            final String hex = Integer.toHexString(0xff & b);
+
+            if (hex.length() == 1) {
+                sb.append('0');
+            }
+
+            sb.append(hex);
+        }
+
+        return sb.toString();
+    }
 }

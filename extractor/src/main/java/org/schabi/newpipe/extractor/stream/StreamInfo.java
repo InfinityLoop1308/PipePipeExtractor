@@ -7,6 +7,9 @@ import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
@@ -89,6 +92,13 @@ public class StreamInfo extends Info {
             streamInfo = extractImportantData(extractor);
             extractStreams(streamInfo, extractor);
             extractOptionalData(streamInfo, extractor);
+
+            SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService().getSponsorBlockApiSettings();
+            if (sponsorBlockApiSettings != null) {
+                final SponsorBlockSegment[] sponsorBlockSegments =
+                        SponsorBlockExtractorHelper.getSegments(streamInfo, sponsorBlockApiSettings);
+                streamInfo.setSponsorBlockSegments(sponsorBlockSegments);
+            }
             return streamInfo;
 
         } catch (final ExtractionException e) {
@@ -474,6 +484,7 @@ public class StreamInfo extends Info {
     private long startAt = -1;
     private List<StreamInfoItem> partitions = new ArrayList<>();
     private boolean shortFormContent = false;
+    private List<SponsorBlockSegment> sponsorBlockSegments = new ArrayList<>();
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -908,5 +919,36 @@ public class StreamInfo extends Info {
 
     public void setShortFormContent(final boolean isShortFormContent) {
         this.shortFormContent = isShortFormContent;
+    }
+
+    public SponsorBlockSegment[] getSponsorBlockSegments() {
+        return sponsorBlockSegments.toArray(new SponsorBlockSegment[0]);
+    }
+
+    public void setSponsorBlockSegments(final SponsorBlockSegment[] sponsorBlockSegments) {
+        this.sponsorBlockSegments.clear();
+        Collections.addAll(this.sponsorBlockSegments, sponsorBlockSegments);
+    }
+
+    public void addSponsorBlockSegment(final SponsorBlockSegment sponsorBlockSegment) {
+        sponsorBlockSegments.add(sponsorBlockSegment);
+    }
+
+    public void removeSponsorBlockSegment(final SponsorBlockSegment sponsorBlockSegment) {
+        sponsorBlockSegments.remove(sponsorBlockSegment);
+    }
+
+    public void removeSponsorBlockSegment(final String uuid) {
+        SponsorBlockSegment target = null;
+        for (final SponsorBlockSegment segment : sponsorBlockSegments) {
+            if (segment.uuid.equals(uuid)) {
+                target = segment;
+                break;
+            }
+        }
+
+        if (target != null) {
+            removeSponsorBlockSegment(target);
+        }
     }
 }

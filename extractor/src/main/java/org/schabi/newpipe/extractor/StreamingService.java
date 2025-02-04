@@ -24,6 +24,7 @@ import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.localization.TimeAgoPatternsManager;
 import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
@@ -110,6 +111,8 @@ public abstract class StreamingService {
 
     public String ytdlpConfig = null;
     public boolean ytdlpEnabled = false;
+
+    public SponsorBlockApiSettings sponsorBlockApiSettings = null;
 
 
     /**
@@ -582,5 +585,13 @@ public abstract class StreamingService {
 
     public boolean isYtdlpEnabled() {
         return ytdlpEnabled;
+    }
+
+    public void setSponsorBlockApiSettings(SponsorBlockApiSettings sponsorBlockApiSettings) {
+        this.sponsorBlockApiSettings = sponsorBlockApiSettings;
+    }
+
+    public SponsorBlockApiSettings getSponsorBlockApiSettings() {
+        return sponsorBlockApiSettings;
     }
 }
