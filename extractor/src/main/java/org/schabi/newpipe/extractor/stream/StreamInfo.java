@@ -92,13 +92,6 @@ public class StreamInfo extends Info {
             streamInfo = extractImportantData(extractor);
             extractStreams(streamInfo, extractor);
             extractOptionalData(streamInfo, extractor);
-
-            SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService().getSponsorBlockApiSettings();
-            if (sponsorBlockApiSettings != null) {
-                final SponsorBlockSegment[] sponsorBlockSegments =
-                        SponsorBlockExtractorHelper.getSegments(streamInfo, sponsorBlockApiSettings);
-                streamInfo.setSponsorBlockSegments(sponsorBlockSegments);
-            }
             return streamInfo;
 
         } catch (final ExtractionException e) {
