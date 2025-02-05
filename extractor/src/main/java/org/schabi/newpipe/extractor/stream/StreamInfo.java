@@ -478,6 +478,7 @@ public class StreamInfo extends Info {
     private List<StreamInfoItem> partitions = new ArrayList<>();
     private boolean shortFormContent = false;
     private List<SponsorBlockSegment> sponsorBlockSegments = new ArrayList<>();
+    private boolean fetchSponsorBlockFinished = false;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -943,5 +944,13 @@ public class StreamInfo extends Info {
         if (target != null) {
             removeSponsorBlockSegment(target);
         }
+    }
+
+    public boolean isFetchSponsorBlockFinished() {
+        return fetchSponsorBlockFinished;
+    }
+
+    public void setFetchSponsorBlockFinished(boolean fetchSponsorBlockFinish) {
+        this.fetchSponsorBlockFinished = fetchSponsorBlockFinish;
     }
 }
