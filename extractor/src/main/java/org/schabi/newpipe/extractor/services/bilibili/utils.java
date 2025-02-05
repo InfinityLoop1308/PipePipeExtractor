@@ -80,6 +80,14 @@ public class utils {
         return tmp.and(MASK_CODE).xor(XOR_CODE).longValue();
     }
 
+    public static boolean isFirstP(String url) {
+        if (!url.contains("p=")) {
+            return true;
+        }
+        String p = url.split("p=")[1].split("&")[0];
+        return p.equals("1");
+    }
+
     public static String getUrl(String url, String id) {
         String p = "1";
         if (url.contains("p=")) {
