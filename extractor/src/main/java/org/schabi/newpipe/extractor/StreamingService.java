@@ -81,7 +81,7 @@ public abstract class StreamingService {
         }
 
         public enum MediaCapability {
-            AUDIO, VIDEO, LIVE, COMMENTS, BULLET_COMMENTS
+            AUDIO, VIDEO, LIVE, COMMENTS, BULLET_COMMENTS, SPONSORBLOCK
         }
     }
 

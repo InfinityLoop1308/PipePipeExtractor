@@ -6,12 +6,8 @@ import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeBulletCom
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeBulletCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.search.filter.YoutubeFilters;
 
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.AUDIO;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.LIVE;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
 import static java.util.Arrays.asList;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.*;
 
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
@@ -81,7 +77,7 @@ public class YoutubeService extends StreamingService {
     public WatchDataCache watchDataCache = new WatchDataCache();
 
     public YoutubeService(final int id) {
-        super(id, "YouTube", asList(AUDIO, VIDEO, LIVE, COMMENTS, BULLET_COMMENTS));
+        super(id, "YouTube", asList(AUDIO, VIDEO, LIVE, COMMENTS, BULLET_COMMENTS, SPONSORBLOCK));
     }
 
     @Override

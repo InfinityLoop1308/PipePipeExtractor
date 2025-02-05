@@ -43,9 +43,7 @@ import org.schabi.newpipe.extractor.subscription.SubscriptionExtractor;
 import org.schabi.newpipe.extractor.suggestion.SuggestionExtractor;
 
 import static org.schabi.newpipe.extractor.NewPipe.getDownloader;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.BULLET_COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.COMMENTS;
-import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.VIDEO;
+import static org.schabi.newpipe.extractor.StreamingService.ServiceInfo.MediaCapability.*;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -138,6 +136,12 @@ public class BilibiliService extends StreamingService {
         return headers;
     }
 
+    static public Map<String, List<String>> getSponsorBlockHeaders(){
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Origin", Collections.singletonList("PipePipe"));
+        return headers;
+    }
+
     static public Map<String, List<String>> getLoggedHeadersOrNull(String condition){
         Map<String, List<String>> headers = getHeaders();
         if(ServiceList.BiliBili.hasTokens() && ServiceList.BiliBili.getCookieFunctions() != null
@@ -212,7 +216,7 @@ public class BilibiliService extends StreamingService {
     }
 
     public BilibiliService(int id) {
-        super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS));
+        super(id, "BiliBili", Arrays.asList(VIDEO, COMMENTS, BULLET_COMMENTS, SPONSORBLOCK));
         watchDataCache = new WatchDataCache();
     }
 

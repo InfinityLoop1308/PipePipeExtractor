@@ -6,8 +6,11 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.utils.RandomStringFromAlphabetGenerator;
 import org.schabi.newpipe.extractor.utils.Utils;
@@ -30,13 +33,14 @@ public final class SponsorBlockExtractorHelper {
     public static SponsorBlockSegment[] getSegments(final StreamInfo streamInfo,
                                                     final SponsorBlockApiSettings apiSettings)
             throws UnsupportedEncodingException {
-        if (!streamInfo.getUrl().startsWith("https://www.youtube.com")
-                || apiSettings.apiUrl == null
-                || apiSettings.apiUrl.isEmpty()) {
+        if (!streamInfo.getService().getServiceInfo()
+                .getMediaCapabilities()
+                .contains(StreamingService.ServiceInfo.MediaCapability.SPONSORBLOCK)) {
             return new SponsorBlockSegment[0];
         }
 
-        final String videoId = streamInfo.getId();
+        String videoId = streamInfo.getId();
+        videoId = videoId.split("\\?")[0];
 
         final ArrayList<String> categoryParamList = new ArrayList<>();
 
@@ -85,7 +89,7 @@ public final class SponsorBlockExtractorHelper {
             return new SponsorBlockSegment[0];
         }
 
-        final String url = apiSettings.apiUrl + "skipSegments/" + videoIdHash.substring(0, 4)
+        final String url = getApiUrl(streamInfo) + "skipSegments/" + videoIdHash.substring(0, 4)
                 + "?categories=" + categoryParams
                 + "&actionTypes=" + actionParams
                 + "&userAgent=Mozilla/5.0";
@@ -93,7 +97,7 @@ public final class SponsorBlockExtractorHelper {
         JsonArray responseArray = null;
 
         try {
-            final String responseBody = NewPipe.getDownloader().get(url).responseBody();
+            final String responseBody = NewPipe.getDownloader().get(url, url.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null).responseBody();
 
             responseArray = JsonParser.array().from(responseBody);
         } catch (ReCaptchaException | IOException | JsonParserException e) {
@@ -136,7 +140,8 @@ public final class SponsorBlockExtractorHelper {
                 final SponsorBlockSegment sponsorBlockSegment =
                         new SponsorBlockSegment(uuid, startTime, endTime,
                                 SponsorBlockCategory.fromApiName(category),
-                                SponsorBlockAction.fromApiName(action));
+                                SponsorBlockAction.fromApiName(action),
+                                streamInfo.getServiceId());
                 result.add(sponsorBlockSegment);
             }
         }
@@ -153,11 +158,9 @@ public final class SponsorBlockExtractorHelper {
             return null;
         }
 
-        if (!streamInfo.getUrl().startsWith("https://www.youtube.com")) {
-            return null;
-        }
 
-        final String videoId = streamInfo.getId();
+        String videoId = streamInfo.getId();
+        videoId = videoId.split("\\?")[0];
 
         final String localUserId =
                 RandomStringFromAlphabetGenerator.generate(ALPHABET, 32, NUMBER_GENERATOR);
@@ -179,7 +182,7 @@ public final class SponsorBlockExtractorHelper {
                 + "&userID=" + localUserId
                 + "&userAgent=Mozilla/5.0"
                 + "&actionType=" + actionType;
-        return NewPipe.getDownloader().post(url, null, new byte[0]);
+        return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
     }
 
     public static Response submitSponsorBlockSegmentVote(final String uuid,
@@ -194,6 +197,20 @@ public final class SponsorBlockExtractorHelper {
                 + "&userID=" + localUserId
                 + "&type=" + vote;
 
-        return NewPipe.getDownloader().post(url, null, new byte[0]);
+        return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
+    }
+
+    public static String getApiUrl(StreamInfo streamInfo) {
+        return getApiUrl(streamInfo.getServiceId());
+    }
+
+    public static String getApiUrl(int serviceId) {
+        String apiUrl = "https://sponsor.ajay.app/api/";
+        if (serviceId == ServiceList.YouTube.getServiceId()) {
+            apiUrl = "https://sponsor.ajay.app/api/";
+        } else if (serviceId == ServiceList.BiliBili.getServiceId()) {
+            apiUrl = "https://bsbsb.top/api/";
+        }
+        return apiUrl;
     }
 }

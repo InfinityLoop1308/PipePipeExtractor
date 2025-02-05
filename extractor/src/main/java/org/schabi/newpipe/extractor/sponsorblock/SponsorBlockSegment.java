@@ -8,13 +8,16 @@ public class SponsorBlockSegment implements Serializable {
     public double endTime;
     public SponsorBlockCategory category;
     public SponsorBlockAction action;
+    public int serviceId;
 
     public SponsorBlockSegment(final String uuid, final double startTime, final double endTime,
                                final SponsorBlockCategory category,
-                               final SponsorBlockAction action) {
+                               final SponsorBlockAction action,
+                               final int serviceId) {
         // NOTE: start/end times are in milliseconds
 
         this.uuid = uuid;
+        this.serviceId = serviceId;
         this.startTime = startTime;
         this.endTime = endTime;
         this.category = category;
