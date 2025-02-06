@@ -39,7 +39,7 @@ dependencies {
     implementation "com.google.protobuf:protobuf-java:3.11.0"
     implementation "com.squareup.okhttp3:okhttp:4.10.0"
     implementation "org.brotli:dec:0.1.1"
-    implementation 'org.apache.commons:commons-lang3:3.8.1'
+    implementation 'org.apache.commons:commons-lang3:3.17.0'
     implementation 'commons-codec:commons-codec:1.16.0'
     implementation "org.json:json:20231013"
 
