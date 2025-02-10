@@ -966,25 +966,24 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
 
-    public static void checkPlayabilityStatus(final JsonObject youtubePlayerResponse,
-                                        @Nonnull final JsonObject playabilityStatus)
+    public static void checkPlayabilityStatus(@Nonnull final JsonObject playabilityStatus)
             throws ParsingException {
-        String status = playabilityStatus.getString("status");
+        final String status = playabilityStatus.getString("status");
         if (status == null || status.equalsIgnoreCase("ok")) {
             return;
         }
 
-        // If status exist, and is not "OK", throw the specific exception based on error message
-        // or a ContentNotAvailableException with the reason text if it's an unknown reason.
-        final JsonObject newPlayabilityStatus =
-                youtubePlayerResponse.getObject("playabilityStatus");
-        status = newPlayabilityStatus.getString("status");
-        final String reason = newPlayabilityStatus.getString("reason");
+        final String reason = playabilityStatus.getString("reason");
 
-        if (status.equalsIgnoreCase("login_required") && reason == null) {
-            final String message = newPlayabilityStatus.getArray("messages").getString(0);
-            if (message != null && message.contains("private")) {
-                throw new PrivateContentException("This video is private.");
+        if (status.equalsIgnoreCase("login_required")) {
+            if (reason == null) {
+                final String message = playabilityStatus.getArray("messages").getString(0);
+                if (message != null && message.contains("private")) {
+                    throw new PrivateContentException("This video is private");
+                }
+            } else if (reason.contains("age")) {
+                throw new AgeRestrictedContentException(
+                        "This age-restricted video cannot be watched anonymously");
             }
         }
 
@@ -993,16 +992,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (reason.contains("Music Premium")) {
                 throw new YoutubeMusicPremiumContentException();
             }
+
             if (reason.contains("payment")) {
                 throw new PaidContentException("This video is a paid video");
             }
+
             if (reason.contains("members-only")) {
                 throw new PaidContentException("This video is only available"
                         + " for members of the channel of this video");
             }
 
             if (reason.contains("unavailable")) {
-                final String detailedErrorMessage = getTextFromObject(newPlayabilityStatus
+                final String detailedErrorMessage = getTextFromObject(playabilityStatus
                         .getObject("errorScreen")
                         .getObject("playerErrorMessageRenderer")
                         .getObject("subreason"));

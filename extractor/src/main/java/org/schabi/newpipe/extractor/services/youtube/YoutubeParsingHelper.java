@@ -1532,14 +1532,8 @@ YoutubeParsingHelper {
                         final JsonObject webPlayerResponse;
                         try {
                             webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+                            checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"));
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
-                                // Check the playability status, as private and deleted videos and invalid video IDs do
-                                // not return the ID provided in the player response
-                                // When the requested video is playable and a different video ID is returned, it has
-                                // the OK playability status, meaning the ExtractionException after this check will be
-                                // thrown
-                                checkPlayabilityStatus(
-                                        webPlayerResponse, webPlayerResponse.getObject("playabilityStatus"));
                                 throw new ExtractionException("Initial WEB player response is not valid");
                             }
                             // Save the playerResponse from the player endpoint of the desktop internal API because
