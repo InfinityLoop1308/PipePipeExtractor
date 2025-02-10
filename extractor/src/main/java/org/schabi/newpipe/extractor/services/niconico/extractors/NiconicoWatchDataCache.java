@@ -97,7 +97,7 @@ public class NiconicoWatchDataCache {
                                 .attr("data-video"));
             } else {
                 watchData = JsonParser.object().from(
-                        Entities.unescape(element.attr("content"))).getObject("data").getObject("response");
+                        element.attr("content")).getObject("data").getObject("response");
             }
         } catch (JsonParserException e) {
             throw new ParsingException("Failed to parse content");
