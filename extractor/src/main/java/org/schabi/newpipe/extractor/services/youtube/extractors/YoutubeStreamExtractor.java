@@ -952,7 +952,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
 
-        if (getStreamType() != StreamType.NONE) {
+        if (getStreamType() != StreamType.NONE || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof NotLoginException) {
                     throw (NotLoginException) e;
