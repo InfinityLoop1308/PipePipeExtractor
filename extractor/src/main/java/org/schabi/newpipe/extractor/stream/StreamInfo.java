@@ -5,20 +5,24 @@ import org.schabi.newpipe.extractor.channel.StaffInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
-import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockApiSettings;
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockExtractorHelper;
 import org.schabi.newpipe.extractor.sponsorblock.SponsorBlockSegment;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import javax.annotation.Nonnull;
 
@@ -88,10 +92,31 @@ public class StreamInfo extends Info {
             throws ExtractionException, IOException {
         extractor.fetchPage();
         final StreamInfo streamInfo;
+        SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService().getSponsorBlockApiSettings();
+        AtomicReference<SponsorBlockSegment[]> sponsorBlockSegments = new AtomicReference<>();
+        if (sponsorBlockApiSettings != null) {
+            new Thread(() -> {
+                try {
+                    sponsorBlockSegments.set(SponsorBlockExtractorHelper.getSegments(extractor, sponsorBlockApiSettings));
+                } catch (UnsupportedEncodingException | ParsingException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+
+        }
         try {
             streamInfo = extractImportantData(extractor);
             extractStreams(streamInfo, extractor);
             extractOptionalData(streamInfo, extractor);
+            if (sponsorBlockApiSettings != null) {
+                long startTime = System.nanoTime();
+                do {
+                    if (sponsorBlockSegments.get() != null) {
+                        streamInfo.setSponsorBlockSegments(sponsorBlockSegments.get());
+                        break;
+                    }
+                } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+            }
             return streamInfo;
 
         } catch (final ExtractionException e) {

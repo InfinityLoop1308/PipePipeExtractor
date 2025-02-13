@@ -9,8 +9,10 @@ import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
+import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.utils.RandomStringFromAlphabetGenerator;
 import org.schabi.newpipe.extractor.utils.Utils;
@@ -30,16 +32,16 @@ public final class SponsorBlockExtractorHelper {
     private SponsorBlockExtractorHelper() {
     }
 
-    public static SponsorBlockSegment[] getSegments(final StreamInfo streamInfo,
+    public static SponsorBlockSegment[] getSegments(final StreamExtractor extractor,
                                                     final SponsorBlockApiSettings apiSettings)
-            throws UnsupportedEncodingException {
-        if (!streamInfo.getService().getServiceInfo()
+            throws UnsupportedEncodingException, ParsingException {
+        if (!extractor.getService().getServiceInfo()
                 .getMediaCapabilities()
                 .contains(StreamingService.ServiceInfo.MediaCapability.SPONSORBLOCK)) {
             return new SponsorBlockSegment[0];
         }
 
-        String videoId = streamInfo.getId();
+        String videoId = extractor.getId();
         videoId = videoId.split("\\?")[0];
 
         final ArrayList<String> categoryParamList = new ArrayList<>();
@@ -73,7 +75,7 @@ public final class SponsorBlockExtractorHelper {
             categoryParamList.add(SponsorBlockCategory.FILLER.getApiName());
         }
 
-        if (categoryParamList.size() == 0) {
+        if (categoryParamList.isEmpty()) {
             return new SponsorBlockSegment[0];
         }
 
@@ -89,7 +91,7 @@ public final class SponsorBlockExtractorHelper {
             return new SponsorBlockSegment[0];
         }
 
-        final String url = getApiUrl(streamInfo) + "skipSegments/" + videoIdHash.substring(0, 4)
+        final String url = getApiUrl(extractor.getServiceId()) + "skipSegments/" + videoIdHash.substring(0, 4)
                 + "?categories=" + categoryParams
                 + "&actionTypes=" + actionParams
                 + "&userAgent=Mozilla/5.0";
@@ -141,7 +143,7 @@ public final class SponsorBlockExtractorHelper {
                         new SponsorBlockSegment(uuid, startTime, endTime,
                                 SponsorBlockCategory.fromApiName(category),
                                 SponsorBlockAction.fromApiName(action),
-                                streamInfo.getServiceId());
+                                extractor.getServiceId());
                 result.add(sponsorBlockSegment);
             }
         }
