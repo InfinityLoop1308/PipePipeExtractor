@@ -115,8 +115,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
             }
 
             JsonObject liveChatContinuation = result.getObject("continuationContents").getObject("liveChatContinuation");
-            JsonObject lastContinuationParent = liveChatContinuation
-                    .getArray("continuations").getObject(isLiveStream?0:1);
+            JsonArray temp1 = liveChatContinuation
+                    .getArray("continuations");
+            JsonObject lastContinuationParent = temp1.getObject((!isLiveStream && temp1.size() == 2)?1:0);
             if(isLiveStream){
                 for(String i: continuationKeyTexts){
                     if(lastContinuationParent.has(i)){

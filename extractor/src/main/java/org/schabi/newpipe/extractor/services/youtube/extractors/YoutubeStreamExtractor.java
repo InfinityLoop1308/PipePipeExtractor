@@ -145,6 +145,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
+        watchDataCache.shouldBeLive = true;
         final JsonObject liveDetails = playerMicroFormatRenderer.getObject(
                 "liveBroadcastDetails");
         if (!liveDetails.getString("endTimestamp", EMPTY_STRING).isEmpty()) {
@@ -960,6 +961,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 if (e instanceof ContentNotAvailableException) {
                     throw (ContentNotAvailableException) e;
                 }
+                throw new ExtractionException(e) ;
             }
         }
     }
