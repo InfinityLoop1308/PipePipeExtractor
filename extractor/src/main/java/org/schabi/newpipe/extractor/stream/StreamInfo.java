@@ -115,7 +115,7 @@ public class StreamInfo extends Info {
                         streamInfo.setSponsorBlockSegments(sponsorBlockSegments.get());
                         break;
                     }
-                } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+                } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 3);
             }
             return streamInfo;
 
