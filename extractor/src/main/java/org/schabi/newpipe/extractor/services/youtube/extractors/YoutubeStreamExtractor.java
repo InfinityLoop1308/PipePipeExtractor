@@ -1024,6 +1024,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             throw new NotLoginException(reason);
         }
 
+        if (reason != null && reason.contains("This live event will begin in")) {
+            throw new LiveNotStartException(reason);
+        }
+
+        if (reason != null && reason.contains("Premieres in")) {
+            throw new VideoNotReleaseException(reason);
+        }
+
         throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
     }
 

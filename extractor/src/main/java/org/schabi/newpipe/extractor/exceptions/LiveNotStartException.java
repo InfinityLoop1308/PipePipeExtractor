@@ -1,6 +1,6 @@
 package org.schabi.newpipe.extractor.exceptions;
 
-public class LiveNotStartException extends ParsingException{
+public class LiveNotStartException extends ContentNotAvailableException{
     public LiveNotStartException(String message) {
         super(message);
     }
