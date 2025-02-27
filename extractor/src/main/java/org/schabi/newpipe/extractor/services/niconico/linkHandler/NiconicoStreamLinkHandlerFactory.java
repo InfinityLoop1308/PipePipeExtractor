@@ -24,7 +24,7 @@ public class NiconicoStreamLinkHandlerFactory extends LinkHandlerFactory {
         if(id.contains("live.nicovideo.jp")){
             return id;
         }
-        return NiconicoService.SP_WATCH_URL + id;
+        return NiconicoService.WATCH_URL + id;
     }
 
     @Override

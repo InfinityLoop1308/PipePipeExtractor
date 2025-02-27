@@ -37,7 +37,7 @@ public class NiconicoPlaylistContentItemExtractor implements StreamInfoItemExtra
 
     @Override
     public String getUrl() throws ParsingException {
-        return NiconicoService.SP_WATCH_URL + item.getString("id");
+        return NiconicoService.WATCH_URL + item.getString("id");
     }
 
     @Override
