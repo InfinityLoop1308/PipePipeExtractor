@@ -43,7 +43,11 @@ public class YoutubeShortsInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public long getViewCount() throws ParsingException {
-        return Utils.mixedNumberWordToLong(item.getObject("overlayMetadata").getObject("secondaryText").getString("content").split(" view")[0]);
+        try {
+            return Utils.mixedNumberWordToLong(item.getObject("overlayMetadata").getObject("secondaryText").getString("content").split(" view")[0]);
+        } catch (Exception e) {
+            return -1;
+        }
     }
 
     @Override
