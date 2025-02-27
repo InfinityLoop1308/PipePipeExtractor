@@ -953,7 +953,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
 
-        if (getStreamType() != StreamType.NONE || nextResponse == null) {
+        if (getStreamType() == StreamType.NONE || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof NotLoginException) {
                     throw (NotLoginException) e;
@@ -963,6 +963,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
                 throw new ExtractionException(e) ;
             }
+            throw new ExtractionException("Failed to fetch the page.");
         }
     }
 
