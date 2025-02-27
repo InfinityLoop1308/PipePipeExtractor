@@ -154,7 +154,7 @@ public class NiconicoUserExtractor extends ChannelExtractor {
 
     @Override
     public String getFeedUrl() throws ParsingException {
-        return getLinkHandler().getUrl() + "?rss=2.0";
+        return getLinkHandler().getUrl();
     }
 
     @Override
@@ -175,25 +175,6 @@ public class NiconicoUserExtractor extends ChannelExtractor {
                 .getObject("user").getString("description")).wholeText();
     }
 
-    @Override
-    public String getParentChannelName() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getParentChannelUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public String getParentChannelAvatarUrl() throws ParsingException {
-        return null;
-    }
-
-    @Override
-    public boolean isVerified() throws ParsingException {
-        return false;
-    }
 
     private Page getNextPageFromCurrentUrl(final String currentUrl)
             throws ParsingException {
