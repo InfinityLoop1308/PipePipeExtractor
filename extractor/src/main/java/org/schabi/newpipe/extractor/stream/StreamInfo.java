@@ -436,11 +436,6 @@ public class StreamInfo extends Info {
         } catch (final Exception e) {
             streamInfo.addError(e);
         }
-        try {
-            streamInfo.setRequiresMembership(extractor.requiresMembership());
-        } catch (final Exception e) {
-            streamInfo.addError(e);
-        }
 
         if(streamInfo.isSupportRelatedItems() || streamInfo.isRoundPlayStream()){
             streamInfo.setRelatedItems(ExtractorHelper.getRelatedItemsOrLogError(streamInfo,
@@ -509,7 +504,6 @@ public class StreamInfo extends Info {
     private boolean shortFormContent = false;
     private List<SponsorBlockSegment> sponsorBlockSegments = new ArrayList<>();
     private boolean fetchSponsorBlockFinished = false;
-    private boolean membersOnly = false;
 
     /**
      * Preview frames, e.g. for the storyboard / seekbar thumbnail preview
@@ -983,13 +977,5 @@ public class StreamInfo extends Info {
 
     public void setFetchSponsorBlockFinished(boolean fetchSponsorBlockFinish) {
         this.fetchSponsorBlockFinished = fetchSponsorBlockFinish;
-    }
-
-    public boolean requiresMembership() {
-        return membersOnly;
-    }
-
-    public void setRequiresMembership(final boolean requiresMembership) {
-        this.membersOnly = requiresMembership;
     }
 }
