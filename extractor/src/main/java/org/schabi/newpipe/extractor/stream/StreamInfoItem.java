@@ -45,6 +45,7 @@ public class StreamInfoItem extends InfoItem {
     private boolean isRoundPlayStream = false;
     private long startAt = -1;
     private boolean shortFormContent = false;
+    private boolean requiresMembership = false;
 
     public StreamInfoItem(final int serviceId,
                           final String url,
@@ -139,6 +140,14 @@ public class StreamInfoItem extends InfoItem {
 
     public void setShortFormContent(final boolean shortFormContent) {
         this.shortFormContent = shortFormContent;
+    }
+
+    public boolean requiresMembership() {
+        return requiresMembership;
+    }
+
+    public void setRequiresMembership(final boolean requiresMembership) {
+        this.requiresMembership = requiresMembership;
     }
 
     @Override
