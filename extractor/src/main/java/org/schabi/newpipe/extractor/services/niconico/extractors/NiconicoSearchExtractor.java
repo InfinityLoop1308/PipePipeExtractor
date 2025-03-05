@@ -90,7 +90,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
 
             if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
@@ -106,7 +106,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
 
             if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
@@ -125,7 +125,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
 
             if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+                collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         }
@@ -172,7 +172,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
                             collection.getArray("data").getObject(i)));
         }
         if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
         }
         return collector;
     }

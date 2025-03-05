@@ -92,7 +92,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 getUrl(), "pn", 1, true, "1", "?"), String.valueOf(videoImpl.lastVideo())
         );
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
         }
         return new InfoItemsPage<>(collector, nextPage);
     }
@@ -118,7 +118,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 getNextPageFromCurrentUrl(page.getUrl(), "pn", 1), String.valueOf(videoImpl.lastVideo())
         );
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
         }
         return new InfoItemsPage<>(collector, nextPage);
     }

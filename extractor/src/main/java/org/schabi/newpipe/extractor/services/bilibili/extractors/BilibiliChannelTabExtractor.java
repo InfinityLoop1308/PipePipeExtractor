@@ -75,7 +75,7 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
             throw new RuntimeException(e);
         }
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
         }
         return new InfoItemsPage<>(collector, new Page(getNextPageFromCurrentUrl(page.getUrl(), "page_num", 1)));
     }

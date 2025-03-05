@@ -349,7 +349,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             throw new RuntimeException(e);
         }
         if (ServiceList.NicoNico.getFilterTypes().contains("related_item")) {
-            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
         }
         return collector;
     }

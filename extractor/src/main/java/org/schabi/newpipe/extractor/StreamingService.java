@@ -107,6 +107,7 @@ public abstract class StreamingService {
     private String audioLanguage = "original";
     public ArrayList<String> streamKeywordFilter = new ArrayList<>();
     public ArrayList<String> streamChannelFilter = new ArrayList<>();
+    public boolean filterShorts = false;
     public Set<String> filterTypes = new HashSet<>();
 
     public String ytdlpConfig = null;
@@ -545,6 +546,14 @@ public abstract class StreamingService {
 
     public void setStreamChannelFilter(ArrayList<String> streamChannelFilter) {
         this.streamChannelFilter = streamChannelFilter;
+    }
+
+    public boolean isFilterShorts() {
+        return filterShorts;
+    }
+
+    public void setFilterShorts(boolean filterShorts) {
+        this.filterShorts = filterShorts;
     }
 
     public Set<String> getFilterTypes() {

@@ -108,17 +108,23 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         }
     }
 
-    public void applyBlocking(ArrayList<String> keywords, ArrayList<String> channels) {
+    public void applyBlocking(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts) {
         Iterator<I> iterator = itemList.iterator();
         while (iterator.hasNext()) {
             I item = iterator.next();
             boolean shouldRemove = false;
 
-            // Check keywords
-            for (String keyword : keywords) {
-                if (item.getName().contains(keyword)) {
-                    shouldRemove = true;
-                    break;  // No need to check other keywords
+            if (blockShorts && item instanceof StreamInfoItem && ((StreamInfoItem) item).isShortFormContent()) {
+                shouldRemove = true;
+            }
+
+            if (!shouldRemove) {
+                // Check keywords
+                for (String keyword : keywords) {
+                    if (item.getName().contains(keyword)) {
+                        shouldRemove = true;
+                        break;  // No need to check other keywords
+                    }
                 }
             }
 

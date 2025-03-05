@@ -147,7 +147,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             nextPage = getNextPageFrom(continuation, channelIds);
         }
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
         }
         return new InfoItemsPage<>(collector, nextPage);
     }
@@ -177,7 +177,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         final JsonObject continuation = collectItemsFrom(collector, sectionListContinuation
                 .getArray("continuationItems"), channelIds);
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
         }
         return new InfoItemsPage<>(collector,
                 getNextPageFrom(continuation, channelIds));

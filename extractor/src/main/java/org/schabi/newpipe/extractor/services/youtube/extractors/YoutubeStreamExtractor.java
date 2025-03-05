@@ -791,7 +791,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     .forEach(collector::commit);
 
             if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
-                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
             }
             return collector;
         } catch (final Exception e) {
@@ -846,7 +846,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     .forEach(collector::commit);
 
             if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
-                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
             }
             return collector;
         } catch (final Exception e) {

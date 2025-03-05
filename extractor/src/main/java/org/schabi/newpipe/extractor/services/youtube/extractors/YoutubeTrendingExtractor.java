@@ -189,7 +189,7 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
             throw new ParsingException("Could not get trending page");
         }
         if (ServiceList.YouTube.getFilterTypes().contains("recommendations")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter());
+            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
         }
         return new InfoItemsPage<>(collector, null);
     }
