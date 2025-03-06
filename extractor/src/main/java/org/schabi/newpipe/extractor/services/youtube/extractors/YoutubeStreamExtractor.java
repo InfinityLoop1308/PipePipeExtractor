@@ -953,7 +953,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
 
-        if (getStreamType() == StreamType.NONE || nextResponse == null) {
+        if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidStreamingData == null)
+                || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
+                || getStreamType() == StreamType.NONE || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof NotLoginException) {
                     throw (NotLoginException) e;
@@ -963,7 +965,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
                 throw new ExtractionException(e) ;
             }
-            throw new ExtractionException("Failed to fetch the page.");
+            throw new ExtractionException("Timeout when fetching the page.");
         }
     }
 
