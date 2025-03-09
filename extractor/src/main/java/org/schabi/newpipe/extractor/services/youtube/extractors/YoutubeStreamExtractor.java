@@ -327,7 +327,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    androidStreamingData, tvHtml5SimplyEmbedStreamingData, webStreamingData));
+                    androidStreamingData, webStreamingData));
         }
     }
 
@@ -635,7 +635,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // Also, on videos, non-iOS clients don't have an HLS manifest URL in their player response
         return getManifestUrl(
                 "hls",
-                Arrays.asList(androidStreamingData, tvHtml5SimplyEmbedStreamingData, webStreamingData));
+                Arrays.asList(androidStreamingData, webStreamingData));
     }
 
     @Nonnull
@@ -903,13 +903,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 localization, contentCountry, videoId, this);
 
         CancellableCall androidCall = null;
-        CancellableCall tvCall = null;
         CancellableCall webCall = null;
 
         if (StringUtils.isBlank(ServiceList.YouTube.getTokens())) {
             androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
         } else {
-            tvCall = fetchTvHtml5EmbedJsonPlayer(contentCountry, localization, videoId);
             webCall = fetchWebJsonPlayer(contentCountry, localization, videoId);
         }
 
@@ -947,14 +945,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         long startTime = System.nanoTime();
         do {
             if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidCall.isFinished())
-                    || (StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webCall.isFinished() && tvCall.isFinished())) &&
+                    || (StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webCall.isFinished())) &&
                     webPageCall.isFinished() && nextDataCall.isFinished()) {
                 break;
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
 
         if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidStreamingData == null)
-                || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
+                || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null)))
                 || getStreamType() == StreamType.NONE || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof NotLoginException) {
@@ -1322,7 +1320,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     last, which will be the only one not empty for age-restricted content
                      */
                     new Pair<>(androidStreamingData, androidCpn),
-                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn),
                     new Pair<>(webStreamingData, webCpn)
 
             )
