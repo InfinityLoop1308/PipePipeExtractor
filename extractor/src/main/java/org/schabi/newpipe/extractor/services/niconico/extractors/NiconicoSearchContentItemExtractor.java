@@ -112,4 +112,9 @@ public class NiconicoSearchContentItemExtractor implements StreamInfoItemExtract
         return new DateWrapper(LocalDateTime.parse(
                 getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")).atOffset(ZoneOffset.ofHours(9)));
     }
+
+    @Override
+    public boolean requiresMembership() throws ParsingException {
+        return data.toString().contains("<p class=\"iconPayment\">有料</p>");
+    }
 }

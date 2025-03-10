@@ -130,4 +130,9 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
         final String strDate = cdata.getElementsByClass("nico-info-date").text();
         return NiconicoServiceParsingHelper.parseRSSDateTime(strDate);
     }
+
+    @Override
+    public boolean requiresMembership() throws ParsingException {
+        return item.getElementsByTag("nicoch:isPremium").text().trim().equals("true");
+    }
 }

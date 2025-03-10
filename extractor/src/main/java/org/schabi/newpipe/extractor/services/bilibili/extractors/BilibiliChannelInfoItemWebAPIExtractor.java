@@ -86,4 +86,9 @@ public class BilibiliChannelInfoItemWebAPIExtractor implements StreamInfoItemExt
                 Objects.requireNonNull(getTextualUploadDate()), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(+8)));
     }
 
+
+    @Override
+    public boolean requiresMembership() throws ParsingException {
+        return item.getInt("elec_arc_type") == 1;
+    }
 }

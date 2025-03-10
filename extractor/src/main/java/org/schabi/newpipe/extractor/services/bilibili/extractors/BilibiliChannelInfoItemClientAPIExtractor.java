@@ -83,4 +83,9 @@ public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItem
         long timestampSeconds = item.getLong("ctime", 0);
         return new DateWrapper(LocalDateTime.ofEpochSecond(timestampSeconds, 0, ZoneOffset.ofHours(+8)).atOffset(ZoneOffset.ofHours(+8)));
     }
+
+    @Override
+    public boolean requiresMembership() throws ParsingException {
+        return item.getArray("badges").toString().contains("充电专属");
+    }
 }

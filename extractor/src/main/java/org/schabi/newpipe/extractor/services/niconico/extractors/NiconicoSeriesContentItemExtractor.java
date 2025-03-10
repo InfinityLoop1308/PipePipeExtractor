@@ -110,4 +110,9 @@ public class NiconicoSeriesContentItemExtractor implements StreamInfoItemExtract
             return null;
         }
     }
+
+    @Override
+    public boolean requiresMembership() throws ParsingException {
+        return !data.select("div.NC-VideoLabels-paid").isEmpty();
+    }
 }
