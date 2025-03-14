@@ -327,7 +327,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    androidStreamingData, webStreamingData, tvHtml5SimplyEmbedStreamingData));
+                    androidStreamingData, tvHtml5SimplyEmbedStreamingData, webStreamingData));
         }
     }
 
@@ -635,7 +635,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // Also, on videos, non-iOS clients don't have an HLS manifest URL in their player response
         return getManifestUrl(
                 "hls",
-                Arrays.asList(androidStreamingData, webStreamingData, tvHtml5SimplyEmbedStreamingData));
+                Arrays.asList(androidStreamingData, tvHtml5SimplyEmbedStreamingData, webStreamingData));
     }
 
     @Nonnull
@@ -1322,8 +1322,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     last, which will be the only one not empty for age-restricted content
                      */
                     new Pair<>(androidStreamingData, androidCpn),
-                    new Pair<>(webStreamingData, webCpn),
-                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
+                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn),
+                    new Pair<>(webStreamingData, webCpn)
+
             )
                     .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
                             streamingDataKey, itagTypeWanted, pair.getSecond()))
