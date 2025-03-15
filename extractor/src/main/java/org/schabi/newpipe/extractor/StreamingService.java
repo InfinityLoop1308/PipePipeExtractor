@@ -114,6 +114,8 @@ public abstract class StreamingService {
     public boolean ytdlpEnabled = false;
 
     public SponsorBlockApiSettings sponsorBlockApiSettings = null;
+    
+    private int loadingTimeout = 5;
 
 
     /**
@@ -602,5 +604,13 @@ public abstract class StreamingService {
 
     public SponsorBlockApiSettings getSponsorBlockApiSettings() {
         return sponsorBlockApiSettings;
+    }
+
+    public int getLoadingTimeout() {
+        return loadingTimeout;
+    }
+
+    public void setLoadingTimeout(int loadingTimeout) {
+        this.loadingTimeout = loadingTimeout;
     }
 }

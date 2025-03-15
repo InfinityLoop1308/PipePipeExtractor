@@ -951,7 +951,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     webPageCall.isFinished() && nextDataCall.isFinished()) {
                 break;
             }
-        } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 5);
+        } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= ServiceList.YouTube.getLoadingTimeout());
 
         if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidStreamingData == null)
                 || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
