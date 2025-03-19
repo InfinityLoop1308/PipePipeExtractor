@@ -39,17 +39,17 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
         switch (getId()){
             case "Recommended Lives":
                 try {
-                    data = JsonParser.object().from(downloader.get(getUrl()).responseBody()).getObject("data").getArray("values");
+                    data = JsonParser.object().from(downloader.get(getUrl(), getExtractorLocalization()).responseBody()).getObject("data").getArray("values");
                     return ;
                 } catch (JsonParserException e) {
                     throw new RuntimeException(e);
                 }
             case "Trending":
             default:
-                document = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL).responseBody());
+                document = Jsoup.parse(getDownloader().get(NiconicoService.DAILY_TREND_URL, getExtractorLocalization()).responseBody());
                 return;
             case "Top Lives":
-                document = Jsoup.parse(downloader.get(getUrl()).responseBody());
+                document = Jsoup.parse(downloader.get(getUrl(), getExtractorLocalization()).responseBody());
         }
     }
 

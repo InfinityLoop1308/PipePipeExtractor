@@ -331,4 +331,12 @@ public class NiconicoService extends StreamingService {
             throws ExtractionException {
         return getBulletCommentsExtractor(getBulletCommentsLHFactory().fromUrl(url));
     }
+
+    private static final List<Localization> SUPPORTED_LANGUAGES = Localization.listFrom(
+            "ja"
+    );
+    @Override
+    public List<Localization> getSupportedLocalizations() {
+        return SUPPORTED_LANGUAGES;
+    }
 }
