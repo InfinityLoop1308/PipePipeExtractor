@@ -116,6 +116,7 @@ public abstract class StreamingService {
     public SponsorBlockApiSettings sponsorBlockApiSettings = null;
     
     private int loadingTimeout = 5;
+    private boolean fetchFullPlaylist = false;
 
 
     /**
@@ -612,5 +613,13 @@ public abstract class StreamingService {
 
     public void setLoadingTimeout(int loadingTimeout) {
         this.loadingTimeout = loadingTimeout;
+    }
+
+    public boolean isFetchFullPlaylist() {
+        return fetchFullPlaylist;
+    }
+
+    public void setFetchFullPlaylist(boolean fetchFullPlaylist) {
+        this.fetchFullPlaylist = fetchFullPlaylist;
     }
 }
