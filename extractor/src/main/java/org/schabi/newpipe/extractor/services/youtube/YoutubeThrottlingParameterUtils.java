@@ -111,6 +111,16 @@ final class YoutubeThrottlingParameterUtils {
     private static final String FUNCTION_NAMES_IN_DEOBFUSCATION_ARRAY_REGEX =
             "\\s*=\\s*\\[(.+?)][;,]";
 
+    private static final String FUNCTION_ARGUMENTS_REGEX =
+            "=\\s*function\\s*\\(\\s*([^)]*)\\s*\\)";
+
+    private static final String EARLY_RETURN_REGEX =
+            ";\\s*if\\s*\\(\\s*typeof\\s+" + MULTIPLE_CHARS_REGEX
+                    + "+\\s*===?\\s*(?:([\"'])undefined\\1|";
+
+    private static final String EARLY_RETURN_APPEND_REGEX =
+            "\\[\\d+\\])\\s*\\)\\s*return\\s+";
+
     private YoutubeThrottlingParameterUtils() {
     }
 
@@ -164,14 +174,42 @@ final class YoutubeThrottlingParameterUtils {
         } catch (final Exception e) {
             result =  parseFunctionWithRegex(javaScriptPlayerCode, functionName);
         }
-        return fixupNFunctionCode(result);
+        Result temp = extractPlayerJsGlobalVar(javaScriptPlayerCode);
+        return fixupFunction(result, temp);
     }
 
-    static private String fixupNFunctionCode(String code) {
-        String pattern = ";\\s*if\\s*\\(\\s*typeof\\s+[a-zA-Z0-9_$]+\\s*===?\\s*([\"'])undefined\\1\\s*\\)\\s*return\\s+[a-zA-Z0-9_$]+;";
-        return code.replaceAll(pattern, ";");
+    /**
+     * Removes an early return statement from the code of the throttling parameter deobfuscation
+     * function.
+     *
+     * <p>In newer version of the player code the function contains a check for something defined
+     * outside of the function. If that was not found it will return early.
+     *
+     * <p>The check can look like this (JS):<br>
+     * if(typeof RUQ==="undefined")return p;
+     *
+     * <p>In this example RUQ will always be undefined when running the function as standalone.
+     * If the check is kept it would just return p which is the input parameter and would be wrong.
+     * For that reason this check and return statement needs to be removed.
+     *
+     * @param function the original throttling parameter deobfuscation function code
+     * @return the throttling parameter deobfuscation function code with the early return statement
+     * removed
+     */
+    @Nonnull
+    private static String fixupFunction(@Nonnull final String function, final Result varData)
+            throws Parser.RegexException {
+        final String globalVar = varData.code;
+        final String varName = varData.name;
+        final String firstArgName = Parser
+                .matchGroup1(FUNCTION_ARGUMENTS_REGEX, function)
+                .split(",")[0].trim();
+        final Pattern earlyReturnPattern = Pattern.compile(
+                EARLY_RETURN_REGEX + varName + EARLY_RETURN_APPEND_REGEX + firstArgName + ";",
+                Pattern.DOTALL);
+        final Matcher earlyReturnCodeMatcher = earlyReturnPattern.matcher(function);
+        return globalVar + "; " + earlyReturnCodeMatcher.replaceFirst(";");
     }
-
 
 
     /**
@@ -219,4 +257,46 @@ final class YoutubeThrottlingParameterUtils {
         JavaScript.compileOrThrow(function);
         return function;
     }
+
+    private static class Result {
+        public final String code;
+        public final String name;
+        public final String value;
+
+        public Result(String code, String name, String value) {
+            this.code = code;
+            this.name = name;
+            this.value = value;
+        }
+    }
+
+    private static Result extractPlayerJsGlobalVar(String jsCode) {
+        // Pattern explanation:
+        // "use strict" in quotes followed by semicolon and optional whitespace
+        // var keyword, variable name (alphanumeric + $_), equals sign
+        // quoted string followed by .split() with quoted delimiter
+        String pattern =
+                "([\"'])use\\s+strict\\1;\\s*" +
+                        "(var\\s+([a-zA-Z0-9_$]+)\\s*=\\s*" +
+                        "([\"'])((?:[^\\4]|\\\\.)+)\\4" +
+                        "\\.split\\([\"']([^\"']+)['\"]\\))" +
+                        "[;,]";
+
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(jsCode);
+
+        if (matcher.find()) {
+            // Group 2: full assignment code
+            // Group 3: variable name
+            // Group 4-6: value portion including quotes and split
+            String fullCode = matcher.group(2);
+            String varName = matcher.group(3);
+            String valueCode = matcher.group(4);
+            return new Result(fullCode, varName, valueCode);
+        }
+
+        // Return null values if no match found (similar to Python's default=(None, None, None))
+        return new Result(null, null, null);
+    }
+
 }
