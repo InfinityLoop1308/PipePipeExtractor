@@ -258,7 +258,7 @@ final class YoutubeThrottlingParameterUtils {
         return function;
     }
 
-    private static class Result {
+    static class Result {
         public final String code;
         public final String name;
         public final String value;
@@ -270,7 +270,7 @@ final class YoutubeThrottlingParameterUtils {
         }
     }
 
-    private static Result extractPlayerJsGlobalVar(String jsCode) {
+    static Result extractPlayerJsGlobalVar(String jsCode) {
         // Pattern explanation:
         // "use strict" in quotes followed by semicolon and optional whitespace
         // var keyword, variable name (alphanumeric + $_), equals sign
