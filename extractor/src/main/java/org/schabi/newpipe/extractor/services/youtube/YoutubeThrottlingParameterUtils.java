@@ -275,7 +275,13 @@ final class YoutubeThrottlingParameterUtils {
         // "use strict" in quotes followed by semicolon and optional whitespace
         // var keyword, variable name (alphanumeric + $_), equals sign
         // quoted string followed by .split() with quoted delimiter
-        String pattern = "([\"'])use\\s+strict\\1;\\s*(var\\s+([a-zA-Z0-9_$]+)\\s*=\\s*([\"'])((?:(?!\\4).|\\\\.)+)\\4\\.split\\([\"']([^\"']+)['\"]\\))[;,]";
+        String pattern = "([\"'])use\\s+strict\\1;\\s*(var\\s+([a-zA-Z0-9_$]+)\\s*=\\s*" +
+                "(" +
+                "([\"'])((?:(?!\\5).|\\\\.)+)\\5\\.split\\(([\"'])[^\"']+\\7\\)" +
+                "|\\[\\s*(?:([\"'])((?:(?!\\8).|\\\\.)*?)\\8\\s*,?\\s*)+\\]" +
+                "))[;,]";
+
+
 
 
         Pattern regex = Pattern.compile(pattern);
