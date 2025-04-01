@@ -37,16 +37,22 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
     public String getUrl(final String id,
                          final List<FilterItem> contentFilters,
                          final List<FilterItem> sortFilter) {
-        if(!id.equals("Trending")){
-            return "https://www.youtube.com/channel/UC4R8DWoMoI7CAwX8_LjQHig";
+        switch (id) {
+            case "Recommended Lives":
+                return "https://www.youtube.com/channel/UC4R8DWoMoI7CAwX8_LjQHig";
+            case "Recommended Podcasts":
+                return "https://www.youtube.com/podcasts";
+            default:
+                return "https://www.youtube.com/feed/trending";
         }
-        return "https://www.youtube.com/feed/trending";
     }
 
     @Override
     public String getId(final String url) {
         if(url.equals("https://www.youtube.com/feed/trending")){
             return "Trending";
+        } else if (url.equals("https://www.youtube.com/podcasts")) {
+            return "Recommended Podcasts";
         }
         return "Recommended Lives";
     }
@@ -62,6 +68,7 @@ public class YoutubeTrendingLinkHandlerFactory extends ListLinkHandlerFactory {
 
         final String urlPath = urlObj.getPath();
         return Utils.isHTTP(urlObj) && (isYoutubeURL(urlObj) || isInvidioURL(urlObj))
-                && (urlPath.equals("/feed/trending") || urlPath.equals("/channel/UC4R8DWoMoI7CAwX8_LjQHig"));
+                && (urlPath.equals("/feed/trending") || urlPath.equals("/podcasts")
+                || urlPath.equals("/channel/UC4R8DWoMoI7CAwX8_LjQHig"));
     }
 }

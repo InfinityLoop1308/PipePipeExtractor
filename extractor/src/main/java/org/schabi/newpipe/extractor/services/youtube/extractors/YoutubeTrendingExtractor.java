@@ -58,10 +58,23 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
+
+        String id = "";
+        switch (getId()) {
+            case "Recommended Lives":
+                id = "UC4R8DWoMoI7CAwX8_LjQHig";
+                break;
+            case "Recommended Podcasts":
+                id = "FEpodcasts_destination";
+                break;
+            default:
+                id = "FEtrending";
+        }
         // @formatter:off
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
                 getExtractorContentCountry())
-                .value("browseId", getId().equals("Trending")?"FEtrending":"UC4R8DWoMoI7CAwX8_LjQHig")
+                .value("browseId", id)
+                .value("params", id.equals("FEpodcasts_destination")?"qgcCCAE%3D":null)
                 .done())
                 .getBytes(UTF_8);
         // @formatter:on
@@ -169,6 +182,7 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
                     .stream()
                     .filter(JsonObject.class::isInstance)
                     .map(JsonObject.class::cast)
+                    .limit(getId().contains("Podcasts") ? 1 : Long.MAX_VALUE)
                     // Filter Trending shorts and Recently trending sections
                     .filter(content -> content.has("richSectionRenderer"))
                     .map(content -> content.getObject("richSectionRenderer")
