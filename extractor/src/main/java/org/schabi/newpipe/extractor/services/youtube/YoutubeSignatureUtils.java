@@ -27,7 +27,7 @@ final class YoutubeSignatureUtils {
     private static final Pattern[] FUNCTION_REGEXES = {
             // CHECKSTYLE:OFF
             Pattern.compile(
-                    "\\b([a-zA-Z0-9$]+)&&\\(\\1=([a-zA-Z0-9$]{2,})\\(decodeURIComponent\\(\\1\\)\\)"
+                    "\\b([a-zA-Z0-9$]+)&&\\(\\1=([a-zA-Z0-9$_]{2,})\\(decodeURIComponent\\(\\1\\)\\)"
             ),
             Pattern.compile(
                     "([a-zA-Z0-9$]+)\\s*=\\s*function\\(\\s*([a-zA-Z0-9$]+)\\s*\\)\\s*\\{\\s*\\2\\s*=\\s*\\2\\.split\\(\\s*\"\"\\s*\\)\\s*;\\s*[^}]+;\\s*return\\s+\\2\\.join\\(\\s*\"\"\\s*\\)"

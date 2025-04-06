@@ -205,7 +205,7 @@ final class YoutubeThrottlingParameterUtils {
                 .matchGroup1(FUNCTION_ARGUMENTS_REGEX, function)
                 .split(",")[0].trim();
         final Pattern earlyReturnPattern = Pattern.compile(
-                EARLY_RETURN_REGEX + varName + EARLY_RETURN_APPEND_REGEX + firstArgName + ";",
+                EARLY_RETURN_REGEX + Pattern.quote(varName) + EARLY_RETURN_APPEND_REGEX + Pattern.quote(firstArgName) + ";",
                 Pattern.DOTALL);
         final Matcher earlyReturnCodeMatcher = earlyReturnPattern.matcher(function);
         return globalVar + "; " + earlyReturnCodeMatcher.replaceFirst(";");
