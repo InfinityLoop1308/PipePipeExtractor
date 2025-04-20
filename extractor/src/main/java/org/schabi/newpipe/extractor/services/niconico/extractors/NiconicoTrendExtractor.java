@@ -1,12 +1,16 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import com.grack.nanojson.JsonArray;
+import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
@@ -66,14 +70,22 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 break;
             case "Trending":
             default:
-                final Elements dataArray1 = document.select("div.NC-VideoMediaObjectWrapper");
+                final Element data = document.select("meta[name=server-response]").first();
+                String escapedContent = data.attr("content");
 
-                for (final Element e : dataArray1) {
-                    if (e.html().contains("設定を変更")) {
-                        continue;
+                // Properly unescape HTML entities
+                String unescapedContent = Parser.unescapeEntities(escapedContent, false);
+                try {
+                    JsonArray dataJson = JsonParser.object().from(unescapedContent).getObject("data")
+                            .getObject("response").getObject("$getTeibanRanking").getObject("data")
+                            .getArray("items");
+                    for(int i = 0; i< dataJson.size(); i++) {
+                        collector.commit(new NiconicoSeriesContentItemExtractor(dataJson.getObject(i)));
                     }
-                    collector.commit(new NiconicoSeriesContentItemExtractor(e, null, null));
+                } catch (Exception e) {
+                    throw new ParsingException(e.getMessage());
                 }
+
                 break;
             case "Top Lives":
                 final Elements dataArray = document.select("[class^=___rk-program-card___]");
