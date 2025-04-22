@@ -252,8 +252,8 @@ public class NiconicoService extends StreamingService {
 
         try {
             kioskList.addKioskEntry(kioskFactory, h, "Trending");
-            kioskList.addKioskEntry(kioskFactory, h, "Recommended Lives");
-            kioskList.addKioskEntry(kioskFactory, h, "Top Lives");
+//            kioskList.addKioskEntry(kioskFactory, h, "Recommended Lives");
+//            kioskList.addKioskEntry(kioskFactory, h, "Top Lives");
             kioskList.setDefaultKiosk("Trending");
         } catch (final Exception e) {
             throw new ExtractionException(e);

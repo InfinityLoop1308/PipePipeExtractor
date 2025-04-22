@@ -68,7 +68,7 @@ public final class NiconicoFilters extends SearchFiltersBase {
         addContentFilter(builder.createSortGroup(null, true, new FilterItem[]{
                 builder.getFilterForId(contentFilterAll),
 //                builder.getFilterForId(contentFilterTagsOnly),
-                builder.getFilterForId(contentFilterLiveRooms),
+//                builder.getFilterForId(contentFilterLiveRooms),
                 builder.getFilterForId(contentFilterPlaylists),
         }));
 
