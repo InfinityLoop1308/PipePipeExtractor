@@ -51,7 +51,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://bilibili.com/" + id + "?p=" + p;
+        return "https://www.bilibili.com/video/" + id + "?p=" + p;
     }
 
     @Override

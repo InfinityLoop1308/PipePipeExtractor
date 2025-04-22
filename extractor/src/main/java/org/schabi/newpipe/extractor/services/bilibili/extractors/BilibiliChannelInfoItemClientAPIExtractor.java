@@ -36,7 +36,7 @@ public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItem
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://bilibili.com/" + item.getString("bvid");
+        return "https://www.bilibili.com/video/" + item.getString("bvid") + "?p=1";
     }
 
     @Override

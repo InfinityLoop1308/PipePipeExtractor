@@ -17,6 +17,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
@@ -40,7 +41,8 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor 
 
     @Override
     public String getUrl() throws ParsingException {
-        return item.getString("arcurl");
+        BilibiliStreamLinkHandlerFactory factory = new BilibiliStreamLinkHandlerFactory();
+        return factory.getUrl(factory.getId(item.getString("arcurl")));
     }
 
     @Override

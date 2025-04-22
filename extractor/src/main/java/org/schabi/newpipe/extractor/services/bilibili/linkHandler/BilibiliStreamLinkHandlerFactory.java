@@ -74,7 +74,7 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory {
     @Override
     public String getUrl(final String id) {
         if (id.startsWith("BV")) {
-            return "https://bilibili.com/" + id;
+            return "https://www.bilibili.com/video/" + id;
         } else if (id.startsWith("ss") || id.startsWith("ep")) {
             return "https://www.bilibili.com/bangumi/play/" + id;
         } else return "https://live.bilibili.com/" + id;
