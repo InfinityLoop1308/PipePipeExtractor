@@ -121,7 +121,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             if (!shouldRemove) {
                 // Check keywords
                 for (String keyword : keywords) {
-                    if (item.getName().contains(keyword)) {
+                    if (item.getName().toLowerCase().contains(keyword.toLowerCase())) {
                         shouldRemove = true;
                         break;  // No need to check other keywords
                     }
