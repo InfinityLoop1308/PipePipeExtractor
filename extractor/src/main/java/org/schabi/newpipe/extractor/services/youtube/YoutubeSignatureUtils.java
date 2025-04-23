@@ -44,7 +44,7 @@ final class YoutubeSignatureUtils {
     private static final String DEOBF_FUNC_REGEX_START = "(";
     private static final String DEOBF_FUNC_REGEX_END = "=function\\([a-zA-Z0-9_]+\\)\\{.+?\\})";
 
-    private static final String SIG_DEOBF_HELPER_OBJ_NAME_REGEX = ";([A-Za-z0-9_\\$]{2,})\\...\\(";
+    private static final String SIG_DEOBF_HELPER_OBJ_NAME_REGEX = ";([A-Za-z0-9_\\$]{2,})(?:\\.[A-Za-z0-9_\\$]+|\\[.+?\\])\\(?";
     private static final String SIG_DEOBF_HELPER_OBJ_REGEX_START = "(var ";
     private static final String SIG_DEOBF_HELPER_OBJ_REGEX_END = "=\\{(?>.|\\n)+?\\}\\};)";
 
@@ -99,7 +99,16 @@ final class YoutubeSignatureUtils {
                     Parser.matchGroup1(SIG_DEOBF_HELPER_OBJ_NAME_REGEX, deobfuscationFunction);
 
             final String helperObject = getHelperObject(javaScriptPlayerCode, helperObjectName);
+            // Examples
+            //L1S=function(r){r=r[Y[14]](Y[19]);q3[Y[8]](r,30);q3[Y[8]](r,65);q3[Y[8]](r,2);return r[Y[3]](Y[19])}
+            //YqR=function(z){z=z.split(e4[3]);oC.f4(z,2);oC.yU(z,39);oC.jp(z,10);oC.yU(z,41);oC.jp(z,61);oC.f4(z,1);oC.yU(z,12);return z.join(e4[3])};
+
+
             String globalVarCode = extractPlayerJsGlobalVar(javaScriptPlayerCode).code;
+            //  var Y = ["clone", "length", "set", "join", "/videoplayback", "slice", "G", "v_", "rW", "&", "X", "push", "scheme", "/api/manifest", "split", "url", "splice", "catch", "path", "", "1", "1969-12-31T15:46:11.000-08:15", "local", "indexOf", "cmo=pf", "match", "mn", "get", "toString", "reverse", "startsWith", "---", "S", "fromCharCode", "Rw78JYeWAh8550BmOL-_w8_", "?", "www.youtube.com", "://", "2gz7hT", "signatureCipher", "cmo", "null", ",", "=", "fq", "s", "cmo=", "1969-12-31T12:15:05.000-11:45", "%3D", "assign", "w4", "}'[{", "unshift", "cmo=td",
+            //      "Y", "forEach", "/initplayback", "a1.googlevideo.com", "prototype", "n", "redirector.googlevideo.com", "1970-01-01T05:00:16.000+05:00", "file", "replace", "/", "1970-01-01T04:16:22.000+04:15", "playerfallback", "1969-12-31T20:31:18.000-03:30", "rr", "\\.a1\\.googlevideo\\.com$", "5", "fallback_count", "sp", "1969-12-31T15:03:11.000-09:00", "zN", "}']]", "rr?[1-9].*\\.c\\.youtube\\.com$", "undefined", "Untrusted URL", "\\.googlevideo\\.com$", "fvip", "//", "pop", "/file/index.m3u8", ":", "youtube.player.web_20250420_21_RC00", "index.m3u8",
+            //      ",,';]\u00e2", "1969-12-31T15:31:11.000-08:30", "r"
+            //    ],
 
             final String callerFunction = "function " + DEOBFUSCATION_FUNCTION_NAME
                     + "(a){return "
