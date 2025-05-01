@@ -955,7 +955,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidStreamingData == null)
                 || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
-                || getStreamType() == StreamType.NONE || nextResponse == null) {
+                || getStreamType() == null || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof NotLoginException) {
                     throw (NotLoginException) e;
@@ -965,7 +965,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
                 throw new ExtractionException(e) ;
             }
-            throw new ExtractionException("Timeout when fetching the page.");
+            throw new ExtractionException("Error occurs when fetching the page. Try increase the loading timeout in Settings.");
         }
     }
 
