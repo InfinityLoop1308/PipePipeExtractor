@@ -27,12 +27,13 @@ public abstract class Downloader {
      * @param url the URL that is pointing to the wanted resource
      * @return the result of the GET request
      */
+    private static Localization defaultLocalization = Localization.DEFAULT;
     public Response get(final String url) throws IOException, ReCaptchaException {
-        return get(url, null, NewPipe.getPreferredLocalization());
+        return get(url, null, defaultLocalization);
     }
 
     public CancellableCall getAsync(final String url, AsyncCallback callback) throws IOException, ReCaptchaException {
-        return getAsync(url, null, NewPipe.getPreferredLocalization(), callback);
+        return getAsync(url, null, defaultLocalization, callback);
     }
 
     /**
@@ -59,12 +60,12 @@ public abstract class Downloader {
      */
     public Response get(final String url, @Nullable final Map<String, List<String>> headers)
             throws IOException, ReCaptchaException {
-        return get(url, headers, NewPipe.getPreferredLocalization());
+        return get(url, headers, defaultLocalization);
     }
 
     public CancellableCall getAsync(final String url, @Nullable final Map<String, List<String>> headers, AsyncCallback callback)
             throws IOException, ReCaptchaException {
-        return getAsync(url, headers, NewPipe.getPreferredLocalization(), callback);
+        return getAsync(url, headers, defaultLocalization, callback);
     }
 
     /**
@@ -137,7 +138,7 @@ public abstract class Downloader {
                          @Nullable final Map<String, List<String>> headers,
                          @Nullable final byte[] dataToSend)
             throws IOException, ReCaptchaException {
-        return post(url, headers, dataToSend, NewPipe.getPreferredLocalization());
+        return post(url, headers, dataToSend, defaultLocalization);
     }
 
     /**
