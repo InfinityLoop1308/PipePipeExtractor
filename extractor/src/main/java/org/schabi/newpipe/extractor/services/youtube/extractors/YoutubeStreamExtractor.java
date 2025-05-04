@@ -20,9 +20,7 @@
 
 package org.schabi.newpipe.extractor.services.youtube.extractors;
 
-import com.grack.nanojson.JsonArray;
-import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonWriter;
+import com.grack.nanojson.*;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -280,40 +278,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         // Raw non-html description
         return new Description(description, Description.PLAIN_TEXT);
-    }
-
-    @Override
-    public int getAgeLimit() throws ParsingException {
-        if (ageLimit != -1) {
-            return ageLimit;
-        }
-
-        final boolean ageRestricted = getVideoSecondaryInfoRenderer()
-                .getObject("metadataRowContainer")
-                .getObject("metadataRowContainerRenderer")
-                .getArray("rows")
-                .stream()
-                // Only JsonObjects allowed
-                .filter(JsonObject.class::isInstance)
-                .map(JsonObject.class::cast)
-                .flatMap(metadataRow -> metadataRow
-                        .getObject("metadataRowRenderer")
-                        .getArray("contents")
-                        .stream()
-                        // Only JsonObjects allowed
-                        .filter(JsonObject.class::isInstance)
-                        .map(JsonObject.class::cast))
-                .flatMap(content -> content
-                        .getArray("runs")
-                        .stream()
-                        // Only JsonObjects allowed
-                        .filter(JsonObject.class::isInstance)
-                        .map(JsonObject.class::cast))
-                .map(run -> run.getString("text", EMPTY_STRING))
-                .anyMatch(rowText -> rowText.contains("Age-restricted"));
-
-        ageLimit = ageRestricted ? 18 : NO_AGE_LIMIT;
-        return ageLimit;
     }
 
     @Override
@@ -971,12 +935,20 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
 
-    public static void checkPlayabilityStatus(@Nonnull final JsonObject playabilityStatus)
+    public static void checkPlayabilityStatus(@Nonnull JsonObject playabilityStatus, String videoId)
             throws ParsingException {
         final String status = playabilityStatus.getString("status");
         if (status == null || status.equalsIgnoreCase("ok")) {
             return;
         }
+
+        try {
+            JsonObject response = JsonParser.object().from(getWebPlayerResponseSync(videoId).responseBody());
+            playabilityStatus = response.getObject("playabilityStatus");
+        } catch (IOException | ExtractionException | JsonParserException e) {
+            // this should not happen
+        }
+
 
         final String reason = playabilityStatus.getString("reason");
 

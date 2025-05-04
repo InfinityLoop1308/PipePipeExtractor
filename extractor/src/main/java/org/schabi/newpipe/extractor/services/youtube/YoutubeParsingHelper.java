@@ -1503,6 +1503,26 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
+    public static Response getWebPlayerResponseSync(@Nonnull final String videoId)
+            throws IOException, ExtractionException {
+        Localization localization = new Localization("en");
+        final byte[] body = JsonWriter.string(
+                        prepareDesktopJsonBuilder(localization, ContentCountry.DEFAULT)
+                                .value(VIDEO_ID, videoId)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+        final String url = YOUTUBEI_V1_URL + "player" + "?" + DISABLE_PRETTY_PRINT_PARAMETER
+                + "&$fields=microformat,playabilityStatus,storyboards,videoDetails";
+
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", singletonList("application/json"));
+        addLoggedInHeaders(headers);
+        return getDownloader().post(url, headers, body, localization);
+    }
+
     public static CancellableCall getWebPlayerResponse(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
@@ -1522,9 +1542,6 @@ YoutubeParsingHelper {
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
         addLoggedInHeaders(headers);
-
-        addLoggedInHeaders(headers);
-
         return getDownloader().postAsync(
                 url, headers, body, localization, new Downloader.AsyncCallback() {
                     @Override
@@ -1532,7 +1549,7 @@ YoutubeParsingHelper {
                         final JsonObject webPlayerResponse;
                         try {
                             webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                            checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"));
+                            checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"), videoId);
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");
                             }
