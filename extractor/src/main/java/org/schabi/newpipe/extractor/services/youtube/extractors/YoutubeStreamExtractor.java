@@ -117,12 +117,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public String getName() throws ParsingException {
         assertPageFetched();
         String title = null;
-
-        try {
-            title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject("title"));
-        } catch (final ParsingException ignored) {
-            // Age-restricted videos cause a ParsingException here
-        }
+//
+//        try {
+//            title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject("title"));
+//        } catch (final ParsingException ignored) {
+//            // Age-restricted videos cause a ParsingException here
+//        }
 
         if (isNullOrEmpty(title)) {
             title = playerResponse.getObject("videoDetails").getString("title");
@@ -853,6 +853,35 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private static final String SIGNATURE_CIPHER = "signatureCipher";
     private static final String CIPHER = "cipher";
 
+    private static final List<Localization> SUPPORTED_LANGUAGES = Localization.listFrom(
+            "af", "am", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "da", "de",
+            "el", "en", "en-GB", "es", "es-419", "es-US", "et", "eu", "fa", "fi", "fil", "fr",
+            "fr-CA", "gl", "gu", "hi", "hr", "hu", "hy", "id", "is", "it", "iw", "ja",
+            "ka", "kk", "km", "kn", "ko", "ky", "lo", "lt", "lv", "mk", "ml", "mn",
+            "mr", "ms", "my", "ne", "nl", "no", "pa", "pl", "pt", "pt-PT", "ro", "ru",
+            "si", "sk", "sl", "sq", "sr", "sr-Latn", "sv", "sw", "ta", "te", "th", "tr",
+            "uk", "ur", "uz", "vi", "zh-CN", "zh-HK", "zh-TW", "zu"
+    );
+
+    public Localization getTempLocalization() {
+        final Localization preferredLocalization = NewPipe.getPreferredLocalization();
+
+        // Check the localization's language and country
+        if (SUPPORTED_LANGUAGES.contains(preferredLocalization)) {
+            return preferredLocalization;
+        }
+
+        // Fallback to the first supported language that matches the preferred language
+        for (final Localization supportedLanguage : SUPPORTED_LANGUAGES) {
+            if (supportedLanguage.getLanguageCode()
+                    .equals(preferredLocalization.getLanguageCode())) {
+                return supportedLanguage;
+            }
+        }
+
+        return Localization.DEFAULT;
+    }
+
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
@@ -861,10 +890,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final Localization localization = getExtractorLocalization();
         final ContentCountry contentCountry = getExtractorContentCountry();
 
+        final Localization tempLocalizationForTitle = getTempLocalization();
+
         errors.clear();
 
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
-                localization, contentCountry, videoId, this);
+                tempLocalizationForTitle, contentCountry, videoId, this);
 
         CancellableCall androidCall = null;
         CancellableCall tvCall = null;
