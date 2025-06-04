@@ -93,19 +93,19 @@ public class ItagItem implements Serializable {
             new ItagItem(395, VIDEO_ONLY, MPEG_4, "240p"),
             new ItagItem(396, VIDEO_ONLY, MPEG_4, "360p"),
             new ItagItem(397, VIDEO_ONLY, MPEG_4, "480p"),
-            new ItagItem(398, VIDEO_ONLY, MPEG_4, "720p60"),
-            new ItagItem(399, VIDEO_ONLY, MPEG_4, "1080p60"),
-            new ItagItem(400, VIDEO_ONLY, MPEG_4, "1440p60"),
-            new ItagItem(401, VIDEO_ONLY, MPEG_4, "2160p60"),
-            new ItagItem(402, VIDEO_ONLY, MPEG_4, "4320p60"),
+            new ItagItem(398, VIDEO_ONLY, MPEG_4, "720p HFR"),
+            new ItagItem(399, VIDEO_ONLY, MPEG_4, "1080p HFR"),
+            new ItagItem(400, VIDEO_ONLY, MPEG_4, "1440p HFR"),
+            new ItagItem(401, VIDEO_ONLY, MPEG_4, "2160p HFR"),
+            new ItagItem(402, VIDEO_ONLY, MPEG_4, "4320p HFR"),
 
 
             // Add new hbr AV1 streams
-            new ItagItem(698, VIDEO_ONLY, MPEG_4, "720p60 HBR"),
-            new ItagItem(699, VIDEO_ONLY, MPEG_4, "1080p60 HBR"),
-            new ItagItem(700, VIDEO_ONLY, MPEG_4, "1440p60 HBR"),
-            new ItagItem(701, VIDEO_ONLY, MPEG_4, "2160p60 HBR"),
-            new ItagItem(571, VIDEO_ONLY, MPEG_4, "4320p60 HBR"),
+            new ItagItem(698, VIDEO_ONLY, MPEG_4, "720p HFR High"),
+            new ItagItem(699, VIDEO_ONLY, MPEG_4, "1080p HFR High"),
+            new ItagItem(700, VIDEO_ONLY, MPEG_4, "1440p HFR High"),
+            new ItagItem(701, VIDEO_ONLY, MPEG_4, "2160p HFR High"),
+            new ItagItem(571, VIDEO_ONLY, MPEG_4, "4320p HFR High"),
     };
 
     /*//////////////////////////////////////////////////////////////////////////
