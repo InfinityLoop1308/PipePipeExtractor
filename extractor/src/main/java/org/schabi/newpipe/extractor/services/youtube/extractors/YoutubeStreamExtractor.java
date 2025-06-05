@@ -1054,12 +1054,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 prepareAndroidMobileJsonBuilder(localization, contentCountry)
                         .object("playerRequest")
                         .value(VIDEO_ID, videoId)
-                        .end()
-                        .value("disablePlayerResponse", false)
-                        .value(VIDEO_ID, videoId)
                         .value(CPN, androidCpn)
                         .value(CONTENT_CHECK_OK, true)
                         .value(RACY_CHECK_OK, true)
+                        .end()
+                        .value("disablePlayerResponse", false)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
