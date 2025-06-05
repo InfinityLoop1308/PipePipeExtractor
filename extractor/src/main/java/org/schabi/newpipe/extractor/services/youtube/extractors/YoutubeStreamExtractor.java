@@ -1494,7 +1494,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                         data.getObject("audioTrack").getString("id").split("\\.")[0].split("-")[0].equals(foundLangCode);
                             } else {
                                 if (!data.has("audioTrack")) return true;
-                                return data.getObject("audioTrack").getBoolean("audioIsDefault");
+                                return data.getObject("audioTrack").getString("displayName").contains("original");
                             }
                         }
                         return true;
