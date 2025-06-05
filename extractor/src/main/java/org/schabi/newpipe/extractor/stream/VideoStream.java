@@ -49,7 +49,7 @@ public final class VideoStream extends Stream {
 
     private int fps;
     private String quality;
-    private String codec;
+    private String codec = "";
     @Nullable private ItagItem itagItem;
 
     /**
