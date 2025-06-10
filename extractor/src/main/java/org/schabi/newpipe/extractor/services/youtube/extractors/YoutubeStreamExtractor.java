@@ -1324,8 +1324,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     last, which will be the only one not empty for age-restricted content
                      */
                     new Pair<>(androidStreamingData, androidCpn),
-                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn),
-                    new Pair<>(webStreamingData, webCpn)
+                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
 
             )
                     .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
