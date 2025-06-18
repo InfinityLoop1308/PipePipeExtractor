@@ -1386,16 +1386,19 @@ YoutubeParsingHelper {
     @Nonnull
     public static JsonBuilder<JsonObject> prepareAndroidMobileJsonBuilder(
             @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry) {
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String visitorData) {
         // @formatter:off
         return JsonObject.builder()
                 .object("context")
                 .object("client")
                 .value("clientName", "ANDROID")
                 .value("clientVersion", ANDROID_YOUTUBE_CLIENT_VERSION)
+                .value("clientScreen", "WATCH")
                 .value("platform", "MOBILE")
                 .value("osName", "Android")
-                .value("osVersion", "14")
+                .value("osVersion", "15")
+                .value("visitorData", visitorData)
                 /*
                 A valid Android SDK version is required to be sure to get a valid player
                 response
@@ -1407,7 +1410,7 @@ YoutubeParsingHelper {
                 The Android SDK version corresponding to the Android version used in
                 requests is sent
                 */
-                .value("androidSdkVersion", 34)
+                .value("androidSdkVersion", 35)
                 .value("hl", localization.getLocalizationCode())
                 .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)
@@ -1644,7 +1647,7 @@ YoutubeParsingHelper {
     public static String getAndroidUserAgent(@Nullable final Localization localization) {
         // Spoofing an Android 14 device with the hardcoded version of the Android app
         return "com.google.android.youtube/" + ANDROID_YOUTUBE_CLIENT_VERSION
-                + " (Linux; U; Android 14; "
+                + " (Linux; U; Android 15; "
                 + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
                 + ") gzip";
     }
@@ -2262,5 +2265,97 @@ YoutubeParsingHelper {
         String hash = sha1(initialData);
 
         return "SAPISIDHASH " + currentTimestamp + "_" + hash;
+    }
+
+    @Nonnull
+    public static String getVisitorDataFromInnertube(
+            @Nonnull final InnertubeClientRequestInfo innertubeClientRequestInfo,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final Map<String, List<String>> httpHeaders,
+            @Nonnull final String innertubeDomainAndVersionEndpoint,
+            @Nullable final String embedUrl,
+            final boolean useGuideEndpoint) throws IOException, ExtractionException {
+        final JsonBuilder<JsonObject> builder = prepareJsonBuilder(
+                localization, contentCountry, innertubeClientRequestInfo, embedUrl);
+
+        final byte[] body = JsonWriter.string(builder.done())
+                .getBytes(StandardCharsets.UTF_8);
+
+        final String visitorData = JsonUtils.toJsonObject(getValidJsonResponseBody(getDownloader()
+                        .post(
+                                innertubeDomainAndVersionEndpoint
+                                        + (useGuideEndpoint ? "guide" : "visitor_id") + "?"
+                                        + DISABLE_PRETTY_PRINT_PARAMETER.substring(1),
+                                httpHeaders, body)))
+                .getObject("responseContext")
+                .getString("visitorData");
+
+        if (isNullOrEmpty(visitorData)) {
+            throw new ParsingException("Could not get visitorData");
+        }
+
+        return visitorData;
+    }
+
+    @Nonnull
+    static JsonBuilder<JsonObject> prepareJsonBuilder(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final InnertubeClientRequestInfo innertubeClientRequestInfo,
+            @Nullable final String embedUrl) {
+        final JsonBuilder<JsonObject> builder = JsonObject.builder()
+                .object("context")
+                .object("client")
+                .value("clientName", innertubeClientRequestInfo.clientInfo.clientName)
+                .value("clientVersion", innertubeClientRequestInfo.clientInfo.clientVersion)
+                .value("clientScreen", innertubeClientRequestInfo.clientInfo.clientScreen)
+                .value("platform", innertubeClientRequestInfo.deviceInfo.platform);
+
+        if (innertubeClientRequestInfo.clientInfo.visitorData != null) {
+            builder.value("visitorData", innertubeClientRequestInfo.clientInfo.visitorData);
+        }
+
+        if (innertubeClientRequestInfo.deviceInfo.deviceMake != null) {
+            builder.value("deviceMake", innertubeClientRequestInfo.deviceInfo.deviceMake);
+        }
+        if (innertubeClientRequestInfo.deviceInfo.deviceModel != null) {
+            builder.value("deviceModel", innertubeClientRequestInfo.deviceInfo.deviceModel);
+        }
+        if (innertubeClientRequestInfo.deviceInfo.osName != null) {
+            builder.value("osName", innertubeClientRequestInfo.deviceInfo.osName);
+        }
+        if (innertubeClientRequestInfo.deviceInfo.osVersion != null) {
+            builder.value("osVersion", innertubeClientRequestInfo.deviceInfo.osVersion);
+        }
+        if (innertubeClientRequestInfo.deviceInfo.androidSdkVersion > 0) {
+            builder.value("androidSdkVersion",
+                    innertubeClientRequestInfo.deviceInfo.androidSdkVersion);
+        }
+
+        builder.value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end();
+
+        if (embedUrl != null) {
+            builder.object("thirdParty")
+                    .value("embedUrl", embedUrl)
+                    .end();
+        }
+
+        builder.object("request")
+                .array("internalExperimentFlags")
+                .end()
+                .value("useSsl", true)
+                .end()
+                .object("user")
+                // TODO: provide a way to enable restricted mode with:
+                //  .value("enableSafetyMode", boolean)
+                .value("lockedSafetyMode", false)
+                .end()
+                .end();
+
+        return builder;
     }
 }

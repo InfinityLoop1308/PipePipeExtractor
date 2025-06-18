@@ -51,6 +51,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.singletonList;
 import static org.schabi.newpipe.extractor.services.youtube.ItagItem.APPROX_DURATION_MS_UNKNOWN;
 import static org.schabi.newpipe.extractor.services.youtube.ItagItem.CONTENT_LENGTH_UNKNOWN;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
@@ -1049,9 +1050,19 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                               @Nonnull final Localization localization,
                                               @Nonnull final String videoId)
             throws IOException, ExtractionException {
+        final InnertubeClientRequestInfo innertubeClientRequestInfo =
+                InnertubeClientRequestInfo.ofAndroidClient();
+
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(getAndroidUserAgent(localization)));
+        headers.put("X-Goog-Api-Format-Version", singletonList("2"));
+
+        String visitorData = YoutubeParsingHelper.getVisitorDataFromInnertube(innertubeClientRequestInfo,
+                localization, contentCountry, headers, YOUTUBEI_V1_GAPIS_URL, null, false);
         androidCpn = generateContentPlaybackNonce();
         final byte[] mobileBody = JsonWriter.string(
-                prepareAndroidMobileJsonBuilder(localization, contentCountry)
+                prepareAndroidMobileJsonBuilder(localization, contentCountry, visitorData)
                         .object("playerRequest")
                         .value(VIDEO_ID, videoId)
                         .value(CPN, androidCpn)
