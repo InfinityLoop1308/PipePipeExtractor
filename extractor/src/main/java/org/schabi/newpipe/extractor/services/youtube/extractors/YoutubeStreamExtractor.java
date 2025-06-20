@@ -953,8 +953,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
                 || getStreamType() == null || nextResponse == null) {
             for (Throwable e: errors) {
-                if (e instanceof NotLoginException) {
-                    throw (NotLoginException) e;
+                if (e instanceof AntiBotException) {
+                    throw (AntiBotException) e;
                 }
                 if (e instanceof ContentNotAvailableException) {
                     throw (ContentNotAvailableException) e;
@@ -1028,7 +1028,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         }
         if (reason != null && reason.contains("Sign in to confirm")) {
-            throw new NotLoginException(reason);
+            throw new AntiBotException(reason);
         }
 
         if (reason != null && reason.contains("This live event will begin in")) {
@@ -1128,7 +1128,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     JsonObject iosPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(iosPlayerResponse, videoId)) {
                         if (iosPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new NotLoginException("IOS player response is not valid");
+                            throw new AntiBotException("IOS player response is not valid");
                         }
                         throw new ExtractionException("IOS player response is not valid");
                     }
@@ -1174,7 +1174,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                         if (webPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new NotLoginException("Web player response is not valid");
+                            throw new AntiBotException("Web player response is not valid");
                         }
                         throw new ExtractionException("Web player response is not valid");
                     }
@@ -1214,7 +1214,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     tvHtml5EmbedPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(tvHtml5EmbedPlayerResponse, videoId)) {
                         if (tvHtml5EmbedPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new NotLoginException("TVHTML5 player response is not valid");
+                            throw new AntiBotException("TVHTML5 player response is not valid");
                         }
                         throw new ExtractionException("TVHTML5 embed player response is not valid");
                     }

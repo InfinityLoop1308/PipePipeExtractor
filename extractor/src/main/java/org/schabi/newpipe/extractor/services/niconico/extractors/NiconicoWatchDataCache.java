@@ -7,16 +7,10 @@ import com.grack.nanojson.JsonParserException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
-import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
-import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException;
-import org.schabi.newpipe.extractor.exceptions.PaidContentException;
-import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.*;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
@@ -68,6 +62,7 @@ public class NiconicoWatchDataCache {
         }
         try {
             HashMap<String, List<String>> headers = new HashMap<>();
+            headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"));
             if(ServiceList.NicoNico.hasTokens()){
                 headers.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
             }
@@ -107,6 +102,8 @@ public class NiconicoWatchDataCache {
             switch (watchData.getString("reasonCode")) {
                 case "DOMESTIC_VIDEO":
                     throw new GeographicRestrictionException("This video is only available in Japan");
+                case "HARMFUL_VIDEO":
+                    throw new NeedLoginException("This content need an account to view");
                 default:
                     throw new ContentNotAvailableException(watchData.getString("reasonCode"));
             }
