@@ -27,8 +27,7 @@ public class YoutubeShortsInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return item.getObject("onTap").getObject("innertubeCommand").getObject("reelWatchEndpoint")
-                .getObject("thumbnail").getArray("thumbnails").getObject(0).getString("url");
+        return item.getObject("thumbnail").getArray("sources").getObject(0).getString("url");
     }
 
     @Override
