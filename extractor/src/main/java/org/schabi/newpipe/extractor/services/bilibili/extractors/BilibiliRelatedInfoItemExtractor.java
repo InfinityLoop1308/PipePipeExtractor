@@ -38,7 +38,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
         type = "related";
         id = item.getString("bvid").equals("") ? utils.av2bv(item.getLong("aid")) : item.getString("bvid");
         pic = item.getString("pic").replace("http", "https");
-        pubdate = item.getLong("ctime");
+        pubdate = item.getLong("pubdate");
     }
 
     @Override

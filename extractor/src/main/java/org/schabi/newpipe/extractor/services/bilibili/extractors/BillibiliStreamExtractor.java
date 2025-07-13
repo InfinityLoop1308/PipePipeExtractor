@@ -578,7 +578,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if (isPremiumContent == 1) {
             return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("pub_time") * 1000));
         }
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("ctime") * 1000));
+        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(watch.getLong("pubdate") * 1000));
     }
 
     @Override
@@ -661,7 +661,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             for (int i = 0; i < partitionData.size(); i++) {
                 collector.commit(
                         new BilibiliRelatedInfoItemExtractor(
-                                partitionData.getObject(i), bvid, getThumbnailUrl(), String.valueOf(i + 1), getUploaderName(), watch.getLong("ctime")));
+                                partitionData.getObject(i), bvid, getThumbnailUrl(), String.valueOf(i + 1), getUploaderName(), watch.getLong("pubdate")));
             }
         } catch (ParsingException e) {
             e.printStackTrace();
