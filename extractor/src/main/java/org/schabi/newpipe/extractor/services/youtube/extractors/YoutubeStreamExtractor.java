@@ -724,46 +724,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         watchDataCache.streamType = streamType;
     }
 
-    public MultiInfoItemsCollector getRelatedItemsFromResults(JsonArray results) throws ExtractionException {
-        try {
-            final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-
-            final TimeAgoParser timeAgoParser = getTimeAgoParser();
-            results.stream()
-                    .filter(JsonObject.class::isInstance)
-                    .map(JsonObject.class::cast)
-                    .map(result -> {
-                        if (result.has("compactVideoRenderer")) {
-                            return new YoutubeStreamInfoItemExtractor(
-                                    result.getObject("compactVideoRenderer"), timeAgoParser);
-                        } else if (result.has("compactRadioRenderer")) {
-                            return new YoutubeMixOrPlaylistInfoItemExtractor(
-                                    result.getObject("compactRadioRenderer"));
-                        } else if (result.has("compactPlaylistRenderer")) {
-                            return new YoutubeMixOrPlaylistInfoItemExtractor(
-                                    result.getObject("compactPlaylistRenderer"));
-                        } else if (result.has("lockupViewModel")) {
-                            final JsonObject lockupViewModel = result.getObject("lockupViewModel");
-                            if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(
-                                    lockupViewModel.getString("contentType"))) {
-                                return new YoutubeMixOrPlaylistLockupInfoItemExtractor(
-                                        lockupViewModel);
-                            }
-                        }
-                        return null;
-                    })
-                    .filter(Objects::nonNull)
-                    .forEach(collector::commit);
-
-            if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
-                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
-            }
-            return collector;
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get related videos", e);
-        }
-    }
-
     @Nullable
     @Override
     public MultiInfoItemsCollector getRelatedItems() throws ExtractionException {
@@ -803,6 +763,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                     lockupViewModel.getString("contentType"))) {
                                 return new YoutubeMixOrPlaylistLockupInfoItemExtractor(
                                         lockupViewModel);
+                            }
+                            else if ("LOCKUP_CONTENT_TYPE_VIDEO".equals(
+                                    lockupViewModel.getString("contentType"))){
+                                return new YoutubeLockupStreamInfoItemExtractor(lockupViewModel, timeAgoParser);
                             }
                         }
                         return null;
