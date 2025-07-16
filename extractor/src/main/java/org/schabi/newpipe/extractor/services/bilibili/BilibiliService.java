@@ -226,6 +226,11 @@ public class BilibiliService extends StreamingService {
     }
 
     @Override
+    public long getFeedFetchInterval() {
+        return 3000;
+    }
+
+    @Override
     public LinkHandlerFactory getStreamLHFactory() {
         return new BilibiliStreamLinkHandlerFactory();
     }
