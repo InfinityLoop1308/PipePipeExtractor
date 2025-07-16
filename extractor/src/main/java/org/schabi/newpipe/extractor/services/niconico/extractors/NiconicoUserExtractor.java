@@ -205,9 +205,9 @@ public class NiconicoUserExtractor extends ChannelExtractor {
                 new ListLinkHandler(mylists, mylists, getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null),
                 new ListLinkHandler(series, series, getLinkHandler().getId(),
-                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.ALBUMS)), null),
-                new ListLinkHandler(lives, lives, getLinkHandler().getId(),
-                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.LIVESTREAMS)), null)
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.ALBUMS)), null)
+//                new ListLinkHandler(lives, lives, getLinkHandler().getId(),
+//                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.LIVESTREAMS)), null)
         );
     }
 }
