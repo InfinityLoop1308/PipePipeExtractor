@@ -2079,7 +2079,10 @@ YoutubeParsingHelper {
                 final int errorCode = errorJsonObject.getInt("code");
                 if (errorCode == 404) {
                     throw new ContentNotAvailableException("This channel doesn't exist.");
-                } else {
+                } else if (errorCode == 500) {
+                    throw new ParsingException(errorJsonObject.getString("status") + "\": "
+                            + errorJsonObject.getString("message"));
+                }else {
                     throw new ContentNotAvailableException("Got error:\""
                             + errorJsonObject.getString("status") + "\": "
                             + errorJsonObject.getString("message"));
