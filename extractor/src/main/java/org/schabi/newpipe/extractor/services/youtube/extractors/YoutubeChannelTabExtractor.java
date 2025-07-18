@@ -28,7 +28,6 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.YOUTUBEI_V1_URL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelResponse;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getKey;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.resolveChannelId;
@@ -359,12 +358,12 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                 .getString("token");
 
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
-                        getExtractorContentCountry(), visitorData)
+                        getExtractorContentCountry())
                         .value("continuation", continuation)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
-        return new Page(YOUTUBEI_V1_URL + "browse?key=" + getKey()
+        return new Page(YOUTUBEI_V1_URL + "browse?"
                 + DISABLE_PRETTY_PRINT_PARAMETER, null, channelIds, null, body);
     }
 }

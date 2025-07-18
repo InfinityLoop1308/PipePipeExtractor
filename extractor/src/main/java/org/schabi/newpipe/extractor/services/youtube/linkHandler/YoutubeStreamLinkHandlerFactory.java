@@ -21,7 +21,7 @@
 package org.schabi.newpipe.extractor.services.youtube.linkHandler;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isHooktubeURL;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isInvidioURL;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isInvidiousURL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isY2ubeURL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isYoutubeServiceURL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isYoutubeURL;
@@ -125,7 +125,7 @@ public final class YoutubeStreamLinkHandlerFactory extends LinkHandlerFactory {
         }
 
         if (!Utils.isHTTP(url) || !(isYoutubeURL(url) || isYoutubeServiceURL(url)
-                || isHooktubeURL(url) || isInvidioURL(url) || isY2ubeURL(url))) {
+                || isHooktubeURL(url) || isInvidiousURL(url) || isY2ubeURL(url))) {
             if (host.equalsIgnoreCase("googleads.g.doubleclick.net")) {
                 throw new FoundAdException("Error: found ad: " + urlString);
             }

@@ -5,7 +5,6 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.extractCookieValue;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.extractPlaylistTypeFromPlaylistId;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getKey;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
 import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
@@ -91,7 +90,7 @@ public class YoutubeMixPlaylistExtractor extends PlaylistExtractor {
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
 
-        final Response response = getDownloader().post(YOUTUBEI_V1_URL + "next?key=" + getKey()
+        final Response response = getDownloader().post(YOUTUBEI_V1_URL + "next?"
                 + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization);
 
         initialData = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
@@ -197,7 +196,7 @@ public class YoutubeMixPlaylistExtractor extends PlaylistExtractor {
                 .done())
                 .getBytes(StandardCharsets.UTF_8);
 
-        return new Page(YOUTUBEI_V1_URL + "next?key=" + getKey(), null, null, cookies, body);
+        return new Page(YOUTUBEI_V1_URL + "next", null, null, cookies, body);
     }
 
     @Override

@@ -94,7 +94,7 @@ public final class YoutubeChannelLinkHandlerFactory extends ListLinkHandlerFacto
             String path = urlObj.getPath();
 
             if (!Utils.isHTTP(urlObj) || !(YoutubeParsingHelper.isYoutubeURL(urlObj)
-                    || YoutubeParsingHelper.isInvidioURL(urlObj)
+                    || YoutubeParsingHelper.isInvidiousURL(urlObj)
                     || YoutubeParsingHelper.isHooktubeURL(urlObj))) {
                 throw new ParsingException("The URL given is not a YouTube URL");
             }

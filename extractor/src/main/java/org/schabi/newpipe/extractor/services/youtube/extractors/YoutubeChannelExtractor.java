@@ -42,7 +42,6 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.fixThumbnailUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelResponse;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getKey;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
@@ -127,7 +126,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
             ExtractionException {
         final String channelPath = super.getId();
         final String id = resolveChannelId(channelPath);
-        final ChannelResponseData data = getChannelResponse(id, "EgZ2aWRlb3M%3D",
+        final ChannelResponseData data = getChannelResponse(id, "EgZ2aWRlb3PyBgQKAjoA",
                 getExtractorLocalization(), getExtractorContentCountry());
 
         redirectedChannelId = data.channelId;
@@ -491,7 +490,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
-        return new Page(YOUTUBEI_V1_URL + "browse?key=" + getKey()
+        return new Page(YOUTUBEI_V1_URL + "browse?"
                 + DISABLE_PRETTY_PRINT_PARAMETER, null, channelIds, null, body);
     }
 
