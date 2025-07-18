@@ -10,6 +10,7 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeService.getTempLocalization;
 import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -63,7 +64,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader) throws IOException,
             ExtractionException {
-        final Localization localization = getExtractorLocalization();
+        final Localization localization = getTempLocalization();
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(localization,
                         getExtractorContentCountry())
                         .value("browseId", "VL" + getId())
@@ -289,7 +290,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
         addYoutubeHeaders(headers);
 
         final Response response = getDownloader().post(page.getUrl(), headers, page.getBody(),
-                getExtractorLocalization());
+                getTempLocalization());
         final JsonObject ajaxJson = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
 
         final JsonArray continuation = ajaxJson.getArray("onResponseReceivedActions")
@@ -343,7 +344,7 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
             }
 
             final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(
-                            getExtractorLocalization(), getExtractorContentCountry())
+                            getTempLocalization(), getExtractorContentCountry())
                             .value("continuation", continuation)
                             .done())
                     .getBytes(StandardCharsets.UTF_8);

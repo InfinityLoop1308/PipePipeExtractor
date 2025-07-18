@@ -1990,7 +1990,7 @@ YoutubeParsingHelper {
         public final JsonObject responseJson;
         public final String channelId;
 
-        private ChannelResponseData(final JsonObject responseJson, final String channelId) {
+        public ChannelResponseData(final JsonObject responseJson, final String channelId) {
             this.responseJson = responseJson;
             this.channelId = channelId;
         }
