@@ -5,8 +5,8 @@ allprojects {
     compileJava.options.encoding = 'UTF-8'
     compileTestJava.options.encoding = 'UTF-8'
 
-    sourceCompatibility = 11
-    targetCompatibility = 11
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
 
     version 'v4.6.0'
     group 'com.github.TeamNewPipe'
