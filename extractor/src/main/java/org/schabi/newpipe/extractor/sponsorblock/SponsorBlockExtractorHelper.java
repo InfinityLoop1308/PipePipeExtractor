@@ -182,7 +182,7 @@ public final class SponsorBlockExtractorHelper {
                 + "&endTime=" + endInSeconds
                 + "&category=" + segment.category.getApiName()
                 + "&userID=" + localUserId
-                + "&userAgent=Mozilla/5.0"
+                + "&userAgent=PipePipe/1.0.0"
                 + "&actionType=" + actionType;
         return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
     }
