@@ -2,7 +2,7 @@
 
 package org.schabi.newpipe.extractor.services.bilibili.linkHandler;
 
-import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.formatParamWithPercentSpace;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
@@ -10,8 +10,6 @@ import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.search.filter.BilibiliFilters;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.List;
 
 public class BilibiliSearchQueryHandlerFactory extends SearchQueryHandlerFactory {
@@ -31,11 +29,7 @@ public class BilibiliSearchQueryHandlerFactory extends SearchQueryHandlerFactory
 
         final String filterQuery = searchFilters.evaluateSelectedContentFilters();
 
-        try {
-            return SEARCH_URL + filterQuery + "&keyword=" + URLEncoder.encode(query, UTF_8) + "&page=1";
-        } catch (final UnsupportedEncodingException e) {
-            throw new ParsingException("query \"" + query + "\" could not be encoded", e);
-        }
+        return SEARCH_URL + filterQuery + "&keyword=" + formatParamWithPercentSpace(query) + "&page=1";
     }
 
     @Override

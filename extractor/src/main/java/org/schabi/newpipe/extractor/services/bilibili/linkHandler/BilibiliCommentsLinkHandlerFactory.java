@@ -6,7 +6,7 @@ import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
@@ -59,11 +59,11 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
             return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=20&oid=" + id + "&pn=1";
         }
         String finalId = id;
-        return utils.getWbiResult(FETCH_COMMENTS_URL, new HashMap<String, String>(){{
+        return utils.getWbiResult(FETCH_COMMENTS_URL, new LinkedHashMap<String, String>() {{
             put("oid", finalId);
             put("type", "1");
             put("mode", "3");
-            put("pagination_str","{\"offset\":\"\"}");
+            put("pagination_str", "{\"offset\":\"\"}");
             put("plat", "1");
             put("web_location", "1315875");
         }});
