@@ -79,6 +79,7 @@ public class BilibiliService extends StreamingService {
     public static String FETCH_COMMENTS_URL = "https://api.bilibili.com/x/v2/reply/wbi/main";
     public static String FETCH_TAGS_URL = "https://api.bilibili.com/x/tag/archive/tags?bvid=";
     public final static String FETCH_RECOMMENDED_LIVES_URL = "https://api.live.bilibili.com/xlive/web-interface/v1/second/getUserRecommend?page_size=30&platform=web";
+    public static String VIDEOSHOT_API_URL = "https://api.bilibili.com/x/player/videoshot?index=1&bvid=";
 
 
     static public Map<String, List<String>> getHeaders() {

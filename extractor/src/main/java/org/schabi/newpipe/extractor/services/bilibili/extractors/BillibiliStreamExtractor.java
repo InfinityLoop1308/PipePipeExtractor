@@ -677,4 +677,76 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             }
         } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 2);
     }
+
+    @Nonnull
+    @Override
+    public List<Frameset> getFrames() throws ExtractionException {
+        if (getStreamType() == StreamType.LIVE_STREAM) {
+            return Collections.emptyList();
+        }
+
+        try {
+            String videoshotUrl = VIDEOSHOT_API_URL + bvid;
+            
+            String response = getDownloader().get(videoshotUrl, getHeaders()).responseBody();
+            JsonObject responseJson = JsonParser.object().from(response);
+            
+            if (responseJson.getInt("code") != 0) {
+                return Collections.emptyList();
+            }
+
+            JsonObject data = responseJson.getObject("data");
+            if (data == null || data.getArray("image") == null || data.getArray("index") == null) {
+                return Collections.emptyList();
+            }
+
+            JsonArray imageUrls = data.getArray("image");
+            JsonArray timeIndex = data.getArray("index");
+            
+            if (imageUrls.isEmpty() || timeIndex.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            // Get frame properties
+            int frameWidth = data.getInt("img_x_size");
+            int frameHeight = data.getInt("img_y_size");
+            int framesPerPageX = data.getInt("img_x_len", 10);
+            int framesPerPageY = data.getInt("img_y_len", 10);
+            int totalFrames = timeIndex.size() - 1; // Last index is the end time
+
+            // Calculate average duration per frame
+            int durationPerFrame = 0;
+            if (totalFrames > 1) {
+                // Convert seconds to milliseconds and calculate average interval
+                int totalDuration = timeIndex.getInt(totalFrames) - timeIndex.getInt(0);
+                durationPerFrame = (totalDuration * 1000) / totalFrames;
+            }
+
+            // Prepare URLs with https protocol
+            List<String> urls = new ArrayList<>();
+            for (int i = 0; i < imageUrls.size(); i++) {
+                String url = imageUrls.getString(i);
+                if (url.startsWith("//")) {
+                    url = "https:" + url;
+                }
+                urls.add(url);
+            }
+
+            List<Frameset> result = new ArrayList<>();
+            result.add(new Frameset(
+                    urls,
+                    frameWidth,
+                    frameHeight,
+                    totalFrames,
+                    durationPerFrame,
+                    framesPerPageX,
+                    framesPerPageY
+            ));
+
+            return result;
+
+        } catch (IOException | JsonParserException e) {
+            throw new ExtractionException("Failed to get video frames", e);
+        }
+    }
 }
