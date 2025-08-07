@@ -82,21 +82,21 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
             case "Recommended Videos":
             default:
                 try {
-                    response = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3", getHeaders()).responseBody());
+                    response = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3", getHeaders(getOriginalUrl())).responseBody());
                 } catch (JsonParserException e) {
                     e.printStackTrace();
                 }
                 break;
             case "Top 100":
                 try {
-                    response = JsonParser.object().from(downloader.get(getUrl(), getHeaders()).responseBody());
+                    response = JsonParser.object().from(downloader.get(getUrl(), getHeaders(getOriginalUrl())).responseBody());
                 } catch (JsonParserException e) {
                     throw new RuntimeException(e);
                 }
                 break;
             case "Recommended Lives":
                 try {
-                    response = JsonParser.object().from(downloader.get(getUrl() + "&page=1", getHeaders()).responseBody());
+                    response = JsonParser.object().from(downloader.get(getUrl() + "&page=1", getHeaders(getOriginalUrl())).responseBody());
                 } catch (JsonParserException e) {
                     throw new RuntimeException(e);
                 }

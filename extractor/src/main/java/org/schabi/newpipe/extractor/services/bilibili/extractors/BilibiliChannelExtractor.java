@@ -9,7 +9,6 @@ import static org.schabi.newpipe.extractor.services.bilibili.utils.requestUserSp
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
@@ -23,6 +22,7 @@ import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -56,19 +56,14 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        try {
-            Map<String, List<String>> headers = getUpToDateHeaders();
-            String id = getId();
+        Map<String, List<String>> headers = getHeaders(getOriginalUrl());
+        String id = getId();
 
-            getVideoImpl().onFetchPage(downloader, id, getUrl());
+        getVideoImpl().onFetchPage(downloader, id, getUrl());
 
-            userInfoData = requestUserSpaceResponse(downloader, QUERY_USER_INFO_URL + id, headers);
+        userInfoData = requestUserSpaceResponse(downloader, QUERY_USER_INFO_URL + id, headers);
 
-            userLiveData = requestUserSpaceResponse(downloader, QUERY_LIVEROOM_STATUS_URL + id, null);
-
-        } catch (JsonParserException e) {
-            e.printStackTrace(); // ignore because liveResponse may not exist
-        }
+        userLiveData = requestUserSpaceResponse(downloader, QUERY_LIVEROOM_STATUS_URL + id, headers);
     }
 
     @Nonnull
@@ -89,7 +84,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         boolean hasVideos = videoImpl.getInitialPage(collector, this);
         Page nextPage = null;
         if (hasVideos) nextPage = new Page(getNextPageFromCurrentUrl(
-                getUrl(), "pn", 1, true, "1", "?"), String.valueOf(videoImpl.lastVideo())
+                getUrl(), "pn", 1, true, "1", "?"), String.valueOf(videoImpl.lastVideo()), null, BilibiliService.getDefaultCookies(), null
         );
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
@@ -99,23 +94,18 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        try {
-            Map<String, List<String>> headers = getUpToDateHeaders();
-            String id = getId();
-            Downloader downloader = getDownloader();
+        Map<String, List<String>> headers = getHeaders(getOriginalUrl());
+        String id = getId();
+        Downloader downloader = getDownloader();
 
-            userInfoData = requestUserSpaceResponse(downloader, QUERY_USER_INFO_URL + id, headers);
-
-        } catch (JsonParserException e) {
-            e.printStackTrace();  // ignore
-        }
+        userInfoData = requestUserSpaceResponse(downloader, QUERY_USER_INFO_URL + id, headers);
 
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         UserVideoImpl videoImpl = getVideoImpl();
         boolean hasVideos = videoImpl.getPage(page, collector, getDownloader(), this, getId());
         Page nextPage = null;
         if (hasVideos) nextPage = new Page(
-                getNextPageFromCurrentUrl(page.getUrl(), "pn", 1), String.valueOf(videoImpl.lastVideo())
+                getNextPageFromCurrentUrl(page.getUrl(), "pn", 1), String.valueOf(videoImpl.lastVideo()), null, BilibiliService.getDefaultCookies(), null
         );
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
@@ -223,12 +213,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
         private void fetchViaAPI(Downloader downloader, String id, long lastVideoAid)
                 throws ParsingException, IOException, ReCaptchaException {
-            try {
-                Map<String, List<String>> headers = getUpToDateHeaders();
-                userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid), headers);
-            } catch (JsonParserException e) {
-                e.printStackTrace(); // ignore because liveResponse may not exist
-            }
+            Map<String, List<String>> headers = getHeaders(SPACE_REFERER);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid), headers);
         }
 
         @Override
@@ -315,12 +301,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
         private void fetchViaAPI(Downloader downloader, String id, String currentUrl)
                 throws ParsingException, IOException, ReCaptchaException {
-            try {
-                Map<String, List<String>> headers = getUpToDateHeaders();
-                userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id), headers);
-            } catch (JsonParserException e) {
-                e.printStackTrace(); // ignore because liveResponse may not exist
-            }
+            Map<String, List<String>> headers = getHeaders(currentUrl);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id), headers);
         }
 
         @Override

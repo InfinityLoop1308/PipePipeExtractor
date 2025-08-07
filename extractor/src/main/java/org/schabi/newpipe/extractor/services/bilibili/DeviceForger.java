@@ -1,7 +1,7 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
 import java.util.Locale;
-import java.util.Random;
+import java.util.SplittableRandom;
 
 import javax.annotation.Nonnull;
 
@@ -15,6 +15,9 @@ public class DeviceForger {
 
         private String webGLRendererInfo;
         private String webGLRendererInfoBase64;
+
+        private int innerWidth;
+        private int innerHeight;
 
         public String getUserAgent() {
             return userAgent;
@@ -41,6 +44,16 @@ public class DeviceForger {
             return webGLRendererInfo;
         }
 
+        public Device(String userAgent, String webGlVersion, String webGLRendererInfo, int innerWidth, int innerHeight) {
+            this.userAgent = userAgent;
+            this.webGlVersion = webGlVersion;
+            this.webGlVersionBase64 = utils.encodeToBase64SubString(webGlVersion);
+            this.webGLRendererInfo = webGLRendererInfo;
+            this.webGLRendererInfoBase64 = utils.encodeToBase64SubString(webGLRendererInfo);
+            this.innerWidth = innerWidth;
+            this.innerHeight = innerHeight;
+        }
+
         public String getWebGLRendererInfoBase64() {
             return webGLRendererInfoBase64;
         }
@@ -50,12 +63,20 @@ public class DeviceForger {
             this.webGLRendererInfoBase64 = utils.encodeToBase64SubString(webGLRendererInfo);
         }
 
-        public Device(String userAgent, String webGlVersion, String webGLRendererInfo) {
-            this.userAgent = userAgent;
-            this.webGlVersion = webGlVersion;
-            this.webGlVersionBase64 = utils.encodeToBase64SubString(webGlVersion);
-            this.webGLRendererInfo = webGLRendererInfo;
-            this.webGLRendererInfoBase64 = utils.encodeToBase64SubString(webGLRendererInfo);
+        public int getInnerWidth() {
+            return innerWidth;
+        }
+
+        void setInnerWidth(int innerWidth) {
+            this.innerWidth = innerWidth;
+        }
+
+        public int getInnerHeight() {
+            return innerHeight;
+        }
+
+        void setInnerHeight(int innerHeight) {
+            this.innerHeight = innerHeight;
         }
 
         public String info() {
@@ -90,14 +111,14 @@ public class DeviceForger {
     final static String ChromiumAngleRendererInfoTemplate = "ANGLE (%s, %s Direct3D11 vs_5_0 ps_5_0, D3D11)Google Inc. (%s)";
 
     static String buildUserAgent(String platform, int version) {
-        return String.format(Locale.US, UserAgentTemplate, platform, version);
+        return String.format(Locale.ROOT, UserAgentTemplate, platform, version);
     }
 
     static String buildChromiumAngleRendererInfo(String vendor, String gpuWithApi) {
-        return String.format(ChromiumAngleRendererInfoTemplate, vendor, gpuWithApi, vendor);
+        return String.format(Locale.ROOT, ChromiumAngleRendererInfoTemplate, vendor, gpuWithApi, vendor);
     }
 
-    static GraphicCard randomCard(Random random) {
+    static GraphicCard randomCard(SplittableRandom random) {
         GraphicCard[] cards = {
                 new GraphicCard("AMD", "AMD Radeon 780M Graphics (0x000015BF)"),
                 new GraphicCard("AMD", "AMD Radeon RX 5700 (0x0000731F)"),
@@ -191,22 +212,22 @@ public class DeviceForger {
                 new GraphicCard("NVIDIA", "NVIDIA GeForce RTX 4090 (0x00002684)"),
                 new GraphicCard("NVIDIA", "NVIDIA GeForce RTX 4090 D (0x00002685)"),
                 new GraphicCard("NVIDIA", "NVIDIA Quadro P2000 (0x00001C30)"),
-                new GraphicCard("Unknown", "Mi Pad 5 Adreno 640 GPU"),
-                new GraphicCard("Unknown", "Qualcomm(R) Adreno(TM) 8cx Gen 3"),
         };
         return cards[random.nextInt(cards.length)];
     }
 
-    static Device forgeDevice(Random random) {
+    static Device forgeDevice(SplittableRandom random) {
         // currently we only forge device with
-        // * Modern Chrome Browse (so User Agent are frozen)
+        // * Modern Chrome Browser (so User Agent are frozen)
         // * Windows 10/11 X64 Operate System
-        int chromiumVersion = (random.nextInt(4)) + 126;
+        int chromiumVersion = (random.nextInt(8)) + 130;
         GraphicCard graphicCard = randomCard(random);
         Device device = new Device(
                 buildUserAgent("Windows NT 10.0; Win64; x64", chromiumVersion),
                 DefaultChromiumWebGlVersion,
-                buildChromiumAngleRendererInfo(graphicCard.getVendor(), graphicCard.getModel())
+                buildChromiumAngleRendererInfo(graphicCard.getVendor(), graphicCard.getModel()),
+                1920 - 60 - random.nextInt(60),
+                1080 - 90 - random.nextInt(60)
         );
         return device;
     }
@@ -222,7 +243,7 @@ public class DeviceForger {
     }
 
     static public void regenerateRandomDevice() {
-        currentDevice = forgeDevice(new Random(System.currentTimeMillis()));
+        currentDevice = forgeDevice(new SplittableRandom());
     }
 
 }

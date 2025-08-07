@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChanne
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -22,6 +23,7 @@ import java.util.Date;
 import java.util.stream.Collectors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.COMMENT_REPLIES_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getDefaultCookies;
 
 public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtractor {
     public JsonObject data;
@@ -97,7 +99,11 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         if (data.getLong("root") == data.getLong("parent") && data.getLong("root") == data.getLong("rpid")) {
             return null;
         }
-        return new Page(getUrl());
+        try {
+            return new Page(getUrl(), getDefaultCookies());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

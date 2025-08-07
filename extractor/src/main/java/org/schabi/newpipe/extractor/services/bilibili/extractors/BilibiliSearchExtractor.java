@@ -14,11 +14,11 @@ import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUpToDateHeaders;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getDefaultCookies;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 public class BilibiliSearchExtractor extends SearchExtractor{
 
@@ -50,7 +50,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
         }
         int currentPage = 1;
         String nextPage = getUrl().replace(String.format("page=%s", 1), String.format("page=%s", String.valueOf(currentPage + 1)));
-        return new InfoItemsPage<>(getCommittedCollector(), new Page(nextPage));
+        return new InfoItemsPage<>(getCommittedCollector(), new Page(nextPage, getDefaultCookies()));
     }
 
     private MultiInfoItemsCollector getCommittedCollector(){
@@ -82,7 +82,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
     @Override
     public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
         try {
-            final String html = getDownloader().get(page.getUrl(), getUpToDateHeaders()).responseBody();
+            final String html = getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody();
             searchCollection = JsonParser.object().from(html);
         } catch (JsonParserException e) {
             e.printStackTrace();
@@ -95,14 +95,14 @@ public class BilibiliSearchExtractor extends SearchExtractor{
         String currentPageString = page.getUrl().split("page=")[page.getUrl().split("page=").length-1];
         int currentPage = Integer.parseInt(currentPageString);
         String nextPage = page.getUrl().replace(String.format("page=%s", currentPageString), String.format("page=%s", String.valueOf(currentPage + 1)));
-        return new InfoItemsPage<>(getCommittedCollector(), new Page(nextPage));
+        return new InfoItemsPage<>(getCommittedCollector(), new Page(nextPage, getDefaultCookies()));
     }
 
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
         try {
             final String response = getDownloader().get(
-                    getLinkHandler().getUrl(), getUpToDateHeaders()).responseBody();
+                    getLinkHandler().getUrl(), getHeaders(getOriginalUrl())).responseBody();
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not parse search results.");
