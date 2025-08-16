@@ -701,7 +701,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         }
 
-        if (translatableSubtitle != null && !hasFoundContentLanguage) {
+        if (translatableSubtitle != null && !hasFoundContentLanguage && ServiceList.YouTube.getShowAutoTranslatedSubtitles()) {
             if (!hasDuplicateEntries) {
                 String autoTranslatedContent = SubtitleDeduplicator.getValidSubtitleContent(translatableSubtitle.getContent() + "&tlang=" + contentLanguage);
                 if(autoTranslatedContent != null) {

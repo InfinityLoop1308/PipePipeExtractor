@@ -105,6 +105,7 @@ public abstract class StreamingService {
     private Set<String> cookieFunctions = null;
     private Localization contentLanguage = null;
     private String audioLanguage = "original";
+    private boolean showAutoTranslatedSubtitles = false;
 
     public Set<String> filterTypes = new HashSet<>();
     public InfoItemsCollector.FilterConfig filterConfig = null;
@@ -544,6 +545,14 @@ public abstract class StreamingService {
 
     public void setAudioLanguage(String audioLanguage) {
         this.audioLanguage = audioLanguage;
+    }
+
+    public boolean getShowAutoTranslatedSubtitles() {
+        return showAutoTranslatedSubtitles;
+    }
+
+    public void setShowAutoTranslatedSubtitles(boolean showAutoTranslatedSubtitles) {
+        this.showAutoTranslatedSubtitles = showAutoTranslatedSubtitles;
     }
 
     public Set<String> getFilterTypes() {
