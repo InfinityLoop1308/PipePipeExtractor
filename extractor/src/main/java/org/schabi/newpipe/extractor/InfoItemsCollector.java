@@ -114,11 +114,13 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         private final ArrayList<String> keywords;
         private final ArrayList<String> channels;
         private final boolean blockShorts;
+        private final boolean blockPaidContent;
 
-        public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts) {
+        public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts, boolean blockPaidContent) {
             this.keywords = keywords != null ? keywords : new ArrayList<>();
             this.channels = channels != null ? channels : new ArrayList<>();
             this.blockShorts = blockShorts;
+            this.blockPaidContent = blockPaidContent;
         }
         
         public ArrayList<String> getKeywords() {
@@ -131,6 +133,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         
         public boolean isBlockShorts() {
             return blockShorts;
+        }
+        
+        public boolean isBlockPaidContent() {
+            return blockPaidContent;
         }
     }
     
@@ -145,6 +151,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             boolean shouldRemove = false;
 
             if (filterConfig.isBlockShorts() && item instanceof StreamInfoItem && ((StreamInfoItem) item).isShortFormContent()) {
+                shouldRemove = true;
+            }
+
+            if (!shouldRemove && filterConfig.isBlockPaidContent() && item instanceof StreamInfoItem && ((StreamInfoItem) item).requiresMembership()) {
                 shouldRemove = true;
             }
 
