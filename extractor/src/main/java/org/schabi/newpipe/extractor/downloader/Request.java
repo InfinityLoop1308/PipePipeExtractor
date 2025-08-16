@@ -48,7 +48,7 @@ public class Request {
         if (headers != null) {
             actualHeaders.putAll(headers);
         }
-        if (automaticLocalizationHeader && localization != null) {
+        if (automaticLocalizationHeader && localization != null && !actualHeaders.containsKey("Accept-Language")) {
             actualHeaders.putAll(headersFromLocalization(localization));
         }
 

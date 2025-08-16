@@ -39,7 +39,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            data = JsonParser.object().from(getDownloader().get(getLinkHandler().getUrl(), getHeaders()).responseBody());
+            data = JsonParser.object().from(getDownloader().get(getLinkHandler().getUrl(), getHeaders(getOriginalUrl())).responseBody());
             if (getLinkHandler().getUrl().contains(GET_SEASON_ARCHIVES_ARCHIVE_BASE_URL)) {
                 type = "seasons_archives";
             } else if (getLinkHandler().getUrl().contains(GET_SERIES_BASE_URL)) {
@@ -49,7 +49,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                 return;
             }
             data = data.getObject("data");
-            String userResponse = getDownloader().get(QUERY_USER_INFO_URL + utils.getMidFromRecordApiUrl(getLinkHandler().getUrl()), getHeaders()).responseBody();
+            String userResponse = getDownloader().get(QUERY_USER_INFO_URL + utils.getMidFromRecordApiUrl(getLinkHandler().getUrl()), getHeaders(getOriginalUrl())).responseBody();
             userData = JsonParser.object().from(userResponse);
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
@@ -77,7 +77,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
             }
             return new InfoItemsPage<>(collector, null);
         }
-        return getPage(new Page(getUrl() + "&username=" + getUploaderName()));
+        return getPage(new Page(getUrl() + "&username=" + getUploaderName(), getDefaultCookies()));
     }
 
     @Override
@@ -86,7 +86,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         type = getLinkHandler().getUrl().contains("seasons_archives") ? "seasons_archives" : "archives";
         try {
             if (!(page.getUrl().contains("pn=1") || page.getUrl().contains("page_num=1"))) {
-                data = JsonParser.object().from(getDownloader().get(page.getUrl(), getHeaders()).responseBody()).getObject("data");
+                data = JsonParser.object().from(getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody()).getObject("data");
             }
         } catch (JsonParserException e) {
             throw new RuntimeException(e);
@@ -99,7 +99,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         for (int i = 0; i < results.size(); i++) {
             collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), page.getUrl().split("username=")[1], null));
         }
-        return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), type.equals("seasons_archives") ? "page_num" : "pn", 1)));
+        return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), type.equals("seasons_archives") ? "page_num" : "pn", 1), getDefaultCookies()));
     }
 
     @Override

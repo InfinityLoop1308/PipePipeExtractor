@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getDefaultCookies;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
 
@@ -37,7 +38,7 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
             extractor.onFetchPage(getDownloader());
             return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getInitialPage(); // I don't want to but to support YouTube I have to...
         }
-        return getPage(new Page(getLinkHandler().getUrl()));
+        return getPage(new Page(getLinkHandler().getUrl(), getDefaultCookies()));
     }
 
     @Override
@@ -47,7 +48,7 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
             return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getPage(page); // I don't want to but to support YouTube I have to...
         }
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-        String response = getDownloader().get(page.getUrl(), getHeaders()).responseBody();
+        String response = getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody();
         try {
             JsonObject data = JsonParser.object().from(response).getObject("data");
             JsonArray seasons_list = data.getObject("items_lists").getArray("seasons_list");
@@ -77,6 +78,6 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
         }
-        return new InfoItemsPage<>(collector, new Page(getNextPageFromCurrentUrl(page.getUrl(), "page_num", 1)));
+        return new InfoItemsPage<>(collector, new Page(getNextPageFromCurrentUrl(page.getUrl(), "page_num", 1), getDefaultCookies()));
     }
 }

@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
@@ -38,7 +39,7 @@ public class BilibiliWebSocketClient {
             this.setConnectionLostTimeout(0);
         }
         public byte[] encode(String data, int op) throws IOException {
-            byte[] dataByte = data.getBytes();
+            byte[] dataByte = data.getBytes(StandardCharsets.UTF_8);
             int length = dataByte.length;
             byte[] result = {0, 0, 0, 0, 0, 16, 0, 1, 0, 0, 0, (byte) op, 0, 0, 0, 1};
             for(int i = 0; i < 4; i++){

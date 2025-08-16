@@ -21,7 +21,6 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -31,6 +30,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.bv2av;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.formatParamWithPercentSpace;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.getDmImgParams;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.getWbiResult;
 
 public class BillibiliStreamExtractor extends StreamExtractor {
 
@@ -289,13 +292,13 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         bvid = responseJson.getString("bvid");
                         response = getDownloader().get("https://api.bilibili.com/x/player/playurl" + "?cid="
                                 + responseJson.getLong("cid") + "&bvid=" + bvid
-                                + "&fnval=2000&qn=120&fourk=1&try_look=1", getHeaders()).responseBody();
+                                + "&fnval=4048&qn=120&fourk=1&try_look=1", getHeaders(getOriginalUrl())).responseBody();
                         playData = JsonParser.object().from(response);
                         dataObject = playData.getObject("data").getObject("dash");
                         buildStreams();
                         nextTimestamp = timestamp + dataObject.getLong("duration") * 1000;
                     case 1:
-                        response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=web&cid=" + getId(), getHeaders()).responseBody();
+                        response = getDownloader().get("https://api.live.bilibili.com/room/v1/Room/playUrl?qn=10000&platform=web&cid=" + getId(), getHeaders(getOriginalUrl())).responseBody();
                         liveUrl = JsonParser.object().from(response).getObject("data").getArray("durl").getObject(0).getString("url");
                 }
             } catch (JsonParserException e) {
@@ -312,7 +315,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             String response;
             try {
                 response = downloader.get("https://api.bilibili.com/pgc/view/web/season?"
-                        + (type == 0 ? "season_id=" : "ep_id=") + getId().substring(2), getHeaders()).responseBody();
+                        + (type == 0 ? "season_id=" : "ep_id=") + getId().substring(2), getHeaders(getOriginalUrl())).responseBody();
             } catch (Exception e) {
                 throw new ContentNotAvailableException("Unknown reason");
             }
@@ -348,7 +351,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             String url = getLinkHandler().getOriginalUrl();
             bvid = utils.getPureBV(getId());
             url = utils.getUrl(url, bvid);
-            String response = downloader.get(url, getLoggedHeadersOrNull("ai_subtitle")).responseBody();
+            String response = downloader.get(url,
+                    getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") != null ? getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") : getHeaders(getOriginalUrl())
+            ).responseBody();
             try {
                 watch = JsonParser.object().from(response).getObject("data");
             } catch (JsonParserException e) {
@@ -368,7 +373,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
 
         // step 1.5: other requests, should start early to improve speed
-        tagCall = downloader.getAsync(FETCH_TAGS_URL + utils.getPureBV(getId()), getHeaders(), response1 -> {
+        tagCall = downloader.getAsync(FETCH_TAGS_URL + utils.getPureBV(getId()), getHeaders(getOriginalUrl()), response1 -> {
             try {
                 tagData = JsonParser.object().from(response1.responseBody()).getArray("data");
             } catch (JsonParserException e) {
@@ -376,43 +381,66 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             }
         });
         if (isPremiumContent != 1) {
-            partitionCall = downloader.getAsync(GET_PARTITION_URL + bvid, getHeaders(), response1 -> {
+            partitionCall = downloader.getAsync(GET_PARTITION_URL + bvid, getHeaders(getOriginalUrl()), response1 -> {
                 try {
                     partitionData = JsonParser.object().from(response1.responseBody()).getArray("data");
                 } catch (JsonParserException e) {
                     e.printStackTrace();
                 }
             });
-            relatedCall = downloader.getAsync(GET_RELATED_URL + bvid, getHeaders(), response1 -> {
+            relatedCall = downloader.getAsync(GET_RELATED_URL + bvid, getHeaders(getOriginalUrl()), response1 -> {
                 try {
                     relatedData = JsonParser.object().from(response1.responseBody()).getArray("data");
                 } catch (JsonParserException e) {
                     e.printStackTrace();
                 }
             });
-            if (getLoggedHeadersOrNull("ai_subtitle") != null) {
-                subtitleCall = downloader.getAsync(GET_SUBTITLE_META_URL + "?cid=" + cid + "&bvid=" + bvid, getLoggedHeadersOrNull("ai_subtitle"), response1 -> {
-                    try {
-                        subtitleData = JsonParser.object().from(response1.responseBody()).getObject("data").getObject("subtitle").getArray("subtitles");
-                    } catch (JsonParserException e) {
-                        e.printStackTrace();
-                    }
-                });
+            if (getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") != null) {
+                LinkedHashMap<String, String> params = new LinkedHashMap<>();
+                params.put("aid", String.valueOf(utils.bv2av(bvid)));
+                params.put("cid", String.valueOf(cid));
+                params.put("isGaiaAvoided", "false");
+                params.put("web_location", "1315873");
+                params.putAll(getDmImgParams());
+                subtitleCall = downloader.getAsync(
+                        getWbiResult(GET_SUBTITLE_META_URL, params),
+                        getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle"), response1 -> {
+                            try {
+                                subtitleData = JsonParser.object().from(response1.responseBody()).getObject("data").getObject("subtitle").getArray("subtitles");
+                            } catch (JsonParserException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                );
             }
         }
 
 
         // step 2: fetch stream data
         String baseUrl = isPremiumContent != 1 ? FREE_VIDEO_BASE_URL : PAID_VIDEO_BASE_URL;
-        String params = "?cid=" + cid + "&bvid=" + bvid + "&fnval=2000&qn=120&fourk=1";
-        Map<String, List<String>> headers = getHeaders();
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("avid", String.valueOf(bv2av(bvid)));
+        params.put("bvid", bvid);
+        params.put("cid", String.valueOf(cid));
+
+        params.put("qn", "120");
+        params.put("fnver", "0");
+        params.put("fnval", "4048");
+        params.put("fourk", "1");
+
+        Map<String, List<String>> headers = getHeaders(getOriginalUrl());
         if (ServiceList.BiliBili.hasTokens() && ServiceList.BiliBili.getCookieFunctions().contains("high_res")) {
             headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
         } else {
             // https://codeberg.org/NullPointerException/PipePipe/issues/42
-            params += "&try_look=1";
+            params.put("try_look", "1");
         }
-        String response = getDownloader().get(baseUrl + params, headers).responseBody();
+
+        params.put("web_location", "1315873");
+
+        params.putAll(getDmImgParams());
+
+        String response = getDownloader().get(getWbiResult(baseUrl, params), headers).responseBody();
         try {
             playData = JsonParser.object().from(response);
             switch (playData.getInt("code")) {
@@ -555,7 +583,18 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 collector.commit(new BilibiliRelatedInfoItemExtractor(relatedData.getObject(i)));
                 if (i == 0 && partitions > 1) {
                     collector.commit(new BilibiliPlaylistInfoItemExtractor(watch.getString("title"),
-                            GET_PARTITION_URL + bvid + "&name=" + watch.getString("title") + "&thumbnail=" + URLEncoder.encode(getThumbnailUrl(), "UTF-8") + "&uploaderName=" + getUploaderName() + "&uploaderAvatar=" + URLEncoder.encode(getUploaderAvatarUrl(), "UTF-8") + "&uploaderUrl=" + URLEncoder.encode(getUploaderUrl(), "UTF-8"),
+                            GET_PARTITION_URL
+                                    + bvid
+                                    + "&name="
+                                    + watch.getString("title")
+                                    + "&thumbnail="
+                                    + formatParamWithPercentSpace(getThumbnailUrl())
+                                    + "&uploaderName="
+                                    + getUploaderName()
+                                    + "&uploaderAvatar="
+                                    + formatParamWithPercentSpace(getUploaderAvatarUrl())
+                                    + "&uploaderUrl="
+                                    + formatParamWithPercentSpace(getUploaderUrl()),
                             getThumbnailUrl(), getUploaderName(), partitions));
                 }
             }
@@ -563,7 +602,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
             }
             return collector;
-        } catch (ParsingException | IOException e) {
+        } catch (ParsingException e) {
             e.printStackTrace();
         }
         return collector;
@@ -593,7 +632,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public List<SubtitlesStream> getSubtitlesDefault() throws IOException, ExtractionException {
-        if (getLoggedHeadersOrNull("ai_subtitle") == null || getStreamType().equals(StreamType.LIVE_STREAM)
+        if (getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") == null || getStreamType().equals(StreamType.LIVE_STREAM)
                 || isPremiumContent == 1) {
             return new ArrayList<>();
         }
@@ -604,7 +643,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             String bccResult = getDownloader()
                     .get("https:" + subtitlesStream
                             .getString("subtitle_url")
-                            .replace("http:", "https:"), getHeaders()).responseBody();
+                            .replace("http:", "https:"), getHeaders(getOriginalUrl())).responseBody();
             try {
                 subtitlesToReturn.add(new SubtitlesStream.Builder()
                         .setContent(utils.bcc2srt(JsonParser.object().from(bccResult)), false)
@@ -688,7 +727,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         try {
             String videoshotUrl = VIDEOSHOT_API_URL + bvid;
             
-            String response = getDownloader().get(videoshotUrl, getHeaders()).responseBody();
+            String response = getDownloader().get(videoshotUrl, getHeaders(getOriginalUrl())).responseBody();
             JsonObject responseJson = JsonParser.object().from(response);
             
             if (responseJson.getInt("code") != 0) {

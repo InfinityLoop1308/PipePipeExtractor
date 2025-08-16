@@ -1,29 +1,39 @@
 package org.schabi.newpipe.extractor.services.bilibili;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
-
 import com.grack.nanojson.*;
 
 import org.brotli.dec.BrotliInputStream;
+import org.cache2k.Cache;
+import org.cache2k.Cache2kBuilder;
+import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.*;
 import java.math.BigInteger;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Inflater;
 
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import okio.ByteString;
+
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
 
 
 public class utils {
@@ -34,11 +44,14 @@ public class utils {
 
     private static final String table = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf";
 
-    public Map<Character, Integer> map = new HashMap<Character, Integer>();
-    private static final String USER_AGENT = "Mozilla/5.0";
-    private static final String REFERER = "https://www.bilibili.com";
-    private static final OkHttpClient client = new OkHttpClient();
+    private static final Pattern RENDER_DATA_PATTERN = Pattern.compile("<script id=\"__RENDER_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
 
+    private static String wbiMixinKey;
+    private static LocalDate wbiMixinKeyDate;
+    private static final Cache<String, String> webIdCache = new Cache2kBuilder<String, String>() {
+    }.entryCapacity(256).expireAfterWrite(86400, TimeUnit.SECONDS).loader(utils::getWebId).build();
+
+    public Map<Character, Integer> map = new HashMap<Character, Integer>();
 
     public utils() {
         for (int i = 0; i < 58; i++) {
@@ -115,12 +128,67 @@ public class utils {
         return newUrl;
     }
 
+    private static int[] getWh(int width, int height) {
+        int res0 = width;
+        int res1 = height;
+        int rnd = ThreadLocalRandom.current().nextInt(114);
+        return new int[]{2 * res0 + 2 * res1 + 3 * rnd, 4 * res0 - res1 + rnd, rnd};
+    }
+
+    private static int[] getOf(int scrollTop, int scrollLeft) {
+        int res0 = scrollTop;
+        int res1 = scrollLeft;
+        int rnd = ThreadLocalRandom.current().nextInt(514);
+        return new int[]{3 * res0 + 2 * res1 + rnd, 4 * res0 - 4 * res1 + 2 * rnd, rnd};
+    }
+
+    private static String getWebId(String mid) throws IOException, JsonParserException {
+        Response response;
+        LinkedHashMap<String, List<String>> headers = getHeaders(WWW_REFERER);
+        headers.put("Upgrade-Insecure-Requests", Collections.singletonList("1"));
+        headers.put("Accept", Collections.singletonList("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"));
+        headers.put("Priority", Collections.singletonList("u=0, i"));
+        try {
+            response = NewPipe.getDownloader().get("https://space.bilibili.com/" + mid, headers);
+        } catch (ReCaptchaException e) {
+            throw new RuntimeException(e);
+        }
+        String renderData;
+        Matcher matcher = RENDER_DATA_PATTERN.matcher(response.responseBody());
+        if (matcher.find()) {
+            renderData = matcher.group(1);
+        } else {
+            throw new IOException("Invalid space page response: " + response.responseBody());
+        }
+
+        String decodedRenderData = URLDecoder.decode(renderData, StandardCharsets.UTF_8.name());
+        JsonObject json = JsonParser.object().from(decodedRenderData);
+
+        return json.getString("access_id");
+    }
+
+    public static LinkedHashMap<String, String> getDmImgParams() {
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("dm_img_list", "[]");
+        params.put("dm_img_str", DeviceForger.requireRandomDevice().getWebGlVersionBase64());
+        params.put("dm_cover_img_str", DeviceForger.requireRandomDevice().getWebGLRendererInfoBase64());
+        int[] wh = getWh(DeviceForger.requireRandomDevice().getInnerWidth(), DeviceForger.requireRandomDevice().getInnerHeight());
+        int[] of = getOf(0, 0);
+        params.put("dm_img_inter", "{\"ds\":[],\"wh\":["
+                + Arrays.stream(wh).mapToObj(String::valueOf).collect(Collectors.joining(","))
+                + "],\"of\":["
+                + Arrays.stream(of).mapToObj(String::valueOf).collect(Collectors.joining(","))
+                + "]}");
+        return params;
+    }
+
     public static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
-        Map<String, String> params = new LinkedHashMap<>();
+        // TODO: also video download
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
 
         params.put("mid", id);
-        params.put("ps", "30");
-        params.put("tid", "0");
+        params.put("order", "pubdate");
+        params.put("ps", "25");
 
         String pn = "1";
         if (baseUrl.contains("pn=")) {
@@ -128,22 +196,19 @@ public class utils {
         }
         params.put("pn", pn);
 
-        // params.put("keyword", "");
-        params.put("order", "pubdate");
-        params.put("platform", "web");
-        params.put("web_location", "1550101");
-        // params.put("order_avoided", "true");
+        params.put("order_avoided", "true");
 
-        params.put("dm_img_list", "[]");
-        params.put("dm_img_str", DeviceForger.requireRandomDevice().getWebGlVersionBase64());
-        params.put("dm_cover_img_str", DeviceForger.requireRandomDevice().getWebGLRendererInfoBase64());
-//        dm_img_inter = '{"ds":[],"wh":[0,0,0],"of":[0,0,0]}'
-        params.put("dm_img_inter", "{\"ds\":[],\"wh\":[0,0,0],\"of\":[0,0,0]}");
+        params.put("platform", "web");
+        params.put("web_location", "333.1387");
+
+        params.putAll(getDmImgParams());
+
+        params.put("w_webid", webIdCache.get(id));
 
         return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
     }
 
-    public static String getWbiResult(String baseUrl, Map<String, String> params) {
+    public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
         String[] wbiResults = utils.encWbi(params);
 
         params.put("w_rid", wbiResults[0]);
@@ -308,41 +373,51 @@ public class utils {
         return le.substring(0, 32);
     }
 
-    public static String[] encWbi(Map<String, String> params) {
+    public static String formatParamWithPercentSpace(String value) {
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String createQueryStringWithPercentSpace(Map<String, String> params) {
+        return params.entrySet().stream()
+                .map(entry -> formatParamWithPercentSpace(entry.getKey()) + "=" + formatParamWithPercentSpace(entry.getValue()))
+                .collect(Collectors.joining("&"));
+    }
+
+    private static String[] encWbi(Map<String, String> params) {
         String wbiImgUrl = WBI_IMG_URL;
         String img_value;
         String sub_value;
         String img_url;
         String sub_url;
-        String me;
         int wts;
         String w_rid;
 
         try {
-            Request request = new Request.Builder()
-                    .url(wbiImgUrl)
-                    .addHeader("User-Agent", USER_AGENT)
-                    .addHeader("Referer", REFERER)
-                    .build();
-            Response response = client.newCall(request).execute();
-            if (!response.isSuccessful()) {
-                throw new RuntimeException("Failed to get wbi_img");
+            LocalDate currentDate = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+            if (wbiMixinKey == null || wbiMixinKeyDate.isBefore(currentDate)) {
+                Response response = NewPipe.getDownloader().get(wbiImgUrl, getHeaders(WWW_REFERER));
+                if (response.responseCode() != 200) {
+                    throw new RuntimeException("Failed to get wbi_img");
+                }
+                String responseBody = response.responseBody();
+                img_url = responseBody.split("\"img_url\":\"")[1].split("\"")[0];
+                sub_url = responseBody.split("\"sub_url\":\"")[1].split("\"")[0];
+                img_value = img_url.split("/")[img_url.split("/").length - 1].split("\\.")[0];
+                sub_value = sub_url.split("/")[sub_url.split("/").length - 1].split("\\.")[0];
+                wbiMixinKey = getMixinKey(img_value + sub_value);
+                wbiMixinKeyDate = currentDate;
             }
-            String responseBody = response.body().string();
-            img_url = responseBody.split("\"img_url\":\"")[1].split("\"")[0];
-            sub_url = responseBody.split("\"sub_url\":\"")[1].split("\"")[0];
-            img_value = img_url.split("/")[img_url.split("/").length - 1].split("\\.")[0];
-            sub_value = sub_url.split("/")[sub_url.split("/").length - 1].split("\\.")[0];
-            me = getMixinKey(img_value + sub_value);
-            wts = (int) (System.currentTimeMillis() / 1000);
-            params.put("wts", String.valueOf(wts));
+            wts = Math.round(System.currentTimeMillis() / 1000f);
             Map<String, String> sortedParams = new TreeMap<>(params);
-            String ae = sortedParams.entrySet().stream()
-                    .map(entry -> entry.getKey() + "=" + URLEncoder.encode(entry.getValue()))
-                    .collect(Collectors.joining("&"));
-            String toHash = ae + me;
+            sortedParams.put("wts", String.valueOf(wts));
+            String ae = createQueryStringWithPercentSpace(sortedParams);
+            String toHash = ae + wbiMixinKey;
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(toHash.getBytes());
+            byte[] digest = md.digest(toHash.getBytes(StandardCharsets.UTF_8));
             w_rid = bytesToHex(digest);
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -351,7 +426,7 @@ public class utils {
         return new String[]{w_rid, String.valueOf(wts)};
     }
 
-    private static String bytesToHex(byte[] bytes) {
+    public static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
         for (byte b : bytes) {
             sb.append(String.format("%02x", b));
@@ -398,22 +473,6 @@ public class utils {
         isClientAPIMode = !isClientAPIMode; // flip API mode
         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
         throw new ParsingException(msg);
-    }
-
-
-    static public String getUserAgentRandomly() {
-        ArrayList<String> userAgents = new ArrayList<>();
-        userAgents.add("Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.101 Mobile Safari/537.36");
-        userAgents.add("Mozilla/5.0 (Linux; Android 7.1.1; OPPO R9sk) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.111 Mobile Safari/537.36");
-        userAgents.add("Mozilla/5.0 (Linux; Android 11; Samsung SM-A025G) AppleWebKit/535.19 (KHTML, like Gecko) Chrome/18.0.1025.166 Mobile Safari/535.19");
-        userAgents.add("Mozilla/5.0 (Linux; Android 7.0; SM-G930VC Build/NRD90M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/58.0.3029.83 Mobile Safari/537.36");
-        userAgents.add("Mozilla/5.0 (Linux; Android 11; V2108) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.106 Mobile Safari/537.36");
-        userAgents.add("Mozilla/5.0 (Linux; Android 11; moto g(50) Build/RRFS31.Q1-59-76-2; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/92.0.4515.159 Mobile Safari/537.36 EdgW/1.0");
-        userAgents.add("Mozilla/5.0 (Linux; Android 11; M2102K1G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Mobile Safari/537.36");
-        userAgents.add("Mozilla/5.0 (iPhone; CPU iPhone OS 14_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/92.0.4515.90 Mobile/15E148 Safari/604.1");
-        userAgents.add("Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/36.0  Mobile/15E148 Safari/605.1.15");
-        userAgents.add("Mozilla/5.0 (iPhone12,8; U; CPU iPhone OS 13_0 like Mac OS X) AppleWebKit/602.1.50 (KHTML, like Gecko) Version/10.0 Mobile/14A403 Safari/602.1");
-        return userAgents.get(new Random().nextInt(userAgents.size()));
     }
 
     public static String encodeToBase64SubString(String raw) {

@@ -19,9 +19,11 @@ import org.schabi.newpipe.extractor.services.bilibili.utils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getDefaultCookies;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUserAgentHeaders;
 
 public class BilibiliCommentExtractor extends CommentsExtractor {
@@ -36,7 +38,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         try {
             String url = getUrl();
             String response = isRepliesOfComment(url)
-                    ? getDownloader().get(url, getUserAgentHeaders()).responseBody()
+                    ? getDownloader().get(url, getUserAgentHeaders(getLinkHandler().getOriginalUrl())).responseBody()
                     : getDownloader().get(url).responseBody();
             data = JsonParser.object().from(response);
             data = data.getObject("data");
@@ -48,7 +50,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<CommentsInfoItem> getInitialPage() throws IOException, ExtractionException {
-        return getPage(new Page(getUrl()));
+        return getPage(new Page(getUrl(), getDefaultCookies()));
     }
 
     @Override
@@ -67,7 +69,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             try {
                 final String responseJson =
                         isRepliesOfComment(pageUrl)
-                                ? getDownloader().get(pageUrl, getUserAgentHeaders()).responseBody()
+                                ? getDownloader().get(pageUrl, getUserAgentHeaders(WWW_REFERER)).responseBody()
                                 : getDownloader().get(pageUrl).responseBody();
                 data = JsonParser.object().from(responseJson).getObject("data");
             } catch (JsonParserException e) {
@@ -91,12 +93,12 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             }
             //data.cursor.pagination_reply.next_offset
             String offset = data.getObject("cursor").getObject("pagination_reply").getString("next_offset");
-            return new InfoItemsPage<>(collector, new Page(utils.getWbiResult(FETCH_COMMENTS_URL, buildNextPageParam(initialUrl, offset))));
+            return new InfoItemsPage<>(collector, new Page(utils.getWbiResult(FETCH_COMMENTS_URL, buildNextPageParam(initialUrl, offset)), getDefaultCookies()));
         } else { //replies
             if (19 > results.size() && pageUrl.contains("pn=1")) {
                 return new InfoItemsPage<>(collector, null);
             }
-            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(pageUrl, "pn", 1)));
+            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(pageUrl, "pn", 1), getDefaultCookies()));
         }
     }
 
@@ -109,8 +111,8 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         return !requestUrl.contains(FETCH_COMMENTS_URL);
     }
 
-    private static HashMap<String, String> buildNextPageParam(String url, String offset) {
-        return new HashMap<String, String>() {{
+    private static LinkedHashMap<String, String> buildNextPageParam(String url, String offset) {
+        return new LinkedHashMap<String, String>() {{
             put("oid", url.split("oid=")[1].split("&")[0]);
             put("type", "1");
             put("mode", "3");
