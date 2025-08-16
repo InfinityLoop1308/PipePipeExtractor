@@ -155,7 +155,7 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
             }
         }
         if (ServiceList.YouTube.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, nextPage);
     }
@@ -197,7 +197,7 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
         collectStreamsFrom(collector, contents);
 
         if (ServiceList.YouTube.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, getNextPageFrom(continuationItems.getObject(1)
                 .getObject("continuationItemRenderer")));

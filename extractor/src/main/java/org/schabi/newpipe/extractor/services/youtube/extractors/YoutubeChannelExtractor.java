@@ -530,7 +530,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
             nextPage = getNextPageFrom(continuation, channelIds);
         }
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, nextPage);
     }
@@ -575,11 +575,7 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
         );
 
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
-            collector.applyBlocking(
-                    ServiceList.YouTube.getStreamKeywordFilter(),
-                    ServiceList.YouTube.getStreamChannelFilter(),
-                    ServiceList.YouTube.isFilterShorts()
-            );
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
 
         return new InfoItemsPage<>(collector, getNextPageFrom(continuation, channelIds));

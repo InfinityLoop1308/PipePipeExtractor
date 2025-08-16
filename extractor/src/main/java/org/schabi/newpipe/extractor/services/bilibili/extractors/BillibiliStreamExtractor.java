@@ -560,7 +560,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 }
             }
             if (ServiceList.BiliBili.getFilterTypes().contains("related_item")) {
-                collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
+                collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
             }
             return collector;
         } catch (ParsingException | IOException e) {

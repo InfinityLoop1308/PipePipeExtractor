@@ -108,19 +108,49 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         }
     }
 
-    public void applyBlocking(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts) {
+    // Filter methods
+
+    public static class FilterConfig {
+        private final ArrayList<String> keywords;
+        private final ArrayList<String> channels;
+        private final boolean blockShorts;
+
+        public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts) {
+            this.keywords = keywords != null ? keywords : new ArrayList<>();
+            this.channels = channels != null ? channels : new ArrayList<>();
+            this.blockShorts = blockShorts;
+        }
+        
+        public ArrayList<String> getKeywords() {
+            return keywords;
+        }
+        
+        public ArrayList<String> getChannels() {
+            return channels;
+        }
+        
+        public boolean isBlockShorts() {
+            return blockShorts;
+        }
+    }
+    
+    public void applyBlocking(FilterConfig filterConfig) {
+        if (filterConfig == null) {
+            return;
+        }
+        
         Iterator<I> iterator = itemList.iterator();
         while (iterator.hasNext()) {
             I item = iterator.next();
             boolean shouldRemove = false;
 
-            if (blockShorts && item instanceof StreamInfoItem && ((StreamInfoItem) item).isShortFormContent()) {
+            if (filterConfig.isBlockShorts() && item instanceof StreamInfoItem && ((StreamInfoItem) item).isShortFormContent()) {
                 shouldRemove = true;
             }
 
             if (!shouldRemove) {
                 // Check keywords
-                for (String keyword : keywords) {
+                for (String keyword : filterConfig.getKeywords()) {
                     if (item.getName().toLowerCase().contains(keyword.toLowerCase())) {
                         shouldRemove = true;
                         break;  // No need to check other keywords
@@ -130,7 +160,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
             // Only check channels if we haven't already marked for removal
             if (!shouldRemove) {
-                for (String channel : channels) {
+                for (String channel : filterConfig.getChannels()) {
                     if (item instanceof StreamInfoItem && ((StreamInfoItem) item).getUploaderName() != null &&
                             ((StreamInfoItem) item).getUploaderName().equals(channel)) {
                         shouldRemove = true;

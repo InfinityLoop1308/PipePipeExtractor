@@ -95,7 +95,7 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
                 break;
         }
         if (ServiceList.NicoNico.getFilterTypes().contains("recommendations")) {
-            collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
+            collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, null);
     }

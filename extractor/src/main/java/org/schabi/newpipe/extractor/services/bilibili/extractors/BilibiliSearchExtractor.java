@@ -74,7 +74,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
             }
         }
         if (ServiceList.BiliBili.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.BiliBili.getStreamKeywordFilter(), ServiceList.BiliBili.getStreamChannelFilter(), ServiceList.BiliBili.isFilterShorts());
+            collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
         }
         return collector;
     }

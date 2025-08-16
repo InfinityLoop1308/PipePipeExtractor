@@ -60,7 +60,7 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                 int currentPage = Integer.parseInt(currentPageString);
                 String nextPage = page.getUrl().replace(String.format("offset=%s", currentPage), String.format("offset=%s", String.valueOf(currentPage + 10)));
                 if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
-                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
+                    collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
                 }
                 return new InfoItemsPage<>(collector, new Page(nextPage));
             }else if(getTab().equals(ChannelTabs.ALBUMS)){
@@ -75,7 +75,7 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                 int currentPage = Integer.parseInt(currentPageString);
                 String nextPage = page.getUrl().replace(String.format("page=%s", currentPage), String.format("page=%s", String.valueOf(currentPage + 1)));
                 if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
-                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
+                    collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
                 }
                 return new InfoItemsPage<>(collector, new Page(nextPage));
             }else{
@@ -84,7 +84,7 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                     collector.commit(new NiconicoPlaylistInfoItemExtractor(datalist.getObject(i)));
                 }
                 if (ServiceList.NicoNico.getFilterTypes().contains("channels")) {
-                    collector.applyBlocking(ServiceList.NicoNico.getStreamKeywordFilter(), ServiceList.NicoNico.getStreamChannelFilter(), ServiceList.NicoNico.isFilterShorts());
+                    collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
                 }
                 return new InfoItemsPage<>(collector, null);
             }

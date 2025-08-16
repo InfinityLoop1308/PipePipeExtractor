@@ -105,13 +105,9 @@ public abstract class StreamingService {
     private Set<String> cookieFunctions = null;
     private Localization contentLanguage = null;
     private String audioLanguage = "original";
-    public ArrayList<String> streamKeywordFilter = new ArrayList<>();
-    public ArrayList<String> streamChannelFilter = new ArrayList<>();
-    public boolean filterShorts = false;
-    public Set<String> filterTypes = new HashSet<>();
 
-    public String ytdlpConfig = null;
-    public boolean ytdlpEnabled = false;
+    public Set<String> filterTypes = new HashSet<>();
+    public InfoItemsCollector.FilterConfig filterConfig = null;
 
     public SponsorBlockApiSettings sponsorBlockApiSettings = null;
     
@@ -274,7 +270,21 @@ public abstract class StreamingService {
 
     /**
      * Must create a new instance of a StreamExtractor implementation.
-     *
+     *    public void setYtdlpConfig(String ytdlpConfig) {
+        this.ytdlpConfig = ytdlpConfig;
+    }
+
+    public String getYtdlpConfig() {
+        return ytdlpConfig;
+    }
+
+    public void setYtdlpEnabled(boolean ytdlpEnabled) {
+        this.ytdlpEnabled = ytdlpEnabled;
+    }
+
+    public boolean isYtdlpEnabled() {
+        return ytdlpEnabled;
+    }
      * @param linkHandler is pointing to the stream which should be handled by this new instance.
      * @return a new StreamExtractor
      */
@@ -536,36 +546,20 @@ public abstract class StreamingService {
         this.audioLanguage = audioLanguage;
     }
 
-    public ArrayList<String> getStreamKeywordFilter() {
-        return streamKeywordFilter;
-    }
-
-    public void setStreamKeywordFilter(ArrayList<String> streamKeywordFilter) {
-        this.streamKeywordFilter = streamKeywordFilter;
-    }
-
-    public ArrayList<String> getStreamChannelFilter() {
-        return streamChannelFilter;
-    }
-
-    public void setStreamChannelFilter(ArrayList<String> streamChannelFilter) {
-        this.streamChannelFilter = streamChannelFilter;
-    }
-
-    public boolean isFilterShorts() {
-        return filterShorts;
-    }
-
-    public void setFilterShorts(boolean filterShorts) {
-        this.filterShorts = filterShorts;
-    }
-
     public Set<String> getFilterTypes() {
         return filterTypes;
     }
 
     public void setFilterTypes(Set<String> filterTypes) {
         this.filterTypes = filterTypes;
+    }
+
+    public InfoItemsCollector.FilterConfig getFilterConfig() {
+        return filterConfig;
+    }
+
+    public void setFilterConfig(InfoItemsCollector.FilterConfig filterConfig) {
+        this.filterConfig = filterConfig;
     }
 
     public String getProxyToken() {
@@ -584,21 +578,6 @@ public abstract class StreamingService {
         return proxyEnabled;
     }
 
-    public void setYtdlpConfig(String ytdlpConfig) {
-        this.ytdlpConfig = ytdlpConfig;
-    }
-
-    public String getYtdlpConfig() {
-        return ytdlpConfig;
-    }
-
-    public void setYtdlpEnabled(boolean ytdlpEnabled) {
-        this.ytdlpEnabled = ytdlpEnabled;
-    }
-
-    public boolean isYtdlpEnabled() {
-        return ytdlpEnabled;
-    }
 
     public void setSponsorBlockApiSettings(SponsorBlockApiSettings sponsorBlockApiSettings) {
         this.sponsorBlockApiSettings = sponsorBlockApiSettings;

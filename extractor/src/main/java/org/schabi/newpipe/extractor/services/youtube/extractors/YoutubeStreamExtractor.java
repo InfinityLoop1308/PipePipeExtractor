@@ -776,7 +776,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     .forEach(collector::commit);
 
             if (ServiceList.YouTube.getFilterTypes().contains("related_item")) {
-                collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
+                collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
             }
             return collector;
         } catch (final Exception e) {

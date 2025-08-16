@@ -313,7 +313,7 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
         }
 
         if (ServiceList.YouTube.getFilterTypes().contains("recommendations")) {
-            collector.applyBlocking(ServiceList.YouTube.getStreamKeywordFilter(), ServiceList.YouTube.getStreamChannelFilter(), ServiceList.YouTube.isFilterShorts());
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, null);
     }
