@@ -97,4 +97,9 @@ public class YoutubeFeedInfoItemExtractor implements StreamInfoItemExtractor {
         return entryElement.getElementsByTag("media:thumbnail").first().attr("url")
                 .replace("hqdefault", "mqdefault");
     }
+
+    @Override
+    public boolean isShortFormContent() throws ParsingException {
+        return getUrl().contains("shorts");
+    }
 }

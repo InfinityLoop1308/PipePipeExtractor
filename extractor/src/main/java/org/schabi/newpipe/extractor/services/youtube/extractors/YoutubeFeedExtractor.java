@@ -6,6 +6,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -52,7 +53,7 @@ public class YoutubeFeedExtractor extends FeedExtractor {
         for (final Element entryElement : entries) {
             collector.commit(new YoutubeFeedInfoItemExtractor(entryElement));
         }
-
+        collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         return new InfoItemsPage<>(collector, null);
     }
 
