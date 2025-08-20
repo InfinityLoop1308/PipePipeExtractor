@@ -539,9 +539,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return -1;
         }
         if (isPremiumContent == 1) {
-            return premiumData.getObject("stat").getLong("coins");
+            return premiumData.getObject("stat").getLong("likes");
         }
-        return watch.getObject("stat").getLong("coin");
+        return watch.getObject("stat").getLong("like");
     }
 
     @Nonnull
