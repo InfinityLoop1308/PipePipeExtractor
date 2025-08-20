@@ -28,7 +28,7 @@ public final class PeertubeTrendingLinkHandlerFactory extends ListLinkHandlerFac
         map.put(KIOSK_TRENDING, "%s/api/v1/videos?sort=-trending");
         map.put(KIOSK_MOST_LIKED, "%s/api/v1/videos?sort=-likes");
         map.put(KIOSK_RECENT, "%s/api/v1/videos?sort=-publishedAt");
-        map.put(KIOSK_LOCAL, "%s/api/v1/videos?sort=-publishedAt&filter=local");
+        map.put(KIOSK_LOCAL, "%s/api/v1/videos?sort=-publishedAt&isLocal=true");
         KIOSK_MAP = Collections.unmodifiableMap(map);
 
         final Map<String, String> reverseMap = new HashMap<>();
