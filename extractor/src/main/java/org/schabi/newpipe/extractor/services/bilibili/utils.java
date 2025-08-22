@@ -213,9 +213,7 @@ public class utils {
 
         params.put("w_rid", wbiResults[0]);
         params.put("wts", wbiResults[1]);
-        return baseUrl + "?" + params.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining("&"));
+        return baseUrl + "?" + createQueryString(params);
     }
 
     public static String getRecordApiUrl(String url) {
@@ -379,6 +377,12 @@ public class utils {
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static String createQueryString(Map<String, String> params) {
+        return params.entrySet().stream()
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("&"));
     }
 
     private static String createQueryStringWithPercentSpace(Map<String, String> params) {
