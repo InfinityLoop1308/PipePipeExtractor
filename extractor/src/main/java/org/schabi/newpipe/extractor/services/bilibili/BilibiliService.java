@@ -77,7 +77,7 @@ public class BilibiliService extends StreamingService {
     public static final String LIVE_REFERER = "https://live.bilibili.com/";
 
     public static String FREE_VIDEO_BASE_URL = "https://api.bilibili.com/x/player/wbi/playurl";
-    public static String PAID_VIDEO_BASE_URL = "https://api.bilibili.com/pgc/player/web/playurl";
+    public static String PAID_VIDEO_BASE_URL = "https://api.bilibili.com/pgc/player/web/v2/playurl";
     public static String LIVE_BASE_URL = "live.bilibili.com";
     public static String QUERY_VIDEO_BULLET_COMMENTS_URL = "https://api.bilibili.com/x/v1/dm/list.so?oid=";
     public static String QUERY_USER_INFO_URL = "https://api.bilibili.com/x/web-interface/card?photo=true&mid=";

@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.bv2av;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.createQueryString;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.formatParamWithPercentSpace;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getDmImgParams;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getWbiResult;
@@ -432,15 +433,24 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if (ServiceList.BiliBili.hasTokens() && ServiceList.BiliBili.getCookieFunctions().contains("high_res")) {
             headers.put("Cookie", Collections.singletonList(ServiceList.BiliBili.getTokens()));
         } else {
-            // https://codeberg.org/NullPointerException/PipePipe/issues/42
-            params.put("try_look", "1");
+            if (isPremiumContent != 1) {
+                // https://codeberg.org/NullPointerException/PipePipe/issues/42
+                params.put("try_look", "1");
+            }
         }
 
-        params.put("web_location", "1315873");
+        String finalUrl;
+        if (isPremiumContent != 1) {
+            params.put("web_location", "1315873");
 
-        params.putAll(getDmImgParams());
+            params.putAll(getDmImgParams());
 
-        String response = getDownloader().get(getWbiResult(baseUrl, params), headers).responseBody();
+            finalUrl = getWbiResult(baseUrl, params);
+        } else {
+            finalUrl = baseUrl + "?" + createQueryString(params);
+        }
+
+        String response = getDownloader().get(finalUrl, headers).responseBody();
         try {
             playData = JsonParser.object().from(response);
             switch (playData.getInt("code")) {
@@ -454,7 +464,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                     }
                     throw new ContentNotAvailableException(message);
             }
-            JsonObject dataParentObject = (isPremiumContent == 1 ? playData.getObject("result") : playData.getObject("data"));
+            JsonObject dataParentObject = (isPremiumContent == 1 ? playData.getObject("result").getObject("video_info") : playData.getObject("data"));
             dataObject = dataParentObject.getObject("dash");
             if (dataObject.size() == 0) {
                 throw new PaidContentException("Paid content");
