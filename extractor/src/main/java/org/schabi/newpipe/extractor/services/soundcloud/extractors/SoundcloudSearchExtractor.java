@@ -61,7 +61,7 @@ public class SoundcloudSearchExtractor extends SearchExtractor {
 
     @Nonnull
     @Override
-    public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
         if (initialSearchObject.getInt(TOTAL_RESULTS) > ITEMS_PER_PAGE) {
             return new InfoItemsPage<>(
                     collectItems(initialSearchObject.getArray(COLLECTION)),
@@ -73,7 +73,7 @@ public class SoundcloudSearchExtractor extends SearchExtractor {
     }
 
     @Override
-    public InfoItemsPage<InfoItem> getPage(final Page page) throws IOException,
+    public InfoItemsPage<InfoItem> getPageInternal(final Page page) throws IOException,
             ExtractionException {
         if (page == null || isNullOrEmpty(page.getUrl())) {
             throw new IllegalArgumentException("Page doesn't contain an URL");

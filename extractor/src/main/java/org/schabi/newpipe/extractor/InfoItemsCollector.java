@@ -89,6 +89,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         itemList.add(item);
     }
 
+    public void addAll(final List<I> items) {
+        itemList.addAll(items);
+    }
+
     /**
      * Get the service id
      * @return the service id

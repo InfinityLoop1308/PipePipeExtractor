@@ -71,7 +71,7 @@ public class MediaCCCSearchExtractor extends SearchExtractor {
     }
     @Nonnull
     @Override
-    public InfoItemsPage<InfoItem> getInitialPage() {
+    public InfoItemsPage<InfoItem> getInitialPageInternal() {
         final MultiInfoItemsCollector searchItems = new MultiInfoItemsCollector(getServiceId());
 
 
@@ -99,7 +99,7 @@ public class MediaCCCSearchExtractor extends SearchExtractor {
     }
 
     @Override
-    public InfoItemsPage<InfoItem> getPage(final Page page) {
+    public InfoItemsPage<InfoItem> getPageInternal(final Page page) {
         return InfoItemsPage.emptyPage();
     }
 

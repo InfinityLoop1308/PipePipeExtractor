@@ -49,7 +49,7 @@ public class BandcampSearchExtractor extends SearchExtractor {
         return Collections.emptyList();
     }
 
-    public InfoItemsPage<InfoItem> getPage(final Page page)
+    public InfoItemsPage<InfoItem> getPageInternal(final Page page)
             throws IOException, ExtractionException {
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
         final Document d = Jsoup.parse(getDownloader().get(page.getUrl()).responseBody());
@@ -109,7 +109,7 @@ public class BandcampSearchExtractor extends SearchExtractor {
 
     @Nonnull
     @Override
-    public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
         return getPage(new Page(getUrl()));
     }
 

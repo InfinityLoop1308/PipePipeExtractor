@@ -52,7 +52,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
 
     @Nonnull
     @Override
-    public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
         if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
                 || getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)
                 || getLinkHandler().getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
@@ -69,7 +69,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     }
 
     @Override
-    public InfoItemsPage<InfoItem> getPage(final Page page)
+    public InfoItemsPage<InfoItem> getPageInternal(final Page page)
             throws IOException, ExtractionException {
         if (page == null || isNullOrEmpty(page.getUrl())) {
             throw new IllegalArgumentException("page does not contain an URL.");
@@ -170,9 +170,6 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             collector.commit(
                     new NiconicoStreamInfoItemExtractor(
                             collection.getArray("data").getObject(i)));
-        }
-        if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
         }
         return collector;
     }

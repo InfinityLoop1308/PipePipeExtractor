@@ -44,7 +44,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
     }
 
     @Override
-    public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
         if(searchCollection.getObject("data").getArray("result").size() == 0){
             return new InfoItemsPage<>(new MultiInfoItemsCollector(getServiceId()), null);
         }
@@ -73,14 +73,11 @@ public class BilibiliSearchExtractor extends SearchExtractor{
                     collector.commit(new BilibiliPremiumContentInfoItemExtractor(result.getObject(i)));
             }
         }
-        if (ServiceList.BiliBili.getFilterTypes().contains("search_result")) {
-            collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
-        }
         return collector;
     }
 
     @Override
-    public InfoItemsPage<InfoItem> getPage(Page page) throws IOException, ExtractionException {
+    public InfoItemsPage<InfoItem> getPageInternal(Page page) throws IOException, ExtractionException {
         try {
             final String html = getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody();
             searchCollection = JsonParser.object().from(html);
