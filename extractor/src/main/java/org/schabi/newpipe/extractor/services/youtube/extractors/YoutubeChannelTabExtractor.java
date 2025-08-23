@@ -338,8 +338,14 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         } else if (item.has("lockupViewModel")) {
             final JsonObject lockupViewModel = item.getObject("lockupViewModel");
             if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(lockupViewModel.getString("contentType"))) {
+                String channelName;
+                try {
+                     channelName = getChannelName();
+                } catch (Exception e) {
+                    channelName = channelIds.get(0);
+                }
                 commitPlaylistLockup(collector, lockupViewModel,
-                        getChannelName(), null);
+                        channelName, null);
             }
         }
         return null;
