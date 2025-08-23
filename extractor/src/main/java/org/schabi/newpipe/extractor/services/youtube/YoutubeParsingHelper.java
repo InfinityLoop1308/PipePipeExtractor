@@ -1437,10 +1437,13 @@ YoutubeParsingHelper {
                 url, headers, body, localization, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(Response response) throws ExtractionException {
-                        final JsonObject webPlayerResponse;
+                        JsonObject webPlayerResponse;
                         try {
                             webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                            checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"), videoId);
+                            JsonObject result =checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"), videoId);
+                            if (result != null) {
+                                webPlayerResponse = result;
+                            }
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");
                             }
