@@ -79,20 +79,31 @@ public class NiconicoSearchExtractor extends SearchExtractor {
                 page.getUrl(), NiconicoService.LOCALE).responseBody();
 
         if(page.getUrl().contains(NiconicoService.SEARCH_URL)){
-            Elements videos = Jsoup.parse(response).select("ul[data-video-list] > li.item[data-nicoad-video]");
-            final MultiInfoItemsCollector collector
-                    = new MultiInfoItemsCollector(getServiceId());
-            for (final Element e : videos) {
-                collector.commit(new NiconicoSearchContentItemExtractor(e));
+            Element serverResponse = Jsoup.parse(response).selectFirst("meta[name=server-response]");
+            if (serverResponse == null) {
+                throw new ParsingException("Could not find server-response meta tag");
             }
-            if(videos.size() == 0){
-                return new InfoItemsPage<>(collector, null);
+            try {
+                JsonObject responseJson = null;
+                responseJson = JsonParser.object().from(serverResponse.attr("content"));
+                JsonObject data = responseJson.getObject("data").getObject("response")
+                        .getObject("$getSearchVideoV2").getObject("data");
+
+                final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
+
+                for (Object item : data.getArray("items")) {
+                    collector.commit(new NiconicoSearchContentItemExtractor((JsonObject) item));
+                }
+
+                if(data.getArray("items").isEmpty()){
+                    return new InfoItemsPage<>(collector, null);
+                }
+
+                return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
+            } catch (JsonParserException e) {
+                throw new RuntimeException(e);
             }
 
-            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
-            }
-            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
             Elements lives = Jsoup.parse(response).select("div.program-search-result").first()
                     .select("ul[class*=program-card-list] > li[class*=___program-card___]");
@@ -103,10 +114,6 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
             if(lives.size() == 0){
                 return new InfoItemsPage<>(collector, null);
-            }
-
-            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
@@ -122,10 +129,6 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
             for (Object item : searchCollection.getArray("items")) {
                 collector.commit(new NiconicoPlaylistInfoItemExtractor((JsonObject) item));
-            }
-
-            if (ServiceList.NicoNico.getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         }
