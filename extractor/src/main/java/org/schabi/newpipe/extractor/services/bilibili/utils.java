@@ -203,7 +203,8 @@ public class utils {
 
         params.putAll(getDmImgParams());
 
-        params.put("w_webid", webIdCache.get(id));
+        // no longer needed currently
+        // params.put("w_webid", webIdCache.get(id));
 
         return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
     }
