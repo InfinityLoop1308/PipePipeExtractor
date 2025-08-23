@@ -1,6 +1,5 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import static org.schabi.newpipe.extractor.services.niconico.linkHandler.NiconicoSearchQueryHandlerFactory.ITEMS_PER_PAGE;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 import com.grack.nanojson.JsonObject;
@@ -8,7 +7,6 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.*;
@@ -116,22 +114,5 @@ public class NiconicoSearchExtractor extends SearchExtractor {
         }
 
         throw new ExtractionException("Failed to extract NicoNico search result, url: " + page.getUrl() + " , this should never happen");
-    }
-
-    @Nonnull
-    @Override
-    public String getSearchSuggestion() throws ParsingException {
-        return "";
-    }
-
-    @Override
-    public boolean isCorrectedSearch() throws ParsingException {
-        return false;
-    }
-
-    @Nonnull
-    @Override
-    public List<MetaInfo> getMetaInfo() throws ParsingException {
-        return Collections.emptyList();
     }
 }

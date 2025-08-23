@@ -1,9 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -13,7 +10,6 @@ import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 
@@ -29,23 +25,8 @@ public class BilibiliSearchExtractor extends SearchExtractor{
     }
 
     @Override
-    public String getSearchSuggestion() throws ParsingException {
-        return "";
-    }
-
-    @Override
-    public boolean isCorrectedSearch() throws ParsingException {
-        return false;
-    }
-
-    @Override
-    public List<MetaInfo> getMetaInfo() throws ParsingException {
-        return Collections.emptyList();
-    }
-
-    @Override
     public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
-        if(searchCollection.getObject("data").getArray("result").size() == 0){
+        if(searchCollection.getObject("data").getArray("result").isEmpty()){
             return new InfoItemsPage<>(new MultiInfoItemsCollector(getServiceId()), null);
         }
         int currentPage = 1;
@@ -85,7 +66,7 @@ public class BilibiliSearchExtractor extends SearchExtractor{
             e.printStackTrace();
         }
 
-        if(searchCollection.getObject("data").getArray("result").size() == 0){
+        if(searchCollection.getObject("data").getArray("result").isEmpty()){
             return new InfoItemsPage<>(new MultiInfoItemsCollector(getServiceId()), null);
         }
 
@@ -105,6 +86,4 @@ public class BilibiliSearchExtractor extends SearchExtractor{
             throw new ExtractionException("could not parse search results.");
         }
     }
-
-
 }

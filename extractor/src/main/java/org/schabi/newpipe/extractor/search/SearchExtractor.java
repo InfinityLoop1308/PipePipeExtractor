@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
@@ -36,7 +37,9 @@ public abstract class SearchExtractor extends ListExtractor<InfoItem> {
      * @return a suggestion to another query, the corrected query, or an empty String.
      */
     @Nonnull
-    public abstract String getSearchSuggestion() throws ParsingException;
+    public String getSearchSuggestion() throws ParsingException {
+        return "";
+    }
 
     @Nonnull
     @Override
@@ -58,7 +61,9 @@ public abstract class SearchExtractor extends ListExtractor<InfoItem> {
      *
      * @return whether the results comes from a corrected query or not.
      */
-    public abstract boolean isCorrectedSearch() throws ParsingException;
+    public boolean isCorrectedSearch() throws ParsingException {
+        return false;
+    }
 
     /**
      * Meta information about the search query.
@@ -68,7 +73,9 @@ public abstract class SearchExtractor extends ListExtractor<InfoItem> {
      * @return additional meta information about the search query
      */
     @Nonnull
-    public abstract List<MetaInfo> getMetaInfo() throws ParsingException;
+    public List<MetaInfo> getMetaInfo() throws ParsingException {
+        return Collections.emptyList();
+    }
 
 
     /**
