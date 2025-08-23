@@ -22,7 +22,9 @@ import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 
@@ -37,35 +39,12 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Override
     public void onFetchPage(final @Nonnull Downloader downloader)
             throws IOException, ExtractionException {
-        final String response = getDownloader().get(
-                getLinkHandler().getUrl(), NiconicoService.LOCALE).responseBody();
-        try {
-            if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
-                    ||getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)){
-                return ;
-            }
-            searchCollection = JsonParser.object().from(response);
-        } catch (final JsonParserException e) {
-            throw new ExtractionException("could not parse search results.");
-        }
     }
 
     @Nonnull
     @Override
     public InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
-        if(getLinkHandler().getUrl().contains(NiconicoService.SEARCH_URL)
-                || getLinkHandler().getUrl().contains(NiconicoService.LIVE_SEARCH_URL)
-                || getLinkHandler().getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
-            return getPage(new Page(getUrl()));
-        } else {
-            // Video search without popular filter
-            if (searchCollection.getArray("data").size() == 0) {
-                return new InfoItemsPage<>(collectItems(searchCollection),
-                        null);
-            }
-            return new InfoItemsPage<>(collectItems(searchCollection),
-                    getNextPageFromCurrentUrl(getUrl()));
-        }
+        return getPage(new Page(getUrl()));
     }
 
     @Override
@@ -75,8 +54,11 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             throw new IllegalArgumentException("page does not contain an URL.");
         }
 
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"));
+
         final String response = getDownloader().get(
-                page.getUrl(), NiconicoService.LOCALE).responseBody();
+                page.getUrl(), headers, NiconicoService.LOCALE).responseBody();
 
         if(page.getUrl().contains(NiconicoService.SEARCH_URL)){
             Element serverResponse = Jsoup.parse(response).selectFirst("meta[name=server-response]");
@@ -133,18 +115,7 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         }
 
-        try {
-            searchCollection = JsonParser.object().from(response);
-            if (searchCollection.getArray("data").size() == 0) {
-                return new InfoItemsPage<>(collectItems(searchCollection),
-                        null);
-            }
-        } catch (final JsonParserException e) {
-            throw new ParsingException("could not parse search results.");
-        }
-
-        return new InfoItemsPage<>(collectItems(searchCollection),
-                getNextPageFromCurrentUrl(page.getUrl()));
+        throw new ExtractionException("Failed to extract NicoNico search result, url: " + page.getUrl() + " , this should never happen");
     }
 
     @Nonnull
@@ -162,25 +133,5 @@ public class NiconicoSearchExtractor extends SearchExtractor {
     @Override
     public List<MetaInfo> getMetaInfo() throws ParsingException {
         return Collections.emptyList();
-    }
-
-    private InfoItemsCollector<InfoItem, InfoItemExtractor> collectItems(
-            final JsonObject collection) {
-        final MultiInfoItemsCollector collector
-                = new MultiInfoItemsCollector(getServiceId());
-
-        for (int i = 0; i < collection.getArray("data").size(); i++) {
-            collector.commit(
-                    new NiconicoStreamInfoItemExtractor(
-                            collection.getArray("data").getObject(i)));
-        }
-        return collector;
-    }
-
-    private Page getNextPageFromCurrentUrl(final String currentUrl)
-            throws ParsingException {
-        final String offset = currentUrl.split("&_offset=")[1].split("&")[0];
-        return new Page(currentUrl.replace("&_offset=" + offset + "&", "&_offset="
-                + (Integer.parseInt(offset) + ITEMS_PER_PAGE) + "&"));
     }
 }
