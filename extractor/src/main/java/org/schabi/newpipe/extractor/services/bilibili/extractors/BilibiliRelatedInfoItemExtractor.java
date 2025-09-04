@@ -14,6 +14,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Objects;
 
+import static org.schabi.newpipe.extractor.services.bilibili.utils.createUrlWithPage;
+
 public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
@@ -51,7 +53,7 @@ public class BilibiliRelatedInfoItemExtractor implements StreamInfoItemExtractor
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://www.bilibili.com/video/" + id + "?p=" + p;
+        return createUrlWithPage("https://www.bilibili.com/video/" + id, p);
     }
 
     @Override
