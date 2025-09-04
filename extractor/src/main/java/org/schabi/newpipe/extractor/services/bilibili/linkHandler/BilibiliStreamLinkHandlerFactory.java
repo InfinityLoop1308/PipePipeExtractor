@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.LIVE_BASE_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.createUrlWithPage;
 
 /*
 General form of stream link url: https://m.bilibili.com/video/<ID> (mobile) and https://www.bilibili.com/video/<ID> (PC)
@@ -48,16 +49,16 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory {
 
         if (url.split("/")[url.split("/").length - 1].startsWith("BV")) {
             String parseResult = url.split(Pattern.quote("/BV"))[1].split("\\?")[0].split("/")[0];
-            url = "BV" + parseResult + "?p=" + p;
+            url = createUrlWithPage("BV" + parseResult, p);
         } else if (url.contains("bvid=")) {
             String parseResult = url.split(Pattern.quote("bvid="))[1].split("&")[0];
-            url = parseResult + "?p=" + p;
+            url = createUrlWithPage(parseResult, p);
         } else if (url.split("/")[url.split("/").length - 1].startsWith("av")) {
             String parseResult = url.split(Pattern.quote("av"))[1].split("\\?")[0];
-            url = utils.av2bv(Long.parseLong(parseResult)) + "?p=" + p;
+            url = createUrlWithPage(utils.av2bv(Long.parseLong(parseResult)), p);
         } else if (url.contains("aid=")) {
             String parseResult = url.split(Pattern.quote("aid="))[1].split("&")[0];
-            url = utils.av2bv(Long.parseLong(parseResult)) + "?p=" + p;
+            url = createUrlWithPage(utils.av2bv(Long.parseLong(parseResult)), p);
         } else if (url.contains(LIVE_BASE_URL) || url.contains("bangumi/play/")) {
             url = url.split("/")[url.split("/").length - 1].split("\\?")[0];
         } else {

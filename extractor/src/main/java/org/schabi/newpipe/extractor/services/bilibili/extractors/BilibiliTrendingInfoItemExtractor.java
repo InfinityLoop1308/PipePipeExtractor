@@ -29,7 +29,7 @@ public class BilibiliTrendingInfoItemExtractor implements StreamInfoItemExtracto
 
     @Override
     public String getUrl() throws ParsingException {
-        return "https://www.bilibili.com/video/" + item.getString("bvid") + "?p=1";
+        return "https://www.bilibili.com/video/" + item.getString("bvid");
     }
 
     @Override
