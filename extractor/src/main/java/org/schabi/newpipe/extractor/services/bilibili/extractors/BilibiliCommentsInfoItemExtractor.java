@@ -39,7 +39,7 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getUrl() throws ParsingException {
-        return COMMENT_REPLIES_URL + data.getLong("oid") + "&root=" + data.getLong("rpid");
+        return COMMENT_REPLIES_URL + data.getLong("oid") + "&root=" + data.getLong("rpid") + "&pn=1";
     }
 
     @Override

@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.services.bilibili.utils;
 import java.util.LinkedHashMap;
 import java.util.List;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.COMMENT_REPLIES_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
 
 public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
@@ -56,7 +57,7 @@ public class BilibiliCommentsLinkHandlerFactory extends ListLinkHandlerFactory {
         id = id.startsWith("BV")? String.valueOf(utils.bv2av(id)) :id;
         if(id.contains("&root")){
             // I don't know why but pn must be placed in the end or nothing will be fetched
-            return "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=10&oid=" + id + "&pn=1";
+            return COMMENT_REPLIES_URL + id + "&pn=1";
         }
         String finalId = id;
         return utils.getWbiResult(FETCH_COMMENTS_URL, new LinkedHashMap<String, String>() {{
