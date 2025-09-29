@@ -459,8 +459,8 @@ public class utils {
                     if (code == -352) {
                         // blocked risk control
                         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-                        currentTry -= 1;
                     }
+                    currentTry -= 1;
                 } else {
                     return responseJson;
                 }
