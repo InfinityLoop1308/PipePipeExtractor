@@ -1,11 +1,15 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.USER_VIDEO_API_MODE_CLIENT;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.USER_VIDEO_API_MODE_SEARCH;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlSearchAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlWebAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlClientAPI;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.currentVideoApiMode;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.isClientAPIMode;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.requestUserSpaceResponse;
+import static org.schabi.newpipe.extractor.services.bilibili.utils.rotateVideoApiMode;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -43,10 +47,23 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     //region User Video Impl
 
     private final ClientUserVideoImpl clientUserVideoImpl = new ClientUserVideoImpl();
+    private final SearchUserVideoImpl searchUserVideoImpl = new SearchUserVideoImpl();
     private final WebUserVideoImpl webUserVideoImpl = new WebUserVideoImpl();
 
+
     private UserVideoImpl getVideoImpl() {
-        return isClientAPIMode ? clientUserVideoImpl : webUserVideoImpl;
+        int mode = currentVideoApiMode();
+        switch (mode) {
+            case USER_VIDEO_API_MODE_WEB:
+                return webUserVideoImpl;
+            case USER_VIDEO_API_MODE_SEARCH:
+                return searchUserVideoImpl;
+            case USER_VIDEO_API_MODE_CLIENT:
+                return clientUserVideoImpl;
+            default:
+                rotateVideoApiMode();
+                return webUserVideoImpl;
+        }
     }
     //endregion
 
@@ -282,6 +299,93 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 } else {
                     String bv = last.getString("bvid");
                     return utils.bv2av(bv);
+                }
+            }
+            return 0;
+        }
+    }
+
+    /**
+     * Extracting from BiliBili Search API
+     */
+    public static class SearchUserVideoImpl implements UserVideoImpl {
+
+        JsonObject userVideoData = new JsonObject();
+
+        private JsonArray getVideosArray() {
+            return userVideoData.getObject("data").getArray("archives");
+        }
+
+        private void fetchViaAPI(Downloader downloader, String id, String currentUrl)
+                throws ParsingException, IOException, ReCaptchaException {
+            Map<String, List<String>> headers = getHeaders(currentUrl);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlSearchAPI(currentUrl, id), headers);
+        }
+
+        @Override
+        public void collectVideos(
+                StreamInfoItemsCollector collector,
+                ChannelExtractor extractor,
+                JsonArray results
+        ) throws ParsingException {
+            for (int i = 0; i < results.size(); i++) {
+                collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), extractor.getName(), extractor.getAvatarUrl()));
+            }
+        }
+
+        @Override
+        public void onFetchPage(@Nonnull Downloader downloader, String id, String url) throws IOException, ExtractionException {
+            fetchViaAPI(downloader, id, url);
+        }
+
+        @Override
+        public boolean getInitialPage(
+                @Nonnull StreamInfoItemsCollector collector,
+                @Nonnull ChannelExtractor extractor
+        ) throws IOException, ExtractionException {
+
+            JsonArray videos = getVideosArray();
+
+            if (!videos.isEmpty()) {
+                collectVideos(collector, extractor, videos);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public boolean getPage(
+                @Nonnull Page page,
+                @Nonnull StreamInfoItemsCollector collector,
+                @Nonnull Downloader downloader,
+                @Nonnull ChannelExtractor extractor,
+                @Nonnull String id
+        ) throws IOException, ExtractionException {
+
+            fetchViaAPI(downloader, id, page.getUrl());
+
+            JsonArray videosArray = getVideosArray();
+
+            if (!videosArray.isEmpty()) {
+                collectVideos(collector, extractor, videosArray);
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        public long lastVideo() {
+            JsonArray videos = getVideosArray();
+            if (!videos.isEmpty()) {
+                JsonObject last = videos.getObject(videos.size() - 1);
+                long aid = last.getLong("aid", 0);
+                String bvid = last.getString("bvid");
+                if (aid > 0) {
+                    return aid;
+                } else {
+                    return utils.bv2av(bvid);
                 }
             }
             return 0;

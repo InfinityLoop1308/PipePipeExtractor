@@ -30,6 +30,7 @@ import java.util.zip.Inflater;
 import okio.ByteString;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_SEARCH_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
@@ -207,6 +208,26 @@ public class utils {
         // params.put("w_webid", webIdCache.get(id));
 
         return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
+    }
+
+    public static String buildUserVideosUrlSearchAPI(String baseUrl, String id) {
+
+        LinkedHashMap<String, String> params = new LinkedHashMap<>();
+
+        params.put("mid", id);
+        params.put("keywords", "");
+        params.put("order", "pubdate");
+
+        String pn = "1";
+        if (baseUrl.contains("pn=")) {
+            pn = baseUrl.split("pn=")[1].split("&")[0];
+        }
+        params.put("pn", pn);
+        params.put("ps", "20");
+
+        params.putAll(getDmImgParams());
+
+        return getWbiResult(QUERY_USER_VIDEOS_SEARCH_API_URL, params);
     }
 
     public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
@@ -439,7 +460,31 @@ public class utils {
         return sb.toString();
     }
 
-    public static boolean isClientAPIMode = false;
+
+    public static final int USER_VIDEO_API_MODE_WEB = 0;
+    public static final int USER_VIDEO_API_MODE_SEARCH = 1;
+    public static final int USER_VIDEO_API_MODE_CLIENT = 2;
+
+    private static int userVideoApiMode = USER_VIDEO_API_MODE_SEARCH;
+
+    public static int currentVideoApiMode() {
+        return userVideoApiMode;
+    }
+
+    public static void rotateVideoApiMode() {
+        switch (userVideoApiMode) {
+            case USER_VIDEO_API_MODE_WEB:
+                userVideoApiMode = USER_VIDEO_API_MODE_SEARCH;
+                break;
+            case USER_VIDEO_API_MODE_SEARCH:
+                userVideoApiMode = USER_VIDEO_API_MODE_CLIENT;
+                break;
+            default:
+                userVideoApiMode = USER_VIDEO_API_MODE_WEB;
+                break;
+        }
+    }
+
     public static JsonObject requestUserSpaceResponse(
             Downloader downloader,
             String url,
@@ -475,7 +520,7 @@ public class utils {
                 + device.info()
                 + "\nTry to refresh, or report this!\n"
                 + responseBody;
-        isClientAPIMode = !isClientAPIMode; // flip API mode
+        rotateVideoApiMode();
         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
         throw new ParsingException(msg);
     }
