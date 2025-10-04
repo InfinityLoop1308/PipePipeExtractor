@@ -95,7 +95,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             String offset = data.getObject("cursor").getObject("pagination_reply").getString("next_offset");
             return new InfoItemsPage<>(collector, new Page(utils.getWbiResult(FETCH_COMMENTS_URL, buildNextPageParam(initialUrl, offset)), getDefaultCookies()));
         } else { //replies
-            if (19 > results.size() && pageUrl.contains("pn=1")) {
+            if (9 > results.size() && pageUrl.contains("pn=1")) {
                 return new InfoItemsPage<>(collector, null);
             }
             return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(pageUrl, "pn", 1), getDefaultCookies()));
