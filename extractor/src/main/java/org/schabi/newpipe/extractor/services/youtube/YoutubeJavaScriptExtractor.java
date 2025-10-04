@@ -37,6 +37,15 @@ final class YoutubeJavaScriptExtractor {
     private static final Pattern EMBEDDED_WATCH_PAGE_JS_BASE_PLAYER_URL_PATTERN = Pattern.compile(
             "\"jsUrl\":\"(/s/player/[A-Za-z0-9]+/player_ias\\.vflset/[A-Za-z_-]+/base\\.js)\"");
 
+
+    // Override hash - set this to force a specific player version
+
+
+    // Set to null to use the default behavior (extract from YouTube)
+
+
+    private static final String OVERRIDE_PLAYER_HASH = "0004de42"; // Working version
+
     private YoutubeJavaScriptExtractor() {
     }
 
@@ -52,6 +61,15 @@ final class YoutubeJavaScriptExtractor {
     @Nonnull
     static String extractJavaScriptPlayerCode(@Nonnull final String videoId)
             throws ParsingException {
+        if (OVERRIDE_PLAYER_HASH != null && !OVERRIDE_PLAYER_HASH.isEmpty()) {
+            final String playerJsUrl = String.format(BASE_JS_PLAYER_URL_FORMAT, OVERRIDE_PLAYER_HASH);
+            try {
+                new URL(playerJsUrl);
+                return YoutubeJavaScriptExtractor.downloadJavaScriptCode(playerJsUrl);
+            } catch (final MalformedURLException e) {
+                throw new ParsingException("The override player hash produced an invalid URL", e);
+            }
+        }
         String url;
         try {
             url = YoutubeJavaScriptExtractor.extractJavaScriptUrlWithIframeResource();
@@ -73,7 +91,7 @@ final class YoutubeJavaScriptExtractor {
                         "The extracted and built JavaScript URL is invalid", exception);
             }
 
-            return YoutubeJavaScriptExtractor.downloadJavaScriptCode(playerJsUrl);
+            return YoutubeJavaScriptExtractor.downloadJavaScriptCode("https://www.youtube.com/s/player/0004de42/player_ias.vflset/en_GB/base.js");
         }
     }
 
