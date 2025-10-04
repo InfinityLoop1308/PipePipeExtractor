@@ -800,6 +800,43 @@ YoutubeParsingHelper {
     @Nullable
     public static String getUrlFromNavigationEndpoint(@Nonnull final JsonObject navigationEndpoint)
             throws ParsingException {
+        if (navigationEndpoint.has("showDialogCommand")) {
+            // this case needs to be handled before the browseEndpoint,
+            // e.g. for hashtags in comments
+            JsonObject metadata = navigationEndpoint.getObject("showDialogCommand")
+                    .getObject("panelLoadingStrategy")
+                    .getObject("inlineContent")
+                    .getObject("dialogViewModel")
+                    .getObject("customContent")
+                    .getObject("listViewModel")
+                    .getArray("listItems")
+                    .getObject(0)
+                    .getObject("listItemViewModel")
+                    .getObject("title")
+                    .getArray("commandRuns")
+                    .getObject(0)
+                    .getObject("onTap").getObject("innertubeCommand")
+                    .getObject("commandMetadata").getObject("webCommandMetadata");
+
+            if (metadata.isEmpty()) {
+                metadata = navigationEndpoint.getObject("showDialogCommand")
+                        .getObject("panelLoadingStrategy")
+                        .getObject("inlineContent")
+                        .getObject("dialogViewModel")
+                        .getObject("customContent")
+                        .getObject("listViewModel")
+                        .getArray("listItems")
+                        .getObject(0)
+                        .getObject("listItemViewModel")
+                        .getObject("rendererContext")
+                        .getObject("commandContext")
+                        .getObject("onTap").getObject("innertubeCommand")
+                        .getObject("commandMetadata").getObject("webCommandMetadata");
+            }
+            if (metadata.has("url")) {
+                return "https://www.youtube.com" + metadata.getString("url");
+            }
+        }
         if (navigationEndpoint.has("webCommandMetadata")) {
             // this case needs to be handled before the browseEndpoint,
             // e.g. for hashtags in comments
