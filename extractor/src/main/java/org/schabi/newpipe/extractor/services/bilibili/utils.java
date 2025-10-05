@@ -372,6 +372,10 @@ public class utils {
         return le.substring(0, 32);
     }
 
+    public static String createUrlWithPage(String url, String p) {
+        return p.equals("1") ? url : (url + "?p=" + p);
+    }
+
     public static String formatParamWithPercentSpace(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");

@@ -29,7 +29,7 @@ public class BilibiliRecommendedVideosInfoItemExtractor implements StreamInfoIte
 
     @Override
     public String getUrl() throws ParsingException {
-        return item.getString("uri") + "?p=1";
+        return item.getString("uri");
     }
 
     @Override
