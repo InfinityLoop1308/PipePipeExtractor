@@ -29,6 +29,9 @@ import java.util.zip.Inflater;
 
 import okio.ByteString;
 
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_SEC;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_KEY;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_TYPE;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_SEARCH_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
@@ -118,15 +121,16 @@ public class utils {
     public static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vmid", mid);
-        params.put("mobi_app", "android");
         if (lastVideoAid > 0) {
             params.put("aid", String.valueOf(lastVideoAid));
         }
         params.put("order", "pubdate");
-        String newUrl = QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + params.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining("&"));
-        return newUrl;
+
+        params.put("mobi_app", APP_TYPE);
+        params.put("ts", String.valueOf(System.currentTimeMillis() / 1000));
+        params.put("sign", utils.encAppSign(params, APP_KEY, APP_SEC));
+
+        return QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + createQueryString(params);
     }
 
     private static int[] getWh(int width, int height) {
