@@ -460,6 +460,34 @@ public class utils {
         return sb.toString();
     }
 
+    public static String encAppSign(Map<String, String> params, String appKey, String appSec) {
+
+        params.put("appkey", appKey);
+        String sign = null;
+
+        try {
+            Map<String, String> sortedParams = new TreeMap<>(params);
+            StringBuilder queryBuilder = new StringBuilder();
+            for (Map.Entry<String, String> entry : sortedParams.entrySet()) {
+                if (queryBuilder.length() > 0) {
+                    queryBuilder.append('&');
+                }
+                queryBuilder
+                        .append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8.name()))
+                        .append('=')
+                        .append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.name()));
+            }
+
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(queryBuilder.append(appSec).toString().getBytes());
+            sign = bytesToHex(digest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return sign;
+    }
+
 
     public static final int USER_VIDEO_API_MODE_WEB = 0;
     public static final int USER_VIDEO_API_MODE_SEARCH = 1;
