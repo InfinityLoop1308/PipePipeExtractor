@@ -58,7 +58,9 @@ public class BilibiliChannelInfoItemWebAPIExtractor implements StreamInfoItemExt
 
     @Override
     public long getViewCount() throws ParsingException {
-        return Optional.of(item.getLong("play")).orElse(item.getObject("stat").getLong("view"));
+        return Optional.of(item.getLong("play"))
+                .filter(playCount -> playCount > 0)
+                .orElseGet(() -> item.getObject("stat").getLong("view"));
     }
 
     @Override
