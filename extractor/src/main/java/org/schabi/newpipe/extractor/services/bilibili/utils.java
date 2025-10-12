@@ -43,8 +43,6 @@ public class utils {
 
     private static final Pattern RENDER_DATA_PATTERN = Pattern.compile("<script id=\"__RENDER_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
 
-    private static String wbiMixinKey;
-    private static LocalDate wbiMixinKeyDate;
     private static final Cache<String, String> webIdCache = new Cache2kBuilder<String, String>() {
     }.entryCapacity(256).expireAfterWrite(86400, TimeUnit.SECONDS).loader(utils::getWebId).build();
 
@@ -163,14 +161,6 @@ public class utils {
                 + Arrays.stream(of).mapToObj(String::valueOf).collect(Collectors.joining(","))
                 + "]}");
         return params;
-    }
-
-    public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
-        String[] wbiResults = utils.encWbi(params);
-
-        params.put("w_rid", wbiResults[0]);
-        params.put("wts", wbiResults[1]);
-        return baseUrl + "?" + createQueryString(params);
     }
 
     public static String getRecordApiUrl(String url) {
@@ -319,15 +309,6 @@ public class utils {
         return result;
     }
 
-    private static String getMixinKey(String ae) {
-        int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
-                13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
-        String le = Arrays.stream(oe)
-                .mapToObj(i -> String.valueOf((char) ae.charAt(i)))
-                .collect(Collectors.joining());
-        return le.substring(0, 32);
-    }
-
     public static String formatParamWithPercentSpace(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
@@ -346,6 +327,27 @@ public class utils {
         return params.entrySet().stream()
                 .map(entry -> formatParamWithPercentSpace(entry.getKey()) + "=" + formatParamWithPercentSpace(entry.getValue()))
                 .collect(Collectors.joining("&"));
+    }
+
+    //region API validation: WBI signature
+    public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
+        String[] wbiResults = utils.encWbi(params);
+
+        params.put("w_rid", wbiResults[0]);
+        params.put("wts", wbiResults[1]);
+        return baseUrl + "?" + createQueryString(params);
+    }
+
+    private static String wbiMixinKey;
+    private static LocalDate wbiMixinKeyDate;
+
+    private static String getMixinKey(String ae) {
+        int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
+                13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
+        String le = Arrays.stream(oe)
+                .mapToObj(i -> String.valueOf((char) ae.charAt(i)))
+                .collect(Collectors.joining());
+        return le.substring(0, 32);
     }
 
     private static String[] encWbi(Map<String, String> params) {
@@ -386,15 +388,9 @@ public class utils {
 
         return new String[]{w_rid, String.valueOf(wts)};
     }
+    //endregion
 
-    public static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-
+    //region API validation: APP signature
     public static String encAppSign(Map<String, String> params, String appKey, String appSec) {
 
         params.put("appkey", appKey);
@@ -421,6 +417,15 @@ public class utils {
         }
 
         return sign;
+    }
+    //endregion
+
+    public static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 
     public static String encodeToBase64SubString(String raw) {
