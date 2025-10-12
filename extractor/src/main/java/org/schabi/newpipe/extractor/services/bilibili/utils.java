@@ -6,7 +6,6 @@ import org.brotli.dec.BrotliInputStream;
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
 import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
@@ -29,16 +28,9 @@ import java.util.zip.Inflater;
 
 import okio.ByteString;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_SEC;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_KEY;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.APP_TYPE;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_SEARCH_API_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.rotateVideoApiMode;
 
 
 public class utils {
@@ -119,21 +111,6 @@ public class utils {
     }
 
 
-    public static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
-        Map<String, String> params = new LinkedHashMap<>();
-        params.put("vmid", mid);
-        if (lastVideoAid > 0) {
-            params.put("aid", String.valueOf(lastVideoAid));
-        }
-        params.put("order", "pubdate");
-
-        params.put("mobi_app", APP_TYPE);
-        params.put("ts", String.valueOf(System.currentTimeMillis() / 1000));
-        params.put("sign", utils.encAppSign(params, APP_KEY, APP_SEC));
-
-        return QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + createQueryString(params);
-    }
-
     private static int[] getWh(int width, int height) {
         int res0 = width;
         int res1 = height;
@@ -186,53 +163,6 @@ public class utils {
                 + Arrays.stream(of).mapToObj(String::valueOf).collect(Collectors.joining(","))
                 + "]}");
         return params;
-    }
-
-    public static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
-        // TODO: also video download
-        LinkedHashMap<String, String> params = new LinkedHashMap<>();
-
-        params.put("mid", id);
-        params.put("order", "pubdate");
-        params.put("ps", "25");
-
-        String pn = "1";
-        if (baseUrl.contains("pn=")) {
-            pn = baseUrl.split("pn=")[1].split("&")[0];
-        }
-        params.put("pn", pn);
-
-        params.put("order_avoided", "true");
-
-        params.put("platform", "web");
-        params.put("web_location", "333.1387");
-
-        params.putAll(getDmImgParams());
-
-        // no longer needed currently
-        // params.put("w_webid", webIdCache.get(id));
-
-        return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
-    }
-
-    public static String buildUserVideosUrlSearchAPI(String baseUrl, String id) {
-
-        LinkedHashMap<String, String> params = new LinkedHashMap<>();
-
-        params.put("mid", id);
-        params.put("keywords", "");
-        params.put("order", "pubdate");
-
-        String pn = "1";
-        if (baseUrl.contains("pn=")) {
-            pn = baseUrl.split("pn=")[1].split("&")[0];
-        }
-        params.put("pn", pn);
-        params.put("ps", "20");
-
-        params.putAll(getDmImgParams());
-
-        return getWbiResult(QUERY_USER_VIDEOS_SEARCH_API_URL, params);
     }
 
     public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
@@ -491,46 +421,6 @@ public class utils {
         }
 
         return sign;
-    }
-
-    public static JsonObject requestUserSpaceResponse(
-            Downloader downloader,
-            String url,
-            Map<String, List<String>> headers
-    ) throws ParsingException, IOException, ReCaptchaException {
-        int maxTry = 2;
-        int currentTry = maxTry;
-
-        String responseBody = "";
-
-        while (currentTry > 0) {
-            responseBody = downloader.get(url, headers).responseBody();
-            try {
-                JsonObject responseJson = JsonParser.object().from(responseBody);
-                long code = responseJson.getLong("code");
-                if (code != 0) {
-                    if (code == -352) {
-                        // blocked risk control
-                        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-                    }
-                    currentTry -= 1;
-                } else {
-                    return responseJson;
-                }
-            } catch (JsonParserException e) {
-                e.printStackTrace();
-                throw new ParsingException("Failed parse response body: " + responseBody);
-            }
-        }
-
-        DeviceForger.Device device = DeviceForger.requireRandomDevice();
-        String msg = "BiliBili blocked us, we retried " + maxTry + " times, the last forged device is:\n"
-                + device.info()
-                + "\nTry to refresh, or report this!\n"
-                + responseBody;
-        rotateVideoApiMode();
-        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-        throw new ParsingException(msg);
     }
 
     public static String encodeToBase64SubString(String raw) {

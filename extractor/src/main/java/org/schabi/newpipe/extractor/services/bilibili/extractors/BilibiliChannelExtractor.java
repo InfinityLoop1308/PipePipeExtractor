@@ -1,14 +1,12 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlSearchAPI;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlWebAPI;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlClientAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.requestUserSpaceResponse;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
@@ -23,6 +21,7 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
+import org.schabi.newpipe.extractor.services.bilibili.DeviceForger;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -30,6 +29,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -230,6 +230,22 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid), headers);
         }
 
+        static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
+            Map<String, String> params = new LinkedHashMap<>();
+            params.put("vmid", mid);
+            if (lastVideoAid > 0) {
+                params.put("aid", String.valueOf(lastVideoAid));
+            }
+            params.put("order", "pubdate");
+
+            DeviceForger.Device device = DeviceForger.requireRandomDevice();
+            params.put("mobi_app", APP_TYPE);
+            params.put("ts", String.valueOf(System.currentTimeMillis() / 1000));
+            params.put("sign", utils.encAppSign(params, APP_KEY, APP_SEC));
+
+            return QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + utils.createQueryString(params);
+        }
+
         @Override
         public void collectVideos(
                 StreamInfoItemsCollector collector,
@@ -316,6 +332,26 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 throws ParsingException, IOException, ReCaptchaException {
             Map<String, List<String>> headers = getHeaders(currentUrl);
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlSearchAPI(currentUrl, id), headers);
+        }
+
+        static String buildUserVideosUrlSearchAPI(String baseUrl, String id) {
+
+            LinkedHashMap<String, String> params = new LinkedHashMap<>();
+
+            params.put("mid", id);
+            params.put("keywords", "");
+            params.put("order", "pubdate");
+
+            String pn = "1";
+            if (baseUrl.contains("pn=")) {
+                pn = baseUrl.split("pn=")[1].split("&")[0];
+            }
+            params.put("pn", pn);
+            params.put("ps", "20");
+
+            params.putAll(utils.getDmImgParams());
+
+            return utils.getWbiResult(QUERY_USER_VIDEOS_SEARCH_API_URL, params);
         }
 
         @Override
@@ -405,6 +441,33 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id), headers);
         }
 
+
+        static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
+            LinkedHashMap<String, String> params = new LinkedHashMap<>();
+
+            params.put("mid", id);
+            params.put("order", "pubdate");
+            params.put("ps", "25");
+
+            String pn = "1";
+            if (baseUrl.contains("pn=")) {
+                pn = baseUrl.split("pn=")[1].split("&")[0];
+            }
+            params.put("pn", pn);
+
+            params.put("order_avoided", "true");
+
+            params.put("platform", "web");
+            params.put("web_location", "333.1387");
+
+            params.putAll(utils.getDmImgParams());
+
+            // no longer needed currently
+            // params.put("w_webid", webIdCache.get(id));
+
+            return utils.getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
+        }
+
         @Override
         public void collectVideos(
                 StreamInfoItemsCollector collector,
@@ -475,5 +538,45 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
     }
 
+
+    public static JsonObject requestUserSpaceResponse(
+            Downloader downloader,
+            String url,
+            Map<String, List<String>> headers
+    ) throws ParsingException, IOException, ReCaptchaException {
+        int maxTry = 2;
+        int currentTry = maxTry;
+
+        String responseBody = "";
+
+        while (currentTry > 0) {
+            responseBody = downloader.get(url, headers).responseBody();
+            try {
+                JsonObject responseJson = JsonParser.object().from(responseBody);
+                long code = responseJson.getLong("code");
+                if (code != 0) {
+                    if (code == -352) {
+                        // blocked risk control
+                        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
+                    }
+                    currentTry -= 1;
+                } else {
+                    return responseJson;
+                }
+            } catch (JsonParserException e) {
+                e.printStackTrace();
+                throw new ParsingException("Failed parse response body: " + responseBody);
+            }
+        }
+
+        DeviceForger.Device device = DeviceForger.requireRandomDevice();
+        String msg = "BiliBili blocked us, we retried " + maxTry + " times, the last forged device is:\n"
+                + device.info()
+                + "\nTry to refresh, or report this!\n"
+                + responseBody;
+        rotateVideoApiMode();
+        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
+        throw new ParsingException(msg);
+    }
 
 }
