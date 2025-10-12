@@ -93,6 +93,7 @@ public class BilibiliService extends StreamingService {
     public static String COMMENT_REPLIES_URL = "https://api.bilibili.com/x/v2/reply/reply?type=1&ps=10&web_location=333.788&oid=";
     public static String GET_SUBTITLE_META_URL = "https://api.bilibili.com/x/player/wbi/v2";
     public static String QUERY_USER_VIDEOS_WEB_API_URL = "https://api.bilibili.com/x/space/wbi/arc/search";
+    public static String QUERY_USER_VIDEOS_SEARCH_API_URL = "https://api.bilibili.com/x/series/recArchivesByKeywords";
     public static String QUERY_USER_VIDEOS_CLIENT_API_URL = "https://app.bilibili.com/x/v2/space/archive/cursor";
     public static String WBI_IMG_URL = "https://api.bilibili.com/x/web-interface/nav";
     public static String GET_PARTITION_URL = "https://api.bilibili.com/x/player/pagelist?bvid=";
@@ -102,6 +103,11 @@ public class BilibiliService extends StreamingService {
     public final static String FETCH_RECOMMENDED_LIVES_URL = "https://api.live.bilibili.com/xlive/web-interface/v1/second/getUserRecommend?page_size=30&platform=web";
     public static String VIDEOSHOT_API_URL = "https://api.bilibili.com/x/player/videoshot?index=1&bvid=";
     public final static String FETCH_TICKET_URL = "https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket";
+
+    public final static String APP_KEY = "1d8b6e7d45233436";
+    public final static String APP_SEC = "560c52ccd288fed045859ed18bffd973";
+    public final static String APP_PLATFORM = "android";
+    public final static String APP_TYPE = "android";
 
     private static String mapToCookieHeader(LinkedHashMap<String, String> cookies) {
         if (cookies == null || cookies.isEmpty()) {
@@ -489,5 +495,21 @@ public class BilibiliService extends StreamingService {
     public BulletCommentsExtractor getBulletCommentsExtractor(final String url)
             throws ExtractionException {
         return getBulletCommentsExtractor(getBulletCommentsLHFactory().fromUrl(url));
+    }
+
+
+    public static final int USER_VIDEO_API_MODE_WEB = 0;
+    public static final int USER_VIDEO_API_MODE_SEARCH = 1;
+    public static final int USER_VIDEO_API_MODE_CLIENT = 2;
+    public static final int SIZE_USER_VIDEO_API_MODE = 3;
+
+    private static int userVideoApiMode = USER_VIDEO_API_MODE_WEB;
+
+    public static int getCurrentVideoApiMode() {
+        return userVideoApiMode;
+    }
+
+    public static void rotateVideoApiMode() {
+        userVideoApiMode = (userVideoApiMode + 1) % SIZE_USER_VIDEO_API_MODE;
     }
 }

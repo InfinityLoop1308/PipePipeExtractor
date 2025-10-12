@@ -6,7 +6,6 @@ import org.brotli.dec.BrotliInputStream;
 import org.cache2k.Cache;
 import org.cache2k.Cache2kBuilder;
 import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
@@ -29,8 +28,6 @@ import java.util.zip.Inflater;
 
 import okio.ByteString;
 
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_CLIENT_API_URL;
-import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUERY_USER_VIDEOS_WEB_API_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
@@ -46,8 +43,6 @@ public class utils {
 
     private static final Pattern RENDER_DATA_PATTERN = Pattern.compile("<script id=\"__RENDER_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
 
-    private static String wbiMixinKey;
-    private static LocalDate wbiMixinKeyDate;
     private static final Cache<String, String> webIdCache = new Cache2kBuilder<String, String>() {
     }.entryCapacity(256).expireAfterWrite(86400, TimeUnit.SECONDS).loader(utils::getWebId).build();
 
@@ -114,20 +109,6 @@ public class utils {
     }
 
 
-    public static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
-        Map<String, String> params = new LinkedHashMap<>();
-        params.put("vmid", mid);
-        params.put("mobi_app", "android");
-        if (lastVideoAid > 0) {
-            params.put("aid", String.valueOf(lastVideoAid));
-        }
-        params.put("order", "pubdate");
-        String newUrl = QUERY_USER_VIDEOS_CLIENT_API_URL + "?" + params.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining("&"));
-        return newUrl;
-    }
-
     private static int[] getWh(int width, int height) {
         int res0 = width;
         int res1 = height;
@@ -180,41 +161,6 @@ public class utils {
                 + Arrays.stream(of).mapToObj(String::valueOf).collect(Collectors.joining(","))
                 + "]}");
         return params;
-    }
-
-    public static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
-        // TODO: also video download
-        LinkedHashMap<String, String> params = new LinkedHashMap<>();
-
-        params.put("mid", id);
-        params.put("order", "pubdate");
-        params.put("ps", "25");
-
-        String pn = "1";
-        if (baseUrl.contains("pn=")) {
-            pn = baseUrl.split("pn=")[1].split("&")[0];
-        }
-        params.put("pn", pn);
-
-        params.put("order_avoided", "true");
-
-        params.put("platform", "web");
-        params.put("web_location", "333.1387");
-
-        params.putAll(getDmImgParams());
-
-        // no longer needed currently
-        // params.put("w_webid", webIdCache.get(id));
-
-        return getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
-    }
-
-    public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
-        String[] wbiResults = utils.encWbi(params);
-
-        params.put("w_rid", wbiResults[0]);
-        params.put("wts", wbiResults[1]);
-        return baseUrl + "?" + createQueryString(params);
     }
 
     public static String getRecordApiUrl(String url) {
@@ -363,15 +309,6 @@ public class utils {
         return result;
     }
 
-    private static String getMixinKey(String ae) {
-        int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
-                13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
-        String le = Arrays.stream(oe)
-                .mapToObj(i -> String.valueOf((char) ae.charAt(i)))
-                .collect(Collectors.joining());
-        return le.substring(0, 32);
-    }
-
     public static String formatParamWithPercentSpace(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20");
@@ -390,6 +327,27 @@ public class utils {
         return params.entrySet().stream()
                 .map(entry -> formatParamWithPercentSpace(entry.getKey()) + "=" + formatParamWithPercentSpace(entry.getValue()))
                 .collect(Collectors.joining("&"));
+    }
+
+    //region API validation: WBI signature
+    public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
+        String[] wbiResults = utils.encWbi(params);
+
+        params.put("w_rid", wbiResults[0]);
+        params.put("wts", wbiResults[1]);
+        return baseUrl + "?" + createQueryString(params);
+    }
+
+    private static String wbiMixinKey;
+    private static LocalDate wbiMixinKeyDate;
+
+    private static String getMixinKey(String ae) {
+        int[] oe = {46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
+                13, 37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, 22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52};
+        String le = Arrays.stream(oe)
+                .mapToObj(i -> String.valueOf((char) ae.charAt(i)))
+                .collect(Collectors.joining());
+        return le.substring(0, 32);
     }
 
     private static String[] encWbi(Map<String, String> params) {
@@ -430,6 +388,37 @@ public class utils {
 
         return new String[]{w_rid, String.valueOf(wts)};
     }
+    //endregion
+
+    //region API validation: APP signature
+    public static String encAppSign(Map<String, String> params, String appKey, String appSec) {
+
+        params.put("appkey", appKey);
+        String sign = null;
+
+        try {
+            Map<String, String> sortedParams = new TreeMap<>(params);
+            StringBuilder queryBuilder = new StringBuilder();
+            for (Map.Entry<String, String> entry : sortedParams.entrySet()) {
+                if (queryBuilder.length() > 0) {
+                    queryBuilder.append('&');
+                }
+                queryBuilder
+                        .append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8.name()))
+                        .append('=')
+                        .append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.name()));
+            }
+
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(queryBuilder.append(appSec).toString().getBytes());
+            sign = bytesToHex(digest);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return sign;
+    }
+    //endregion
 
     public static String bytesToHex(byte[] bytes) {
         StringBuilder sb = new StringBuilder();
@@ -437,47 +426,6 @@ public class utils {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();
-    }
-
-    public static boolean isClientAPIMode = false;
-    public static JsonObject requestUserSpaceResponse(
-            Downloader downloader,
-            String url,
-            Map<String, List<String>> headers
-    ) throws ParsingException, IOException, ReCaptchaException {
-        int maxTry = 6;
-        int currentTry = maxTry;
-
-        String responseBody = "";
-
-        while (currentTry > 0) {
-            responseBody = downloader.get(url, headers).responseBody();
-            try {
-                JsonObject responseJson = JsonParser.object().from(responseBody);
-                long code = responseJson.getLong("code");
-                if (code != 0) {
-                    if (code == -352) {
-                        // blocked risk control
-                        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-                        currentTry -= 1;
-                    }
-                } else {
-                    return responseJson;
-                }
-            } catch (JsonParserException e) {
-                e.printStackTrace();
-                throw new ParsingException("Failed parse response body: " + responseBody);
-            }
-        }
-
-        DeviceForger.Device device = DeviceForger.requireRandomDevice();
-        String msg = "BiliBili blocked us, we retried " + maxTry + " times, the last forged device is:\n"
-                + device.info()
-                + "\nTry to refresh, or report this!\n"
-                + responseBody;
-        isClientAPIMode = !isClientAPIMode; // flip API mode
-        DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
-        throw new ParsingException(msg);
     }
 
     public static String encodeToBase64SubString(String raw) {
