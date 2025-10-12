@@ -104,6 +104,11 @@ public class BilibiliService extends StreamingService {
     public static String VIDEOSHOT_API_URL = "https://api.bilibili.com/x/player/videoshot?index=1&bvid=";
     public final static String FETCH_TICKET_URL = "https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket";
 
+    public final static String APP_KEY = "1d8b6e7d45233436";
+    public final static String APP_SEC = "560c52ccd288fed045859ed18bffd973";
+    public final static String APP_PLATFORM = "android";
+    public final static String APP_TYPE = "android";
+
     private static String mapToCookieHeader(LinkedHashMap<String, String> cookies) {
         if (cookies == null || cookies.isEmpty()) {
             return "";
