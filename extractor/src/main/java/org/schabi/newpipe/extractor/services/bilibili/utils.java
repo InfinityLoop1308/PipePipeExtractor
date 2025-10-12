@@ -38,6 +38,7 @@ import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.QUE
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WBI_IMG_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
+import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.rotateVideoApiMode;
 
 
 public class utils {
@@ -490,31 +491,6 @@ public class utils {
         }
 
         return sign;
-    }
-
-
-    public static final int USER_VIDEO_API_MODE_WEB = 0;
-    public static final int USER_VIDEO_API_MODE_SEARCH = 1;
-    public static final int USER_VIDEO_API_MODE_CLIENT = 2;
-
-    private static int userVideoApiMode = USER_VIDEO_API_MODE_SEARCH;
-
-    public static int currentVideoApiMode() {
-        return userVideoApiMode;
-    }
-
-    public static void rotateVideoApiMode() {
-        switch (userVideoApiMode) {
-            case USER_VIDEO_API_MODE_WEB:
-                userVideoApiMode = USER_VIDEO_API_MODE_SEARCH;
-                break;
-            case USER_VIDEO_API_MODE_SEARCH:
-                userVideoApiMode = USER_VIDEO_API_MODE_CLIENT;
-                break;
-            default:
-                userVideoApiMode = USER_VIDEO_API_MODE_WEB;
-                break;
-        }
     }
 
     public static JsonObject requestUserSpaceResponse(

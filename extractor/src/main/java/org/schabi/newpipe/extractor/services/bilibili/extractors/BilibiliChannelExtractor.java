@@ -1,15 +1,11 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.*;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.USER_VIDEO_API_MODE_CLIENT;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.USER_VIDEO_API_MODE_SEARCH;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlSearchAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlWebAPI;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.buildUserVideosUrlClientAPI;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.currentVideoApiMode;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getNextPageFromCurrentUrl;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.requestUserSpaceResponse;
-import static org.schabi.newpipe.extractor.services.bilibili.utils.rotateVideoApiMode;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
@@ -52,7 +48,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
 
     private UserVideoImpl getVideoImpl() {
-        int mode = currentVideoApiMode();
+        int mode = getCurrentVideoApiMode();
         switch (mode) {
             case USER_VIDEO_API_MODE_WEB:
                 return webUserVideoImpl;

@@ -496,4 +496,20 @@ public class BilibiliService extends StreamingService {
             throws ExtractionException {
         return getBulletCommentsExtractor(getBulletCommentsLHFactory().fromUrl(url));
     }
+
+
+    public static final int USER_VIDEO_API_MODE_WEB = 0;
+    public static final int USER_VIDEO_API_MODE_SEARCH = 1;
+    public static final int USER_VIDEO_API_MODE_CLIENT = 2;
+    public static final int SIZE_USER_VIDEO_API_MODE = 3;
+
+    private static int userVideoApiMode = USER_VIDEO_API_MODE_WEB;
+
+    public static int getCurrentVideoApiMode() {
+        return userVideoApiMode;
+    }
+
+    public static void rotateVideoApiMode() {
+        userVideoApiMode = (userVideoApiMode + 1) % SIZE_USER_VIDEO_API_MODE;
+    }
 }
