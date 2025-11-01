@@ -63,82 +63,98 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
 
-        final byte[] body = JsonWriter.string(
-                        prepareDesktopJsonBuilder(getExtractorLocalization(),
-                                getExtractorContentCountry())
-                                .value("browseId",
-                                        getId().equals("Trending") ? "FEtrending"
-                                                : "UC4R8DWoMoI7CAwX8_LjQHig")
-                                .done())
-                .getBytes(UTF_8);
+        Exception lastException = null;
 
-        final byte[] bodyTemp = JsonWriter.string(
-                        prepareDesktopJsonBuilder(getTempLocalization(),
-                                getExtractorContentCountry())
-                                .value("browseId",
-                                        getId().equals("Trending") ? "FEtrending"
-                                                : "UC4R8DWoMoI7CAwX8_LjQHig")
-                                .done())
-                .getBytes(UTF_8);
+        for (int attempt = 0; attempt < 3; attempt++) {
+            final byte[] body = JsonWriter.string(
+                            prepareDesktopJsonBuilder(getExtractorLocalization(),
+                                    getExtractorContentCountry())
+                                    .value("browseId",
+                                            getId().equals("Trending") ? "FEtrending"
+                                                    : "UC4R8DWoMoI7CAwX8_LjQHig")
+                                    .done())
+                    .getBytes(UTF_8);
 
-        final CountDownLatch latch = new CountDownLatch(2);
+            final byte[] bodyTemp = JsonWriter.string(
+                            prepareDesktopJsonBuilder(getTempLocalization(),
+                                    getExtractorContentCountry())
+                                    .value("browseId",
+                                            getId().equals("Trending") ? "FEtrending"
+                                                    : "UC4R8DWoMoI7CAwX8_LjQHig")
+                                    .done())
+                    .getBytes(UTF_8);
 
-        final AtomicReference<JsonObject> refNormal = new AtomicReference<>();
-        final AtomicReference<JsonObject> refTemp = new AtomicReference<>();
-        final AtomicReference<Exception> refError = new AtomicReference<>();
+            final CountDownLatch latch = new CountDownLatch(2);
 
-        getJsonPostResponseAsync("browse", body, getExtractorLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    refNormal.set(JsonParser.object().from(response.responseBody()));
-                } catch (Exception e) {
-                    refError.set(e);
+            final AtomicReference<JsonObject> refNormal = new AtomicReference<>();
+            final AtomicReference<JsonObject> refTemp = new AtomicReference<>();
+            final AtomicReference<Exception> refError = new AtomicReference<>();
+
+            getJsonPostResponseAsync("browse", body, getExtractorLocalization(), new Downloader.AsyncCallback() {
+                @Override
+                public void onSuccess(Response response) {
+                    try {
+                        if (response.responseCode() == 400) {
+                            refError.set(new IOException("HTTP 400 Bad Request"));
+                        } else {
+                            refNormal.set(JsonParser.object().from(response.responseBody()));
+                        }
+                    } catch (Exception e) {
+                        refError.set(e);
+                    }
+                    latch.countDown();
                 }
-                latch.countDown();
-            }
 
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        getJsonPostResponseAsync("browse", bodyTemp, getTempLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    refTemp.set(JsonParser.object().from(response.responseBody()));
-                } catch (Exception e) {
-                    refError.set(e);
+                @Override
+                public void onError(Exception t) {
+                    refError.set(new IOException(t));
+                    latch.countDown();
                 }
-                latch.countDown();
+            });
+
+            getJsonPostResponseAsync("browse", bodyTemp, getTempLocalization(), new Downloader.AsyncCallback() {
+                @Override
+                public void onSuccess(Response response) {
+                    try {
+                        if (response.responseCode() == 400) {
+                            refError.set(new IOException("HTTP 400 Bad Request"));
+                        } else {
+                            refTemp.set(JsonParser.object().from(response.responseBody()));
+                        }
+                    } catch (Exception e) {
+                        refError.set(e);
+                    }
+                    latch.countDown();
+                }
+
+                @Override
+                public void onError(Exception t) {
+                    refError.set(new IOException(t));
+                    latch.countDown();
+                }
+            });
+
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Interrupted while waiting for responses", e);
             }
 
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
+            if (refError.get() != null) {
+                lastException = refError.get();
+                if (attempt == 2) {
+                    if (lastException instanceof IOException) throw (IOException) lastException;
+                    if (lastException instanceof ExtractionException) throw (ExtractionException) lastException;
+                    throw new ExtractionException("Failed to fetch page after 3 attempts", lastException);
+                }
+                continue;
             }
-        });
 
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for responses", e);
+            initialData = refNormal.get();
+            tempData = refTemp.get();
+            return;
         }
-
-        if (refError.get() != null) {
-            final Exception ex = refError.get();
-            if (ex instanceof IOException) throw (IOException) ex;
-            if (ex instanceof ExtractionException) throw (ExtractionException) ex;
-            throw new ExtractionException("Unexpected error", ex);
-        }
-
-        initialData = refNormal.get();
-        tempData = refTemp.get();
     }
 
 
