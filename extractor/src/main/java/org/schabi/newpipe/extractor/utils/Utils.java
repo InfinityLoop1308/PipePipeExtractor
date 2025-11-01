@@ -98,6 +98,9 @@ public final class Utils {
      */
     public static long mixedNumberWordToLong(final String numberWord)
             throws NumberFormatException, ParsingException {
+        if (numberWord.equals("No views")) {
+            return 0L;
+        }
         String multiplier = "";
         try {
             multiplier = Parser.matchGroup("[\\d]+([\\.,][\\d]+)?([KMBkmb])+", numberWord, 2);
