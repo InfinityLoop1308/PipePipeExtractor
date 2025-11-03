@@ -1661,7 +1661,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return license != null
                 && "Licence".equals(getTextFromObject(metadataRowRenderer.getObject("title")))
                 ? license
-                : "YouTube licence";
+                : "YouTube license";
     }
 
     @Override
