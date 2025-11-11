@@ -619,27 +619,115 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .orElse(EMPTY_STRING);
     }
 
+    // Cache for batch-processed streams
+    private List<AudioStream> cachedAudioStreams;
+    private List<VideoStream> cachedVideoStreams;
+    private List<VideoStream> cachedVideoOnlyStreams;
+    private boolean streamsCached = false;
+
+    /**
+     * Pre-fetch and batch-process all streams in a single API call.
+     * This method collects all audio, video, and video-only streams,
+     * then performs batch deobfuscation in one request.
+     */
+    private void ensureStreamsAreCached() throws ExtractionException {
+        if (streamsCached) {
+            return;
+        }
+
+        assertPageFetched();
+        final String videoId = getId();
+
+        // Collect all ItagInfo objects from all stream types
+        final List<ItagInfo> allItagInfos = new ArrayList<>();
+        final int audioStartIndex = 0;
+        final int videoStartIndex;
+        final int videoOnlyStartIndex;
+
+        try {
+            // Collect audio streams
+            java.util.stream.Stream.of(
+                    new Pair<>(androidStreamingData, androidCpn),
+                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
+            )
+                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
+                            ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO, pair.getSecond()))
+                    .forEachOrdered(allItagInfos::add);
+
+            videoStartIndex = allItagInfos.size();
+
+            // Collect video streams
+            java.util.stream.Stream.of(
+                    new Pair<>(androidStreamingData, androidCpn),
+                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
+            )
+                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
+                            FORMATS, ItagItem.ItagType.VIDEO, pair.getSecond()))
+                    .forEachOrdered(allItagInfos::add);
+
+            videoOnlyStartIndex = allItagInfos.size();
+
+            // Collect video-only streams
+            java.util.stream.Stream.of(
+                    new Pair<>(androidStreamingData, androidCpn),
+                    new Pair<>(tvHtml5SimplyEmbedStreamingData, tvHtml5SimplyEmbedCpn)
+            )
+                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
+                            ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY, pair.getSecond()))
+                    .forEachOrdered(allItagInfos::add);
+
+            // Batch deobfuscate ALL streams in a single API call
+            batchDeobfuscateItagUrls(videoId, allItagInfos);
+
+            // Now build the separate stream lists
+            cachedAudioStreams = new ArrayList<>();
+            for (int i = audioStartIndex; i < videoStartIndex; i++) {
+                final AudioStream stream = getAudioStreamBuilderHelper().apply(allItagInfos.get(i));
+                if (!Stream.containSimilarStream(stream, cachedAudioStreams)) {
+                    cachedAudioStreams.add(stream);
+                }
+            }
+            Collections.sort(cachedAudioStreams, Comparator.comparingInt(AudioStream::getBitrate).reversed());
+
+            cachedVideoStreams = new ArrayList<>();
+            for (int i = videoStartIndex; i < videoOnlyStartIndex; i++) {
+                final VideoStream stream = getVideoStreamBuilderHelper(false).apply(allItagInfos.get(i));
+                if (!Stream.containSimilarStream(stream, cachedVideoStreams)) {
+                    cachedVideoStreams.add(stream);
+                }
+            }
+
+            cachedVideoOnlyStreams = new ArrayList<>();
+            for (int i = videoOnlyStartIndex; i < allItagInfos.size(); i++) {
+                final VideoStream stream = getVideoStreamBuilderHelper(true).apply(allItagInfos.get(i));
+                if (!Stream.containSimilarStream(stream, cachedVideoOnlyStreams)) {
+                    cachedVideoOnlyStreams.add(stream);
+                }
+            }
+
+            streamsCached = true;
+
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get streams", e);
+        }
+    }
+
     @Override
     public List<AudioStream> getAudioStreams() throws ExtractionException {
-        assertPageFetched();
-        List<AudioStream> result = getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO,
-                getAudioStreamBuilderHelper(), "audio");
-        Collections.sort(result, Comparator.comparingInt(AudioStream::getBitrate).reversed());
-        return result;
+        ensureStreamsAreCached();
+        return cachedAudioStreams;
     }
 
     @Override
     public List<VideoStream> getVideoStreams() throws ExtractionException {
-        assertPageFetched();
-        return getItags(FORMATS, ItagItem.ItagType.VIDEO,
-                getVideoStreamBuilderHelper(false), "video");
+        ensureStreamsAreCached();
+        return cachedVideoStreams;
     }
 
     @Override
     public List<VideoStream> getVideoOnlyStreams() throws ExtractionException {
-        assertPageFetched();
-        return getItags(ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY,
-                getVideoStreamBuilderHelper(true), "video-only");
+        ensureStreamsAreCached();
+        return cachedVideoOnlyStreams;
     }
 
     @Override
@@ -1281,6 +1369,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final String videoId = getId();
             final List<T> streamList = new ArrayList<>();
 
+            // First pass: collect all ItagInfo objects without deobfuscating URLs
+            final List<ItagInfo> itagInfoList = new ArrayList<>();
+
             java.util.stream.Stream.of(
                      /*
                     Use the iosStreamingData object first because there is no n param and no
@@ -1297,12 +1388,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             )
                     .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
                             streamingDataKey, itagTypeWanted, pair.getSecond()))
-                    .map(streamBuilderHelper)
-                    .forEachOrdered(stream -> {
-                        if (!Stream.containSimilarStream(stream, streamList)) {
-                            streamList.add(stream);
-                        }
-                    });
+                    .forEachOrdered(itagInfoList::add);
+
+            // Second pass: batch deobfuscate all URLs if needed
+            batchDeobfuscateItagUrls(videoId, itagInfoList);
+
+            // Third pass: build stream objects
+            for (final ItagInfo itagInfo : itagInfoList) {
+                final T stream = streamBuilderHelper.apply(itagInfo);
+                if (!Stream.containSimilarStream(stream, streamList)) {
+                    streamList.add(stream);
+                }
+            }
 
             return streamList;
         } catch (final Exception e) {
@@ -1493,29 +1590,25 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             @Nonnull final ItagItem.ItagType itagType,
             @Nonnull final String contentPlaybackNonce) throws IOException, ExtractionException {
         String streamUrl;
+        String obfuscatedSignature = null;
+
         if (formatData.has("url")) {
             streamUrl = formatData.getString("url");
         } else {
-            // This url has an obfuscated signature
+            // This url has an obfuscated signature - store it for batch processing
             final String cipherString = formatData.getString(CIPHER,
                     formatData.getString(SIGNATURE_CIPHER));
             final Map<String, String> cipher = Parser.compatParseMap(cipherString);
-            final String signature = YoutubeJavaScriptPlayerManager.deobfuscateSignature(videoId,
-                    cipher.getOrDefault("s", ""));
-            streamUrl = cipher.get("url") + "&" + cipher.get("sp") + "=" + signature;
+            obfuscatedSignature = cipher.getOrDefault("s", "");
+            // Build URL without signature - will be added during batch deobfuscation
+            streamUrl = cipher.get("url") + "&" + cipher.get("sp") + "=SIGNATURE_PLACEHOLDER";
         }
 
         // Add the content playback nonce to the stream URL
         streamUrl += "&" + CPN + "=" + contentPlaybackNonce;
 
-        // Decode the n parameter if it is present
-        // If it cannot be decoded, the stream cannot be used as streaming URLs return HTTP 403
-        // responses if it has not the right value
-        // Exceptions thrown by
-        // YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated are so
-        // propagated to the parent which ignores streams in this case
-        streamUrl = YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated(
-                videoId, streamUrl);
+        // Note: Signature and throttling parameter deobfuscation will be done
+        // in batch by batchDeobfuscateItagUrls() method
 
         final JsonObject initRange = formatData.getObject("initRange");
         final JsonObject indexRange = formatData.getObject("indexRange");
@@ -1556,6 +1649,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         final ItagInfo itagInfo = new ItagInfo(streamUrl, itagItem);
 
+        // Store the obfuscated signature in ItagInfo for batch processing
+        if (obfuscatedSignature != null) {
+            itagInfo.setObfuscatedSignature(obfuscatedSignature);
+        }
+
         if (streamType == StreamType.VIDEO_STREAM) {
             itagInfo.setIsUrl(!formatData.getString("type", EMPTY_STRING)
                     .equalsIgnoreCase("FORMAT_STREAM_TYPE_OTF"));
@@ -1569,6 +1667,108 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         return itagInfo;
+    }
+
+    /**
+     * Batch deobfuscate signatures and throttling parameters for all ItagInfo objects.
+     * This replaces individual API calls with a single batch request.
+     *
+     * @param videoId      the video ID
+     * @param itagInfoList list of ItagInfo objects to process
+     * @throws ParsingException if batch deobfuscation fails
+     */
+    private void batchDeobfuscateItagUrls(@Nonnull final String videoId,
+                                          @Nonnull final List<ItagInfo> itagInfoList)
+            throws ParsingException {
+        if (itagInfoList.isEmpty()) {
+            return;
+        }
+
+        // Collect all unique signatures and throttling parameters
+        // Use LinkedHashSet to preserve order and avoid duplicates
+        final java.util.LinkedHashSet<String> uniqueSignatures = new java.util.LinkedHashSet<>();
+        final java.util.LinkedHashSet<String> uniqueThrottlingParams = new java.util.LinkedHashSet<>();
+
+        // Track which streams need which deobfuscations
+        final List<StreamDeobfuscationInfo> streamInfos = new ArrayList<>();
+
+        for (int i = 0; i < itagInfoList.size(); i++) {
+            final ItagInfo itagInfo = itagInfoList.get(i);
+            final String url = itagInfo.getContent();
+
+            final String obfuscatedSig = itagInfo.getObfuscatedSignature();
+            final String throttlingParam =
+                YoutubeThrottlingParameterUtils.getThrottlingParameterFromStreamingUrl(url);
+
+            // Create deobfuscation info for this stream
+            final StreamDeobfuscationInfo info = new StreamDeobfuscationInfo(
+                i, obfuscatedSig, throttlingParam);
+            streamInfos.add(info);
+
+            // Add to unique sets
+            if (obfuscatedSig != null && !obfuscatedSig.isEmpty()) {
+                uniqueSignatures.add(obfuscatedSig);
+            }
+            if (throttlingParam != null && !throttlingParam.isEmpty()) {
+                uniqueThrottlingParams.add(throttlingParam);
+            }
+        }
+
+        // If nothing to deobfuscate, return early
+        if (uniqueSignatures.isEmpty() && uniqueThrottlingParams.isEmpty()) {
+            return;
+        }
+
+        // Make batch API call
+        final YoutubeApiDecoder.BatchDecodeResult result =
+            YoutubeJavaScriptPlayerManager.deobfuscateBatch(
+                videoId,
+                new ArrayList<>(uniqueSignatures),
+                new ArrayList<>(uniqueThrottlingParams));
+
+        final Map<String, String> decodedSignatures = result.getSignatures();
+        final Map<String, String> decodedThrottling = result.getNParameters();
+
+        // Apply deobfuscated values to each stream
+        for (final StreamDeobfuscationInfo info : streamInfos) {
+            final ItagInfo itagInfo = itagInfoList.get(info.streamIndex);
+            String updatedUrl = itagInfo.getContent();
+
+            // Apply deobfuscated signature if needed
+            if (info.obfuscatedSignature != null && !info.obfuscatedSignature.isEmpty()) {
+                final String deobfuscatedSig = decodedSignatures.get(info.obfuscatedSignature);
+                if (deobfuscatedSig != null) {
+                    updatedUrl = updatedUrl.replace("SIGNATURE_PLACEHOLDER", deobfuscatedSig);
+                }
+            }
+
+            // Apply deobfuscated throttling parameter if needed
+            if (info.throttlingParam != null && !info.throttlingParam.isEmpty()) {
+                final String deobfuscatedParam = decodedThrottling.get(info.throttlingParam);
+                if (deobfuscatedParam != null) {
+                    updatedUrl = updatedUrl.replace(info.throttlingParam, deobfuscatedParam);
+                }
+            }
+
+            itagInfo.setContent(updatedUrl);
+        }
+    }
+
+    /**
+     * Helper class to track deobfuscation requirements for each stream.
+     */
+    private static class StreamDeobfuscationInfo {
+        final int streamIndex;
+        final String obfuscatedSignature;
+        final String throttlingParam;
+
+        StreamDeobfuscationInfo(final int streamIndex,
+                                final String obfuscatedSignature,
+                                final String throttlingParam) {
+            this.streamIndex = streamIndex;
+            this.obfuscatedSignature = obfuscatedSignature;
+            this.throttlingParam = throttlingParam;
+        }
     }
 
     @Nonnull

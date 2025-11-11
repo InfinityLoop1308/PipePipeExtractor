@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
  * Utility class to get the throttling parameter decryption code and check if a streaming has the
  * throttling parameter.
  */
-final class YoutubeThrottlingParameterUtils {
+public final class YoutubeThrottlingParameterUtils {
 
     private static final Pattern THROTTLING_PARAM_PATTERN = Pattern.compile("[&?]n=([^&]+)");
 
@@ -220,7 +220,7 @@ final class YoutubeThrottlingParameterUtils {
      * been found
      */
     @Nullable
-    static String getThrottlingParameterFromStreamingUrl(@Nonnull final String streamingUrl) {
+    public static String getThrottlingParameterFromStreamingUrl(@Nonnull final String streamingUrl) {
         try {
             return Parser.matchGroup1(THROTTLING_PARAM_PATTERN, streamingUrl);
         } catch (final Parser.RegexException e) {

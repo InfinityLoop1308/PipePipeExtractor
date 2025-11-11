@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.Serializable;
 
 /**
@@ -14,16 +15,19 @@ import java.io.Serializable;
  * <ul>
  *     <li>its content (the URL/the base URL of streams);</li>
  *     <li>whether its content is the URL the content itself or the base URL;</li>
- *     <li>its associated {@link ItagItem}.</li>
+ *     <li>its associated {@link ItagItem};</li>
+ *     <li>optionally, an obfuscated signature for batch deobfuscation.</li>
  * </ul>
  * </p>
  */
 final class ItagInfo implements Serializable {
     @Nonnull
-    private final String content;
+    private String content;
     @Nonnull
     private final ItagItem itagItem;
     private boolean isUrl;
+    @Nullable
+    private String obfuscatedSignature;
 
     /**
      * Creates a new {@code ItagInfo} instance.
@@ -44,6 +48,35 @@ final class ItagInfo implements Serializable {
      */
     void setIsUrl(final boolean isUrl) {
         this.isUrl = isUrl;
+    }
+
+    /**
+     * Sets the content (URL) of the stream.
+     * This is used for batch deobfuscation to update the URL after processing.
+     *
+     * @param content the new content
+     */
+    void setContent(@Nonnull final String content) {
+        this.content = content;
+    }
+
+    /**
+     * Sets the obfuscated signature for batch deobfuscation.
+     *
+     * @param obfuscatedSignature the obfuscated signature
+     */
+    void setObfuscatedSignature(@Nullable final String obfuscatedSignature) {
+        this.obfuscatedSignature = obfuscatedSignature;
+    }
+
+    /**
+     * Gets the obfuscated signature.
+     *
+     * @return the obfuscated signature, or null if not set
+     */
+    @Nullable
+    String getObfuscatedSignature() {
+        return obfuscatedSignature;
     }
 
     /**
