@@ -212,8 +212,10 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
                         continuationItemRenderer.getObject("continuationEndpoint")
                                 .getObject("continuationCommand")
                                 .getString("token"))
-                .orElseThrow(() ->
-                        new ParsingException("Could not get comment replies continuation"));
+                .orElse(null);
+        if (continuation == null) {
+            return null;
+        }
         return new Page(videoUrl, continuation);
     }
 }
