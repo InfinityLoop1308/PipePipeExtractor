@@ -45,7 +45,6 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
     private final JsonObject videoInfo;
     private final TimeAgoParser timeAgoParser;
     private StreamType cachedStreamType;
-    private JsonObject tempVideoInfo;
 
     /**
      * Creates an extractor of StreamInfoItems from a YouTube page.
@@ -57,14 +56,6 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                                           @Nullable final TimeAgoParser timeAgoParser) {
         this.videoInfo = videoInfoItem;
         this.timeAgoParser = timeAgoParser;
-    }
-
-    public YoutubeStreamInfoItemExtractor(final JsonObject videoInfoItem,
-                                          @Nullable final TimeAgoParser timeAgoParser,
-                                          @Nullable final JsonObject tempVideoInfoItem) {
-        this.videoInfo = videoInfoItem;
-        this.timeAgoParser = timeAgoParser;
-        this.tempVideoInfo = tempVideoInfoItem;
     }
 
     @Override
@@ -116,21 +107,18 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getName() throws ParsingException {
-        JsonObject source = (tempVideoInfo != null) ? tempVideoInfo : videoInfo;
-
-        String name = getTextFromObject(source.getObject("title"));
+        String name = getTextFromObject(videoInfo.getObject("title"));
         if (!isNullOrEmpty(name)) {
             return name;
         }
 
-        name = getTextFromObject(source.getObject("headline"));
+        name = getTextFromObject(videoInfo.getObject("headline"));
         if (!isNullOrEmpty(name)) {
             return name;
         }
 
         throw new ParsingException("Could not get name");
     }
-
 
     @Override
     public long getDuration() throws ParsingException {

@@ -22,14 +22,12 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
-import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
-import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.kiosk.KioskExtractor;
@@ -39,19 +37,17 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeService.getTempLocalization;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextAtKey;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
 public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
     private JsonObject initialData;
-    private JsonObject tempData;
 
     public YoutubeTrendingExtractor(final StreamingService service,
                                     final ListLinkHandler linkHandler,
@@ -62,85 +58,16 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
-
-        final byte[] body = JsonWriter.string(
-                        prepareDesktopJsonBuilder(getExtractorLocalization(),
-                                getExtractorContentCountry())
-                                .value("browseId",
-                                        getId().equals("Trending") ? "FEtrending"
-                                                : "UC4R8DWoMoI7CAwX8_LjQHig")
-                                .done())
+        // @formatter:off
+        final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
+                getExtractorContentCountry())
+                .value("browseId", getId().equals("Trending")?"FEtrending":"UC4R8DWoMoI7CAwX8_LjQHig")
+                .done())
                 .getBytes(UTF_8);
+        // @formatter:on
 
-        final byte[] bodyTemp = JsonWriter.string(
-                        prepareDesktopJsonBuilder(getTempLocalization(),
-                                getExtractorContentCountry())
-                                .value("browseId",
-                                        getId().equals("Trending") ? "FEtrending"
-                                                : "UC4R8DWoMoI7CAwX8_LjQHig")
-                                .done())
-                .getBytes(UTF_8);
-
-        final CountDownLatch latch = new CountDownLatch(2);
-
-        final AtomicReference<JsonObject> refNormal = new AtomicReference<>();
-        final AtomicReference<JsonObject> refTemp = new AtomicReference<>();
-        final AtomicReference<Exception> refError = new AtomicReference<>();
-
-        getJsonPostResponseAsync("browse", body, getExtractorLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    refNormal.set(JsonParser.object().from(response.responseBody()));
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        getJsonPostResponseAsync("browse", bodyTemp, getTempLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    refTemp.set(JsonParser.object().from(response.responseBody()));
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for responses", e);
-        }
-
-        if (refError.get() != null) {
-            final Exception ex = refError.get();
-            if (ex instanceof IOException) throw (IOException) ex;
-            if (ex instanceof ExtractionException) throw (ExtractionException) ex;
-            throw new ExtractionException("Unexpected error", ex);
-        }
-
-        initialData = refNormal.get();
-        tempData = refTemp.get();
+        initialData = getJsonPostResponse("browse", body, getExtractorLocalization());
     }
-
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(final Page page) {
@@ -172,142 +99,92 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws ParsingException {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         final TimeAgoParser timeAgoParser = getTimeAgoParser();
+        final JsonObject tabContent = getTrendingTabRenderer().getObject("content");
 
-        /* pre-compute once – this is the only place that may throw */
-        final JsonObject tabRenderer = getTrendingTabRenderer();
-        final JsonObject tabContent = tabRenderer.getObject("content");
-
-        /* ------------------------------------------------------------------
-         * Helper that no longer throws ParsingException
-         * ------------------------------------------------------------------ */
-        java.util.function.BiConsumer<String, String> flatCollect = (rendererKey, videoKey) -> {
-            if (!tabContent.has(rendererKey)) return;
-
-            final JsonArray contents = tabContent.getObject(rendererKey).getArray("contents");
-            final JsonArray tempContents = tempData.getObject("contents")
-                    .getObject("twoColumnBrowseResultsRenderer")
-                    .getArray("tabs").getObject(0)
-                    .getObject("tabRenderer")
-                    .getObject("content")
-                    .getObject(rendererKey)
-                    .getArray("contents");
-
-            for (int i = 0; i < contents.size() && i < tempContents.size(); i++) {
-                final JsonObject outer = contents.getObject(i);
-                final JsonObject outerTemp = tempContents.getObject(i);
-
-                JsonObject video = null;
-                JsonObject videoTemp = null;
-
-                if ("richGridRenderer".equals(rendererKey)) {
-                    if (outer.has("richItemRenderer")) {
-                        video = outer.getObject("richItemRenderer")
-                                .getObject("content")
-                                .getObject("videoRenderer");
-                        videoTemp = outerTemp.getObject("richItemRenderer")
-                                .getObject("content")
-                                .getObject("videoRenderer");
-                    }
-                } else if ("sectionListRenderer".equals(rendererKey)) {
-                    if (!outer.has("itemSectionRenderer")) continue;
-
-                    final JsonArray innerContents =
-                            outer.getObject("itemSectionRenderer").getArray("contents");
-                    final JsonArray innerTempContents =
-                            outerTemp.getObject("itemSectionRenderer").getArray("contents");
-
-                    for (int j = 0; j < innerContents.size() && j < innerTempContents.size(); j++) {
-                        final JsonObject shelf = innerContents.getObject(j);
-                        final JsonObject shelfTemp = innerTempContents.getObject(j);
-                        if (!shelf.has("shelfRenderer")) continue;
-
-                        final JsonArray items =
-                                shelf.getObject("shelfRenderer")
-                                        .getObject("content")
-                                        .getObject("expandedShelfContentsRenderer")
-                                        .getArray("items");
-                        final JsonArray itemsTemp =
-                                shelfTemp.getObject("shelfRenderer")
-                                        .getObject("content")
-                                        .getObject("expandedShelfContentsRenderer")
-                                        .getArray("items");
-
-                        for (int k = 0; k < items.size() && k < itemsTemp.size(); k++) {
-                            video = items.getObject(k).getObject("videoRenderer");
-                            videoTemp = itemsTemp.getObject(k).getObject("videoRenderer");
-                            if (video != null && videoTemp != null) {
-                                collector.commit(new YoutubeStreamInfoItemExtractor(
-                                        video, timeAgoParser, videoTemp));
-                            }
-                        }
-                    }
-                    continue; // already handled above
-                }
-
-                if (video != null && videoTemp != null) {
-                    collector.commit(new YoutubeStreamInfoItemExtractor(
-                            video, timeAgoParser, videoTemp));
-                }
-            }
-        };
-
-        /* ------------------------------------------------------------------
-         * 1-4 extraction attempts (unchanged, but now use tabContent)
-         * ------------------------------------------------------------------ */
         if (tabContent.has("richGridRenderer")) {
-            flatCollect.accept("richGridRenderer", "videoRenderer");
+            tabContent.getObject("richGridRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    // Filter Trending shorts and Recently trending sections
+                    .filter(content -> content.has("richItemRenderer"))
+                    .map(content -> content.getObject("richItemRenderer")
+                            .getObject("content")
+                            .getObject("videoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
+        } else if (tabContent.has("sectionListRenderer")) {
+            tabContent.getObject("sectionListRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .flatMap(content -> content.getObject("itemSectionRenderer")
+                            .getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(content -> content.getObject("shelfRenderer"))
+                    // Filter Trending shorts and Recently trending sections which have a title,
+                    // contrary to normal trends
+                    .filter(shelfRenderer -> !shelfRenderer.has("title"))
+                    .flatMap(shelfRenderer -> shelfRenderer.getObject("content")
+                            .getObject("expandedShelfContentsRenderer")
+                            .getArray("items")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(item -> item.getObject("videoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
         }
-
-        if (tabContent.has("sectionListRenderer")) {
-            flatCollect.accept("sectionListRenderer", "videoRenderer");
+        // try 1
+        if(collector.getItems().isEmpty()) {
+            tabContent.getObject("sectionListRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .flatMap(content -> content.getObject("itemSectionRenderer")
+                            .getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(content -> content.getObject("shelfRenderer"))
+                    .flatMap(shelfRenderer -> shelfRenderer.getObject("content")
+                            .getObject("horizontalListRenderer")
+                            .getArray("items")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .map(item -> item.getObject("gridVideoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
         }
-
+        // try 2
         if (collector.getItems().isEmpty()) {
-            flatCollect.accept("sectionListRenderer", "gridVideoRenderer");
+            tabContent.getObject("richGridRenderer")
+                    .getArray("contents")
+                    .stream()
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    // Filter Trending shorts and Recently trending sections
+                    .filter(content -> content.has("richSectionRenderer"))
+                    .map(content -> content.getObject("richSectionRenderer")
+                            .getObject("content")
+                            .getObject("richShelfRenderer"))
+                    .flatMap(richShelfRenderer -> richShelfRenderer.getArray("contents")
+                            .stream())
+                    .filter(JsonObject.class::isInstance)
+                    .map(JsonObject.class::cast)
+                    .filter(content -> content.has("richItemRenderer"))
+                    .map(content -> content.getObject("richItemRenderer")
+                            .getObject("content")
+                            .getObject("videoRenderer"))
+                    .forEachOrdered(videoRenderer -> collector.commit(
+                            new YoutubeStreamInfoItemExtractor(videoRenderer, timeAgoParser)));
         }
-
-        if (collector.getItems().isEmpty()) {
-            final JsonArray contents = tabContent.getObject("richGridRenderer").getArray("contents");
-            final JsonArray tempContents = tempData.getObject("contents")
-                    .getObject("twoColumnBrowseResultsRenderer")
-                    .getArray("tabs").getObject(0)
-                    .getObject("tabRenderer")
-                    .getObject("content")
-                    .getObject("richGridRenderer")
-                    .getArray("contents");
-
-            for (int i = 0; i < contents.size() && i < tempContents.size(); i++) {
-                JsonObject section = contents.getObject(i);
-                JsonObject sectionTemp = tempContents.getObject(i);
-                if (!section.has("richSectionRenderer")) continue;
-
-                JsonObject shelf = section.getObject("richSectionRenderer")
-                        .getObject("content")
-                        .getObject("richShelfRenderer");
-                JsonObject shelfTemp = sectionTemp.getObject("richSectionRenderer")
-                        .getObject("content")
-                        .getObject("richShelfRenderer");
-
-                JsonArray videos = shelf.getArray("contents");
-                JsonArray videosTemp = shelfTemp.getArray("contents");
-
-                for (int j = 0; j < videos.size() && j < videosTemp.size(); j++) {
-                    JsonObject item = videos.getObject(j);
-                    JsonObject itemTemp = videosTemp.getObject(j);
-                    if (!item.has("richItemRenderer")) continue;
-
-                    collector.commit(new YoutubeStreamInfoItemExtractor(
-                            item.getObject("richItemRenderer")
-                                    .getObject("content")
-                                    .getObject("videoRenderer"),
-                            timeAgoParser,
-                            itemTemp.getObject("richItemRenderer")
-                                    .getObject("content")
-                                    .getObject("videoRenderer")));
-                }
-            }
-        }
-
         if (collector.getItems().isEmpty()) {
             throw new ParsingException("Could not get trending page");
         }
@@ -317,7 +194,6 @@ public class YoutubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
         }
         return new InfoItemsPage<>(collector, null);
     }
-
 
     private JsonObject getTrendingTabRenderer() throws ParsingException {
         return initialData.getObject("contents")
