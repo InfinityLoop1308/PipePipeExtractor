@@ -194,7 +194,7 @@ YoutubeParsingHelper {
     /**
      * The hardcoded client version used for InnerTube requests with the TV HTML5 embed client.
      */
-    private static final String TVHTML5_SIMPLY_EMBED_CLIENT_VERSION = "7.20241201.18.00";
+    private static final String TVHTML5_SIMPLY_EMBED_CLIENT_VERSION = "7.20250923.13.00";
     private static final String WEB_CLIENT_VERSION = "2.20241126.01.00";
 
     private static String clientVersion;
