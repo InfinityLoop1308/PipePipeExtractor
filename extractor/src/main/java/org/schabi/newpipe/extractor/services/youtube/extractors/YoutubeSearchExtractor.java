@@ -2,11 +2,10 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.DISABLE_PRETTY_PRINT_PARAMETER;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.YOUTUBEI_V1_URL;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponseAsync;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeService.getTempLocalization;
 import static org.schabi.newpipe.extractor.utils.Utils.UTF_8;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -20,7 +19,6 @@ import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.downloader.Downloader;
-import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
@@ -32,14 +30,11 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
 
 public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
     private JsonObject initialData;
-    private JsonObject tempData;
 
     public YoutubeSearchExtractor(final StreamingService service,
                                   final SearchQueryHandler linkHandler) {
@@ -64,75 +59,9 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
             jsonBody.value("params", params);
         }
 
-        final JsonBuilder<JsonObject> jsonBodyTemp = prepareDesktopJsonBuilder(getTempLocalization(),
-                getExtractorContentCountry())
-                .value("query", query);
-        if (!isNullOrEmpty(params)) {
-            jsonBodyTemp.value("params", params);
-        }
-
         final byte[] body = JsonWriter.string(jsonBody.done()).getBytes(UTF_8);
-        final byte[] bodyTemp = JsonWriter.string(jsonBodyTemp.done()).getBytes(UTF_8);
 
-        final CountDownLatch latch = new CountDownLatch(2);
-        final AtomicReference<JsonObject> refNormal = new AtomicReference<>();
-        final AtomicReference<JsonObject> refTemp = new AtomicReference<>();
-        final AtomicReference<Exception> refError = new AtomicReference<>();
-
-        getJsonPostResponseAsync("search", body, localization, new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    final JsonObject json = JsonParser.object().from(response.responseBody());
-                    refNormal.set(json);
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        getJsonPostResponseAsync("search", bodyTemp, getTempLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    final JsonObject json = JsonParser.object().from(response.responseBody());
-                    refTemp.set(json);
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for search responses", e);
-        }
-
-        if (refError.get() != null) {
-            final Exception ex = refError.get();
-            if (ex instanceof IOException) throw (IOException) ex;
-            if (ex instanceof ExtractionException) throw (ExtractionException) ex;
-            throw new ExtractionException("Unexpected error", ex);
-        }
-
-        initialData = refNormal.get();
-        tempData = refTemp.get();
+        initialData = getJsonPostResponse("search", body, localization);
     }
 
     @Nonnull
@@ -192,25 +121,17 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                 .getObject("twoColumnSearchResultsRenderer").getObject("primaryContents")
                 .getObject("sectionListRenderer").getArray("contents");
 
-        final JsonArray tempSections = tempData.getObject("contents")
-                .getObject("twoColumnSearchResultsRenderer").getObject("primaryContents")
-                .getObject("sectionListRenderer").getArray("contents");
-
         Page nextPage = null;
 
-        for (int i = 0; i < sections.size(); i++) {
-            final JsonObject section = sections.getObject(i);
-            final JsonObject tempSection = i < tempSections.size() ? tempSections.getObject(i) : null;
+        for (final Object section : sections) {
+            if (((JsonObject) section).has("itemSectionRenderer")) {
+                final JsonObject itemSectionRenderer = ((JsonObject) section)
+                        .getObject("itemSectionRenderer");
 
-            if (section.has("itemSectionRenderer")) {
-                final JsonObject itemSectionRenderer = section.getObject("itemSectionRenderer");
-                final JsonArray tempContents = tempSection != null && tempSection.has("itemSectionRenderer")
-                        ? tempSection.getObject("itemSectionRenderer").getArray("contents")
-                        : null;
-
-                collectStreamsFrom(collector, itemSectionRenderer.getArray("contents"), tempContents);
-            } else if (section.has("continuationItemRenderer")) {
-                nextPage = getNextPageFrom(section.getObject("continuationItemRenderer"));
+                collectStreamsFrom(collector, itemSectionRenderer.getArray("contents"));
+            } else if (((JsonObject) section).has("continuationItemRenderer")) {
+                nextPage = getNextPageFrom(((JsonObject) section)
+                        .getObject("continuationItemRenderer"));
             }
         }
         return new InfoItemsPage<>(collector, nextPage);
@@ -232,114 +153,42 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                 .value("continuation", page.getId())
                 .done())
                 .getBytes(UTF_8);
-
-        final byte[] jsonTemp = JsonWriter.string(prepareDesktopJsonBuilder(getTempLocalization(),
-                getExtractorContentCountry())
-                .value("continuation", page.getId())
-                .done())
-                .getBytes(UTF_8);
         // @formatter:on
 
-        final CountDownLatch latch = new CountDownLatch(2);
-        final AtomicReference<JsonObject> refNormal = new AtomicReference<>();
-        final AtomicReference<JsonObject> refTemp = new AtomicReference<>();
-        final AtomicReference<Exception> refError = new AtomicReference<>();
+        final String responseBody = getValidJsonResponseBody(getDownloader().post(
+                page.getUrl(), new HashMap<>(), json));
 
-        final String url = page.getUrl();
-        final HashMap<String, List<String>> headers = new HashMap<>();
-
-        getJsonPostResponseAsync("search", json, localization, new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    final JsonObject ajaxJson = JsonParser.object().from(response.responseBody());
-                    refNormal.set(ajaxJson);
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
-        getJsonPostResponseAsync("search", jsonTemp, getTempLocalization(), new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                try {
-                    final JsonObject ajaxJson = JsonParser.object().from(response.responseBody());
-                    refTemp.set(ajaxJson);
-                } catch (Exception e) {
-                    refError.set(e);
-                }
-                latch.countDown();
-            }
-
-            @Override
-            public void onError(Exception t) {
-                refError.set(new IOException(t));
-                latch.countDown();
-            }
-        });
-
+        final JsonObject ajaxJson;
         try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while waiting for search page responses", e);
+            ajaxJson = JsonParser.object().from(responseBody);
+        } catch (final JsonParserException e) {
+            throw new ParsingException("Could not parse JSON", e);
         }
-
-        if (refError.get() != null) {
-            final Exception ex = refError.get();
-            if (ex instanceof IOException) throw (IOException) ex;
-            if (ex instanceof ExtractionException) throw (ExtractionException) ex;
-            throw new ExtractionException("Unexpected error", ex);
-        }
-
-        final JsonObject ajaxJson = refNormal.get();
-        final JsonObject tempAjaxJson = refTemp.get();
 
         final JsonArray continuationItems = ajaxJson.getArray("onResponseReceivedCommands")
                 .getObject(0).getObject("appendContinuationItemsAction")
                 .getArray("continuationItems");
 
-        final JsonArray tempContinuationItems = tempAjaxJson.getArray("onResponseReceivedCommands")
-                .getObject(0).getObject("appendContinuationItemsAction")
-                .getArray("continuationItems");
-
         final JsonArray contents = continuationItems.getObject(0)
                 .getObject("itemSectionRenderer").getArray("contents");
-        final JsonArray tempContents = tempContinuationItems.getObject(0)
-                .getObject("itemSectionRenderer").getArray("contents");
-
-        collectStreamsFrom(collector, contents, tempContents);
+        collectStreamsFrom(collector, contents);
         return new InfoItemsPage<>(collector, getNextPageFrom(continuationItems.getObject(1)
                 .getObject("continuationItemRenderer")));
     }
 
     private void collectStreamsFrom(final MultiInfoItemsCollector collector,
-                                    final JsonArray contents,
-                                    final JsonArray tempContents) throws NothingFoundException,
+                                    final JsonArray contents) throws NothingFoundException,
             ParsingException {
         final TimeAgoParser timeAgoParser = getTimeAgoParser();
 
-        for (int i = 0; i < contents.size(); i++) {
-            final JsonObject item = contents.getObject(i);
-            final JsonObject tempItem = tempContents != null && i < tempContents.size()
-                    ? tempContents.getObject(i) : null;
-
+        for (final Object content : contents) {
+            final JsonObject item = (JsonObject) content;
             if (item.has("backgroundPromoRenderer")) {
                 throw new NothingFoundException(getTextFromObject(
                         item.getObject("backgroundPromoRenderer").getObject("bodyText")));
             } else if (item.has("videoRenderer")) {
-                final JsonObject tempVideoRenderer = tempItem != null && tempItem.has("videoRenderer")
-                        ? tempItem.getObject("videoRenderer") : null;
                 collector.commit(new YoutubeStreamInfoItemExtractor(item
-                        .getObject("videoRenderer"), timeAgoParser, tempVideoRenderer));
+                        .getObject("videoRenderer"), timeAgoParser));
             } else if (item.has("channelRenderer")) {
                 collector.commit(new YoutubeChannelInfoItemExtractor(item
                         .getObject("channelRenderer")));
