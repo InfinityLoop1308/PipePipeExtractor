@@ -20,12 +20,10 @@ import java.util.Optional;
 public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItemExtractor {
 
     protected final JsonObject item;
-    public String name;
-    public String face;
+    private final String face;
 
-    public BilibiliChannelInfoItemClientAPIExtractor(final JsonObject json, String name, String face) {
+    public BilibiliChannelInfoItemClientAPIExtractor(final JsonObject json, String face) {
         item = json;
-        this.name = name;
         this.face = face;
     }
 
@@ -64,7 +62,7 @@ public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItem
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return name;
+        return item.getString("author");
     }
 
     @Override
