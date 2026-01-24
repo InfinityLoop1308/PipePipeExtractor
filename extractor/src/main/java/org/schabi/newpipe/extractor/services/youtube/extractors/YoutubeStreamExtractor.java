@@ -1004,6 +1004,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             throw new ExtractionException("Error occurs when fetching the page. Try increase the loading timeout in Settings.");
         }
+
+        // Check playability status from the actual stream data source
+        if (playerResponse != null) {
+            checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+        }
     }
 
 
@@ -1128,6 +1133,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         return;
                     }
 
+                    YoutubeStreamExtractor.this.playerResponse = playerResponseObject;
+
                     final JsonObject streamingData = playerResponseObject.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         androidStreamingData = streamingData;
@@ -1178,6 +1185,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("IOS player response is not valid");
                     }
 
+                    YoutubeStreamExtractor.this.playerResponse = iosPlayerResponse;
+
                     final JsonObject streamingData = iosPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         iosStreamingData = streamingData;
@@ -1224,6 +1233,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("Web player response is not valid");
                     }
 
+                    YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
+
                     final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         webStreamingData = streamingData;
@@ -1263,6 +1274,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         }
                         throw new ExtractionException("TVHTML5 embed player response is not valid");
                     }
+
+                    YoutubeStreamExtractor.this.playerResponse = tvHtml5EmbedPlayerResponse;
 
                     final JsonObject streamingData = tvHtml5EmbedPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {

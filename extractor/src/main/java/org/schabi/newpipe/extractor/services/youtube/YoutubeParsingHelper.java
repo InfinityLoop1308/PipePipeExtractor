@@ -1477,16 +1477,11 @@ YoutubeParsingHelper {
                         JsonObject webPlayerResponse;
                         try {
                             webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                            JsonObject result =checkPlayabilityStatus(webPlayerResponse.getObject("playabilityStatus"), videoId);
-                            if (result != null) {
-                                webPlayerResponse = result;
-                            }
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");
                             }
                             // Save the playerResponse from the player endpoint of the desktop internal API because
-                            // Save the webPlayerResponse into playerResponse in the case the video cannot be played,
-                            // so some metadata can be retrieved
+                            // the web endpoint may return UNPLAYABLE due to blocking, but metadata is still usable.
                             streamExtractor.playerResponse = webPlayerResponse;
                             streamExtractor.setStreamType();
                             // The microformat JSON object of the content is only returned on the WEB client,
