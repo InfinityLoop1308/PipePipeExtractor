@@ -96,6 +96,9 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
             return ; // should only happen when watching replay and user pauses
             // we do not want to fetch the same message twice
         }
+        if (lastContinuation == null ){
+            return;
+        }
         try {
             final byte[] json = JsonWriter.string(prepareDesktopJsonBuilder(Localization.DEFAULT,
                             ContentCountry.DEFAULT)
