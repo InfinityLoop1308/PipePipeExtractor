@@ -992,7 +992,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidStreamingData == null)
                 || ((StringUtils.isNotBlank(ServiceList.YouTube.getTokens()) && webStreamingData == null && tvHtml5SimplyEmbedStreamingData == null)))
-                || getStreamType() == null || nextResponse == null) {
+                || nextResponse == null) {
             for (Throwable e: errors) {
                 if (e instanceof AntiBotException) {
                     throw (AntiBotException) e;
@@ -1008,6 +1008,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // Check playability status from the actual stream data source
         if (playerResponse != null) {
             checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+            setStreamType();
         }
     }
 

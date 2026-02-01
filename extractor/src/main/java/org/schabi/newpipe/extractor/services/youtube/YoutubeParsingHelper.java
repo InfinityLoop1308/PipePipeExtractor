@@ -1479,10 +1479,10 @@ YoutubeParsingHelper {
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");
                             }
-                            // Save the playerResponse from the player endpoint of the desktop internal API because
-                            // the web endpoint may return UNPLAYABLE due to blocking, but metadata is still usable.
-                            streamExtractor.playerResponse = webPlayerResponse;
-                            streamExtractor.setStreamType();
+//                            // Save the playerResponse from the player endpoint of the desktop internal API because
+//                            // the web endpoint may return UNPLAYABLE due to blocking, but metadata is still usable.
+//                            streamExtractor.playerResponse = webPlayerResponse;
+//
                             // The microformat JSON object of the content is only returned on the WEB client,
                             // so we need to store it instead of getting it directly from the playerResponse
                             streamExtractor.playerMicroFormatRenderer = webPlayerResponse.getObject("microformat")
