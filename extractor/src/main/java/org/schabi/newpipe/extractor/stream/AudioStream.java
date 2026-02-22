@@ -23,6 +23,8 @@ package org.schabi.newpipe.extractor.stream;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 
+import java.util.Objects;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -30,6 +32,10 @@ public final class AudioStream extends Stream {
     public static final int UNKNOWN_BITRATE = -1;
 
     private final int averageBitrate;
+
+    private String audioTrackId;
+    private String audioTrackName;
+    private String audioLocale;
 
     // Fields for DASH
     private int itag = ITAG_NOT_AVAILABLE_OR_NOT_APPLICABLE;
@@ -61,6 +67,9 @@ public final class AudioStream extends Stream {
         private ItagItem itagItem;
         private String quality;
         private String codec;
+        private String audioTrackId;
+        private String audioTrackName;
+        private String audioLocale;
         /**
          * Create a new {@link Builder} instance with its default values.
          */
@@ -204,6 +213,21 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        public Builder setAudioTrackId(String audioTrackId) {
+            this.audioTrackId = audioTrackId;
+            return this;
+        }
+
+        public Builder setAudioTrackName(String audioTrackName) {
+            this.audioTrackName = audioTrackName;
+            return this;
+        }
+
+        public Builder setAudioLocale(String audioLocale) {
+            this.audioLocale = audioLocale;
+            return this;
+        }
+
         /**
          * Build an {@link AudioStream} using the builder's current values.
          *
@@ -237,7 +261,7 @@ public final class AudioStream extends Stream {
             }
 
             return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate, codec,
-                    manifestUrl, itagItem, quality);
+                    manifestUrl, itagItem, quality, audioTrackId, audioTrackName, audioLocale);
         }
     }
 
@@ -269,7 +293,10 @@ public final class AudioStream extends Stream {
                         final int averageBitrate,
                         String codec,
                         @Nullable final String manifestUrl,
-                        @Nullable final ItagItem itagItem, String quality) {
+                        @Nullable final ItagItem itagItem, String quality,
+                        @Nullable final String audioTrackId,
+                        @Nullable final String audioTrackName,
+                        @Nullable final String audioLocale) {
         super(id, content, isUrl, format, deliveryMethod, manifestUrl);
         if (itagItem != null) {
             this.itagItem = itagItem;
@@ -289,6 +316,9 @@ public final class AudioStream extends Stream {
         if(codec != null) {
             this.codec = codec;
         }
+        this.audioTrackId = audioTrackId;
+        this.audioTrackName = audioTrackName;
+        this.audioLocale = audioLocale;
     }
 
     /**
@@ -297,7 +327,8 @@ public final class AudioStream extends Stream {
     @Override
     public boolean equalStats(final Stream cmp) {
         return super.equalStats(cmp) && cmp instanceof AudioStream
-                && averageBitrate == ((AudioStream) cmp).averageBitrate;
+                && averageBitrate == ((AudioStream) cmp).averageBitrate
+                && Objects.equals(audioTrackId, ((AudioStream) cmp).audioTrackId);
     }
 
     /**
@@ -393,6 +424,21 @@ public final class AudioStream extends Stream {
      */
     public String getCodec() {
         return codec;
+    }
+
+    @Nullable
+    public String getAudioTrackId() {
+        return audioTrackId;
+    }
+
+    @Nullable
+    public String getAudioTrackName() {
+        return audioTrackName;
+    }
+
+    @Nullable
+    public String getAudioLocale() {
+        return audioLocale;
     }
 
     /**

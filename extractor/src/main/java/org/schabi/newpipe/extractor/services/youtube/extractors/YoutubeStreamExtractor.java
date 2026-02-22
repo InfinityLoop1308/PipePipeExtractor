@@ -1460,7 +1460,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
                         .setAverageBitrate(itagItem.getAverageBitrate())
-                        .setItagItem(itagItem);
+                        .setItagItem(itagItem)
+                        .setAudioTrackId(itagInfo.getAudioTrackId())
+                        .setAudioTrackName(itagInfo.getAudioTrackName())
+                        .setAudioLocale(itagInfo.getAudioLocale());
             } catch (ParsingException e) {
                 throw new RuntimeException(e);
             }
@@ -1468,8 +1471,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (streamType == StreamType.LIVE_STREAM
                     || streamType == StreamType.POST_LIVE_STREAM
                     || !itagInfo.getIsUrl()) {
-                // For YouTube videos on OTF streams and for all streams of post-live streams
-                // and live streams, only the DASH delivery method can be used.
                 builder.setDeliveryMethod(DeliveryMethod.DASH);
             }
 
@@ -1553,48 +1554,46 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return java.util.stream.Stream.empty();
         }
 
-        String contentLanguage = ServiceList.YouTube.getAudioLanguage();
-        String foundLangCode = streamingData.getArray(streamingDataKey).stream().filter(element -> element instanceof JsonObject)
-                .map(element -> (JsonObject) element).filter(data -> data.has("audioTrack") && data.getString("mimeType").contains("audio")).map(data -> data.getObject("audioTrack"))
-                .filter(audioTrack -> audioTrack.has("id")).map(audioTrack -> audioTrack.getString("id"))
-                .map(audioId -> audioId.split("\\.")[0].split("-")[0]).filter(langCode -> langCode.equals(contentLanguage))
-                .findFirst().orElse(null);
-
+        String preferredAudioLanguage = ServiceList.YouTube.getAudioLanguage();
 
         java.util.stream.Stream<ItagInfo> result = streamingData.getArray(streamingDataKey).stream()
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
-                .filter(data -> {
-                    try {
-                        if (data.getString("mimeType").contains("audio")) {
-                            if (foundLangCode != null) {
-                                return data.has("audioTrack") && data.getObject("audioTrack").has("id") &&
-                                        data.getObject("audioTrack").getString("id").split("\\.")[0].split("-")[0].equals(foundLangCode);
-                            } else {
-                                if (!data.has("audioTrack")) return true;
-                                return data.getObject("audioTrack").getString("displayName").contains("original");
-                            }
-                        }
-                        return true;
-                    } catch (final Exception ignored) {
-                        return true;
-                    }
-                })
                 .map(formatData -> {
                     try {
                         final ItagItem itagItem = ItagItem.getItag(formatData.getInt("itag"));
                         if (itagItem.itagType == itagTypeWanted) {
-                            return buildAndAddItagInfoToList(videoId, formatData, itagItem,
+                            final ItagInfo itagInfo = buildAndAddItagInfoToList(videoId, formatData, itagItem,
                                     itagItem.itagType, contentPlaybackNonce);
+                            if (itagInfo != null && itagItem.itagType == ItagItem.ItagType.AUDIO) {
+                                extractAndSetAudioTrackInfo(formatData, itagInfo, preferredAudioLanguage);
+                            }
+                            return itagInfo;
                         }
                     } catch (final IOException | ExtractionException e) {
-                        // if the itag is not supported and getItag fails, we end up here
                         e.printStackTrace();
                     }
                     return null;
                 })
                 .filter(Objects::nonNull);
         return result;
+    }
+
+    private void extractAndSetAudioTrackInfo(final JsonObject formatData,
+                                              final ItagInfo itagInfo,
+                                              final String preferredAudioLanguage) {
+        if (!formatData.has("audioTrack")) {
+            return;
+        }
+        final JsonObject audioTrack = formatData.getObject("audioTrack");
+        if (audioTrack.has("id")) {
+            final String audioTrackId = audioTrack.getString("id");
+            final String audioLocale = audioTrackId.split("\\.")[0].split("-")[0];
+            String audioTrackName = audioTrack.has("displayName")
+                    ? audioTrack.getString("displayName")
+                    : audioLocale;
+            itagInfo.setAudioTrackInfo(audioTrackId, audioTrackName, audioLocale);
+        }
     }
 
     private ItagInfo buildAndAddItagInfoToList(

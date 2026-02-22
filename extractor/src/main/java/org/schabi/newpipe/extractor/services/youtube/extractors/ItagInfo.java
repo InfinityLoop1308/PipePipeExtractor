@@ -28,6 +28,12 @@ final class ItagInfo implements Serializable {
     private boolean isUrl;
     @Nullable
     private String obfuscatedSignature;
+    @Nullable
+    private String audioTrackId;
+    @Nullable
+    private String audioTrackName;
+    @Nullable
+    private String audioLocale;
 
     /**
      * Creates a new {@code ItagInfo} instance.
@@ -109,5 +115,28 @@ final class ItagInfo implements Serializable {
      */
     boolean getIsUrl() {
         return isUrl;
+    }
+
+    void setAudioTrackInfo(@Nullable final String audioTrackId,
+                           @Nullable final String audioTrackName,
+                           @Nullable final String audioLocale) {
+        this.audioTrackId = audioTrackId;
+        this.audioTrackName = audioTrackName;
+        this.audioLocale = audioLocale;
+    }
+
+    @Nullable
+    String getAudioTrackId() {
+        return audioTrackId;
+    }
+
+    @Nullable
+    String getAudioTrackName() {
+        return audioTrackName;
+    }
+
+    @Nullable
+    String getAudioLocale() {
+        return audioLocale;
     }
 }
