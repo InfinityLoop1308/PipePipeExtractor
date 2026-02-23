@@ -2,7 +2,6 @@ package org.schabi.newpipe.extractor.services.niconico.extractors;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -46,12 +45,16 @@ public class NiconicoCommentsCache {
         }
 
         try {
-            final JsonArray result = JsonParser.object().from(commentResponse).getObject("data").getArray("threads")
-                    .getObject(1).getArray("comments");
-            final List<JsonObject> commentsList = Arrays.stream(result.toArray())
-                    .map(s -> (JsonObject) s)
-                    .collect(Collectors.toList());
-            // Reverse the order to show comments in order of newest to oldest.
+            final JsonArray threads = JsonParser.object().from(commentResponse).getObject("data").getArray("threads");
+            final List<JsonObject> commentsList = new ArrayList<>();
+            for (int i = 0; i < threads.size(); i++) {
+                final JsonArray threadComments = threads.getObject(i).getArray("comments");
+                if (threadComments != null) {
+                    for (Object comment : threadComments) {
+                        commentsList.add((JsonObject) comment);
+                    }
+                }
+            }
             Collections.reverse(commentsList);
             comments = commentsList.toArray(new JsonObject[0]);
             return comments;
