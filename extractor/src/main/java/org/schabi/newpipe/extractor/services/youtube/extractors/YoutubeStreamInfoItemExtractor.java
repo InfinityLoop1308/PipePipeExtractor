@@ -46,6 +46,8 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
     private final TimeAgoParser timeAgoParser;
     private StreamType cachedStreamType;
     private JsonObject tempVideoInfo;
+    private String fallbackUploaderName;
+    private String fallbackUploaderUrl;
 
     /**
      * Creates an extractor of StreamInfoItems from a YouTube page.
@@ -65,6 +67,14 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
         this.videoInfo = videoInfoItem;
         this.timeAgoParser = timeAgoParser;
         this.tempVideoInfo = tempVideoInfoItem;
+    }
+
+    public void setFallbackUploaderName(final String name) {
+        this.fallbackUploaderName = name;
+    }
+
+    public void setFallbackUploaderUrl(final String url) {
+        this.fallbackUploaderUrl = url;
     }
 
     @Override
@@ -187,6 +197,9 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                 name = getTextFromObject(videoInfo.getObject("shortBylineText"));
 
                 if (isNullOrEmpty(name)) {
+                    if (!isNullOrEmpty(fallbackUploaderName)) {
+                        return fallbackUploaderName;
+                    }
                     throw new ParsingException("Could not get uploader name");
                 }
             }
@@ -209,6 +222,9 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                         .getArray("runs").getObject(0).getObject("navigationEndpoint"));
 
                 if (isNullOrEmpty(url)) {
+                    if (!isNullOrEmpty(fallbackUploaderUrl)) {
+                        return fallbackUploaderUrl;
+                    }
                     throw new ParsingException("Could not get uploader url");
                 }
             }

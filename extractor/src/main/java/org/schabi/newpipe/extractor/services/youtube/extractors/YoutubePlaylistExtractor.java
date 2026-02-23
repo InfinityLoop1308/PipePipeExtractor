@@ -358,12 +358,31 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                                     @Nonnull final JsonArray videos) {
         final TimeAgoParser timeAgoParser = getTimeAgoParser();
 
+        String playlistUploaderName = null;
+        String playlistUploaderUrl = null;
+        try {
+            playlistUploaderName = getUploaderName();
+            playlistUploaderUrl = getUploaderUrl();
+        } catch (final Exception ignored) {
+        }
+        final String fallbackName = playlistUploaderName;
+        final String fallbackUrl = playlistUploaderUrl;
+
         videos.stream()
                 .filter(JsonObject.class::isInstance)
                 .map(JsonObject.class::cast)
                 .filter(video -> video.has(PLAYLIST_VIDEO_RENDERER))
-                .map(video -> new YoutubeStreamInfoItemExtractor(
-                        video.getObject(PLAYLIST_VIDEO_RENDERER), timeAgoParser))
+                .map(video -> {
+                    final YoutubeStreamInfoItemExtractor extractor = new YoutubeStreamInfoItemExtractor(
+                            video.getObject(PLAYLIST_VIDEO_RENDERER), timeAgoParser);
+                    if (fallbackName != null) {
+                        extractor.setFallbackUploaderName(fallbackName);
+                    }
+                    if (fallbackUrl != null) {
+                        extractor.setFallbackUploaderUrl(fallbackUrl);
+                    }
+                    return extractor;
+                })
                 .forEachOrdered(collector::commit);
     }
 
