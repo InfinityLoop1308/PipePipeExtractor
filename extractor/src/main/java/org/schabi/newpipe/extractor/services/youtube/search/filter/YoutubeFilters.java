@@ -199,8 +199,6 @@ public final class YoutubeFilters extends SearchFiltersBase {
                 new YoutubeSortOrderSortFilterItem("sort_relevance", SortOrder.relevance));
         final int filterIdSortByRating = builder.addSortItem(
                 new YoutubeSortOrderSortFilterItem("sort_rating", SortOrder.rating));
-        final int filterIdSortByDate = builder.addSortItem(
-                new YoutubeSortOrderSortFilterItem("sort_publish_time", SortOrder.date));
         final int filterIdSortByViews = builder.addSortItem(
                 new YoutubeSortOrderSortFilterItem("sort_view", SortOrder.views));
 
@@ -253,7 +251,6 @@ public final class YoutubeFilters extends SearchFiltersBase {
                 builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterIdSortByRelevance),
                         builder.getFilterForId(filterIdSortByRating),
-                        builder.getFilterForId(filterIdSortByDate),
                         builder.getFilterForId(filterIdSortByViews),
                 }),
                 builder.createSortGroup("Upload Date", true, new FilterItem[]{
@@ -293,7 +290,6 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.createSortGroup("Sort by", true, new FilterItem[]{
                                 builder.getFilterForId(filterIdSortByRelevance),
                                 builder.getFilterForId(filterIdSortByRating),
-                                builder.getFilterForId(filterIdSortByDate),
                                 builder.getFilterForId(filterIdSortByViews),
                         })
                 }).build());
@@ -303,7 +299,6 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.createSortGroup("Sort by", true, new FilterItem[]{
                                 builder.getFilterForId(filterIdSortByRelevance),
                                 builder.getFilterForId(filterIdSortByRating),
-                                builder.getFilterForId(filterIdSortByDate),
                                 builder.getFilterForId(filterIdSortByViews),
                         })
                 }).build());
@@ -314,7 +309,6 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.createSortGroup("Sort by", true, new FilterItem[]{
                                 builder.getFilterForId(filterIdSortByRelevance),
                                 builder.getFilterForId(filterIdSortByRating),
-                                builder.getFilterForId(filterIdSortByDate),
                                 builder.getFilterForId(filterIdSortByViews),
                         }),
                         builder.createSortGroup("Upload Date", true, new FilterItem[]{
