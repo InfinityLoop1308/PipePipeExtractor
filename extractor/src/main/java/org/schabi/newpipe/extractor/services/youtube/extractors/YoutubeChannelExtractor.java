@@ -668,20 +668,37 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                 final JsonObject content = video.getObject("richItemRenderer").getObject("content");
                 final JsonObject contentTemp = videoTemp.getObject("richItemRenderer").getObject("content");
 
-                collector.commit(new YoutubeStreamInfoItemExtractor(
-                        content.getObject("videoRenderer"),
-                        timeAgoParser,
-                        contentTemp.getObject("videoRenderer")) {
-                    @Override
-                    public String getUploaderName() {
-                        return uploaderName;
-                    }
+                if (content.has("videoRenderer")) {
+                    collector.commit(new YoutubeStreamInfoItemExtractor(
+                            content.getObject("videoRenderer"),
+                            timeAgoParser,
+                            contentTemp.getObject("videoRenderer")) {
+                        @Override
+                        public String getUploaderName() {
+                            return uploaderName;
+                        }
 
-                    @Override
-                    public String getUploaderUrl() {
-                        return uploaderUrl;
-                    }
-                });
+                        @Override
+                        public String getUploaderUrl() {
+                            return uploaderUrl;
+                        }
+                    });
+                } else if (content.has("lockupViewModel")) {
+                    collector.commit(new YoutubeStreamInfoItemExtractor(
+                            content.getObject("lockupViewModel"),
+                            timeAgoParser,
+                            contentTemp.getObject("lockupViewModel")) {
+                        @Override
+                        public String getUploaderName() {
+                            return uploaderName;
+                        }
+
+                        @Override
+                        public String getUploaderUrl() {
+                            return uploaderUrl;
+                        }
+                    });
+                }
             } else if (video.has("continuationItemRenderer")) {
                 continuation = video.getObject("continuationItemRenderer");
             }

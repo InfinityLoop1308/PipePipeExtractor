@@ -1040,7 +1040,16 @@ YoutubeParsingHelper {
             JsonArray thumbnails = infoItem.getObject("thumbnail").getArray("thumbnails");
             return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
         } catch (final Exception e) {
-            throw new ParsingException("Could not get thumbnail url", e);
+            // lockupViewModel format
+            try {
+                JsonArray thumbnails = infoItem.getObject("contentImage")
+                        .getObject("thumbnailViewModel")
+                        .getObject("image")
+                        .getArray("sources");
+                return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
+            } catch (final Exception e2) {
+                throw new ParsingException("Could not get thumbnail url", e2);
+            }
         }
     }
 
