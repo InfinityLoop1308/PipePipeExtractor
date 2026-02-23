@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.sponsorblock;
 
 public class SponsorBlockApiSettings {
     public String apiUrl;
+    public String userId;
     public boolean includeSponsorCategory;
     public boolean includeIntroCategory;
     public boolean includeOutroCategory;

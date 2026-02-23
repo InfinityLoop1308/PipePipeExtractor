@@ -14,20 +14,14 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
-import org.schabi.newpipe.extractor.utils.RandomStringFromAlphabetGenerator;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Random;
 
 public final class SponsorBlockExtractorHelper {
-    private static final String ALPHABET =
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final Random NUMBER_GENERATOR = new SecureRandom();
 
     private SponsorBlockExtractorHelper() {
     }
@@ -154,7 +148,8 @@ public final class SponsorBlockExtractorHelper {
     public static Response submitSponsorBlockSegment(
             final StreamInfo streamInfo,
             final SponsorBlockSegment segment,
-            final String apiUrl)
+            final String apiUrl,
+            final String userId)
             throws IOException, ReCaptchaException {
         if (segment.category == SponsorBlockCategory.PENDING) {
             return null;
@@ -163,9 +158,6 @@ public final class SponsorBlockExtractorHelper {
 
         String videoId = streamInfo.getId();
         videoId = videoId.split("\\?")[0];
-
-        final String localUserId =
-                RandomStringFromAlphabetGenerator.generate(ALPHABET, 32, NUMBER_GENERATOR);
 
         final String actionType = segment.category == SponsorBlockCategory.HIGHLIGHT
                 ? "poi"
@@ -181,22 +173,20 @@ public final class SponsorBlockExtractorHelper {
                 + "&startTime=" + startInSeconds
                 + "&endTime=" + endInSeconds
                 + "&category=" + segment.category.getApiName()
-                + "&userID=" + localUserId
-                + "&userAgent=PipePipe/1.0.0"
+                + "&userID=" + userId
+                + "&userAgent=PipePipe/1.1.0"
                 + "&actionType=" + actionType;
         return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
     }
 
     public static Response submitSponsorBlockSegmentVote(final String uuid,
-                                                         final String apiUrl,
-                                                         final int vote)
+                                                          final String apiUrl,
+                                                          final int vote,
+                                                          final String userId)
             throws IOException, ReCaptchaException {
-        final String localUserId =
-                RandomStringFromAlphabetGenerator.generate(ALPHABET, 32, NUMBER_GENERATOR);
-
         final String url = apiUrl + "voteOnSponsorTime?"
                 + "UUID=" + uuid
-                + "&userID=" + localUserId
+                + "&userID=" + userId
                 + "&type=" + vote;
 
         return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
