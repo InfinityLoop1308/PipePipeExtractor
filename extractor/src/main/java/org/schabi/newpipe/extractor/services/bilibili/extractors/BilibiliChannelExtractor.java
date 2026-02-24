@@ -253,7 +253,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 JsonArray results
         ) throws ParsingException {
             for (int i = 0; i < results.size(); i++) {
-                collector.commit(new BilibiliChannelInfoItemClientAPIExtractor(results.getObject(i), extractor.getName(), extractor.getAvatarUrl()));
+                collector.commit(new BilibiliChannelInfoItemClientAPIExtractor(results.getObject(i), extractor.getAvatarUrl()));
             }
         }
 
@@ -475,7 +475,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 JsonArray results
         ) throws ParsingException {
             for (int i = 0; i < results.size(); i++) {
-                collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), extractor.getName(), extractor.getAvatarUrl()));
+                collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), null, null));
             }
         }
 
