@@ -114,5 +114,5 @@ final class ClientsConstants {
      * such as <a href="https://www.apkmirror.com/apk/google-inc/youtube/">APKMirror</a>.
      * </p>
      */
-    static final String ANDROID_CLIENT_VERSION = "19.28.35";
+    static final String ANDROID_CLIENT_VERSION = "21.03.36";
 }

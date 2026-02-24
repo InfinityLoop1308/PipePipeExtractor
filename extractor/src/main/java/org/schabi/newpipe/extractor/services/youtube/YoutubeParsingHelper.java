@@ -161,7 +161,7 @@ YoutubeParsingHelper {
      * such as <a href="https://www.apkmirror.com/apk/google-inc/youtube/">APKMirror</a>.
      * </p>
      */
-    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "19.28.35";
+    private static final String ANDROID_YOUTUBE_CLIENT_VERSION = "21.03.36";
 
     /**
      * The InnerTube API key used by the {@code ANDROID} client. Found with the help of
@@ -1327,7 +1327,7 @@ YoutubeParsingHelper {
                 .value("clientScreen", "WATCH")
                 .value("platform", "MOBILE")
                 .value("osName", "Android")
-                .value("osVersion", "15")
+                .value("osVersion", "16")
                 .value("visitorData", visitorData)
                 /*
                 A valid Android SDK version is required to be sure to get a valid player
@@ -1340,7 +1340,7 @@ YoutubeParsingHelper {
                 The Android SDK version corresponding to the Android version used in
                 requests is sent
                 */
-                .value("androidSdkVersion", 35)
+                .value("androidSdkVersion", 36)
                 .value("hl", localization.getLocalizationCode())
                 .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)
