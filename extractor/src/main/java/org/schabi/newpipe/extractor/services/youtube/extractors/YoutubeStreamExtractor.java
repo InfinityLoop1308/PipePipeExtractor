@@ -731,7 +731,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         return streamingDataObjects.stream()
                 .filter(Objects::nonNull)
-                .map(streamingDataObject -> streamingDataObject.getString(manifestKey))
+                .map(streamingDataObject -> streamingDataObject.getString(manifestKey) + "?mpd_version=7")
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(EMPTY_STRING);
