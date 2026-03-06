@@ -1483,7 +1483,15 @@ YoutubeParsingHelper {
                         try {
                             webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                             if (Objects.equals(webPlayerResponse.getObject("playabilityStatus").getString("status"), "LOGIN_REQUIRED")) {
-                                throw new AntiBotException(webPlayerResponse.getObject("playabilityStatus").getString("reason"));
+                                final JsonObject playabilityStatus = webPlayerResponse.getObject("playabilityStatus");
+                                final String reason = playabilityStatus.getString("reason");
+                                if (reason != null && (reason.contains("age") || reason.contains("inappropriate"))) {
+                                    throw new AgeRestrictedContentException("This age-restricted video cannot be watched anonymously");
+                                }
+                                if (playabilityStatus.has("desktopLegacyAgeGateReason")) {
+                                    throw new AgeRestrictedContentException("This age-restricted video cannot be watched anonymously");
+                                }
+                                throw new AntiBotException(reason);
                             }
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");
