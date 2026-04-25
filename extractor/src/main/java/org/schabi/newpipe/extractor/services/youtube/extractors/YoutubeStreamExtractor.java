@@ -415,7 +415,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 return 0;
             }
 
-            return Integer.parseInt(Utils.removeNonDigitCharacters(likesString));
+            final String digitsOnly = Utils.removeNonDigitCharacters(likesString);
+
+            if (digitsOnly == null || digitsOnly.isEmpty()) {
+                throw new ParsingException("Could not extract digits from \"" + likesString + "\"");
+            }
+
+            return Integer.parseInt(digitsOnly);
         } catch (final NumberFormatException nfe) {
             throw new ParsingException("Could not parse \"" + likesString + "\" as an Integer",
                     nfe);
