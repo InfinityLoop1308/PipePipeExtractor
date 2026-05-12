@@ -103,7 +103,6 @@ public abstract class StreamingService {
     private String proxyToken = null;
     private Boolean proxyEnabled = false;
     private Set<String> cookieFunctions = null;
-    private Localization contentLanguage = null;
     private String audioLanguage = "original";
 
     public Set<String> filterTypes = new HashSet<>();
@@ -528,14 +527,6 @@ public abstract class StreamingService {
 
     public void setCookieFunctions(Set<String> cookieFunctions) {
         this.cookieFunctions = cookieFunctions;
-    }
-
-    public void setContentLanguage(Localization contentLanguage) {
-        this.contentLanguage = contentLanguage;
-    }
-
-    public Localization getContentLanguage() {
-        return contentLanguage;
     }
 
     public String getAudioLanguage() {
