@@ -454,9 +454,23 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                     final String content = ((JsonObject) part)
                             .getObject("text")
                             .getString("content");
-                    if (content != null && (content.toLowerCase().contains("ago")
-                            || content.toLowerCase().endsWith("dlule"))) {
+
+                    if (isNullOrEmpty(content)) {
+                        continue;
+                    }
+
+                    if (timeAgoParser != null) {
+                        try {
+                            timeAgoParser.parse(content);
+                            return content;
+                        } catch (final ParsingException ignored) {
+                        }
+                    }
+
+                    try {
+                        YoutubeParsingHelper.parseDateFrom(content);
                         return content;
+                    } catch (final ParsingException ignored) {
                     }
                 }
             }
