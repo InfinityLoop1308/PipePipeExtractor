@@ -275,9 +275,13 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
         for (int rowIndex = 0; rowIndex < metadataRows.size(); rowIndex++) {
             final JsonArray metadataParts = metadataRows.getObject(rowIndex).getArray("metadataParts");
             for (int partIndex = 0; partIndex < metadataParts.size(); partIndex++) {
-                final JsonObject text = metadataParts.getObject(partIndex).getObject("text");
+                final JsonObject metadataPart = metadataParts.getObject(partIndex);
+                final JsonObject text = metadataPart.getObject("text");
                 final String content = text.getString("content");
-                if (isNullOrEmpty(content) || isViewCountText(content) || isUploadDateText(content)) {
+                if (isNullOrEmpty(content)
+                        || isViewCountText(content)
+                        || isViewCountPart(metadataPart)
+                        || isUploadDateText(content)) {
                     continue;
                 }
                 return text;
@@ -371,10 +375,7 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
                     .getArray("metadataParts");
 
             for (int partIndex = 0; partIndex < metadataParts.size(); partIndex++) {
-                final String viewsText = metadataParts.getObject(partIndex)
-                        .getObject("text")
-                        .getString("content");
-                final Long viewCount = parseViewCount(viewsText, isLiveStream);
+                final Long viewCount = parseViewCount(metadataParts.getObject(partIndex), isLiveStream);
                 if (viewCount != null) {
                     return viewCount;
                 }
@@ -385,7 +386,29 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
     }
 
     @Nullable
-    private Long parseViewCount(@Nullable final String viewsText, final boolean isLiveStream) {
+    private Long parseViewCount(@Nonnull final JsonObject metadataPart, final boolean isLiveStream) {
+        final String viewsText = metadataPart.getObject("text").getString("content");
+        final String accessibilityLabel = metadataPart.getString("accessibilityLabel");
+
+        if (isViewCountText(viewsText)) {
+            return parseViewCountText(viewsText, isLiveStream, false);
+        }
+
+        if (isViewCountText(accessibilityLabel) || isViewCountPart(metadataPart)) {
+            final Long parsedFromText = parseViewCountText(viewsText, isLiveStream, true);
+            if (parsedFromText != null) {
+                return parsedFromText;
+            }
+            return parseViewCountText(accessibilityLabel, isLiveStream, true);
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private Long parseViewCountText(@Nullable final String viewsText,
+                                    final boolean isLiveStream,
+                                    final boolean assumeViewCount) {
         if (isNullOrEmpty(viewsText)) {
             return null;
         }
@@ -403,7 +426,7 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
         final boolean hasViewsKeyword = lowerCaseViewsText.contains("view")
                 || lowerCaseViewsText.contains("ukubukwa")
                 || containsWatchingIndicator(lowerCaseViewsText);
-        if (!hasViewsKeyword && !isLiveStream) {
+        if (!hasViewsKeyword && !isLiveStream && !assumeViewCount) {
             return null;
         }
 
@@ -420,6 +443,16 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
             }
             return null;
         }
+    }
+
+    private boolean isViewCountPart(@Nonnull final JsonObject metadataPart) {
+        if (isViewCountText(metadataPart.getString("accessibilityLabel"))) {
+            return true;
+        }
+
+        final JsonObject leadingIcon = metadataPart.getObject("leadingIcon");
+        return leadingIcon != null
+                && "PLAY_ARROW_OUTLINED".equals(leadingIcon.getString("name"));
     }
 
     private boolean isViewCountText(@Nullable final String text) {

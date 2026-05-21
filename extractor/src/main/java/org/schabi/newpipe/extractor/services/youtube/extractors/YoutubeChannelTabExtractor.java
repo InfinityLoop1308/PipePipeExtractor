@@ -378,21 +378,13 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             collector.commit(new YoutubeLockupStreamInfoItemExtractor(lockupViewModel,
                     getTimeAgoParser()) {
                 @Override
-                public String getUploaderName() throws ParsingException {
-                    try {
-                        return super.getUploaderName();
-                    } catch (final ParsingException e) {
-                        return channelIds.get(0);
-                    }
+                public String getUploaderName() {
+                    return channelIds.get(0);
                 }
 
                 @Override
-                public String getUploaderUrl() throws ParsingException {
-                    try {
-                        return super.getUploaderUrl();
-                    } catch (final ParsingException e) {
-                        return channelIds.get(1);
-                    }
+                public String getUploaderUrl() {
+                    return channelIds.get(1);
                 }
             });
         }
