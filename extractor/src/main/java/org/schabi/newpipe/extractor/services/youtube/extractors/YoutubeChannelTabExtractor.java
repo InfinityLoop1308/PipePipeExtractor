@@ -101,7 +101,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     public String getUrl() throws ParsingException {
         try {
             return YoutubeChannelTabLinkHandlerFactory.getInstance().getUrl("channel/" + getId(),
-                    Collections.singletonList(new FilterItem(-1, getTab())), null);
+                    Collections.singletonList(new FilterItem(-1, getTab())),
+                    getLinkHandler().getSortFilter());
         } catch (final ParsingException e) {
             return super.getUrl();
         }
@@ -127,23 +128,14 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         Page nextPage = null;
 
         if (getTabData() != null) {
-            final JsonObject tabContent = tabData.getObject("content");
-            JsonArray items = tabContent
-                    .getObject("sectionListRenderer")
-                    .getArray("contents").getObject(0).getObject("itemSectionRenderer")
-                    .getArray("contents").getObject(0).getObject("gridRenderer").getArray("items");
-
-            if (items.isEmpty()) {
-                items = tabContent.getObject("richGridRenderer").getArray("contents");
-
-                if (items.isEmpty()) {
-                    items = tabContent.getObject("sectionListRenderer").getArray("contents");
-                }
-            }
+            final JsonArray items = getSelectedSortFilterIndex() > 0
+                    ? getSortedItemsFrom(tabData)
+                    : getInitialItemsFrom(tabData);
 
             final List<String> channelIds = new ArrayList<>();
             channelIds.add(getChannelName());
-            channelIds.add(YoutubeChannelLinkHandlerFactory.getInstance().getUrl("channel/" + getId()));
+            channelIds.add(YoutubeChannelLinkHandlerFactory.getInstance()
+                    .getUrl("channel/" + getId()));
             final JsonObject continuation = collectItemsFrom(collector, items, channelIds);
 
             nextPage = getNextPageFrom(continuation, channelIds);
@@ -152,6 +144,94 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, nextPage);
+    }
+
+    @Nonnull
+    private JsonArray getInitialItemsFrom(@Nonnull final JsonObject currentTabData) {
+        final JsonObject tabContent = currentTabData.getObject("content");
+        JsonArray items = tabContent
+                .getObject("sectionListRenderer")
+                .getArray("contents").getObject(0).getObject("itemSectionRenderer")
+                .getArray("contents").getObject(0).getObject("gridRenderer").getArray("items");
+
+        if (items.isEmpty()) {
+            items = tabContent.getObject("richGridRenderer").getArray("contents");
+
+            if (items.isEmpty()) {
+                items = tabContent.getObject("sectionListRenderer").getArray("contents");
+            }
+        }
+
+        return items;
+    }
+
+    @Nonnull
+    private JsonArray getSortedItemsFrom(@Nonnull final JsonObject currentTabData)
+            throws IOException, ExtractionException {
+        final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
+                        getExtractorContentCountry())
+                        .value("continuation", getSortContinuationToken(currentTabData))
+                        .done())
+                .getBytes(StandardCharsets.UTF_8);
+
+        final Map<String, List<String>> headers = new HashMap<>();
+        addYoutubeHeaders(headers);
+        headers.put("Content-Type", Collections.singletonList("application/json"));
+
+        final Response response = getDownloader().post(YOUTUBEI_V1_URL + "browse?"
+                        + DISABLE_PRETTY_PRINT_PARAMETER, headers, body,
+                getExtractorLocalization());
+
+        final JsonObject ajaxJson = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+        return getContinuationItemsFrom(ajaxJson, "reloadContinuationItemsCommand");
+    }
+
+    @Nonnull
+    private String getSortContinuationToken(@Nonnull final JsonObject currentTabData)
+            throws ParsingException {
+        final int sortIndex = getSelectedSortFilterIndex();
+        final JsonArray chips = currentTabData.getObject("content")
+                .getObject("richGridRenderer")
+                .getObject("header")
+                .getObject("chipBarViewModel")
+                .getArray("chips");
+
+        if (chips.size() <= sortIndex) {
+            throw new ParsingException("YouTube channel tab sort filter is not available");
+        }
+
+        final String token = chips.getObject(sortIndex)
+                .getObject("chipViewModel")
+                .getObject("tapCommand")
+                .getObject("innertubeCommand")
+                .getObject("continuationCommand")
+                .getString("token");
+
+        if (isNullOrEmpty(token)) {
+            throw new ParsingException("Could not get YouTube channel tab sort continuation");
+        }
+
+        return token;
+    }
+
+    private int getSelectedSortFilterIndex() throws ParsingException {
+        final List<FilterItem> sortFilter = getLinkHandler().getSortFilter();
+        if (sortFilter == null || sortFilter.isEmpty()) {
+            return 0;
+        }
+
+        final String sortFilterName = sortFilter.get(0).getName();
+        switch (sortFilterName) {
+            case YoutubeChannelTabLinkHandlerFactory.SORT_LATEST:
+                return 0;
+            case YoutubeChannelTabLinkHandlerFactory.SORT_POPULAR:
+                return 1;
+            case YoutubeChannelTabLinkHandlerFactory.SORT_OLDEST:
+                return 2;
+            default:
+                throw new ParsingException("Unsupported YouTube channel tab sort filter: "
+                        + sortFilterName);
+        }
     }
 
     @Override
@@ -166,23 +246,61 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
+        headers.put("Content-Type", Collections.singletonList("application/json"));
 
         final Response response = getDownloader().post(page.getUrl(), headers, page.getBody(),
                 getExtractorLocalization());
 
         final JsonObject ajaxJson = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
 
-        final JsonObject sectionListContinuation = ajaxJson.getArray("onResponseReceivedActions")
-                .getObject(0)
-                .getObject("appendContinuationItemsAction");
-
-        final JsonObject continuation = collectItemsFrom(collector, sectionListContinuation
-                .getArray("continuationItems"), channelIds);
+        final JsonObject continuation = collectItemsFrom(collector,
+                getContinuationItemsFrom(ajaxJson, "appendContinuationItemsAction"), channelIds);
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
         return new InfoItemsPage<>(collector,
                 getNextPageFrom(continuation, channelIds));
+    }
+
+    @Nonnull
+    private JsonArray getContinuationItemsFrom(@Nonnull final JsonObject ajaxJson,
+                                               @Nonnull final String commandName)
+            throws ParsingException {
+        final JsonArray items = new JsonArray();
+        addContinuationItemsFrom(ajaxJson, commandName, items);
+
+        if (items.isEmpty() && "appendContinuationItemsAction".equals(commandName)) {
+            addContinuationItemsFrom(ajaxJson, "reloadContinuationItemsCommand", items);
+        } else if (items.isEmpty() && "reloadContinuationItemsCommand".equals(commandName)) {
+            addContinuationItemsFrom(ajaxJson, "appendContinuationItemsAction", items);
+        }
+
+        if (items.isEmpty()) {
+            throw new ParsingException("Could not get YouTube channel tab continuation items");
+        }
+
+        return items;
+    }
+
+    private void addContinuationItemsFrom(@Nonnull final Object object,
+                                          @Nonnull final String commandName,
+                                          @Nonnull final JsonArray targetItems) {
+        if (object instanceof JsonObject) {
+            final JsonObject jsonObject = (JsonObject) object;
+            final JsonArray continuationItems = jsonObject.getObject(commandName)
+                    .getArray("continuationItems");
+            for (final Object continuationItem : continuationItems) {
+                targetItems.add(continuationItem);
+            }
+
+            for (final Object value : jsonObject.values()) {
+                addContinuationItemsFrom(value, commandName, targetItems);
+            }
+        } else if (object instanceof JsonArray) {
+            for (final Object value : (JsonArray) object) {
+                addContinuationItemsFrom(value, commandName, targetItems);
+            }
+        }
     }
 
     @Nullable
