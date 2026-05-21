@@ -425,15 +425,27 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
                 .getObject("contentMetadataViewModel")
                 .getArray("metadataRows");
 
-        if (metadataRows.size() > 1) {
-            final JsonArray metadataParts = metadataRows.getObject(1).getArray("metadataParts");
-            if (metadataParts.size() > 1) {
-                final String uploadText = metadataParts.getObject(1)
+        for (int rowIndex = 0; rowIndex < metadataRows.size(); rowIndex++) {
+            final JsonArray metadataParts = metadataRows.getObject(rowIndex).getArray("metadataParts");
+            for (int partIndex = 0; partIndex < metadataParts.size(); partIndex++) {
+                final String uploadText = metadataParts.getObject(partIndex)
                         .getObject("text")
                         .getString("content");
+                if (isNullOrEmpty(uploadText)) {
+                    continue;
+                }
 
-                if (!isNullOrEmpty(uploadText)) {
+                if (timeAgoParser == null) {
+                    if (partIndex == 1) {
+                        return uploadText;
+                    }
+                    continue;
+                }
+
+                try {
+                    timeAgoParser.parse(uploadText);
                     return uploadText;
+                } catch (final ParsingException ignored) {
                 }
             }
         }
