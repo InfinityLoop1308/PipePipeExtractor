@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeChannelHelper;
+import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
@@ -142,7 +143,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
             final List<String> channelIds = new ArrayList<>();
             channelIds.add(getChannelName());
-            channelIds.add(getUrl());
+            channelIds.add(YoutubeChannelLinkHandlerFactory.getInstance().getUrl("channel/" + getId()));
             final JsonObject continuation = collectItemsFrom(collector, items, channelIds);
 
             nextPage = getNextPageFrom(continuation, channelIds);
