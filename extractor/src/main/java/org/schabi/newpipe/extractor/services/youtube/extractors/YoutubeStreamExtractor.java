@@ -1360,16 +1360,19 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
             // fetch dislike
 
-            CancellableCall dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
-                @Override
-                public void onSuccess(Response response) throws ExtractionException {
-                    try {
-                        dislikeData = new JSONObject(getValidJsonResponseBody(response));
-                    } catch (JSONException | MalformedURLException e) {
-                        e.printStackTrace();
+            CancellableCall dislikeCall = null;
+            if (ServiceList.YouTube.isFetchDislike()) {
+                dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
+                    @Override
+                    public void onSuccess(Response response) throws ExtractionException {
+                        try {
+                            dislikeData = new JSONObject(getValidJsonResponseBody(response));
+                        } catch (JSONException | MalformedURLException e) {
+                            e.printStackTrace();
+                        }
                     }
-                }
-            });
+                });
+            }
             long startTime = System.nanoTime();
             do {
                 if (((StringUtils.isBlank(ServiceList.YouTube.getTokens()) && androidCall.isFinished())
