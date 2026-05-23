@@ -141,7 +141,7 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
 
         final String animatedText = badgeViewModel.getString("animatedText", "");
         final String loweredAnimatedText = animatedText.toLowerCase(Locale.ROOT);
-        if (loweredAnimatedText.contains("live") || loweredAnimatedText.contains("playing")) {
+        if (loweredAnimatedText.contains("live")) {
             return true;
         }
 
