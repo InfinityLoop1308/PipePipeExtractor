@@ -1321,7 +1321,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final ContentCountry contentCountry = getExtractorContentCountry();
 
         int sabrRetryCount = 0;
-        final int maxSabrRetries = 3;
+        final int maxSabrRetries = 4;
 
         while (true) {
             errors.clear();
