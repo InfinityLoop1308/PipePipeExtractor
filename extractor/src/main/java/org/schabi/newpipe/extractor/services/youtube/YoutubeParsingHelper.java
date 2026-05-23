@@ -365,6 +365,9 @@ YoutubeParsingHelper {
         }
     }
 
+    private static final Pattern LOCALIZED_SCHEDULED_DATE_PATTERN =
+            Pattern.compile("\\d{1,2}/\\d{1,2}/\\d{2,4}\\s+\\d{1,2}:\\d{2}");
+
     public static OffsetDateTime parseDateFrom(final String textualUploadDate)
             throws ParsingException {
         try {
@@ -373,6 +376,18 @@ YoutubeParsingHelper {
             try {
                 return LocalDate.parse(textualUploadDate).atStartOfDay().atOffset(ZoneOffset.UTC);
             } catch (final DateTimeParseException e1) {
+                final java.util.regex.Matcher m =
+                        LOCALIZED_SCHEDULED_DATE_PATTERN.matcher(textualUploadDate);
+                if (m.find()) {
+                    try {
+                        return java.time.LocalDateTime.parse(m.group(),
+                                java.time.format.DateTimeFormatter.ofPattern(
+                                        "M/d/yy HH:mm", Locale.US))
+                                .atOffset(ZoneOffset.UTC);
+                    } catch (final DateTimeParseException e2) {
+                        // fall through
+                    }
+                }
                 throw new ParsingException("Could not parse date: \"" + textualUploadDate + "\"",
                         e1);
             }

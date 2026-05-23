@@ -535,7 +535,12 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
             try {
                 return timeAgoParser.parse(textualUploadDate);
             } catch (final ParsingException e) {
-                throw new ParsingException("Could not get upload date", e);
+                try {
+                    return new DateWrapper(
+                            YoutubeParsingHelper.parseDateFrom(textualUploadDate), true);
+                } catch (final ParsingException e2) {
+                    throw new ParsingException("Could not get upload date", e);
+                }
             }
         }
         return null;
