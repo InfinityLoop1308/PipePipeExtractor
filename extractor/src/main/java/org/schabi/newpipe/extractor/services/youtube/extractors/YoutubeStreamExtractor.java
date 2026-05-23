@@ -1317,7 +1317,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             throws IOException, ExtractionException {
 
         final String videoId = getId();
-        final Localization localization = getExtractorLocalization();
+        final Localization localization = new Localization("en");
         final ContentCountry contentCountry = getExtractorContentCountry();
 
         int sabrRetryCount = 0;
@@ -1391,7 +1391,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                     throw new ExtractionException(e) ;
                 }
-                throw new ExtractionException("Error occurs when fetching the page. Try increase the loading timeout in Settings.");
             }
 
             // Check playability status from the actual stream data source
