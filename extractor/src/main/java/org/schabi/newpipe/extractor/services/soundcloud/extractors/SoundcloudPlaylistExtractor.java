@@ -20,7 +20,9 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 
@@ -139,7 +141,7 @@ public class SoundcloudPlaylistExtractor extends PlaylistExtractor {
                     } else {
                         // %09d would be enough, but a 0 before the number does not create
                         // problems, so let's be sure
-                        ids.add(String.format("%010d", track.getInt("id")));
+                        ids.add(String.valueOf(track.getLong("id")));
                     }
                 });
 
@@ -182,9 +184,26 @@ public class SoundcloudPlaylistExtractor extends PlaylistExtractor {
 
         try {
             final JsonArray tracks = JsonParser.array().from(response);
+            // Response may not contain tracks in the same order as currentIds.
+            // The streams are displayed in the order which is used in currentIds on SoundCloud.
+            final HashMap<Long, JsonObject> idToTrack = new HashMap<>();
             for (final Object track : tracks) {
                 if (track instanceof JsonObject) {
-                    collector.commit(new SoundcloudStreamInfoItemExtractor((JsonObject) track));
+                    final JsonObject o = (JsonObject) track;
+                    idToTrack.put(o.getLong("id"), o);
+                }
+            }
+            for (final String strId : currentIds) {
+                final long id = Long.parseLong(strId);
+                try {
+                    collector.commit(new SoundcloudStreamInfoItemExtractor(
+                            Objects.requireNonNull(
+                                    idToTrack.get(id),
+                            "no track with id " + id + " in response"
+                            )
+                    ));
+                } catch (final NullPointerException e) {
+                    throw new ParsingException("Could not parse json response", e);
                 }
             }
         } catch (final JsonParserException e) {
