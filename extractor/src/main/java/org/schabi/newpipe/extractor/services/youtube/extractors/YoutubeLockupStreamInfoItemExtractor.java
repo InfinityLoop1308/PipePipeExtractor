@@ -559,6 +559,22 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
 
     @Override
     public boolean requiresMembership() throws ParsingException {
+        try {
+            final JsonArray metadataRows = lockupMetadataViewModel.getObject("metadata")
+                    .getObject("contentMetadataViewModel")
+                    .getArray("metadataRows");
+            for (final Object row : metadataRows) {
+                final JsonArray badges = ((JsonObject) row).getArray("badges");
+                for (final Object badge : badges) {
+                    if (((JsonObject) badge).getObject("badgeViewModel")
+                            .getString("badgeStyle", "").equals("BADGE_MEMBERS_ONLY")) {
+                        return true;
+                    }
+                }
+            }
+        } catch (final Exception ignored) {
+            return false;
+        }
         return false;
     }
 

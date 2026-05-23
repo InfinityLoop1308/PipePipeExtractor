@@ -683,6 +683,24 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                 return true;
             }
         }
+        try {
+            final JsonArray metadataRows = videoInfo.getObject("metadata")
+                    .getObject("lockupMetadataViewModel")
+                    .getObject("metadata")
+                    .getObject("contentMetadataViewModel")
+                    .getArray("metadataRows");
+            for (final Object row : metadataRows) {
+                final JsonArray lockupBadges = ((JsonObject) row).getArray("badges");
+                for (final Object badge : lockupBadges) {
+                    if (((JsonObject) badge).getObject("badgeViewModel")
+                            .getString("badgeStyle", "").equals("BADGE_MEMBERS_ONLY")) {
+                        return true;
+                    }
+                }
+            }
+        } catch (final Exception ignored) {
+            // Not lockupViewModel format or no badges
+        }
         return false;
     }
 
