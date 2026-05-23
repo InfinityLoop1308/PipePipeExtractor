@@ -451,6 +451,33 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
             return publishedTimeText;
         }
 
+        // fallback: videoInfo.runs format (e.g. playlistVideoRenderer with nested videoInfo)
+        try {
+            final JsonArray runs = videoInfo.getObject("videoInfo").getArray("runs");
+            for (final Object runObj : runs) {
+                final String text = ((JsonObject) runObj).getString("text");
+                if (isNullOrEmpty(text) || text.equals(" • ")) {
+                    continue;
+                }
+                if (text.contains("ukubukwa") || text.toLowerCase().contains("view")) {
+                    continue;
+                }
+                if (timeAgoParser != null) {
+                    try {
+                        timeAgoParser.parse(text);
+                        return text;
+                    } catch (final ParsingException ignored) {
+                    }
+                }
+                try {
+                    YoutubeParsingHelper.parseDateFrom(text);
+                    return text;
+                } catch (final ParsingException ignored) {
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+
         // lockupViewModel format - iterate through all metadata like PipePipe
         try {
             final JsonArray metadataRows = videoInfo.getObject("metadata")
@@ -533,6 +560,30 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
             }
 
             if (!videoInfo.has("viewCountText")) {
+                // fallback: videoInfo.runs format (e.g. playlistVideoRenderer with nested videoInfo)
+                try {
+                    final JsonArray runs = videoInfo.getObject("videoInfo").getArray("runs");
+                    for (final Object runObj : runs) {
+                        final String text = ((JsonObject) runObj).getString("text");
+                        if (text != null
+                                && (text.toLowerCase().contains("view")
+                                || text.toLowerCase().contains("ukubukwa")
+                                || text.toLowerCase().contains("no views")
+                                || text.toLowerCase().contains("akukho"))) {
+                            if (text.toLowerCase().contains("no views")
+                                    || text.toLowerCase().contains("akukho ukubukwa")
+                                    || text.toLowerCase().contains("akukho kubukwa")) {
+                                return 0;
+                            } else if (text.toLowerCase().contains("recommended")
+                                    || text.toLowerCase().contains("okutusiwe")) {
+                                return -1;
+                            }
+                            return Utils.mixedNumberWordToLong(text);
+                        }
+                    }
+                } catch (final Exception ignored) {
+                }
+
                 // lockupViewModel format - iterate through all metadata like PipePipe
                 final JsonArray metadataRows = videoInfo.getObject("metadata")
                         .getObject("lockupMetadataViewModel")
