@@ -178,12 +178,12 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
 
         String name = getTextFromObject(source.getObject("title"));
         if (!isNullOrEmpty(name)) {
-            return name;
+            return localizeDeletedPrivateVideoTitle(name);
         }
 
         name = getTextFromObject(source.getObject("headline"));
         if (!isNullOrEmpty(name)) {
-            return name;
+            return localizeDeletedPrivateVideoTitle(name);
         }
 
         // lockupViewModel format
@@ -193,13 +193,23 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                     .getObject("title")
                     .getString("content");
             if (!isNullOrEmpty(name)) {
-                return name;
+                return localizeDeletedPrivateVideoTitle(name);
             }
         } catch (final Exception ignored) {
             // Not a lockupViewModel format
         }
 
         throw new ParsingException("Could not get name");
+    }
+
+    private static String localizeDeletedPrivateVideoTitle(final String name) {
+        if (name.contains("Ividiyo esusiwe")) {
+            return "[Deleted video]";
+        }
+        if (name.contains("eyimfihlo")) {
+            return "[Private video]";
+        }
+        return name;
     }
 
 
