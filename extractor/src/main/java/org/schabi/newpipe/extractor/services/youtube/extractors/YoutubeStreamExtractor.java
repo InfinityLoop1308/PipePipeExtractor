@@ -707,6 +707,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public String getDashMpdUrl() throws ParsingException {
         assertPageFetched();
+        if (streamType == StreamType.VIDEO_STREAM)return "";
         if (streamType == StreamType.LIVE_STREAM && !StringUtils.isBlank(ServiceList.YouTube.getTokens())) {
             return "";
         }
@@ -1193,7 +1194,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     public void setStreamType() {
         if (playerResponse.getObject("playabilityStatus").has("liveStreamability")) {
-            streamType = StreamType.LIVE_STREAM;
+            if (StringUtils.isBlank(ServiceList.YouTube.getTokens()) && !playerResponse.getObject(STREAMING_DATA).has("hlsManifestUrl")) {
+                streamType = StreamType.VIDEO_STREAM;
+            } else {
+                streamType = StreamType.LIVE_STREAM;
+            }
         } else if (playerResponse.getObject("videoDetails").getBoolean("isPostLiveDvr", false)) {
             streamType = StreamType.POST_LIVE_STREAM;
         } else {
@@ -1334,7 +1339,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             CancellableCall safariCall = null;
 
             if (StringUtils.isBlank(ServiceList.YouTube.getTokens())) {
-                androidCall = fetchAndroidMobileJsonPlayer(contentCountry, localization, videoId);
+                androidCall = fetchAndroidVRJsonPlayer(contentCountry, localization, videoId);
             } else {
                 safariCall = fetchSafariJsonPlayer(contentCountry, localization, videoId);
             }
@@ -1520,13 +1525,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     /**
-     * Fetch the Android Mobile API and assign the streaming data to the androidStreamingData JSON
+     * Fetch the Android VR API and assign the streaming data to the androidStreamingData JSON
      * object.
      */
-    private CancellableCall fetchAndroidMobileJsonPlayer(@Nonnull final ContentCountry contentCountry,
+    private CancellableCall fetchAndroidVRJsonPlayer(@Nonnull final ContentCountry contentCountry,
                                               @Nonnull final Localization localization,
                                               @Nonnull final String videoId)
             throws IOException, ExtractionException {
+        androidCpn = generateContentPlaybackNonce();
         final InnertubeClientRequestInfo innertubeClientRequestInfo =
                 InnertubeClientRequestInfo.ofAndroidClient();
 
@@ -1537,16 +1543,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String visitorData = YoutubeParsingHelper.getVisitorDataFromInnertube(innertubeClientRequestInfo,
                 localization, contentCountry, headers, YOUTUBEI_V1_GAPIS_URL, null, false);
-        androidCpn = generateContentPlaybackNonce();
-        final byte[] mobileBody = JsonWriter.string(
-                prepareAndroidMobileJsonBuilder(localization, contentCountry, visitorData)
-                        .object("playerRequest")
+        final byte[] body = JsonWriter.string(
+                prepareAndroidVRJsonBuilder(localization, contentCountry, visitorData)
                         .value(VIDEO_ID, videoId)
                         .value(CPN, androidCpn)
                         .value(CONTENT_CHECK_OK, true)
                         .value(RACY_CHECK_OK, true)
-                        .end()
-                        .value("disablePlayerResponse", false)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
@@ -1555,18 +1557,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             public void onSuccess(Response response) throws ExtractionException {
                 try {
                     final JsonObject androidPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                    final JsonObject playerResponseObject = androidPlayerResponse.getObject("playerResponse");
-                    if (isPlayerResponseNotValid(playerResponseObject, videoId)) {
+                    if (isPlayerResponseNotValid(androidPlayerResponse, videoId)) {
                         return;
                     }
 
-                    YoutubeStreamExtractor.this.playerResponse = playerResponseObject;
+                    YoutubeStreamExtractor.this.playerResponse = androidPlayerResponse;
 
-                    final JsonObject streamingData = playerResponseObject.getObject(STREAMING_DATA);
+                    final JsonObject streamingData = androidPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         androidStreamingData = streamingData;
                         if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
-                            playerCaptionsTracklistRenderer = playerResponseObject.getObject("captions")
+                            playerCaptionsTracklistRenderer = androidPlayerResponse.getObject("captions")
                                     .getObject("playerCaptionsTracklistRenderer");
                         }
                     }
@@ -1577,9 +1578,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         };
 
-        return getJsonAndroidPostResponseAsync("reel/reel_item_watch",
-                mobileBody, localization, "&t=" + generateTParameter()
-                        + "&id=" + videoId + "&$fields=playerResponse", callback);
+        return getJsonAndroidVRPostResponseAsync(PLAYER,
+                body, localization, "&t=" + generateTParameter()
+                        + "&id=" + videoId, callback);
     }
 
     /**

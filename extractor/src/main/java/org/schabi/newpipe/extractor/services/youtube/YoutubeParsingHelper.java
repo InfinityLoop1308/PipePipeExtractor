@@ -169,6 +169,9 @@ YoutubeParsingHelper {
      */
     private static final String ANDROID_YOUTUBE_KEY = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
 
+    private static final String ANDROID_VR_YOUTUBE_CLIENT_VERSION = "1.65.10";
+    private static final String ANDROID_VR_YOUTUBE_KEY = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w";
+
     /**
      * The hardcoded client version of the iOS app used for InnerTube requests with this
      * client.
@@ -255,7 +258,7 @@ YoutubeParsingHelper {
     private static final Pattern C_WEB_PATTERN = Pattern.compile("&c=WEB");
     private static final Pattern C_TVHTML5_SIMPLY_EMBEDDED_PLAYER_PATTERN =
             Pattern.compile("&c=TVHTML5_SIMPLY_EMBEDDED_PLAYER");
-    private static final Pattern C_ANDROID_PATTERN = Pattern.compile("&c=ANDROID");
+    private static final Pattern C_ANDROID_PATTERN = Pattern.compile("&c=(?:ANDROID|ANDROID_VR)");
     private static final Pattern C_IOS_PATTERN = Pattern.compile("&c=IOS");
 
     private static final Set<String> GOOGLE_URLS = Set.of("google.", "m.google.", "www.google.");
@@ -1241,6 +1244,25 @@ YoutubeParsingHelper {
                 getAndroidUserAgent(localization), ANDROID_YOUTUBE_KEY, endPartOfUrlRequest, callback);
     }
 
+    public static JsonObject getJsonAndroidVRPostResponse(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nullable final String endPartOfUrlRequest) throws IOException, ExtractionException {
+        return getMobilePostResponse(endpoint, body, localization,
+                getAndroidVRUserAgent(localization), ANDROID_VR_YOUTUBE_KEY, endPartOfUrlRequest);
+    }
+
+    public static CancellableCall getJsonAndroidVRPostResponseAsync(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nullable final String endPartOfUrlRequest,
+            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
+        return getMobilePostResponseAsync(endpoint, body, localization,
+                getAndroidVRUserAgent(localization), ANDROID_VR_YOUTUBE_KEY, endPartOfUrlRequest, callback);
+    }
+
     public static JsonObject getJsonIosPostResponse(
             final String endpoint,
             final byte[] body,
@@ -1375,6 +1397,42 @@ YoutubeParsingHelper {
                 .end();
         // @formatter:on
     }
+
+    @Nonnull
+    public static JsonBuilder<JsonObject> prepareAndroidVRJsonBuilder(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String visitorData) {
+        // @formatter:off
+        return JsonObject.builder()
+                .object("context")
+                .object("client")
+                .value("clientName", "ANDROID_VR")
+                .value("clientVersion", ANDROID_VR_YOUTUBE_CLIENT_VERSION)
+                .value("deviceMake", "Oculus")
+                .value("deviceModel", "Quest 3")
+                .value("clientScreen", "WATCH")
+                .value("platform", "MOBILE")
+                .value("osName", "Android")
+                .value("osVersion", "12L")
+                .value("visitorData", visitorData)
+                .value("androidSdkVersion", 32)
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end()
+                .object("request")
+                .array("internalExperimentFlags")
+                .end()
+                .value("useSsl", true)
+                .end()
+                .object("user")
+                .value("lockedSafetyMode", false)
+                .end()
+                .end();
+        // @formatter:on
+    }
+
     @Nonnull
     public static JsonBuilder<JsonObject> prepareIosMobileJsonBuilder(
             @Nonnull final Localization localization,
@@ -1663,6 +1721,12 @@ YoutubeParsingHelper {
                 + " (Linux; U; Android 15; "
                 + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
                 + ") gzip";
+    }
+
+    @Nonnull
+    public static String getAndroidVRUserAgent(@Nullable final Localization localization) {
+        return "com.google.android.apps.youtube.vr.oculus/" + ANDROID_VR_YOUTUBE_CLIENT_VERSION
+                + " (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
     }
 
     /**
