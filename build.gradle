@@ -2,9 +2,16 @@ allprojects {
     apply plugin: 'java-library'
     apply plugin: 'maven-publish'
 
-    compileJava.options.encoding = 'UTF-8'
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+        withSourcesJar()
+    }
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+
 
     version 'v5.1.1'
     group 'com.github.TeamNewPipe'
@@ -26,47 +33,12 @@ allprojects {
 
     ext {
         nanojsonVersion = "1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751"
-        spotbugsVersion = "4.6.0"
-        checkstyleVersion = "9.3" // do not use latest version (10.0) as it requires compile JDK 11
+        spotbugsVersion = "4.8.3"
+        checkstyleVersion = "10.21.1"
     }
 }
 
 dependencies {
     api project(':extractor')
     implementation project(':timeago-parser')
-}
-
-subprojects {
-    task sourcesJar(type: Jar, dependsOn: classes) {
-        archiveClassifier.set('sources')
-        from sourceSets.main.allSource
-    }
-
-    artifacts {
-        archives sourcesJar
-    }
-}
-
-// https://discuss.gradle.org/t/best-approach-gradle-multi-module-project-generate-just-one-global-javadoc/18657/21
-task aggregatedJavadocs(type: Javadoc, group: 'Documentation') {
-    destinationDir = file("$buildDir/docs/javadoc")
-    title = "$project.name $version"
-    // options.memberLevel = JavadocMemberLevel.PRIVATE
-    options.links 'https://docs.oracle.com/javase/8/docs/api/'
-    options.encoding 'UTF-8'
-    // Fixes unknown tag @implNote; the other two were added precautionary
-    options.tags = [
-            "apiNote:a:API Note:",
-            "implSpec:a:Implementation Requirements:",
-            "implNote:a:Implementation Note:"
-    ]
-
-    subprojects.each { project ->
-        project.tasks.withType(Javadoc).each { javadocTask ->
-            source += javadocTask.source
-            classpath += javadocTask.classpath
-            excludes += javadocTask.excludes
-            includes += javadocTask.includes
-        }
-    }
 }
