@@ -2186,20 +2186,33 @@ YoutubeParsingHelper {
     }
 
     public static ChannelResponseData getChannelResponse(final String channelId,
-                                                         final String params,
-                                                         final Localization loc,
-                                                         final ContentCountry country)
+                                                          final String params,
+                                                          final Localization loc,
+                                                          final ContentCountry country)
+            throws ExtractionException, IOException {
+        return getChannelResponse(channelId, params, null, loc, country);
+    }
+
+    public static ChannelResponseData getChannelResponse(final String channelId,
+                                                          final String params,
+                                                          @Nullable final String query,
+                                                          final Localization loc,
+                                                          final ContentCountry country)
             throws ExtractionException, IOException {
         String id = channelId;
         JsonObject ajaxJson = null;
 
         int level = 0;
         while (level < 3) {
-            final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(
+            final JsonBuilder<JsonObject> bodyBuilder = prepareDesktopJsonBuilder(
                             loc, country)
                             .value("browseId", id)
-                            .value("params", params) // Equal to videos
-                            .done())
+                            .value("params", params); // Equal to videos
+            if (!isNullOrEmpty(query)) {
+                bodyBuilder.value("query", query);
+            }
+
+            final byte[] body = JsonWriter.string(bodyBuilder.done())
                     .getBytes(UTF_8);
 
             final JsonObject jsonResponse = getJsonPostResponse("browse", body, loc);
