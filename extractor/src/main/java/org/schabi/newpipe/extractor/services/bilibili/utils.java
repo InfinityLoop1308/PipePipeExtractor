@@ -3,16 +3,12 @@ package org.schabi.newpipe.extractor.services.bilibili;
 import com.grack.nanojson.*;
 
 import org.brotli.dec.BrotliInputStream;
-import org.cache2k.Cache;
-import org.cache2k.Cache2kBuilder;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.*;
 import java.math.BigInteger;
-import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,8 +16,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.Inflater;
@@ -40,11 +34,6 @@ public class utils {
     private static final BigInteger BASE = new BigInteger("58");
 
     private static final String table = "FcwAPNKTMug3GV5Lj7EJnHpWsx4tb8haYeviqBz6rkCy12mUSDQX9RdoZf";
-
-    private static final Pattern RENDER_DATA_PATTERN = Pattern.compile("<script id=\"__RENDER_DATA__\" type=\"application/json\">(.*?)</script>", Pattern.DOTALL);
-
-    private static final Cache<String, String> webIdCache = new Cache2kBuilder<String, String>() {
-    }.entryCapacity(256).expireAfterWrite(86400, TimeUnit.SECONDS).loader(utils::getWebId).build();
 
     public Map<Character, Integer> map = new HashMap<Character, Integer>();
 
@@ -121,31 +110,6 @@ public class utils {
         int res1 = scrollLeft;
         int rnd = ThreadLocalRandom.current().nextInt(514);
         return new int[]{3 * res0 + 2 * res1 + rnd, 4 * res0 - 4 * res1 + 2 * rnd, rnd};
-    }
-
-    private static String getWebId(String mid) throws IOException, JsonParserException {
-        Response response;
-        LinkedHashMap<String, List<String>> headers = getHeaders(WWW_REFERER);
-        headers.put("Upgrade-Insecure-Requests", Collections.singletonList("1"));
-        headers.put("Accept", Collections.singletonList("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"));
-        headers.put("Priority", Collections.singletonList("u=0, i"));
-        try {
-            response = NewPipe.getDownloader().get("https://space.bilibili.com/" + mid, headers);
-        } catch (ReCaptchaException e) {
-            throw new RuntimeException(e);
-        }
-        String renderData;
-        Matcher matcher = RENDER_DATA_PATTERN.matcher(response.responseBody());
-        if (matcher.find()) {
-            renderData = matcher.group(1);
-        } else {
-            throw new IOException("Invalid space page response: " + response.responseBody());
-        }
-
-        String decodedRenderData = URLDecoder.decode(renderData, StandardCharsets.UTF_8.name());
-        JsonObject json = JsonParser.object().from(decodedRenderData);
-
-        return json.getString("access_id");
     }
 
     public static LinkedHashMap<String, String> getDmImgParams() {
