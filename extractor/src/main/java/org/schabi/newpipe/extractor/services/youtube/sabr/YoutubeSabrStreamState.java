@@ -513,8 +513,7 @@ public final class YoutubeSabrStreamState {
         private final long lastModified;
         @Nullable
         private final String xtags;
-        // Written by the pump thread (ingest), read by the ExoPlayer loader threads (isBeyondEnd /
-        // isComplete / getEndSegment) — volatile for cross-thread visibility.
+        // pump thread writes it, ExoPlayer loader threads read it. volatile so they actually see it.
         private volatile boolean initReceived;
         private volatile int maxSegment;
         private int observedMaxSegment;
