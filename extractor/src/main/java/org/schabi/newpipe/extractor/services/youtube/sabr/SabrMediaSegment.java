@@ -10,7 +10,10 @@ public final class SabrMediaSegment {
 
     SabrMediaSegment(@Nonnull final SabrMediaHeader header, @Nonnull final byte[] data) {
         this.header = header;
-        this.data = data.clone();
+        // No defensive copy: the collector hands over a freshly built array it does not retain.
+        // Media segments reach several MB (4K), so cloning here doubled peak memory and caused OOM
+        // under rapid switching. The array is treated as immutable from here on.
+        this.data = data;
     }
 
     @Nonnull
@@ -18,9 +21,10 @@ public final class SabrMediaSegment {
         return header;
     }
 
+    /** Read-only: callers must not mutate the returned array (no defensive copy, for memory). */
     @Nonnull
     public byte[] getData() {
-        return data.clone();
+        return data;
     }
 
     public int getLength() {
