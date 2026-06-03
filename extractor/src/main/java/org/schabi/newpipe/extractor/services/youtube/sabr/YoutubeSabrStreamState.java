@@ -137,6 +137,11 @@ public final class YoutubeSabrStreamState {
         return Math.max(audio.getBufferedEndMs(), video.getBufferedEndMs());
     }
 
+    /** buffered end (ms) of the slower track = how far we can actually play. the weakest link wins. */
+    public long getMinBufferedEndMs() {
+        return Math.min(audio.getBufferedEndMs(), video.getBufferedEndMs());
+    }
+
     public void setPlayerTimeMs(final long playerTimeMs) {
         playerTimeMsOverride = Math.max(0, playerTimeMs);
     }
