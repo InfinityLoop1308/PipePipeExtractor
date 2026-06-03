@@ -25,9 +25,9 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
-    // SABR-DIAG: verbose per-round SABR diagnostics (per-itag media, status, backoff), gated by
-    // this flag. prints to stdout -> I/System.out in logcat. flip to false to silence.
-    private static final boolean DIAG = true;
+    // SABR-DIAG: spammy per-round logging (media/status/backoff) for when SABR is being a diva.
+    // off by default; flip to true to watch it suffer in logcat.
+    private static final boolean DIAG = false;
 
     @Nonnull
     private final YoutubeSabrInfo info;
@@ -283,6 +283,7 @@ public final class YoutubeSabrSession {
         return segmentCache.get(cacheKey(request));
     }
 
+
     /** True once the requested media segment is known to be past the last segment of the stream. */
     public boolean isBeyondEnd(@Nonnull final SabrSegmentRequest request) {
         if (request.isInitializationSegment()) {
@@ -370,9 +371,9 @@ public final class YoutubeSabrSession {
         try {
             Thread.sleep(ms);
         } catch (final InterruptedException e) {
-            // don't go fatal on a stray interrupt mid-backoff or we nuke the whole session and kill
-            // BOTH audio and video. just swallow it; the loop re-checks stop/idle next round and
-            // bails if playback's really gone.
+            // a random interrupt during a backoff must NOT kill the session, that drags audio AND
+            // video down with it in one shot. swallow it and carry on; the loop figures out by
+            // itself if playback is actually dead.
             if (DIAG) {
                 System.out.println("SABR-DIAG backoff interrupted (non-fatal, continuing)");
             }
