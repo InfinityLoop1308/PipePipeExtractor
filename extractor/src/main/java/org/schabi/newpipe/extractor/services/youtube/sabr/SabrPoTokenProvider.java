@@ -20,9 +20,8 @@ public interface SabrPoTokenProvider {
             throws IOException, ExtractionException;
 
     /**
-     * Same as {@link #getPoToken}, but when {@code forceRefresh} is true any cached token is
-     * discarded and a fresh one is minted — used when the server rejects a token that expired
-     * mid-playback. Default ignores the flag (no cache to bypass).
+     * Like {@link #getPoToken}, but {@code forceRefresh} drops the cached token and mints a fresh
+     * one. For when the server rejects a token that died mid-playback. Default impl ignores the flag.
      */
     @Nullable
     default byte[] getPoToken(@Nonnull final YoutubeSabrInfo info,

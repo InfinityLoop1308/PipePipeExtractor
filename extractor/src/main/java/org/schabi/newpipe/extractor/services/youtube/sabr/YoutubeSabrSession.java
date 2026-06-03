@@ -25,6 +25,9 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
+    // SABR-DIAG: verbose per-round SABR diagnostics (per-itag media, status, backoff), gated by
+    // this flag. prints to stdout -> I/System.out in logcat. flip to false to silence.
+    private static final boolean DIAG = true;
 
     @Nonnull
     private final YoutubeSabrInfo info;
@@ -182,6 +185,19 @@ public final class YoutubeSabrSession {
     @Nonnull
     public List<SabrMediaSegment> pumpOnce(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
+        if (DIAG) {
+            final StringBuilder br = new StringBuilder();
+            for (final SabrBufferedRange r : streamState.getBufferedRanges()) {
+                br.append('[').append(r.summarize()).append(']');
+            }
+            System.out.println("SABR-DIAG >>send req=" + requestNumber
+                    + " playerTms=" + streamState.getPlayerTimeMs()
+                    + " aSeg=" + streamState.getMaxSegment(audioFormat)
+                    + "/" + streamState.getEndSegment(audioFormat)
+                    + " vSeg=" + streamState.getMaxSegment(videoFormat)
+                    + "/" + streamState.getEndSegment(videoFormat)
+                    + " buf=" + br);
+        }
         final YoutubeSabrProbeResult result = fetchNextResponse(localization);
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
@@ -196,10 +212,32 @@ public final class YoutubeSabrSession {
             final SabrMediaSegment prev = segmentCache.put(key, segment);
             if (prev == null && !segment.getHeader().isInitSegment()) {
                 cacheOrder.addLast(key);
-                cachedBytes += segment.getData().length;
+                cachedBytes += segment.getLength();
             }
         }
         evictCacheIfNeeded();
+        if (DIAG) {
+            final Map<Integer, Integer> segCount = new java.util.LinkedHashMap<>();
+            final Map<Integer, Long> segBytes = new java.util.LinkedHashMap<>();
+            for (final SabrMediaSegment s : segments) {
+                final int itag = s.getHeader().getItag();
+                segCount.merge(itag, 1, Integer::sum);
+                segBytes.merge(itag, (long) s.getLength(), Long::sum);
+            }
+            final StringBuilder fmt = new StringBuilder();
+            for (final Map.Entry<Integer, Integer> e : segCount.entrySet()) {
+                fmt.append(" itag").append(e.getKey()).append('=').append(e.getValue())
+                        .append("seg/").append(segBytes.get(e.getKey()) / 1024).append("KB");
+            }
+            System.out.println("SABR-DIAG req=" + requestNumber
+                    + " aFmt=" + audioFormat.getItag() + " vFmt=" + videoFormat.getItag()
+                    + " seg=" + segments.size() + fmt
+                    + " status3=" + decoded.isProtectedNoMediaResponse()
+                    + " backoffMs=" + decoded.getBackoffTimeMs()
+                    + " reload=" + decoded.isReloadRequested()
+                    + " err=" + (decoded.getSabrErrorDetails() != null)
+                    + " cacheKB=" + (cachedBytes / 1024));
+        }
         if (decoded.getSabrErrorDetails() != null) {
             throw new SabrProtocolException("SABR error: "
                     + decoded.getSabrErrorDetails().summarize());
@@ -209,9 +247,9 @@ public final class YoutubeSabrSession {
                     + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isProtectedNoMediaResponse()) {
-            // Best-effort: mint / bounded re-mint the token. Do NOT throw on a single protected
-            // response — status=3 is a normal pacing/protection state the server clears on a later
-            // request; the pump keeps trying, and the reader stall watchdog is the final give-up.
+            // mint / re-mint the token, best effort. don't throw on a single status=3: it's normal
+            // pacing, the server usually clears it next round. pump keeps trying; the stall watchdog
+            // is the real give-up.
             applyPoTokenForProtectedResponse();
         }
         if (!segments.isEmpty()) {
@@ -235,7 +273,7 @@ public final class YoutubeSabrSession {
             }
             final SabrMediaSegment old = segmentCache.remove(oldKey);
             if (old != null) {
-                cachedBytes -= old.getData().length;
+                cachedBytes -= old.getLength();
             }
         }
     }
@@ -326,11 +364,18 @@ public final class YoutubeSabrSession {
         if (ms == 0) {
             return;
         }
+        if (DIAG) {
+            System.out.println("SABR-DIAG backoff sleep " + ms + "ms (server=" + backoffTimeMs + ")");
+        }
         try {
             Thread.sleep(ms);
         } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new SabrProtocolException("Interrupted while waiting for SABR backoff", e);
+            // don't go fatal on a stray interrupt mid-backoff or we nuke the whole session and kill
+            // BOTH audio and video. just swallow it; the loop re-checks stop/idle next round and
+            // bails if playback's really gone.
+            if (DIAG) {
+                System.out.println("SABR-DIAG backoff interrupted (non-fatal, continuing)");
+            }
         }
     }
 
@@ -352,9 +397,9 @@ public final class YoutubeSabrSession {
     }
 
     /**
-     * React to a protected/no-media (status=3) response: mint a token, or — if one is already set
-     * but the server still rejects it (token expired mid-playback) — force a bounded re-mint.
-     * Returns false when no usable token could be applied (caller treats it as fatal).
+     * Handle a status=3 / no-media response: mint a token, or force a bounded re-mint if we already
+     * have one but the server still rejects it (expired mid-playback). Returns false if none could
+     * be applied (caller treats that as fatal).
      */
     private boolean applyPoTokenForProtectedResponse() throws IOException, ExtractionException {
         if (maybeApplyPoToken(false)) {
