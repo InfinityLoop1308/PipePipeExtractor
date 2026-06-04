@@ -72,6 +72,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                 return "EglwbGF5bGlzdHPyBgQKAkIA";
             case ChannelTabs.PODCASTS:
                 return "Eghwb2RjYXN0c_IGBQoDugEA";
+            case ChannelTabs.SEARCH:
+                return "EgZzZWFyY2jyBgQKAloA";
             default:
                 throw new ParsingException("Unsupported channel tab: " + name);
         }
@@ -86,7 +88,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         final String params = getChannelTabsParameters();
 
         final ChannelResponseData data = getChannelResponse(channelIdFromId,
-                params, getExtractorLocalization(), getExtractorContentCountry());
+                params, getSearchQuery(), getExtractorLocalization(), getExtractorContentCountry());
 
         jsonResponse = data.responseJson;
         channelHeader = YoutubeChannelHelper.getChannelHeader(jsonResponse);
@@ -100,9 +102,12 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     @Override
     public String getUrl() throws ParsingException {
         try {
-            return YoutubeChannelTabLinkHandlerFactory.getInstance().getUrl("channel/" + getId(),
+            final String url = YoutubeChannelTabLinkHandlerFactory.getInstance().getUrl(
+                    "channel/" + getId(),
                     Collections.singletonList(new FilterItem(-1, getTab())),
                     getLinkHandler().getSortFilter());
+            return YoutubeChannelTabLinkHandlerFactory.appendSearchQueryIfNeeded(
+                    url, getSearchQuery());
         } catch (final ParsingException e) {
             return super.getUrl();
         }
@@ -317,14 +322,17 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
         JsonObject foundTab = null;
         for (final Object tab : tabs) {
-            if (((JsonObject) tab).has("tabRenderer")) {
-                final String tabUrl = ((JsonObject) tab).getObject("tabRenderer").getObject("endpoint")
-                        .getObject("commandMetadata").getObject("webCommandMetadata")
-                        .getString("url");
-                if (tabUrl != null && normalizeTabUrl(tabUrl).endsWith(urlSuffix)) {
-                    foundTab = ((JsonObject) tab).getObject("tabRenderer");
-                    break;
-                }
+            final JsonObject tabRenderer = getTabRenderer((JsonObject) tab);
+            if (tabRenderer == null) {
+                continue;
+            }
+
+            final String tabUrl = tabRenderer.getObject("endpoint")
+                    .getObject("commandMetadata").getObject("webCommandMetadata")
+                    .getString("url");
+            if (tabUrl != null && normalizeTabUrl(tabUrl).endsWith(urlSuffix)) {
+                foundTab = tabRenderer;
+                break;
             }
         }
 
@@ -414,6 +422,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
         if (item.has("gridVideoRenderer")) {
             commitVideo.accept(item.getObject("gridVideoRenderer"));
+        } else if (item.has("videoRenderer")) {
+            commitVideo.accept(item.getObject("videoRenderer"));
         } else if (item.has("richItemRenderer")) {
             final JsonObject richItem = item.getObject("richItemRenderer").getObject("content");
 
@@ -454,6 +464,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         } else if (item.has("gridChannelRenderer")) {
             collector.commit(new YoutubeChannelInfoItemExtractor(
                     item.getObject("gridChannelRenderer")));
+        } else if (item.has("channelRenderer")) {
+            collector.commit(new YoutubeChannelInfoItemExtractor(
+                    item.getObject("channelRenderer")));
         } else if (item.has("shelfRenderer")) {
             return collectItem(collector, item.getObject("shelfRenderer")
                     .getObject("content"), channelIds);
@@ -471,6 +484,26 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         } else if (item.has("lockupViewModel")) {
             commitLockupItemIfSupported(collector,
                     item.getObject("lockupViewModel"), channelIds);
+        }
+        return null;
+    }
+
+    @Nullable
+    private String getSearchQuery() throws ParsingException {
+        if (!ChannelTabs.SEARCH.equals(getTab())) {
+            return null;
+        }
+
+        return YoutubeChannelTabLinkHandlerFactory.getSearchQueryFromUrl(getOriginalUrl());
+    }
+
+    @Nullable
+    private static JsonObject getTabRenderer(@Nonnull final JsonObject tab) {
+        if (tab.has("tabRenderer")) {
+            return tab.getObject("tabRenderer");
+        }
+        if (tab.has("expandableTabRenderer")) {
+            return tab.getObject("expandableTabRenderer");
         }
         return null;
     }
