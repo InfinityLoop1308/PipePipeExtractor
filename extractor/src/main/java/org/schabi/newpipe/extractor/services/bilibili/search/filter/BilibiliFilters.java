@@ -84,19 +84,19 @@ public class BilibiliFilters extends SearchFiltersBase {
                 new BilibiliSortFilterItem("sort_bookmark", "order=stow")
         );
         final int filterDuartionAll = builder.addSortItem(
-                new BilibiliSortFilterItem("All", "duration=0")
+                new BilibiliSortFilterItem("all", "duration=0")
         );
         final int filterDuartionShort = builder.addSortItem(
-                new BilibiliSortFilterItem("< 10 min", "duration=1")
+                new BilibiliSortFilterItem("short_video", "duration=1")
         );
         final int filterDuartionMedium = builder.addSortItem(
-                new BilibiliSortFilterItem("10-30 min", "duration=2")
+                new BilibiliSortFilterItem("medium_length", "duration=2")
         );
         final int filterDuartionLong = builder.addSortItem(
-                new BilibiliSortFilterItem("30-60 min", "duration=3")
+                new BilibiliSortFilterItem("long_video", "duration=3")
         );
         final int filterDuartionExtraLong = builder.addSortItem(
-                new BilibiliSortFilterItem("> 60 min", "duration=4")
+                new BilibiliSortFilterItem("extra_long", "duration=4")
         );
         final Filter videoSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup("sortby", true, new FilterItem[]{
@@ -107,7 +107,7 @@ public class BilibiliFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterCommentCount),
                         builder.getFilterForId(filterBookmarkCount),
                 }),
-                builder.createSortGroup("Duration", true, new FilterItem[]{
+                builder.createSortGroup("duration", true, new FilterItem[]{
                         builder.getFilterForId(filterDuartionAll),
                         builder.getFilterForId(filterDuartionShort),
                         builder.getFilterForId(filterDuartionMedium),

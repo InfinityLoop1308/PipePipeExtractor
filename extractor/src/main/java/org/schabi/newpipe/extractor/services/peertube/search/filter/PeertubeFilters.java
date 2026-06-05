@@ -46,13 +46,13 @@ public final class PeertubeFilters extends SearchFiltersBase {
     protected void init() {
         /* content filters */
         final int contentFilterAll = builder.addSortItem(
-                new PeertubeFilterItem("All", ""));
+                new PeertubeFilterItem("all", ""));
         final int contentFilterVideos = builder.addSortItem(
-                new PeertubeFilterItem("Videos", "resultType=videos"));
+                new PeertubeFilterItem("videos", "resultType=videos"));
         final int contentFilterChannels = builder.addSortItem(
-                new PeertubeFilterItem("Channels", "resultType=channels"));
+                new PeertubeFilterItem("channels", "resultType=channels"));
         final int contentFilterPlaylists = builder.addSortItem(
-                new PeertubeFilterItem("Playlists", "resultType=playlists"));
+                new PeertubeFilterItem("playlists", "resultType=playlists"));
 
 
         /* this is the default content filter */
@@ -71,68 +71,68 @@ public final class PeertubeFilters extends SearchFiltersBase {
 
         /* 'Sort by' filter items */
         final int filterDateRelevance = builder.addSortItem(
-                new PeertubeSortFilterItem("Relevance", "sort=match"));
+                new PeertubeSortFilterItem("sort_relevance", "sort=match"));
         final int filterDateName = builder.addSortItem(
-                new PeertubeSortFilterItem("Name", "sort=name"));
+                new PeertubeSortFilterItem("name", "sort=name"));
         final int filterDateDuration = builder.addSortItem(
-                new PeertubeSortFilterItem("Duration", "sort=duration"));
+                new PeertubeSortFilterItem("duration", "sort=duration"));
         final int filterDatePublishedAt = builder.addSortItem(
-                new PeertubeSortFilterItem("Publish date", "sort=publishedAt"));
+                new PeertubeSortFilterItem("sort_publish_time", "sort=publishedAt"));
         final int filterDateCreatedAt = builder.addSortItem(
                 new PeertubeSortFilterItem("Creation date", "sort=createdAt"));
         final int filterDateViews = builder.addSortItem(
-                new PeertubeSortFilterItem("Views", "sort=views"));
+                new PeertubeSortFilterItem("sort_view", "sort=views"));
         final int filterDateLikes = builder.addSortItem(
-                new PeertubeSortFilterItem("Likes", "sort=likes"));
+                new PeertubeSortFilterItem("sort_likes", "sort=likes"));
 
         final int filterDateSortOrder = builder.addSortItem(
-                new PeertubeSortOrderFilterItem("Ascending"));
+                new PeertubeSortOrderFilterItem("sort_ascending"));
 
         /* stream kind filter items */
         final int filterVideoAll = builder.addSortItem(
-                new PeertubeFilterItem("All", ""));
+                new PeertubeFilterItem("all", ""));
         final int filterVideoLiveOnly = builder.addSortItem(
-                new PeertubeFilterItem("Live", "isLive=true"));
+                new PeertubeFilterItem("lives", "isLive=true"));
         final int filterVideoVODsOnly = builder.addSortItem(
                 new PeertubeFilterItem("VOD videos", "isLive=false"));
 
         /* sensitive filter items */
         final int filterSensitiveContentAll = builder.addSortItem(
-                new PeertubeFilterItem("All", ""));
+                new PeertubeFilterItem("all", ""));
         final int filterSensitiveContentYes = builder.addSortItem(
-                new PeertubeFilterItem("Yes", "nsfw=both"));
+                new PeertubeFilterItem("yes", "nsfw=both"));
         final int filterSensitiveContentNo = builder.addSortItem(
-                new PeertubeFilterItem("No", "nsfw=false"));
+                new PeertubeFilterItem("no", "nsfw=false"));
 
         /* 'Date' filter items */
         // here query is set to null as the value is generated dynamically
         final int filterPublishedDateAll = builder.addSortItem(
-                new PeertubePublishedDateFilterItem("All", null,
+                new PeertubePublishedDateFilterItem("all", null,
                         PeertubePublishedDateFilterItem.NO_DAYS_SET));
         final int filterPublishedDateToday = builder.addSortItem(
-                new PeertubePublishedDateFilterItem("Today", null, 1));
+                new PeertubePublishedDateFilterItem("past_day", null, 1));
         final int filterPublishedDateLast7Days = builder.addSortItem(
-                new PeertubePublishedDateFilterItem("last 7 days", null, 7));
+                new PeertubePublishedDateFilterItem("past_week", null, 7));
         final int filterPublishedDateLast30Days = builder.addSortItem(
-                new PeertubePublishedDateFilterItem("last 30 days", null, 30));
+                new PeertubePublishedDateFilterItem("past_month", null, 30));
         final int filterPublishedDateLastYear = builder.addSortItem(
-                new PeertubePublishedDateFilterItem("last year", null, 365));
+                new PeertubePublishedDateFilterItem("past_year", null, 365));
 
         /* 'Duration' filter items */
         final int filterDurationAll = builder.addSortItem(
-                new PeertubeFilterItem("All", ""));
+                new PeertubeFilterItem("all", ""));
         final int filterDurationShort = builder.addSortItem(
-                new PeertubeFilterItem("Short (< 4 min)", "durationMax=240"));
+                new PeertubeFilterItem("short_video", "durationMax=240"));
         final int filterDurationMedium = builder.addSortItem(
-                new PeertubeFilterItem("Medium (4-10 min)", "durationMin=240&durationMax=600"));
+                new PeertubeFilterItem("medium_length", "durationMin=240&durationMax=600"));
         final int filterDurationLong = builder.addSortItem(
-                new PeertubeFilterItem("Long (> 10 min)", "durationMin=600"));
+                new PeertubeFilterItem("long_video", "durationMin=600"));
 
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
                 builder.createSortGroup(null, false, new FilterItem[]{
                         builder.getFilterForId(filterSepiaSearch),
                 }),
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterDateRelevance),
                         builder.getFilterForId(filterDateName),
                         builder.getFilterForId(filterDateDuration),
@@ -141,7 +141,7 @@ public final class PeertubeFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterDateViews),
                         builder.getFilterForId(filterDateLikes),
                 }),
-                builder.createSortGroup("Sort order", false, new FilterItem[]{
+                builder.createSortGroup("sortorder", false, new FilterItem[]{
                         builder.getFilterForId(filterDateSortOrder),
                 }),
                 builder.createSortGroup("Kind", true, new FilterItem[]{
@@ -154,14 +154,14 @@ public final class PeertubeFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterSensitiveContentYes),
                         builder.getFilterForId(filterSensitiveContentNo),
                 }),
-                builder.createSortGroup("Published", true, new FilterItem[]{
+                builder.createSortGroup("published", true, new FilterItem[]{
                         builder.getFilterForId(filterPublishedDateAll),
                         builder.getFilterForId(filterPublishedDateToday),
                         builder.getFilterForId(filterPublishedDateLast7Days),
                         builder.getFilterForId(filterPublishedDateLast30Days),
                         builder.getFilterForId(filterPublishedDateLastYear),
                 }),
-                builder.createSortGroup("Duration", true, new FilterItem[]{
+                builder.createSortGroup("duration", true, new FilterItem[]{
                         builder.getFilterForId(filterDurationAll),
                         builder.getFilterForId(filterDurationShort),
                         builder.getFilterForId(filterDurationMedium),

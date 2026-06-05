@@ -58,27 +58,27 @@ public final class SoundcloudFilters extends SearchFiltersBase {
         final int filterIdDateAll = builder.addSortItem(
                 new SoundcloudSortFilterItem("all", ""));
         final int filterIdDateLastHour = builder.addSortItem(
-                new SoundcloudSortFilterItem("Past hour", "filter.created_at=last_hour"));
+                new SoundcloudSortFilterItem("past_hour", "filter.created_at=last_hour"));
         final int filterIdDateLastDay = builder.addSortItem(
-                new SoundcloudSortFilterItem("Past day", "filter.created_at=last_day"));
+                new SoundcloudSortFilterItem("past_day", "filter.created_at=last_day"));
         final int filterIdDateLastWeek = builder.addSortItem(
-                new SoundcloudSortFilterItem("Past week", "filter.created_at=last_week"));
+                new SoundcloudSortFilterItem("past_week", "filter.created_at=last_week"));
         final int filterIdDateLastMonth = builder.addSortItem(
-                new SoundcloudSortFilterItem("Past month", "filter.created_at=last_month"));
+                new SoundcloudSortFilterItem("past_month", "filter.created_at=last_month"));
         final int filterIdDateLastYear = builder.addSortItem(
-                new SoundcloudSortFilterItem("Past year", "filter.created_at=last_year"));
+                new SoundcloudSortFilterItem("past_year", "filter.created_at=last_year"));
 
         /* duration' filter items */
         final int filterIdDurationAll = builder.addSortItem(
                 new SoundcloudSortFilterItem("all", ""));
         final int filterIdDurationShort = builder.addSortItem(
-                new SoundcloudSortFilterItem("< 2 min", "filter.duration=short"));
+                new SoundcloudSortFilterItem("short_video", "filter.duration=short"));
         final int filterIdDurationMedium = builder.addSortItem(
-                new SoundcloudSortFilterItem("2-10 min", "filter.duration=medium"));
+                new SoundcloudSortFilterItem("medium_length", "filter.duration=medium"));
         final int filterIdDurationLong = builder.addSortItem(
-                new SoundcloudSortFilterItem("10-30 min", "filter.duration=long"));
+                new SoundcloudSortFilterItem("long_video", "filter.duration=long"));
         final int filterIdDurationEpic = builder.addSortItem(
-                new SoundcloudSortFilterItem("> 30 min", "filter.duration=epic"));
+                new SoundcloudSortFilterItem("extra_long", "filter.duration=epic"));
 
         /* license */
         final int filterIdLicenseAll = builder.addSortItem(
@@ -87,7 +87,7 @@ public final class SoundcloudFilters extends SearchFiltersBase {
                 new SoundcloudSortFilterItem("To modify commercially",
                         "filter.license=to_modify_commercially"));
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup("Sort by", true, new FilterItem[]{
+                builder.createSortGroup("sortby", true, new FilterItem[]{
                         builder.getFilterForId(filterIdDateAll),
                         builder.getFilterForId(filterIdDateLastHour),
                         builder.getFilterForId(filterIdDateLastDay),
@@ -95,14 +95,14 @@ public final class SoundcloudFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterIdDateLastMonth),
                         builder.getFilterForId(filterIdDateLastYear),
                 }),
-                builder.createSortGroup("Length", true, new FilterItem[]{
+                builder.createSortGroup("sort_length", true, new FilterItem[]{
                         builder.getFilterForId(filterIdDurationAll),
                         builder.getFilterForId(filterIdDurationShort),
                         builder.getFilterForId(filterIdDurationMedium),
                         builder.getFilterForId(filterIdDurationLong),
                         builder.getFilterForId(filterIdDurationEpic),
                 }),
-                builder.createSortGroup("License", true, new FilterItem[]{
+                builder.createSortGroup("license", true, new FilterItem[]{
                         builder.getFilterForId(filterIdLicenseAll),
                         builder.getFilterForId(filterIdLicenseCommerce),
                 }),

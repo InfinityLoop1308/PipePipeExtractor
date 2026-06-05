@@ -103,13 +103,13 @@ public final class NiconicoFilters extends SearchFiltersBase {
                 new NiconicoSortOrderFilterItem("sort_ascending"));
 
         final int filterDurationAll = builder.addSortItem(
-                new NiconicoSortFilterItem("All", "")
+                new NiconicoSortFilterItem("all", "")
         );
         final int filterDurationShort = builder.addSortItem(
-                new NiconicoSortFilterItem("< 5 min", "l_range=1")
+                new NiconicoSortFilterItem("short_video", "l_range=1")
         );
         final int filterDurationLong = builder.addSortItem(
-                new NiconicoSortFilterItem("> 20 min", "l_range=2")
+                new NiconicoSortFilterItem("long_video", "l_range=2")
         );
 
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{

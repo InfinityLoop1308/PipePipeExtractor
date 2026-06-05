@@ -204,25 +204,25 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
         /* 'Date' filter items */
         final int filterIdDateAll = builder.addSortItem(
-                new YoutubeDateSortFilterItem("All", null));
+                new YoutubeDateSortFilterItem("all", null));
         final int filterIdDateLastHour = builder.addSortItem(
-                new YoutubeDateSortFilterItem("Hour", DateFilter.hour));
+                new YoutubeDateSortFilterItem("past_hour", DateFilter.hour));
         final int filterIdDateLastDay = builder.addSortItem(
-                new YoutubeDateSortFilterItem("Day", DateFilter.day));
+                new YoutubeDateSortFilterItem("past_day", DateFilter.day));
         final int filterIdDateLastWeek = builder.addSortItem(
-                new YoutubeDateSortFilterItem("Week", DateFilter.week));
+                new YoutubeDateSortFilterItem("past_week", DateFilter.week));
         final int filterIdDateLastMonth = builder.addSortItem(
-                new YoutubeDateSortFilterItem("Month", DateFilter.month));
+                new YoutubeDateSortFilterItem("past_month", DateFilter.month));
         final int filterIdDateLastYear = builder.addSortItem(
-                new YoutubeDateSortFilterItem("Year", DateFilter.year));
+                new YoutubeDateSortFilterItem("past_year", DateFilter.year));
 
         /* 'Duration' filter items */
         final int filterIdDurationAll = builder.addSortItem(
-                new YoutubeLenSortFilterItem("All", null));
+                new YoutubeLenSortFilterItem("all", null));
         final int filterIdDurationShort = builder.addSortItem(
-                new YoutubeLenSortFilterItem("Short", LenFilter.duration_short));
+                new YoutubeLenSortFilterItem("short_video", LenFilter.duration_short));
         final int filterIdDurationLong = builder.addSortItem(
-                new YoutubeLenSortFilterItem("Long", LenFilter.duration_long));
+                new YoutubeLenSortFilterItem("long_video", LenFilter.duration_long));
 
         /* 'features' filter items */
         final int filterIdFeatureHd = builder.addSortItem(
@@ -253,7 +253,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterIdSortByRating),
                         builder.getFilterForId(filterIdSortByViews),
                 }),
-                builder.createSortGroup("Upload Date", true, new FilterItem[]{
+                builder.createSortGroup("upload_date", true, new FilterItem[]{
                         builder.getFilterForId(filterIdDateAll),
                         builder.getFilterForId(filterIdDateLastHour),
                         builder.getFilterForId(filterIdDateLastDay),
@@ -261,7 +261,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
                         builder.getFilterForId(filterIdDateLastMonth),
                         builder.getFilterForId(filterIdDateLastYear),
                 }),
-                builder.createSortGroup("Duration", true, new FilterItem[]{
+                builder.createSortGroup("duration", true, new FilterItem[]{
                         builder.getFilterForId(filterIdDurationAll),
                         builder.getFilterForId(filterIdDurationShort),
                         builder.getFilterForId(filterIdDurationLong),
@@ -287,7 +287,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
         addContentFilterTypeAndSortVariant(contentFilterChannels,
                 new Filter.Builder(new FilterGroup[]{
-                        builder.createSortGroup("Sort by", true, new FilterItem[]{
+                        builder.createSortGroup("sortby", true, new FilterItem[]{
                                 builder.getFilterForId(filterIdSortByRelevance),
                                 builder.getFilterForId(filterIdSortByRating),
                                 builder.getFilterForId(filterIdSortByViews),
@@ -296,7 +296,7 @@ public final class YoutubeFilters extends SearchFiltersBase {
 
         addContentFilterTypeAndSortVariant(contentFilterPlaylists,
                 new Filter.Builder(new FilterGroup[]{
-                        builder.createSortGroup("Sort by", true, new FilterItem[]{
+                        builder.createSortGroup("sortby", true, new FilterItem[]{
                                 builder.getFilterForId(filterIdSortByRelevance),
                                 builder.getFilterForId(filterIdSortByRating),
                                 builder.getFilterForId(filterIdSortByViews),
