@@ -99,6 +99,46 @@ public final class SabrLiveMetadata {
                 maxSeekableTimeTicks, maxSeekableTimescale);
     }
 
+    /** Latest segment the live edge has reached, or -1 if unknown. */
+    public long getHeadSequenceNumber() {
+        return headSequenceNumber;
+    }
+
+    /** Wall-clock-ish position (ms) of the live head, or -1 if unknown. */
+    public long getHeadTimeMs() {
+        return headTimeMs;
+    }
+
+    public long getWallTimeMs() {
+        return wallTimeMs;
+    }
+
+    /** True for an ended live stream still seekable as DVR. */
+    public boolean isPostLiveDvr() {
+        return postLiveDvr;
+    }
+
+    @Nullable
+    public String getBroadcastId() {
+        return broadcastId;
+    }
+
+    public long getMinSeekableTimeTicks() {
+        return minSeekableTimeTicks;
+    }
+
+    public int getMinSeekableTimescale() {
+        return minSeekableTimescale;
+    }
+
+    public long getMaxSeekableTimeTicks() {
+        return maxSeekableTimeTicks;
+    }
+
+    public int getMaxSeekableTimescale() {
+        return maxSeekableTimescale;
+    }
+
     @Nonnull
     public String summarize() {
         return "broadcastIdLength=" + (broadcastId == null ? 0 : broadcastId.length())

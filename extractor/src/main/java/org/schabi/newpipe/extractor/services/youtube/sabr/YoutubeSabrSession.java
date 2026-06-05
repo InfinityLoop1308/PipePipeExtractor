@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 
 import javax.annotation.Nonnull;
@@ -8,6 +9,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,9 @@ public final class YoutubeSabrSession {
     private static final int MAX_REQUESTS_PER_SEGMENT = 16;
     private static final int MAX_POLICY_ONLY_RESPONSES_PER_SEGMENT = 3;
     private static final int MAX_REDIRECTS_PER_SESSION = 3;
+    // server can ask us to reload the player response (URLs/config expired on a long watch). re-probe
+    // and resume in place instead of killing the session. bounded so a reload loop can't run forever.
+    private static final int MAX_RELOADS_PER_SESSION = 2;
     // How many times a stale/rejected PO token may be force-re-minted before giving up (token
     // expiry mid-playback). Bounded so a genuinely-rejected token can't loop forever.
     private static final int MAX_PO_TOKEN_REFRESHES = 2;
@@ -30,7 +35,8 @@ public final class YoutubeSabrSession {
     private static final boolean DIAG = false;
 
     @Nonnull
-    private final YoutubeSabrInfo info;
+    // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
+    private YoutubeSabrInfo info;
     @Nonnull
     private final YoutubeSabrFormat audioFormat;
     @Nonnull
@@ -44,10 +50,16 @@ public final class YoutubeSabrSession {
     private int requestNumber;
     private int redirectCount;
     private int poTokenRefreshes;
+    private int reloads;
     // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
     private long cachedBytes;
+    // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
+    private volatile long playHeadMs;
+    // Keep this much already-played media before evicting: the two tracks read slightly apart and a
+    // segment ending right at the play head may still be in use (race that starved audio at the edge).
+    private static final long EVICT_BEHIND_MS = 10_000;
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
                                @Nonnull final YoutubeSabrFormat audioFormat,
@@ -116,8 +128,12 @@ public final class YoutubeSabrSession {
                         + describeRequest(request) + ": " + decoded.getSabrErrorDetails().summarize());
             }
             if (decoded.isReloadRequested()) {
+                if (maybeReload(localization)) {
+                    continue;
+                }
                 throw new SabrProtocolException("SABR requested player reload while fetching "
-                        + describeRequest(request) + ": " + decoded.summarizeNoMediaResponse());
+                        + describeRequest(request) + " (reload budget spent): "
+                        + decoded.summarizeNoMediaResponse());
             }
             if (decoded.isProtectedNoMediaResponse()) {
                 if (applyPoTokenForProtectedResponse()) {
@@ -177,6 +193,37 @@ public final class YoutubeSabrSession {
     }
 
     /**
+     * Server asked us to reload the player response (its URLs / ustreamer config expired on a long
+     * watch). Re-probe a fresh {@link YoutubeSabrInfo} and swap it in, keeping the stream state
+     * (player time, buffered ranges, token) so the next request resumes in place instead of
+     * restarting from 0. Bounded by {@link #MAX_RELOADS_PER_SESSION}.
+     *
+     * @return true if a fresh info was applied and the caller should retry, false if the reload
+     *     budget is spent or the re-probe came back unusable.
+     */
+    private boolean maybeReload(@Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        if (reloads >= MAX_RELOADS_PER_SESSION) {
+            return false;
+        }
+        reloads++;
+        final ContentCountry contentCountry = localization.getCountryCode().isEmpty()
+                ? ContentCountry.DEFAULT
+                : new ContentCountry(localization.getCountryCode());
+        final YoutubeSabrInfo fresh = YoutubeSabrProbe.fetchSabrInfo(
+                info.getVideoId(), info.getProfile(), localization, contentCountry);
+        if (fresh.getServerAbrStreamingUrl() == null || fresh.getServerAbrStreamingUrl().isEmpty()) {
+            return false;
+        }
+        info = fresh;
+        serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
+        redirectCount = 0;
+        // keep requestNumber > 0 so the next request is a follow-up carrying the current player time
+        // and buffered ranges: the new streaming URL resumes in place, not from the start.
+        return true;
+    }
+
+    /**
      * Server-driven advance: issue one request with the current state and ingest whatever the
      * server returns (segments for either or both formats), instead of demanding one specific
      * per-track segment. A single consumer pumping this keeps audio and video coherent and lets the
@@ -206,6 +253,15 @@ public final class YoutubeSabrSession {
         }
         streamState.ingest(decoded);
         final List<SabrMediaSegment> segments = SabrMediaSegmentCollector.collect(decoded);
+        if (DIAG && !segments.isEmpty()) {
+            final StringBuilder sb = new StringBuilder();
+            for (final SabrMediaSegment s : segments) {
+                sb.append(' ').append(s.getHeader().getItag()).append(':')
+                        .append(s.getHeader().isInitSegment() ? "init" : s.getHeader()
+                                .getSequenceNumber());
+            }
+            System.out.println("SABR-PUMP got" + sb);
+        }
         for (final SabrMediaSegment segment : segments) {
             streamState.ingest(segment);
             final String key = cacheKey(segment);
@@ -243,7 +299,11 @@ public final class YoutubeSabrSession {
                     + decoded.getSabrErrorDetails().summarize());
         }
         if (decoded.isReloadRequested()) {
-            throw new SabrProtocolException("SABR requested player reload: "
+            if (maybeReload(localization)) {
+                // fresh session applied; this round yields no media, the pump will call us again
+                return Collections.emptyList();
+            }
+            throw new SabrProtocolException("SABR requested player reload (reload budget spent): "
                     + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isProtectedNoMediaResponse()) {
@@ -265,15 +325,45 @@ public final class YoutubeSabrSession {
     }
 
     /** Drop the oldest cached media segments (furthest behind the play head) to bound memory. */
+    /** Fed by the pump every round: the real player position, used to evict only played segments. */
+    public void setPlayHeadMs(final long ms) {
+        this.playHeadMs = ms;
+    }
+
+    /** Total cached media bytes. The pump throttles on this so high-bitrate (4K) can't OOM the heap. */
+    public long getCachedBytes() {
+        return cachedBytes;
+    }
+
+    /**
+     * Free already-played segments. The pump calls this every round (not just on fetch): when it is
+     * byte-throttled it skips {@link #pumpOnce}, so eviction had to run here too or the cache stayed
+     * full forever and throttling never released -> playback froze.
+     */
+    public void evictPlayed() {
+        evictCacheIfNeeded();
+    }
+
     private void evictCacheIfNeeded() {
         while (cachedBytes > MAX_CACHE_BYTES && cacheOrder.size() > MIN_CACHED_SEGMENTS) {
-            final String oldKey = cacheOrder.pollFirst();
+            final String oldKey = cacheOrder.peekFirst();
             if (oldKey == null) {
                 break;
             }
-            final SabrMediaSegment old = segmentCache.remove(oldKey);
+            final SabrMediaSegment old = segmentCache.get(oldKey);
+            // Never evict a segment the play head hasn't passed yet: dropping it (FIFO did) starves
+            // the reader, which is sitting exactly on the oldest seq. Stop here and let the cache ride
+            // over budget; the pump's read-ahead cushion bounds how far we get.
             if (old != null) {
-                cachedBytes -= old.getLength();
+                final long endMs = old.getHeader().getStartMs() + old.getHeader().getDurationMs();
+                if (endMs > playHeadMs - EVICT_BEHIND_MS) {
+                    break;
+                }
+            }
+            cacheOrder.pollFirst();
+            final SabrMediaSegment removed = segmentCache.remove(oldKey);
+            if (removed != null) {
+                cachedBytes -= removed.getLength();
             }
         }
     }
@@ -295,6 +385,24 @@ public final class YoutubeSabrSession {
 
     public boolean isComplete() {
         return streamState.isComplete();
+    }
+
+    /** True once the server has reported this is a live stream (foundation for live support). */
+    public boolean isLive() {
+        return streamState.isLive();
+    }
+
+    /** Latest segment the live edge has reached, or -1 if unknown / not live. */
+    public long getLiveHeadSequenceNumber() {
+        return streamState.getLiveHeadSequenceNumber();
+    }
+
+    /**
+     * True when playback has caught up to the live head: a live-aware pump should wait for the head
+     * to advance rather than treating an empty response as the end. Always false for VOD.
+     */
+    public boolean isAtLiveEdge() {
+        return streamState.isAtLiveEdge(audioFormat, videoFormat);
     }
 
     @Nonnull

@@ -61,6 +61,15 @@ public final class YoutubeSabrStreamState {
     @Nullable
     private List<SabrBufferedRange> bufferedRangesOverride;
 
+    // how close to the head counts as "at the live edge" (segments of slack before we wait)
+    private static final long LIVE_EDGE_MARGIN_SEGMENTS = 2;
+    // live: foundation only. we record what the server tells us about the live edge (via
+    // LIVE_METADATA) so a future live-aware pump can follow the head. VOD never sets these.
+    private boolean live;
+    private boolean postLiveDvr;
+    private long liveHeadSequenceNumber = -1;
+    private long liveHeadTimeMs = -1;
+
     public YoutubeSabrStreamState(@Nonnull final YoutubeSabrFormat audioFormat,
                                   @Nonnull final YoutubeSabrFormat videoFormat) {
         audio = new FormatProgress(audioFormat);
@@ -72,6 +81,16 @@ public final class YoutubeSabrStreamState {
         final SabrNextRequestPolicy nextRequestPolicy = response.getNextRequestPolicy();
         if (nextRequestPolicy != null && nextRequestPolicy.getRawPlaybackCookie() != null) {
             playbackCookie = nextRequestPolicy.getRawPlaybackCookie().clone();
+        }
+        for (final SabrLiveMetadata meta : response.getLiveMetadata()) {
+            live = true;
+            postLiveDvr = meta.isPostLiveDvr();
+            if (meta.getHeadSequenceNumber() >= 0) {
+                liveHeadSequenceNumber = meta.getHeadSequenceNumber();
+            }
+            if (meta.getHeadTimeMs() >= 0) {
+                liveHeadTimeMs = meta.getHeadTimeMs();
+            }
         }
         for (final SabrFormatInitializationMetadata metadata
                 : response.getFormatInitializationMetadata()) {
@@ -199,6 +218,40 @@ public final class YoutubeSabrStreamState {
 
     public boolean isComplete() {
         return audio.isComplete() && video.isComplete();
+    }
+
+    /** True once the server has sent live metadata for this stream (foundation for live support). */
+    public boolean isLive() {
+        return live;
+    }
+
+    /** True for an ended live stream still seekable as DVR. */
+    public boolean isPostLiveDvr() {
+        return postLiveDvr;
+    }
+
+    /** Latest segment the live edge has reached, or -1 if unknown / not live. */
+    public long getLiveHeadSequenceNumber() {
+        return liveHeadSequenceNumber;
+    }
+
+    /** Live head position in ms, or -1 if unknown / not live. */
+    public long getLiveHeadTimeMs() {
+        return liveHeadTimeMs;
+    }
+
+    /**
+     * True when we have fetched up to (within a small margin of) the live head: the slower track has
+     * reached the edge, so a live-aware pump should wait for the head to advance instead of treating
+     * an empty response as the end of the stream. Always false for VOD or before the head is known.
+     */
+    public boolean isAtLiveEdge(@Nonnull final YoutubeSabrFormat audioFormat,
+                                @Nonnull final YoutubeSabrFormat videoFormat) {
+        if (!live || liveHeadSequenceNumber < 0) {
+            return false;
+        }
+        final long slowerTrack = Math.min(getMaxSegment(audioFormat), getMaxSegment(videoFormat));
+        return slowerTrack >= liveHeadSequenceNumber - LIVE_EDGE_MARGIN_SEGMENTS;
     }
 
     public int getMaxSegment(@Nonnull final YoutubeSabrFormat format) {
@@ -521,6 +574,11 @@ public final class YoutubeSabrStreamState {
         // pump thread writes it, ExoPlayer loader threads read it. volatile so they actually see it.
         private volatile boolean initReceived;
         private volatile int maxSegment;
+        // Highest segment with NO gap from the start. We tell the server we have up to here so it
+        // fills the exact next segment, instead of skipping ahead off an overstated maxSegment and
+        // leaving a hole the sequential reader then starves on forever.
+        private volatile int contiguousMaxSegment;
+        private final java.util.Set<Integer> aheadOfContiguous = new java.util.HashSet<>();
         private int observedMaxSegment;
         private volatile long endSegment = -1;
         private long averageDurationMs = 5000;
@@ -585,6 +643,15 @@ public final class YoutubeSabrStreamState {
             if (header.getSequenceNumber() > maxSegment) {
                 maxSegment = header.getSequenceNumber();
             }
+            final int seq = header.getSequenceNumber();
+            if (seq == contiguousMaxSegment + 1) {
+                contiguousMaxSegment = seq;
+                while (aheadOfContiguous.remove(contiguousMaxSegment + 1)) {
+                    contiguousMaxSegment++;
+                }
+            } else if (seq > contiguousMaxSegment + 1) {
+                aheadOfContiguous.add(seq);
+            }
             if (header.getSequenceNumber() > observedMaxSegment) {
                 observedMaxSegment = header.getSequenceNumber();
             }
@@ -626,14 +693,17 @@ public final class YoutubeSabrStreamState {
                         applySegmentIndexOffset(lastObservedSegment, endSegmentIndexOffset), 1000));
                 return;
             }
+            // Only trust observed timing when there is NO hole (contiguous == max); otherwise the
+            // observed end overstates past the gap and the server skips the segment we still need.
             final boolean canUseObservedTiming = observedStartMs >= 0 && observedEndMs > observedStartMs
-                    && observedMaxSegment >= maxSegment && firstObservedSegment > 0;
+                    && observedMaxSegment >= maxSegment && firstObservedSegment > 0
+                    && contiguousMaxSegment >= maxSegment;
             ranges.add(new SabrBufferedRange(itag, lastModified, xtags,
                     canUseObservedTiming ? observedStartMs : 0,
                     canUseObservedTiming ? observedEndMs - observedStartMs : getBufferedEndMs(),
                     applySegmentIndexOffset(canUseObservedTiming ? firstObservedSegment : 1,
                             startSegmentIndexOffset),
-                    applySegmentIndexOffset(maxSegment, endSegmentIndexOffset), 1000));
+                    applySegmentIndexOffset(contiguousMaxSegment, endSegmentIndexOffset), 1000));
         }
 
         private int applySegmentIndexOffset(final int segmentIndex,
@@ -642,11 +712,12 @@ public final class YoutubeSabrStreamState {
         }
 
         private long getBufferedEndMs() {
-            final long indexedEndMs = getSegmentEndMs(maxSegment);
+            // contiguous, not maxSegment: a hole means we are NOT really buffered past it.
+            final long indexedEndMs = getSegmentEndMs(contiguousMaxSegment);
             if (indexedEndMs >= 0) {
                 return indexedEndMs;
             }
-            return maxSegment * averageDurationMs;
+            return contiguousMaxSegment * averageDurationMs;
         }
 
         private long getSegmentStartMs(final int sequenceNumber) {
