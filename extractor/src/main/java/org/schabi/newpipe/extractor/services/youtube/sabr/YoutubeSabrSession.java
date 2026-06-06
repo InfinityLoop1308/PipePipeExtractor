@@ -428,6 +428,25 @@ public final class YoutubeSabrSession {
         streamState.setPlayerTimeMs(targetStartMs);
     }
 
+    /**
+     * Backward seek onto an already-buffered-past segment: like {@link #prepareForMediaSegment} but
+     * SHRINKS the buffered head back to the target so the server re-sends it. assumeBufferedUntil
+     * only extends, so prepareForMediaSegment can't rewind (the request comes back empty).
+     */
+    public void prepareForRewind(@Nonnull final SabrSegmentRequest request) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+        final YoutubeSabrFormat targetFormat = request.getFormat();
+        final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
+        final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
+                request.getSequenceNumber());
+        streamState.rewindBufferedTo(targetFormat, request.getSequenceNumber());
+        streamState.rewindBufferedTo(companionFormat,
+                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
+        streamState.setPlayerTimeMs(targetStartMs);
+    }
+
     private void failIfKnownOutOfBounds(@Nonnull final SabrSegmentRequest request)
             throws SabrProtocolException {
         if (request.isInitializationSegment()) {

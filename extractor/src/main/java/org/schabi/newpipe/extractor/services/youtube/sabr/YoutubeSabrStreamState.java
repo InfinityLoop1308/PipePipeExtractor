@@ -273,6 +273,17 @@ public final class YoutubeSabrStreamState {
         }
     }
 
+    /**
+     * Backward seek: forget buffered segments at/after {@code fromSegment} so the next request
+     * re-sends from it. {@link #assumeBufferedUntil} only ever extends the buffered head, so it
+     * cannot rewind; this shrinks it.
+     */
+    public void rewindBufferedTo(@Nonnull final YoutubeSabrFormat format, final int fromSegment) {
+        if (fromSegment > 0) {
+            progressForItag(format.getItag()).rewindBufferedTo(fromSegment);
+        }
+    }
+
     public void setFullyBuffered(@Nonnull final YoutubeSabrFormat format,
                                   final boolean fullyBuffered) {
         if (audio.itag == format.getItag()) {
@@ -768,6 +779,24 @@ public final class YoutubeSabrStreamState {
 
         private void assumeBufferedUntil(final int endSegment) {
             maxSegment = Math.max(maxSegment, endSegment);
+        }
+
+        private void rewindBufferedTo(final int fromSegment) {
+            final int last = Math.max(0, fromSegment - 1);
+            if (last >= contiguousMaxSegment) {
+                return; // not a rewind for this track
+            }
+            // The buffered range the server reads ends at contiguousMaxSegment (+ observed timing),
+            // not maxSegment. Shrink both and drop the observed-timing window so the range falls back
+            // to the contiguous end; otherwise the server thinks we still hold the target and the
+            // re-request comes back empty.
+            maxSegment = last;
+            contiguousMaxSegment = last;
+            observedMaxSegment = Math.min(observedMaxSegment, last);
+            firstObservedSegment = -1;
+            lastObservedSegment = -1;
+            observedStartMs = -1;
+            observedEndMs = -1;
         }
 
         private boolean isComplete() {
