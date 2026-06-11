@@ -447,6 +447,27 @@ public final class YoutubeSabrSession {
         streamState.setPlayerTimeMs(targetStartMs);
     }
 
+    /**
+     * Forward jump (cold seek far past the buffered edge): the opposite of
+     * {@link #prepareForRewind}. {@link #prepareForMediaSegment} only extends maxSegment, so the
+     * reported range end (the contiguous edge) stayed behind and the next rounds kept filling the
+     * skipped span (ping-pong + duplicate re-sends). This moves the buffered head onto the target
+     * so the server streams from there and the edge-driven pacing follows naturally.
+     */
+    public void prepareForForwardJump(@Nonnull final SabrSegmentRequest request) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+        final YoutubeSabrFormat targetFormat = request.getFormat();
+        final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
+        final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
+                request.getSequenceNumber());
+        streamState.jumpBufferedTo(targetFormat, request.getSequenceNumber());
+        streamState.jumpBufferedTo(companionFormat,
+                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
+        streamState.setPlayerTimeMs(targetStartMs);
+    }
+
     private void failIfKnownOutOfBounds(@Nonnull final SabrSegmentRequest request)
             throws SabrProtocolException {
         if (request.isInitializationSegment()) {

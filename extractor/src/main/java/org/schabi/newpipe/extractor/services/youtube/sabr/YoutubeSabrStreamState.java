@@ -284,6 +284,18 @@ public final class YoutubeSabrStreamState {
         }
     }
 
+    /**
+     * Forward jump (cold seek far past the buffered edge): claim everything before
+     * {@code fromSegment} as buffered and move the head onto it, so the server streams from the
+     * target instead of filling the skipped span. {@link #rewindBufferedTo} is the backward
+     * counterpart.
+     */
+    public void jumpBufferedTo(@Nonnull final YoutubeSabrFormat format, final int fromSegment) {
+        if (fromSegment > 0) {
+            progressForItag(format.getItag()).jumpBufferedTo(fromSegment);
+        }
+    }
+
     public void setFullyBuffered(@Nonnull final YoutubeSabrFormat format,
                                   final boolean fullyBuffered) {
         if (audio.itag == format.getItag()) {
@@ -793,6 +805,32 @@ public final class YoutubeSabrStreamState {
             maxSegment = last;
             contiguousMaxSegment = last;
             observedMaxSegment = Math.min(observedMaxSegment, last);
+            firstObservedSegment = -1;
+            lastObservedSegment = -1;
+            observedStartMs = -1;
+            observedEndMs = -1;
+        }
+
+        private void jumpBufferedTo(final int fromSegment) {
+            final int last = Math.max(0, fromSegment - 1);
+            if (last <= contiguousMaxSegment) {
+                return; // not a forward jump for this track
+            }
+            // Forward jump (cold seek far past the edge): claim everything before the target as
+            // buffered. The play head jumped past it and will never play it, and keeping the old
+            // contiguous edge made the pump keep reporting/filling the skipped span (ping-pong +
+            // duplicate re-sends). A later backward seek into the skipped span goes through the
+            // normal rewind path, which re-requests it honestly.
+            contiguousMaxSegment = last;
+            // Fold in target-zone segments that already arrived out of order, drop pre-jump ones.
+            aheadOfContiguous.removeIf(seq -> seq <= last);
+            while (aheadOfContiguous.remove(contiguousMaxSegment + 1)) {
+                contiguousMaxSegment++;
+            }
+            maxSegment = Math.max(maxSegment, contiguousMaxSegment);
+            // The observed-timing window describes pre-jump data; drop it so the reported range
+            // falls back to the contiguous end until fresh headers rebuild it at the target.
+            observedMaxSegment = Math.min(observedMaxSegment, contiguousMaxSegment);
             firstObservedSegment = -1;
             lastObservedSegment = -1;
             observedStartMs = -1;
