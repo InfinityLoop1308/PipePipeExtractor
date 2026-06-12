@@ -85,7 +85,19 @@ public final class YoutubeSabrInfo {
     public YoutubeSabrFormat findBestAudioFormat() {
         YoutubeSabrFormat best = null;
         for (final YoutubeSabrFormat format : formats) {
-            if (format.isAudio() && (best == null || format.getBitrate() > best.getBitrate())) {
+            if (!format.isAudio()) {
+                continue;
+            }
+            if (best == null) {
+                best = format;
+                continue;
+            }
+            // Prefer the original-language track over auto-dubs, then the highest bitrate. Keeps the
+            // current behaviour (highest bitrate) when there is no original-marked track.
+            final boolean preferForTrack = format.isOriginalAudio() && !best.isOriginalAudio();
+            final boolean preferForBitrate = format.isOriginalAudio() == best.isOriginalAudio()
+                    && format.getBitrate() > best.getBitrate();
+            if (preferForTrack || preferForBitrate) {
                 best = format;
             }
         }

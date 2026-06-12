@@ -18,6 +18,9 @@ public final class YoutubeSabrFormat {
     @Nullable
     private final String audioTrackId;
     @Nullable
+    private final String audioTrackDisplayName;
+    private final boolean audioIsDefault;
+    @Nullable
     private final String qualityLabel;
     @Nullable
     private final String audioQuality;
@@ -33,6 +36,8 @@ public final class YoutubeSabrFormat {
                               @Nullable final String xtags,
                               @Nullable final String mimeType,
                               @Nullable final String audioTrackId,
+                              @Nullable final String audioTrackDisplayName,
+                              final boolean audioIsDefault,
                               @Nullable final String qualityLabel,
                               @Nullable final String audioQuality,
                               final boolean drc,
@@ -46,6 +51,8 @@ public final class YoutubeSabrFormat {
         this.xtags = xtags;
         this.mimeType = mimeType;
         this.audioTrackId = audioTrackId;
+        this.audioTrackDisplayName = audioTrackDisplayName;
+        this.audioIsDefault = audioIsDefault;
         this.qualityLabel = qualityLabel;
         this.audioQuality = audioQuality;
         this.drc = drc;
@@ -80,6 +87,8 @@ public final class YoutubeSabrFormat {
                 format.getString("xtags"),
                 format.getString("mimeType"),
                 audioTrack == null ? null : audioTrack.getString("id"),
+                audioTrack == null ? null : audioTrack.getString("displayName"),
+                audioTrack != null && audioTrack.getBoolean("audioIsDefault", false),
                 format.getString("qualityLabel"),
                 format.getString("audioQuality"),
                 format.getBoolean("isDrc", false),
@@ -133,6 +142,26 @@ public final class YoutubeSabrFormat {
     @Nullable
     public String getAudioTrackId() {
         return audioTrackId;
+    }
+
+    @Nullable
+    public String getAudioTrackDisplayName() {
+        return audioTrackDisplayName;
+    }
+
+    public boolean isAudioDefault() {
+        return audioIsDefault;
+    }
+
+    /**
+     * True when this is the source/original-language audio track (not an auto-dub). YouTube marks
+     * it in the localized display name, e.g. "French (original)". Mirrors the detection used for
+     * non-SABR streams.
+     */
+    public boolean isOriginalAudio() {
+        return audioTrackDisplayName != null
+                && (audioTrackDisplayName.contains("original")
+                    || audioTrackDisplayName.contains("yokuqala"));
     }
 
     @Nullable
