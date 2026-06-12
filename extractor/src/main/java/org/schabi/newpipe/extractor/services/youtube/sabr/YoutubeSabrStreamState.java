@@ -631,6 +631,13 @@ public final class YoutubeSabrStreamState {
                 final long totalMs = metadata.getDurationUnits() * 1000L
                         / metadata.getDurationTimescale();
                 averageDurationMs = Math.max(1L, totalMs / metadata.getEndSegmentNumber());
+            } else if (endSegment > 0 && format.getApproxDurationMs() > 0) {
+                // The init metadata gives the segment count but no per-segment timing for this
+                // format (seen on some YouTube responses). Derive the average from the format's
+                // total duration so a cold seek maps the time to the right segment, instead of the
+                // 5000ms default that doubles ~10s-audio-segment numbers and overshoots endSegment
+                // -> out-of-bounds request -> the server returns nothing -> endless buffering.
+                averageDurationMs = Math.max(1L, format.getApproxDurationMs() / endSegment);
             }
             return previousEndSegment != endSegment;
         }
