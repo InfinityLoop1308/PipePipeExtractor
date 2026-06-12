@@ -921,17 +921,38 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final String id = String.valueOf(itagItem.id);
 
                 if (itagItem.itagType == ItagItem.ItagType.AUDIO) {
-                    final AudioStream stream = new AudioStream.Builder()
-                            .setId(id)
+                    final AudioStream.Builder builder = new AudioStream.Builder()
                             .setContent(serverAbrStreamingUrl, false)
                             .setMediaFormat(itagItem.getMediaFormat())
                             .setAverageBitrate(itagItem.getAverageBitrate())
                             .setItagItem(itagItem)
-                            .setDeliveryMethod(DeliveryMethod.SABR)
-                            .build();
-                    // Dedup by itag, not Stream.equalStats: all SABR formats share the same
-                    // MediaFormat/delivery, so equalStats would collapse every bitrate/codec to one.
-                    if (cachedAudioStreams.stream().noneMatch(s -> id.equals(s.getId()))) {
+                            .setDeliveryMethod(DeliveryMethod.SABR);
+                    // Multi-track audio: the same itag is served once per language. Carry the track
+                    // info so the player can show a language selector, and key the id on (itag,
+                    // track) so the languages aren't collapsed into one by the dedup below.
+                    String streamId = id;
+                    if (formatData.has("audioTrack")) {
+                        final JsonObject audioTrack = formatData.getObject("audioTrack");
+                        if (audioTrack.has("id")) {
+                            final String trackId = audioTrack.getString("id");
+                            final String displayName = audioTrack.getString("displayName");
+                            final String langPart = trackId.split("\\.")[0];
+                            final boolean isOriginal = displayName != null
+                                    && (displayName.contains("original")
+                                        || displayName.contains("yokuqala"));
+                            builder.setAudioTrackId(trackId)
+                                    .setAudioTrackName(displayName != null ? displayName
+                                            : (isOriginal ? langPart + " (original)" : langPart))
+                                    .setAudioLocale(langPart.split("-")[0]);
+                            streamId = id + "-" + trackId;
+                        }
+                    }
+                    final String audioStreamId = streamId;
+                    final AudioStream stream = builder.setId(audioStreamId).build();
+                    // Dedup by id (itag, or itag+track when multi-track), not Stream.equalStats: all
+                    // SABR formats share the same MediaFormat/delivery, so equalStats would collapse
+                    // every bitrate/codec to one.
+                    if (cachedAudioStreams.stream().noneMatch(s -> audioStreamId.equals(s.getId()))) {
                         cachedAudioStreams.add(stream);
                     }
                 } else if (itagItem.itagType == ItagItem.ItagType.VIDEO_ONLY) {
