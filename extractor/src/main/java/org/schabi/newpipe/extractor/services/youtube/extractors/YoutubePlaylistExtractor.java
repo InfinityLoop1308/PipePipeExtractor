@@ -272,6 +272,19 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
             collectStreamsFrom(collector, videosArray);
 
             nextPage = getNextPageFrom(videosArray);
+        } else {
+            for (final Object content : contents) {
+                if (!(content instanceof JsonObject)) {
+                    continue;
+                }
+                final JsonArray itemContents = ((JsonObject) content)
+                        .getObject("itemSectionRenderer")
+                        .getArray("contents");
+                collectStreamsFrom(collector, itemContents);
+                if (nextPage == null) {
+                    nextPage = getNextPageFrom(itemContents);
+                }
+            }
         }
 
         // Handle richGridRenderer for Shorts playlists
@@ -416,7 +429,15 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                     return extractor;
                 })
                 .forEachOrdered(collector::commit);
-        
+
+        videos.stream()
+                .filter(JsonObject.class::isInstance)
+                .map(JsonObject.class::cast)
+                .filter(video -> video.has("lockupViewModel"))
+                .map(video -> video.getObject("lockupViewModel"))
+                .forEachOrdered(lockup -> commitLockupStreamIfSupported(
+                        collector, lockup, timeAgoParser, fallbackName, fallbackUrl));
+
         // Handle Shorts in richItemRenderer format (for continuation responses)
         videos.stream()
                 .filter(JsonObject.class::isInstance)
@@ -428,6 +449,46 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                     collector.commit(new YoutubeShortsInfoItemExtractor(
                             content.getObject("shortsLockupViewModel")));
                 });
+
+        videos.stream()
+                .filter(JsonObject.class::isInstance)
+                .map(JsonObject.class::cast)
+                .filter(video -> video.has("richItemRenderer"))
+                .map(video -> video.getObject("richItemRenderer").getObject("content"))
+                .filter(content -> content.has("lockupViewModel"))
+                .map(content -> content.getObject("lockupViewModel"))
+                .forEachOrdered(lockup -> commitLockupStreamIfSupported(
+                        collector, lockup, timeAgoParser, fallbackName, fallbackUrl));
+    }
+
+    private void commitLockupStreamIfSupported(@Nonnull final StreamInfoItemsCollector collector,
+                                               @Nonnull final JsonObject lockupViewModel,
+                                               @Nonnull final TimeAgoParser timeAgoParser,
+                                               @Nullable final String fallbackName,
+                                               @Nullable final String fallbackUrl) {
+        final String contentType = lockupViewModel.getString("contentType");
+        if (!"LOCKUP_CONTENT_TYPE_VIDEO".equals(contentType)
+                && !"LOCKUP_CONTENT_TYPE_EPISODE".equals(contentType)) {
+            return;
+        }
+        if (isNullOrEmpty(lockupViewModel.getObject("metadata")
+                .getObject("lockupMetadataViewModel")
+                .getObject("title")
+                .getString("content"))) {
+            return;
+        }
+
+        collector.commit(new YoutubeLockupStreamInfoItemExtractor(lockupViewModel, timeAgoParser) {
+            @Override
+            public String getUploaderName() throws ParsingException {
+                return fallbackName == null ? super.getUploaderName() : fallbackName;
+            }
+
+            @Override
+            public String getUploaderUrl() throws ParsingException {
+                return fallbackUrl == null ? super.getUploaderUrl() : fallbackUrl;
+            }
+        });
     }
 
     @Nonnull
