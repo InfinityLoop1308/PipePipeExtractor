@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
@@ -199,21 +200,23 @@ public final class YoutubeSabrProbe {
             throw new SabrProtocolException("Missing serverAbrStreamingUrl");
         }
 
-        final Response response = NewPipe.getDownloader().post(
+        // Stream the response instead of buffering the whole body: a 4K media batch can be
+        // 50-150MB, and reading it into one byte[] (+ the parts copy) OOM'd the 512MB heap. The
+        // streaming reader parses parts one at a time and assembles segments on the fly.
+        try (StreamingResponse response = NewPipe.getDownloader().postStreaming(
                 withSabrSessionParameters(serverAbrStreamingUrl, info.getCpn(), requestNumber),
-                buildSabrHeaders(info), requestBody, localization);
-        final String contentType = response.getHeader("Content-Type");
-        if (contentType == null || !contentType.toLowerCase().contains("application/vnd.yt-ump")) {
-            throw new SabrProtocolException("Expected UMP response, got content type: "
-                    + contentType + ", status=" + response.responseCode());
+                buildSabrHeaders(info), requestBody, localization)) {
+            final String contentType = response.getHeader("Content-Type");
+            if (contentType == null
+                    || !contentType.toLowerCase().contains("application/vnd.yt-ump")) {
+                throw new SabrProtocolException("Expected UMP response, got content type: "
+                        + contentType + ", status=" + response.responseCode());
+            }
+            final SabrStreamingResponseReader.Result streamed =
+                    SabrStreamingResponseReader.read(response.body());
+            return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
+                    streamed.getSegments(), response.responseCode(), contentType);
         }
-
-        final byte[] rawResponseBody = response.rawResponseBody() == null
-                ? new byte[0]
-                : response.rawResponseBody();
-        return new YoutubeSabrProbeResult(info,
-                SabrResponseDecoder.decode(rawResponseBody), response.responseCode(),
-                rawResponseBody.length, contentType);
     }
 
     @Nonnull

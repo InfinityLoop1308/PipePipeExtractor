@@ -1,26 +1,28 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import javax.annotation.Nonnull;
+import java.util.List;
 
 public final class YoutubeSabrProbeResult {
     @Nonnull
     private final YoutubeSabrInfo info;
     @Nonnull
     private final SabrDecodedResponse decodedResponse;
+    @Nonnull
+    private final List<SabrMediaSegment> segments;
     private final int responseCode;
-    private final int responseBodyLength;
     @Nonnull
     private final String contentType;
 
     YoutubeSabrProbeResult(@Nonnull final YoutubeSabrInfo info,
                            @Nonnull final SabrDecodedResponse decodedResponse,
+                           @Nonnull final List<SabrMediaSegment> segments,
                            final int responseCode,
-                           final int responseBodyLength,
                            @Nonnull final String contentType) {
         this.info = info;
         this.decodedResponse = decodedResponse;
+        this.segments = segments;
         this.responseCode = responseCode;
-        this.responseBodyLength = responseBodyLength;
         this.contentType = contentType;
     }
 
@@ -34,12 +36,14 @@ public final class YoutubeSabrProbeResult {
         return decodedResponse;
     }
 
-    public int getResponseCode() {
-        return responseCode;
+    /** Segments assembled while streaming the response (the buffered path collected these later). */
+    @Nonnull
+    public List<SabrMediaSegment> getSegments() {
+        return segments;
     }
 
-    public int getResponseBodyLength() {
-        return responseBodyLength;
+    public int getResponseCode() {
+        return responseCode;
     }
 
     @Nonnull

@@ -110,7 +110,7 @@ public final class YoutubeSabrSession {
             final SabrDecodedResponse decoded = result.getDecodedResponse();
             validateResponseIntegrity(decoded, request);
             streamState.ingest(decoded);
-            final List<SabrMediaSegment> segments = SabrMediaSegmentCollector.collect(decoded);
+            final List<SabrMediaSegment> segments = result.getSegments();
             for (final SabrMediaSegment segment : segments) {
                 streamState.ingest(segment);
                 segmentCache.put(cacheKey(segment), segment);
@@ -252,7 +252,7 @@ public final class YoutubeSabrSession {
             throw new SabrProtocolException("SABR media integrity issue: " + integrityIssues);
         }
         streamState.ingest(decoded);
-        final List<SabrMediaSegment> segments = SabrMediaSegmentCollector.collect(decoded);
+        final List<SabrMediaSegment> segments = result.getSegments();
         if (DIAG && !segments.isEmpty()) {
             final StringBuilder sb = new StringBuilder();
             for (final SabrMediaSegment s : segments) {
