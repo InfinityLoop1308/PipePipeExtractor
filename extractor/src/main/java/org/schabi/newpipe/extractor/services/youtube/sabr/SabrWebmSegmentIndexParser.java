@@ -127,10 +127,13 @@ final class SabrWebmSegmentIndexParser {
         final Varint size = readElementSize(data, offset + id.length, containerEnd);
         final int contentStart = offset + id.length + size.length;
         final int contentEnd;
-        if (size.unknown) {
+        if (size.unknown || size.value > Integer.MAX_VALUE
+                || contentStart + size.value > containerEnd) {
+            // Segment (master) in a DASH/SABR init declares its full media size, way past the init
+            // buffer we actually have. We only parse within the buffer (cues are found via the index
+            // range), so clamp instead of failing. Without it itag 303 (vp9/webm) never gets a
+            // segment index -> uniform-tiling fallback -> drift -> periodic video freeze.
             contentEnd = containerEnd;
-        } else if (size.value > Integer.MAX_VALUE || contentStart + size.value > containerEnd) {
-            throw new SabrProtocolException("Invalid WebM element size");
         } else {
             contentEnd = contentStart + (int) size.value;
         }
