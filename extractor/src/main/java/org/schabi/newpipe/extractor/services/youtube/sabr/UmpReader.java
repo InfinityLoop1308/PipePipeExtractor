@@ -1,6 +1,8 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +11,85 @@ import java.util.List;
  */
 public final class UmpReader {
     private UmpReader() {
+    }
+
+    /** Receives one UMP part at a time (used by {@link #readStreaming}). */
+    @FunctionalInterface
+    public interface PartConsumer {
+        void accept(int type, @Nonnull byte[] payload) throws SabrProtocolException;
+    }
+
+    /**
+     * Stream the UMP envelope: read one part (type, size, payload) at a time from {@code in} and
+     * hand it to {@code consumer}, so the whole response body is never held in memory at once. Peak
+     * transient is a single part's payload instead of the entire body (50-150MB at 4K). The stream
+     * is consumed but NOT closed (caller owns it).
+     */
+    public static void readStreaming(@Nonnull final InputStream in,
+                                     @Nonnull final PartConsumer consumer)
+            throws SabrProtocolException, IOException {
+        while (true) {
+            final int first = in.read();
+            if (first < 0) {
+                return; // clean EOF at a part boundary -> done
+            }
+            final int type = readUmpInt(in, first);
+            final int size = readUmpInt(in, readByteOrThrow(in));
+            if (type < 0 || size < 0) {
+                throw new SabrProtocolException("Invalid UMP part header");
+            }
+            consumer.accept(type, readExactly(in, size));
+        }
+    }
+
+    // UMP compact int, given the already-read first byte. Mirrors Cursor.readUmpInt.
+    private static int readUmpInt(@Nonnull final InputStream in, final int first)
+            throws SabrProtocolException, IOException {
+        if (first < 0) {
+            throw new SabrProtocolException("Unexpected EOF in UMP integer");
+        }
+        if (first < 128) {
+            return first;
+        }
+        if (first < 192) {
+            return (first & 0x3f) + 64 * readByteOrThrow(in);
+        }
+        if (first < 224) {
+            return (first & 0x1f) + 32 * (readByteOrThrow(in) + 256 * readByteOrThrow(in));
+        }
+        if (first < 240) {
+            return (first & 0x0f) + 16 * (readByteOrThrow(in)
+                    + 256 * (readByteOrThrow(in) + 256 * readByteOrThrow(in)));
+        }
+        return readByteOrThrow(in) + 256 * (readByteOrThrow(in)
+                + 256 * (readByteOrThrow(in) + 256 * readByteOrThrow(in)));
+    }
+
+    private static int readByteOrThrow(@Nonnull final InputStream in)
+            throws SabrProtocolException, IOException {
+        final int b = in.read();
+        if (b < 0) {
+            throw new SabrProtocolException("Unexpected EOF in UMP integer");
+        }
+        return b;
+    }
+
+    @Nonnull
+    private static byte[] readExactly(@Nonnull final InputStream in, final int length)
+            throws SabrProtocolException, IOException {
+        if (length < 0) {
+            throw new SabrProtocolException("Invalid UMP part length");
+        }
+        final byte[] result = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            final int read = in.read(result, offset, length - offset);
+            if (read < 0) {
+                throw new SabrProtocolException("Unexpected EOF while reading UMP part data");
+            }
+            offset += read;
+        }
+        return result;
     }
 
     @Nonnull

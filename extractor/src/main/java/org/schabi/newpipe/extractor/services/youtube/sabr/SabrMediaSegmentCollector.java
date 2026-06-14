@@ -64,6 +64,41 @@ public final class SabrMediaSegmentCollector {
         return null;
     }
 
+    /**
+     * Incremental collector for the streaming path: feed MEDIA_HEADER / MEDIA / MEDIA_END parts as
+     * they arrive and get each completed segment back from {@link #onMediaEnd}, so the caller never
+     * has to retain all the MEDIA parts at once (that whole-body buffering was the 4K OOM).
+     */
+    public static final class Incremental {
+        private final Map<Integer, OpenSegment> openSegments = new HashMap<>();
+
+        public void onMediaHeader(@Nonnull final byte[] partData) throws SabrProtocolException {
+            final SabrMediaHeader header = SabrMediaHeader.decode(partData);
+            openSegments.put(header.getHeaderId(), new OpenSegment(header));
+        }
+
+        public void onMedia(@Nonnull final byte[] partData) {
+            if (partData.length > 0) {
+                final OpenSegment openSegment = openSegments.get(partData[0] & 0xff);
+                if (openSegment != null) {
+                    openSegment.write(partData, 1, partData.length - 1);
+                }
+            }
+        }
+
+        @Nullable
+        public SabrMediaSegment onMediaEnd(@Nonnull final byte[] partData)
+                throws SabrProtocolException {
+            if (partData.length > 0) {
+                final OpenSegment openSegment = openSegments.remove(partData[0] & 0xff);
+                if (openSegment != null) {
+                    return openSegment.toSegment();
+                }
+            }
+            return null;
+        }
+    }
+
     private static final class OpenSegment {
         @Nonnull
         private final SabrMediaHeader header;

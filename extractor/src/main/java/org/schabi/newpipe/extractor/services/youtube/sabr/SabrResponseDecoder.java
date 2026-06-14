@@ -52,8 +52,18 @@ public final class SabrResponseDecoder {
     @Nonnull
     public static SabrDecodedResponse decode(@Nonnull final byte[] data)
             throws SabrProtocolException {
+        return decodeParts(UmpReader.readAll(data));
+    }
+
+    /**
+     * Decode an already-parsed list of UMP parts. Used by the streaming path, which collects the
+     * small control parts (everything except the big MEDIA payloads) and decodes them here, while
+     * the MEDIA segments are assembled separately so the whole body is never held at once.
+     */
+    @Nonnull
+    public static SabrDecodedResponse decodeParts(@Nonnull final List<UmpPart> parts)
+            throws SabrProtocolException {
         final SabrDecodedResponse decoded = new SabrDecodedResponse();
-        final List<UmpPart> parts = UmpReader.readAll(data);
         SabrOnesieHeader currentOnesieHeader = null;
         for (final UmpPart part : parts) {
             final byte[] partData = part.getRawData();
