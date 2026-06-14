@@ -11,6 +11,7 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +61,12 @@ public final class YoutubeSabrSession {
     // Keep this much already-played media before evicting: the two tracks read slightly apart and a
     // segment ending right at the play head may still be in use (race that starved audio at the edge).
     private static final long EVICT_BEHIND_MS = 10_000;
+    // After a seek, collapse the cache to a window of +-this around the target. A large seek leaves the
+    // old pre-fetched span disconnected from the new position by a gap; play-head eviction can't drop it
+    // (it depends on the reader position, which a seek leaves stale until both tracks read at the
+    // target), so the cache held two disjoint spans far over MAX_CACHE_BYTES -> OOM at 4K. The pump
+    // re-fetches contiguously from the target, so the out-of-window segments are pure waste.
+    private static final long SEEK_KEEP_WINDOW_MS = 30_000;
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
                                @Nonnull final YoutubeSabrFormat audioFormat,
@@ -368,6 +375,36 @@ public final class YoutubeSabrSession {
         }
     }
 
+    /**
+     * Collapse the cache to a single {@link #SEEK_KEEP_WINDOW_MS} window around a seek target: drop
+     * MEDIA segments ending before {@code fromMs - window} or starting after {@code fromMs + window}.
+     * Used by both seek directions so the cache can't hold two disjoint spans over the byte cap (the
+     * 4K OOM root cause). Unlike {@link #evictCacheIfNeeded} this does NOT depend on the reader
+     * position, so it works even when a track is blocked on the (uncached) seek target, which is what
+     * deadlocked a forward seek (old span never freed -> heap full -> pump can't fetch the target ->
+     * track stays blocked). The pump re-fetches contiguously, so dropped segments are pure waste.
+     * Runs on the pump thread (same as cache mutation), so no extra locking is needed.
+     */
+    private void evictOutsideSeekWindow(final long fromMs) {
+        final long lowMs = fromMs - SEEK_KEEP_WINDOW_MS;
+        final long highMs = fromMs + SEEK_KEEP_WINDOW_MS;
+        final Iterator<String> it = cacheOrder.iterator();
+        while (it.hasNext()) {
+            final String key = it.next();
+            final SabrMediaSegment seg = segmentCache.get(key);
+            if (seg == null) {
+                continue;
+            }
+            final long startMs = seg.getHeader().getStartMs();
+            final long endMs = startMs + seg.getHeader().getDurationMs();
+            if (endMs < lowMs || startMs > highMs) {
+                it.remove();
+                segmentCache.remove(key);
+                cachedBytes -= seg.getLength();
+            }
+        }
+    }
+
     @Nullable
     public SabrMediaSegment getCachedSegment(@Nonnull final SabrSegmentRequest request) {
         return segmentCache.get(cacheKey(request));
@@ -445,6 +482,9 @@ public final class YoutubeSabrSession {
         streamState.rewindBufferedTo(companionFormat,
                 streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
         streamState.setPlayerTimeMs(targetStartMs);
+        // Discard the now-disconnected forward span (old play position) so the cache doesn't hold two
+        // disjoint spans over the byte cap -> OOM at 4K. The pump re-fetches forward from the target.
+        evictOutsideSeekWindow(targetStartMs);
     }
 
     /**
@@ -466,6 +506,10 @@ public final class YoutubeSabrSession {
         streamState.jumpBufferedTo(companionFormat,
                 streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
         streamState.setPlayerTimeMs(targetStartMs);
+        // Drop the old span behind the jump target right away (don't wait for the reader to advance:
+        // a track blocked on the uncached target keeps reader_tail stale, so play-head eviction never
+        // runs and the heap fills -> stuck buffering / OOM at 4K). The pump fetches from the target.
+        evictOutsideSeekWindow(targetStartMs);
     }
 
     private void failIfKnownOutOfBounds(@Nonnull final SabrSegmentRequest request)
