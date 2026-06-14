@@ -1382,11 +1382,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
             }
 
+            if (playerResponse == null) {
+                throw new ContentNotAvailableException(
+                        "Could not fetch a usable YouTube player response. Try logging in.");
+            }
+
         // Check playability status from the actual stream data source
-        if (playerResponse != null) {
-            checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
-            setStreamType();
-        }
+        checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+        setStreamType();
 
         if (streamType != StreamType.LIVE_STREAM && isSabrOnlyResponse()
                 && getHlsManifestUrlFromStreamingData().isEmpty()) {
@@ -1417,8 +1420,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
         return false;
     }
-
-
 
     public static JsonObject checkPlayabilityStatus(@Nonnull JsonObject playabilityStatus, String videoId)
             throws ParsingException {
@@ -1478,6 +1479,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                             "This video is not available in client's country.");
                 } else {
                     if(detailedErrorMessage != null) {
+                        if (detailedErrorMessage.contains("page needs to be reloaded")) {
+                            throw new ContentNotAvailableException(detailedErrorMessage
+                                    + " Try logging in.");
+                        }
                         throw new ContentNotAvailableException(detailedErrorMessage);
                     }
                     throw new ContentNotAvailableException(reason);
@@ -1504,8 +1509,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * object.
      */
     private CancellableCall fetchAndroidVRJsonPlayer(@Nonnull final ContentCountry contentCountry,
-                                              @Nonnull final Localization localization,
-                                              @Nonnull final String videoId)
+                                               @Nonnull final Localization localization,
+                                               @Nonnull final String videoId)
             throws IOException, ExtractionException {
         androidCpn = generateContentPlaybackNonce();
         final InnertubeClientRequestInfo innertubeClientRequestInfo =
@@ -1536,15 +1541,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         return;
                     }
 
-                    YoutubeStreamExtractor.this.playerResponse = androidPlayerResponse;
-
                     final JsonObject streamingData = androidPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
+                        YoutubeStreamExtractor.this.playerResponse = androidPlayerResponse;
                         androidStreamingData = streamingData;
                         if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
                             playerCaptionsTracklistRenderer = androidPlayerResponse.getObject("captions")
                                     .getObject("playerCaptionsTracklistRenderer");
                         }
+                    } else if (YoutubeStreamExtractor.this.playerResponse == null) {
+                        YoutubeStreamExtractor.this.playerResponse = androidPlayerResponse;
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
