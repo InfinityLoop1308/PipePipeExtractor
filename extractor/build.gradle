@@ -1,12 +1,5 @@
 plugins {
-    id 'checkstyle'
     id 'com.squareup.wire' version '6.4.0'
-}
-
-checkstyle {
-    getConfigDirectory().set(rootProject.file("checkstyle"))
-    ignoreFailures false
-    showViolations true
 }
 
 wire {
@@ -33,6 +26,4 @@ dependencies {
     // do not upgrade to 1.7.14, since in 1.7.14 Rhino uses the `SourceVersion` class, which is not
     // available on Android (even when using desugaring), and `NoClassDefFoundError` is thrown
     implementation 'org.mozilla:rhino:1.7.13'
-
-    checkstyle "com.puppycrawl.tools:checkstyle:$checkstyleVersion"
 }
