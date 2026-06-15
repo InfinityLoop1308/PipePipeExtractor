@@ -355,12 +355,12 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
         }
 
         final JsonObject lastElement = contents.getObject(contents.size() - 1);
+        final JsonObject continuationObject;
         if (lastElement.has("continuationItemRenderer")) {
             final JsonObject continuationEndpoint = lastElement
                     .getObject("continuationItemRenderer")
                     .getObject("continuationEndpoint");
 
-            final JsonObject continuationObject;
             if (continuationEndpoint.has("commandExecutorCommand")) {
                 // This structure is only used at the time this code is written in initial playlist
                 // responses. continuationItemRenderer objects return multiple commands: one
@@ -378,24 +378,30 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                 // returned in browse responses of continuation requests
                 continuationObject = continuationEndpoint;
             }
-
-            final String continuation = continuationObject.getObject("continuationCommand")
-                    .getString("token");
-
-            if (isNullOrEmpty(continuation)) {
-                // Invalid continuation or no continuation found
-                return null;
-            }
-
-            final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(
-                            getService().getLocalization(), getExtractorContentCountry())
-                            .value("continuation", continuation)
-                            .done())
-                    .getBytes(StandardCharsets.UTF_8);
-
-            return new Page(YOUTUBEI_V1_URL + "browse?" + DISABLE_PRETTY_PRINT_PARAMETER, body);
+        } else if (lastElement.has("continuationItemViewModel")) {
+            continuationObject = lastElement
+                    .getObject("continuationItemViewModel")
+                    .getObject("continuationCommand")
+                    .getObject("innertubeCommand");
+        } else {
+            return null;
         }
-        return null;
+
+        final String continuation = continuationObject.getObject("continuationCommand")
+                .getString("token");
+
+        if (isNullOrEmpty(continuation)) {
+            // Invalid continuation or no continuation found
+            return null;
+        }
+
+        final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(
+                        getService().getLocalization(), getExtractorContentCountry())
+                        .value("continuation", continuation)
+                        .done())
+                .getBytes(StandardCharsets.UTF_8);
+
+        return new Page(YOUTUBEI_V1_URL + "browse?" + DISABLE_PRETTY_PRINT_PARAMETER, body);
     }
 
     private void collectStreamsFrom(@Nonnull final StreamInfoItemsCollector collector,
