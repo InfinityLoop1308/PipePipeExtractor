@@ -67,6 +67,11 @@ public final class AudioStream extends Stream {
         private ItagItem itagItem;
         private String quality;
         private String codec;
+        private int bitrate;
+        private int initStart;
+        private int initEnd;
+        private int indexStart;
+        private int indexEnd;
         private String audioTrackId;
         private String audioTrackName;
         private String audioLocale;
@@ -213,6 +218,31 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        public Builder setBitrate(int bitrate) {
+            this.bitrate = bitrate;
+            return this;
+        }
+
+        public Builder setInitStart(int initStart) {
+            this.initStart = initStart;
+            return this;
+        }
+
+        public Builder setInitEnd(int initEnd) {
+            this.initEnd = initEnd;
+            return this;
+        }
+
+        public Builder setIndexStart(int indexStart) {
+            this.indexStart = indexStart;
+            return this;
+        }
+
+        public Builder setIndexEnd(int indexEnd) {
+            this.indexEnd = indexEnd;
+            return this;
+        }
+
         public Builder setAudioTrackId(String audioTrackId) {
             this.audioTrackId = audioTrackId;
             return this;
@@ -261,7 +291,8 @@ public final class AudioStream extends Stream {
             }
 
             return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate, codec,
-                    manifestUrl, itagItem, quality, audioTrackId, audioTrackName, audioLocale);
+                    bitrate, initStart, initEnd, indexStart, indexEnd, manifestUrl, itagItem,
+                    quality, audioTrackId, audioTrackName, audioLocale);
         }
     }
 
@@ -292,6 +323,11 @@ public final class AudioStream extends Stream {
                         @Nonnull final DeliveryMethod deliveryMethod,
                         final int averageBitrate,
                         String codec,
+                        final int bitrate,
+                        final int initStart,
+                        final int initEnd,
+                        final int indexStart,
+                        final int indexEnd,
                         @Nullable final String manifestUrl,
                         @Nullable final ItagItem itagItem, String quality,
                         @Nullable final String audioTrackId,
@@ -315,6 +351,15 @@ public final class AudioStream extends Stream {
         }
         if(codec != null) {
             this.codec = codec;
+        }
+        if (bitrate != 0) {
+            this.bitrate = bitrate;
+        }
+        if (initEnd != 0 || indexEnd != 0) {
+            this.initStart = initStart;
+            this.initEnd = initEnd;
+            this.indexStart = indexStart;
+            this.indexEnd = indexEnd;
         }
         this.audioTrackId = audioTrackId;
         this.audioTrackName = audioTrackName;

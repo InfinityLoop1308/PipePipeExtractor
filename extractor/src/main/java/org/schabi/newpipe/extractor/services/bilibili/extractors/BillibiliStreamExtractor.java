@@ -81,6 +81,22 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         return dup;
     }
 
+    private static int[] parseRange(final String range) {
+        final String[] parts = range.split("-");
+        return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
+    }
+
+    private static int parseFps(final String frameRate) {
+        if (frameRate == null || frameRate.isEmpty()) {
+            return 0;
+        }
+        if (frameRate.contains("/")) {
+            final String[] parts = frameRate.split("/");
+            return (int) (Double.parseDouble(parts[0]) / Double.parseDouble(parts[1]));
+        }
+        return (int) Double.parseDouble(frameRate);
+    }
+
     @Override
     public String getThumbnailUrl() throws ParsingException {
         if (getStreamType() == StreamType.LIVE_STREAM) {
@@ -165,8 +181,15 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         ArrayList<AudioStream> audioStreamsForDownloader = new ArrayList<>();
         for (int i = 0; i < audioObjects.size(); i++) {
             JsonObject audioObject = audioObjects.getObject(i);
+            JsonObject segmentBase = audioObject.getObject("SegmentBase");
+            int[] initialization = parseRange(segmentBase.getString("Initialization"));
+            int[] indexRange = parseRange(segmentBase.getString("indexRange"));
             audioStreamsForDownloader.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
                     .setContent(audioObject.getString("base_url"), true).setCodec(audioObject.getString("codecs").split("\\.")[0])
+                    .setBitrate(audioObject.getInt("bandwidth"))
+                    .setAverageBitrate(audioObject.getInt("bandwidth"))
+                    .setInitStart(initialization[0]).setInitEnd(initialization[1])
+                    .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
                     .setMediaFormat(MediaFormat.M4A).setQuality(getBitrate(audioObject.getInt("id"))).build());
         }
         return audioStreamsForDownloader;
@@ -222,13 +245,24 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return;
         }
         JsonObject audioObject = dataObject.getArray("audio").getObject(0);
+        JsonObject segmentBase = audioObject.getObject("SegmentBase");
+        int[] initialization = parseRange(segmentBase.getString("Initialization"));
+        int[] indexRange = parseRange(segmentBase.getString("indexRange"));
         JsonArray backupUrls = audioObject.getArray("backupUrl");
         audioStreams.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
                 .setContent(audioObject.getString("baseUrl"), true)
+                .setCodec(audioObject.getString("codecs").split("\\.")[0])
+                .setBitrate(audioObject.getInt("bandwidth"))
+                .setInitStart(initialization[0]).setInitEnd(initialization[1])
+                .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
                 .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
         for (int j = 0; j < backupUrls.size(); j++) {
             audioStreams.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
                     .setContent(backupUrls.getString(j), true)
+                    .setCodec(audioObject.getString("codecs").split("\\.")[0])
+                    .setBitrate(audioObject.getInt("bandwidth"))
+                    .setInitStart(initialization[0]).setInitEnd(initialization[1])
+                    .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
                     .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
         }
     }
@@ -242,8 +276,16 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             JsonObject object = videoArray.getObject(i);
             int code = object.getInt("id");
             String resolution = BilibiliService.getResolution(code);
+            JsonObject segmentBase = object.getObject("SegmentBase");
+            int[] initialization = parseRange(segmentBase.getString("Initialization"));
+            int[] indexRange = parseRange(segmentBase.getString("indexRange"));
             videoOnlyStreams.add(new VideoStream.Builder().setContent(object.getString("baseUrl"), true)
                     .setMediaFormat(MediaFormat.MPEG_4).setId("bilibili-" + bvid + "-video").setCodec(object.getString("codecs"))
+                    .setBitrate(object.getInt("bandwidth"))
+                    .setInitStart(initialization[0]).setInitEnd(initialization[1])
+                    .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
+                    .setWidth(object.getInt("width")).setHeight(object.getInt("height"))
+                    .setFps(parseFps(object.getString("frameRate")))
                     .setIsVideoOnly(true).setResolution(resolution).build());
         }
     }
