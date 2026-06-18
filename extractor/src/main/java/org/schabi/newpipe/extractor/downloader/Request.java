@@ -25,6 +25,7 @@ public class Request {
     private final byte[] dataToSend;
     @Nullable
     private final Localization localization;
+    private final boolean followRedirects;
 
     public Request(final String httpMethod,
                    final String url,
@@ -32,6 +33,16 @@ public class Request {
                    @Nullable final byte[] dataToSend,
                    @Nullable final Localization localization,
                    final boolean automaticLocalizationHeader) {
+        this(httpMethod, url, headers, dataToSend, localization, automaticLocalizationHeader, true);
+    }
+
+    private Request(final String httpMethod,
+                    final String url,
+                    @Nullable final Map<String, List<String>> headers,
+                    @Nullable final byte[] dataToSend,
+                    @Nullable final Localization localization,
+                    final boolean automaticLocalizationHeader,
+                    final boolean followRedirects) {
         if (httpMethod == null) {
             throw new IllegalArgumentException("Request's httpMethod is null");
         }
@@ -43,6 +54,7 @@ public class Request {
         this.url = url;
         this.dataToSend = dataToSend;
         this.localization = localization;
+        this.followRedirects = followRedirects;
 
         final Map<String, List<String>> actualHeaders = new LinkedHashMap<>();
         if (headers != null) {
@@ -57,7 +69,7 @@ public class Request {
 
     private Request(final Builder builder) {
         this(builder.httpMethod, builder.url, builder.headers, builder.dataToSend,
-                builder.localization, builder.automaticLocalizationHeader);
+                builder.localization, builder.automaticLocalizationHeader, builder.followRedirects);
     }
 
     /**
@@ -105,6 +117,10 @@ public class Request {
         return localization;
     }
 
+    public boolean followRedirects() {
+        return followRedirects;
+    }
+
     public static Builder newBuilder() {
         return new Builder();
     }
@@ -116,6 +132,7 @@ public class Request {
         private byte[] dataToSend;
         private Localization localization;
         private boolean automaticLocalizationHeader = true;
+        private boolean followRedirects = true;
 
         public Builder() {
         }
@@ -177,6 +194,11 @@ public class Request {
          */
         public Builder automaticLocalizationHeader(final boolean automaticLocalizationHeaderToSet) {
             this.automaticLocalizationHeader = automaticLocalizationHeaderToSet;
+            return this;
+        }
+
+        public Builder followRedirects(final boolean followRedirectsToSet) {
+            this.followRedirects = followRedirectsToSet;
             return this;
         }
 

@@ -5,6 +5,8 @@ import java.util.regex.Pattern;
 
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.downloader.Request;
+import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
@@ -25,7 +27,14 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory {
     public String getId(String url) throws ParsingException {
         if (url.contains("b23.tv")) {
             try {
-                url = downloader.get("https://b23.wtf/api?full=" + url.split("://")[1] + "&status=200").responseBody().trim();
+                final Response response = downloader.execute(Request.newBuilder()
+                        .get(url)
+                        .followRedirects(false)
+                        .build());
+                url = response.getHeader("Location");
+                if (url == null) {
+                    throw new ParsingException("Could not resolve bilibili short link.");
+                }
             } catch (IOException | ReCaptchaException e) {
                 throw new RuntimeException(e);
             }
