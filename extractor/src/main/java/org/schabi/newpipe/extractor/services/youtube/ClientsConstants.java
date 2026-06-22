@@ -34,10 +34,8 @@ final class ClientsConstants {
     static final String TVHTML5_CLIENT_PLATFORM = "GAME_CONSOLE";
     static final String TVHTML5_DEVICE_MAKE = "Sony";
     static final String TVHTML5_DEVICE_MODEL_AND_OS_NAME = "PlayStation 4";
-    // CHECKSTYLE:OFF
     static final String TVHTML5_USER_AGENT =
             "Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.4 Safari/605.1.15";
-    // CHECKSTYLE:ON
 
     // WEB_EMBEDDED_PLAYER (YouTube embeds)
 

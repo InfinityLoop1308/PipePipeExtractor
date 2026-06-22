@@ -58,7 +58,6 @@ public final class VideoStream extends Stream {
     /**
      * Class to build {@link VideoStream} objects.
      */
-    @SuppressWarnings("checkstyle:hiddenField")
     public static final class Builder {
         private String id;
         private String content;
@@ -373,7 +372,6 @@ public final class VideoStream extends Stream {
      * @param manifestUrl    the URL of the manifest this stream comes from (if applicable,
      *                       otherwise null)
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     private VideoStream(@Nonnull final String id,
                         @Nonnull final String content,
                         final boolean isUrl,

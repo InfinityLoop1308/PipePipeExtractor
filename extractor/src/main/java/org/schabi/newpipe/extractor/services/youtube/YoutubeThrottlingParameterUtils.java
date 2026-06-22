@@ -26,7 +26,6 @@ public final class YoutubeThrottlingParameterUtils {
 
     private static final String ARRAY_ACCESS_REGEX = "\\[(\\d+)]";
 
-    // CHECKSTYLE:OFF
     private static final Pattern[] DEOBFUSCATION_FUNCTION_NAME_REGEXES = {
             /*
              * The sixth regex matches the following text, where we want Yva and the array index
@@ -97,7 +96,6 @@ public final class YoutubeThrottlingParameterUtils {
                     + SINGLE_CHAR_VARIABLE_REGEX + "\\)")
 
 };
-    // CHECKSTYLE:ON
 
 
     // Escape the curly end brace to allow compatibility with Android's regex engine

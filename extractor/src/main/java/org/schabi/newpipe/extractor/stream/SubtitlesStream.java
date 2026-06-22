@@ -19,7 +19,6 @@ public final class SubtitlesStream extends Stream {
     /**
      * Class to build {@link SubtitlesStream} objects.
      */
-    @SuppressWarnings("checkstyle:HiddenField")
     public static final class Builder {
         private String id;
         private String content;
@@ -222,7 +221,6 @@ public final class SubtitlesStream extends Stream {
      * @param manifestUrl    the URL of the manifest this stream comes from (if applicable,
      *                       otherwise null)
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     private SubtitlesStream(@Nonnull final String id,
                             @Nonnull final String content,
                             final boolean isUrl,

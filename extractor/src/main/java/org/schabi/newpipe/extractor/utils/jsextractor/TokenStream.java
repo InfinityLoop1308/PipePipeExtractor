@@ -244,7 +244,6 @@ class TokenStream {
         return Token.EOF;
     }
 
-    @SuppressWarnings("checkstyle:MethodLength")
     final Token getToken() throws ParsingException {
         int c;
 
@@ -1069,7 +1068,6 @@ class TokenStream {
         cursor--;
     }
 
-    @SuppressWarnings("checkstyle:emptyblock")
     private void skipLine() {
         // skip to end of line
         int c;

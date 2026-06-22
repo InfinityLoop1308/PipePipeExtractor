@@ -656,9 +656,7 @@ YoutubeParsingHelper {
 
         if (clientVersion == null) {
             throw new ParsingException(
-                    // CHECKSTYLE:OFF
                     "Could not extract YouTube WEB InnerTube client version from HTML search results page");
-                    // CHECKSTYLE:ON
         }
 
         clientVersionExtracted = true;

@@ -29,7 +29,6 @@ public abstract class Extractor {
     private ContentCountry forcedContentCountry = null;
 
     private boolean pageFetched = false;
-    // called like this to prevent checkstyle errors about "hiding a field"
     private final Downloader downloader;
 
     protected Extractor(final StreamingService service, final LinkHandler linkHandler) {

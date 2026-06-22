@@ -121,7 +121,6 @@ public class NiconicoCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         return json.getInt("vpos");
     }
 
-    @SuppressWarnings("checkstyle:LocalFinalVariableName")
     @Nonnull
     private Duration getDuration() {
         final long VPOS_MILLIS = 10;

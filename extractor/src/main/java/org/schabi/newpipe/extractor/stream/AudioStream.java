@@ -52,7 +52,6 @@ public final class AudioStream extends Stream {
     /**
      * Class to build {@link AudioStream} objects.
      */
-    @SuppressWarnings("checkstyle:hiddenField")
     public static final class Builder {
         private String id;
         private String content;
@@ -315,7 +314,6 @@ public final class AudioStream extends Stream {
      * @param itagItem       the {@link ItagItem} corresponding to the stream, which cannot be null
      * @param quality
      */
-    @SuppressWarnings("checkstyle:ParameterNumber")
     private AudioStream(@Nonnull final String id,
                         @Nonnull final String content,
                         final boolean isUrl,

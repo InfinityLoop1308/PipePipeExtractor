@@ -41,9 +41,7 @@ public final class YoutubeChannelLinkHandlerFactory extends ListLinkHandlerFacto
             = new YoutubeChannelLinkHandlerFactory();
 
     private static final Pattern EXCLUDED_SEGMENTS = Pattern.compile(
-            // CHECKSTYLE:OFF
             "playlist|watch|attribution_link|watch_popup|embed|feed|select_site|account|reporthistory|redirect");
-            // CHECKSTYLE:ON
 
     private YoutubeChannelLinkHandlerFactory() {
     }

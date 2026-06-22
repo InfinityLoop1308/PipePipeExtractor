@@ -25,7 +25,6 @@ final class YoutubeSignatureUtils {
     static final String DEOBFUSCATION_FUNCTION_NAME = "deobfuscate";
 
     private static final Pattern[] FUNCTION_REGEXES = {
-            // CHECKSTYLE:OFF
             Pattern.compile(
                     "\\b([a-zA-Z0-9$]+)&&\\(\\1=([a-zA-Z0-9$_]{2,})\\(decodeURIComponent\\(\\1\\)\\)"
             ),
@@ -36,7 +35,6 @@ final class YoutubeSignatureUtils {
                     "(?:\\b|[^a-zA-Z0-9$])([a-zA-Z0-9$]{2,})\\s*=\\s*function\\(\\s*a\\s*\\)\\s*\\{\\s*a\\s*=\\s*a\\.split\\(\\s*\"\"\\s*\\)(?:;[a-zA-Z0-9$]{2}\\.[a-zA-Z0-9$]{2}\\(a,\\d+\\))?"
             ),
 //            Pattern.compile("\\bm=([a-zA-Z0-9$]{2,})\\(decodeURIComponent\\(h\\.s\\)\\)"),
-            // CHECKSTYLE:ON
     };
 
     private static final String STS_REGEX = "signatureTimestamp[=:](\\d+)";

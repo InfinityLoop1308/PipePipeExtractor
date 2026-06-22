@@ -560,7 +560,6 @@ public final class YoutubeDashManifestCreatorsUtils {
      * @return the "initialization" response, without redirections on the network on which the
      * request(s) is/are made
      */
-    @SuppressWarnings("checkstyle:FinalParameters")
     @Nonnull
     public static Response getInitializationResponse(@Nonnull String baseStreamingUrl,
                                                      @Nonnull final ItagItem itagItem,
@@ -699,7 +698,6 @@ public final class YoutubeDashManifestCreatorsUtils {
      * @param responseMimeTypeExpected the response mime type expected from Google video servers
      * @return the {@link Response} of the stream, which should have no redirections
      */
-    @SuppressWarnings("checkstyle:FinalParameters")
     @Nonnull
     private static Response getStreamingWebUrlWithoutRedirects(
             @Nonnull final Downloader downloader,
