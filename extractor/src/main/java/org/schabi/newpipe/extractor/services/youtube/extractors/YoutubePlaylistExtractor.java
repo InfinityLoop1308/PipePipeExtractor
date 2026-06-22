@@ -487,12 +487,32 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
         collector.commit(new YoutubeLockupStreamInfoItemExtractor(lockupViewModel, timeAgoParser) {
             @Override
             public String getUploaderName() throws ParsingException {
-                return fallbackName == null ? super.getUploaderName() : fallbackName;
+                if (fallbackName == null) {
+                    return super.getUploaderName();
+                }
+                try {
+                    final String uploaderName = super.getUploaderName();
+                    if (!isNullOrEmpty(uploaderName)) {
+                        return uploaderName;
+                    }
+                } catch (final ParsingException ignored) {
+                }
+                return fallbackName;
             }
 
             @Override
             public String getUploaderUrl() throws ParsingException {
-                return fallbackUrl == null ? super.getUploaderUrl() : fallbackUrl;
+                if (fallbackUrl == null) {
+                    return super.getUploaderUrl();
+                }
+                try {
+                    final String uploaderUrl = super.getUploaderUrl();
+                    if (!isNullOrEmpty(uploaderUrl)) {
+                        return uploaderUrl;
+                    }
+                } catch (final ParsingException ignored) {
+                }
+                return fallbackUrl;
             }
         });
     }
