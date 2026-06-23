@@ -40,11 +40,6 @@ public class MediaCCCConferenceExtractor extends ChannelExtractor {
     }
 
     @Override
-    public String getFeedUrl() {
-        return null;
-    }
-
-    @Override
     public long getSubscriberCount() {
         return -1;
     }

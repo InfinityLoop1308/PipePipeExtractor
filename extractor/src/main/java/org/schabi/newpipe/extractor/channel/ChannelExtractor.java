@@ -72,10 +72,6 @@ public abstract class ChannelExtractor extends ListExtractor<StreamInfoItem> {
         return null;
     }
 
-    public String getFeedUrl() throws ParsingException {
-        return null;
-    }
-
     public abstract long getSubscriberCount() throws ParsingException;
 
     public abstract String getDescription() throws ParsingException;

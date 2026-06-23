@@ -96,11 +96,6 @@ public class SoundcloudChannelExtractor extends ChannelExtractor {
     }
 
     @Override
-    public String getFeedUrl() {
-        return null;
-    }
-
-    @Override
     public long getSubscriberCount() {
         return user.getLong("followers_count", 0);
     }

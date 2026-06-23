@@ -61,11 +61,6 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
     }
 
     @Override
-    public String getFeedUrl() throws ParsingException {
-        return getBaseUrl() + "/feeds/videos.xml?videoChannelId=" + json.get("id");
-    }
-
-    @Override
     public long getSubscriberCount() {
         return json.getLong("followersCount");
     }

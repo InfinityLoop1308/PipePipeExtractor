@@ -153,11 +153,6 @@ public class NiconicoUserExtractor extends ChannelExtractor {
     }
 
     @Override
-    public String getFeedUrl() throws ParsingException {
-        return getLinkHandler().getUrl();
-    }
-
-    @Override
     public long getSubscriberCount() throws ParsingException {
         if(type == 1){
             return -1;

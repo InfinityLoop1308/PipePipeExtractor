@@ -71,14 +71,6 @@ public class BandcampChannelExtractor extends ChannelExtractor {
         }
     }
 
-    /**
-     * Bandcamp discontinued their RSS feeds because it hadn't been used enough.
-     */
-    @Override
-    public String getFeedUrl() {
-        return null;
-    }
-
     @Override
     public long getSubscriberCount() {
         return -1;

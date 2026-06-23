@@ -107,12 +107,6 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
             info.setBannerUrl(info.getBanners().get(info.getBanners().size() - 1).getUrl());
         }
 
-        try {
-            info.setFeedUrl(extractor.getFeedUrl());
-        } catch (final Exception e) {
-            info.addError(e);
-        }
-
         final InfoItemsPage<StreamInfoItem> itemsPage =
                 ExtractorHelper.getItemsPageOrLogError(info, extractor);
         info.setRelatedItems(itemsPage.getItems());
@@ -178,7 +172,6 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
     private String parentChannelUrl;
     private String parentChannelAvatarUrl;
     private String bannerUrl;
-    private String feedUrl;
     private long subscriberCount = -1;
     private String description;
     private String[] donationLinks;
@@ -245,14 +238,6 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
 
     public void setBannerUrl(final String bannerUrl) {
         this.bannerUrl = bannerUrl;
-    }
-
-    public String getFeedUrl() {
-        return feedUrl;
-    }
-
-    public void setFeedUrl(final String feedUrl) {
-        this.feedUrl = feedUrl;
     }
 
     public long getSubscriberCount() {

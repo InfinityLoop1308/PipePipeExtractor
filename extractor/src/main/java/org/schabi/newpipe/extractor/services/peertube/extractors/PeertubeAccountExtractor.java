@@ -63,11 +63,6 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
     }
 
     @Override
-    public String getFeedUrl() throws ParsingException {
-        return getBaseUrl() + "/feeds/videos.xml?accountId=" + json.get("id");
-    }
-
-    @Override
     public long getSubscriberCount() throws ParsingException {
         // The subscriber count cannot be retrieved directly. It needs to be calculated.
         // An accounts subscriber count is the number of the channel owner's subscriptions

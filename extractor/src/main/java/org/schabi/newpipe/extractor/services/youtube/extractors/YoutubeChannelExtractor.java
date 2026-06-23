@@ -248,16 +248,6 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
         return null;
     }
 
-
-    @Override
-    public String getFeedUrl() throws ParsingException {
-        try {
-            return YoutubeParsingHelper.getFeedUrlFrom(getId());
-        } catch (final Exception e) {
-            throw new ParsingException("Could not get feed url", e);
-        }
-    }
-
     @Override
     public long getSubscriberCount() throws ParsingException {
         assertPageFetched();
