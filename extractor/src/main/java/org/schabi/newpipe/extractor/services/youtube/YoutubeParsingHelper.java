@@ -1512,7 +1512,8 @@ YoutubeParsingHelper {
     @Nonnull
     public static JsonBuilder<JsonObject> prepareSafariJsonBuilder(
             @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry) {
+            @Nonnull final ContentCountry contentCountry)
+            throws IOException, ExtractionException {
         return JsonObject.builder()
                 .object("context")
                     .object("client")
@@ -1522,7 +1523,7 @@ YoutubeParsingHelper {
                         .value("gl", contentCountry.getCountryCode())
                         .value("userAgent", SAFARI_USER_AGENT)
                         .value("clientName", "WEB")
-                        .value("clientVersion", SAFARI_CLIENT_VERSION)
+                        .value("clientVersion", getClientVersion())
                     .end()
                 .end();
     }
@@ -1533,7 +1534,8 @@ YoutubeParsingHelper {
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final String videoId,
             @Nonnull final Integer sts,
-            @Nonnull final String contentPlaybackNonce) {
+            @Nonnull final String contentPlaybackNonce)
+            throws IOException, ExtractionException {
         return JsonWriter.string(
                         prepareSafariJsonBuilder(localization, contentCountry)
                                 .object("playbackContext")
@@ -1559,7 +1561,7 @@ YoutubeParsingHelper {
         headers.put("Content-Type", singletonList("application/json"));
         headers.put("User-Agent", singletonList(SAFARI_USER_AGENT));
         headers.put("X-YouTube-Client-Name", singletonList("1"));
-        headers.put("X-Youtube-Client-Version", singletonList(SAFARI_CLIENT_VERSION));
+        headers.put("X-Youtube-Client-Version", singletonList(getClientVersion()));
 
         addLoggedInHeaders(headers);
 
