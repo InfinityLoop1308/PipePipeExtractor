@@ -788,7 +788,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // TEMP (deep SABR testing): route every video through the real SABR pipeline (via
     // serverAbrStreamingUrl). Set false for production. With it false, SABR only fills the
     // SABR-only/no-HLS gap that upstream otherwise throws ContentNotSupportedException on.
-    private static final boolean FORCE_SABR_FOR_TESTING = true;
+    // Controlled by the Force SABR advanced preference on the client side.
 
     private void ensureStreamsAreCached() throws ExtractionException {
         if (streamsCached) {
@@ -801,7 +801,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // SABR-only responses carry no per-format URLs: build session-based SABR streams instead
         // of the classic URL/DASH/HLS path. The client drives a YoutubeSabrSession from these.
         if (streamType != StreamType.LIVE_STREAM
-                && (FORCE_SABR_FOR_TESTING
+                && (NewPipe.isForceSabr()
                     || (isSabrOnlyResponse() && getHlsManifestUrlFromStreamingData().isEmpty()))) {
             buildSabrStreams();
             streamsCached = true;
