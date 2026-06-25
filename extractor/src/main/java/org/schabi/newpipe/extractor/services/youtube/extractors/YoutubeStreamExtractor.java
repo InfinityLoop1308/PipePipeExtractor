@@ -1508,7 +1508,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
 
         final byte[] body = JsonWriter.string(
-                prepareDesktopJsonBuilder(localization, contentCountry)
+                prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
                         .value(VIDEO_ID, videoId)
                         .value(CONTENT_CHECK_OK, true)
                         .value(RACY_CHECK_OK, true)
