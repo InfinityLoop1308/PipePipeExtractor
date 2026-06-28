@@ -66,7 +66,6 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
         try {
             byte[] response = getDownloader().get(watchDataCache.getThreadServer() + "?at=" + (System.currentTimeMillis() / 1000)).rawResponseBody();
             try {
-//                List<String> segments = BulletComment.ADAPTER.decode(response).segments;
                 String urls = new String(response, StandardCharsets.UTF_8);
                 String urlPattern = "(https://).*?(?=[^a-zA-Z0-9./_-])";
                 Pattern pattern = Pattern.compile(urlPattern);
@@ -83,11 +82,6 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
                         }).start();
                     }
                 }
-//                List<String> segments = BulletComment.ADAPTER.decode(response).segments;
-//                for (String segment : segments) {
-//                    response = getDownloader().get(segment).rawResponseBody();
-//                    messages.add(response);
-//                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -103,16 +97,6 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
         }
         final BulletCommentsInfoItemsCollector collector =
                 new BulletCommentsInfoItemsCollector(getServiceId());
-//        for(final byte[] s: messages) {
-//            try {
-//                List<BulletComment.MessageItem> decodeMessages = BulletComment.ADAPTER.decode(s).items;
-//                for (final BulletComment.MessageItem message : decodeMessages) {
-//                    collector.commit(new NiconicoBulletCommentsNewInfoItemExtractor(message));
-//                }
-//            } catch (IOException e) {
-//                throw new RuntimeException(e);
-//            }
-//        }
         for (final byte[] s: messages) {
             int id = decodeVarInt(s, (byte) 0x40);
             if(id == -1) {
