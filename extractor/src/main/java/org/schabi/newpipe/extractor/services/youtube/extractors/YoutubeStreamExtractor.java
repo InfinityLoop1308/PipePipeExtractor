@@ -2351,7 +2351,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
             final String obfuscatedSig = itagInfo.getObfuscatedSignature();
             final String throttlingParam =
-                YoutubeThrottlingParameterUtils.getThrottlingParameterFromStreamingUrl(url);
+                YoutubeJavaScriptPlayerManager.getThrottlingParameterFromStreamingUrl(url);
 
             // Create deobfuscation info for this stream
             final StreamDeobfuscationInfo info = new StreamDeobfuscationInfo(

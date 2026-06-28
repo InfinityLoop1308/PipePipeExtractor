@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.localization.Localization;
+import org.schabi.newpipe.extractor.utils.Parser;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Manage the extraction and the usage of YouTube's player JavaScript needed data in the YouTube
@@ -34,6 +36,8 @@ import java.util.Map;
  * </p>
  */
 public final class YoutubeJavaScriptPlayerManager {
+
+    private static final Pattern THROTTLING_PARAM_PATTERN = Pattern.compile("[&?]n=([^&]+)");
 
     private static final String LATEST_PLAYER_URL =
             "https://api.pipepipe.dev/decoder/latest-player";
@@ -122,8 +126,7 @@ public final class YoutubeJavaScriptPlayerManager {
             @Nonnull final String videoId,
             @Nonnull final String streamingUrl) throws ParsingException {
         final String obfuscatedThrottlingParameter =
-                YoutubeThrottlingParameterUtils.getThrottlingParameterFromStreamingUrl(
-                        streamingUrl);
+                getThrottlingParameterFromStreamingUrl(streamingUrl);
         // If the throttling parameter is not present, return the original streaming URL
         if (obfuscatedThrottlingParameter == null) {
             return streamingUrl;
@@ -156,6 +159,16 @@ public final class YoutubeJavaScriptPlayerManager {
 
     public static int getThrottlingParametersCacheSize() {
         return YoutubeApiDecoder.getCacheSize();
+    }
+
+    @Nullable
+    public static String getThrottlingParameterFromStreamingUrl(
+            @Nonnull final String streamingUrl) {
+        try {
+            return Parser.matchGroup1(THROTTLING_PARAM_PATTERN, streamingUrl);
+        } catch (final Parser.RegexException e) {
+            return null;
+        }
     }
 
     /**
