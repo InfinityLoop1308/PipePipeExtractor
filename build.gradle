@@ -16,7 +16,7 @@ allprojects {
         group = null
     }
     version 'v5.2.0'
-    group 'com.github.TeamNewPipe'
+    group 'com.github.InfinityLoop1308.PipePipeExtractor'
 
     repositories {
         mavenCentral()
