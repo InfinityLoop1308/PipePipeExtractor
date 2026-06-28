@@ -16,7 +16,7 @@ allprojects {
         group = null
     }
     version 'v5.2.0'
-    group 'com.github.TeamNewPipe'
+    group 'com.github.InfinityLoop1308.PipePipeExtractor'
 
     repositories {
         mavenCentral()
@@ -35,7 +35,7 @@ allprojects {
 
     ext {
         nanojsonVersion = "1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751"
-        spotbugsVersion = "4.8.3"
+        spotbugsVersion = "4.10.2"
     }
 }
 
