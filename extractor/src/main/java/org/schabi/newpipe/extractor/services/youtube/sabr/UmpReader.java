@@ -29,6 +29,7 @@ public final class UmpReader {
                                      @Nonnull final PartConsumer consumer)
             throws SabrProtocolException, IOException {
         while (true) {
+            throwIfInterrupted();
             final int first = in.read();
             if (first < 0) {
                 return; // clean EOF at a part boundary -> done
@@ -67,6 +68,7 @@ public final class UmpReader {
 
     private static int readByteOrThrow(@Nonnull final InputStream in)
             throws SabrProtocolException, IOException {
+        throwIfInterrupted();
         final int b = in.read();
         if (b < 0) {
             throw new SabrProtocolException("Unexpected EOF in UMP integer");
@@ -80,9 +82,11 @@ public final class UmpReader {
         if (length < 0) {
             throw new SabrProtocolException("Invalid UMP part length");
         }
+        throwIfInterrupted();
         final byte[] result = new byte[length];
         int offset = 0;
         while (offset < length) {
+            throwIfInterrupted();
             final int read = in.read(result, offset, length - offset);
             if (read < 0) {
                 throw new SabrProtocolException("Unexpected EOF while reading UMP part data");
@@ -90,6 +94,12 @@ public final class UmpReader {
             offset += read;
         }
         return result;
+    }
+
+    private static void throwIfInterrupted() throws IOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new IOException("Interrupted while reading UMP stream");
+        }
     }
 
     @Nonnull
