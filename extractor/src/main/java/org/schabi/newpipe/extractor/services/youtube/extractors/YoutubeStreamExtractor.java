@@ -94,6 +94,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public JsonObject playerMicroFormatRenderer;
     private int ageLimit = -1;
     private StreamType streamType;
+    private volatile long availableAt = Stream.AVAILABLE_AT_UNKNOWN;
 
     // We need to store the contentPlaybackNonces because we need to append them to videoplayback
     // URLs (with the cpn parameter).
@@ -922,6 +923,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
                 if (itagItem.itagType == ItagItem.ItagType.AUDIO) {
                     final AudioStream.Builder builder = new AudioStream.Builder()
+                            .setAvailableAt(getStreamAvailableAt())
                             .setContent(serverAbrStreamingUrl, false)
                             .setMediaFormat(itagItem.getMediaFormat())
                             .setAverageBitrate(itagItem.getAverageBitrate())
@@ -958,6 +960,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 } else if (itagItem.itagType == ItagItem.ItagType.VIDEO_ONLY) {
                     final String resolution = itagItem.getResolutionString();
                     final VideoStream stream = new VideoStream.Builder()
+                            .setAvailableAt(getStreamAvailableAt())
                             .setId(id)
                             .setContent(serverAbrStreamingUrl, false)
                             .setMediaFormat(itagItem.getMediaFormat())
@@ -1134,6 +1137,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         + (audioTrackId != null ? "-" + audioTrackId : "");
 
                 final VideoStream.Builder builder = new VideoStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
                         .setId(streamId)
                         .setContent(streamUrl, true)
                         .setIsVideoOnly(false)
@@ -1176,6 +1180,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final String language = extractHlsStringAttribute(line, "LANGUAGE");
 
             final AudioStream.Builder audioBuilder = new AudioStream.Builder()
+                    .setAvailableAt(getStreamAvailableAt())
                     .setId("hls-" + videoId + "-audio-" + (groupId != null ? groupId : "default")
                             + (language != null ? "-" + language : ""))
                     .setContent(uri, true)
@@ -1199,6 +1204,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 final String locale = audioTrackLocales.get(trackId);
 
                 final AudioStream.Builder audioBuilder = new AudioStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
                         .setId("hls-" + videoId + "-audio-" + trackId)
                         .setContent(url, true)
                         .setMediaFormat(MediaFormat.M4A)
@@ -1483,6 +1489,73 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private static final String SIGNATURE_CIPHER = "signatureCipher";
     private static final String CIPHER = "cipher";
 
+    private synchronized void updateAvailableAt(@Nonnull final JsonObject response) {
+        final double[] waitSeconds = {0};
+        final JsonArray adPlacements = response.getArray("adPlacements");
+        if (adPlacements != null) {
+            for (int i = 0; i < adPlacements.size(); i++) {
+                final JsonObject placement = adPlacements.getObject(i)
+                        .getObject("adPlacementRenderer");
+                if ("AD_PLACEMENT_KIND_START".equals(placement.getObject("config")
+                        .getObject("adPlacementConfig").getString("kind"))) {
+                    addAdWaitSeconds(placement.getObject("renderer"), waitSeconds);
+                }
+            }
+        }
+        final JsonArray adSlots = response.getArray("adSlots");
+        if (adSlots != null) {
+            for (int i = 0; i < adSlots.size(); i++) {
+                final JsonObject slot = adSlots.getObject(i).getObject("adSlotRenderer");
+                if ("SLOT_TRIGGER_EVENT_BEFORE_CONTENT".equals(slot
+                        .getObject("adSlotMetadata").getString("triggerEvent"))) {
+                    addAdWaitSeconds(slot.getObject("fulfillmentContent"), waitSeconds);
+                }
+            }
+        }
+        availableAt = Math.max(availableAt, (long) Math.ceil(
+                System.currentTimeMillis() / 1000.0 + waitSeconds[0]));
+    }
+
+    private static void addAdWaitSeconds(@Nullable final Object value,
+                                         @Nonnull final double[] waitSeconds) {
+        if (value instanceof JsonObject) {
+            final JsonObject object = (JsonObject) value;
+            if (object.has("instreamVideoAdRenderer")) {
+                final JsonObject renderer = object.getObject("instreamVideoAdRenderer");
+                double duration = -1;
+                for (final String parameter : renderer.getString("playerVars", EMPTY_STRING)
+                        .split("&")) {
+                    final String[] pair = parameter.split("=", 2);
+                    if (pair.length == 2 && "length_seconds".equals(pair[0])) {
+                        try {
+                            duration = Double.parseDouble(pair[1]);
+                        } catch (final NumberFormatException ignored) {
+                        }
+                    }
+                }
+                if (renderer.has("skipOffsetMilliseconds")) {
+                    duration = renderer.getDouble("skipOffsetMilliseconds") / 1000;
+                }
+                if (duration >= 0) {
+                    waitSeconds[0] += duration;
+                }
+            }
+            for (final Object child : object.values()) {
+                addAdWaitSeconds(child, waitSeconds);
+            }
+        } else if (value instanceof JsonArray) {
+            final JsonArray array = (JsonArray) value;
+            for (int i = 0; i < array.size(); i++) {
+                addAdWaitSeconds(array.get(i), waitSeconds);
+            }
+        }
+    }
+
+    private long getStreamAvailableAt() {
+        return streamType == StreamType.LIVE_STREAM || streamType == StreamType.POST_LIVE_STREAM
+                ? Stream.AVAILABLE_AT_UNKNOWN : availableAt;
+    }
+
 
 
     @Override
@@ -1728,6 +1801,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
 
                     YoutubeStreamExtractor.this.playerResponse = androidPlayerResponse;
+                    updateAvailableAt(androidPlayerResponse);
 
                     final JsonObject streamingData = androidPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
@@ -1780,6 +1854,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
 
                     YoutubeStreamExtractor.this.playerResponse = iosPlayerResponse;
+                    updateAvailableAt(iosPlayerResponse);
 
                     final JsonObject streamingData = iosPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
@@ -1828,6 +1903,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
 
                     YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
+                    updateAvailableAt(webPlayerResponse);
 
                     final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
@@ -1870,6 +1946,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
 
                     YoutubeStreamExtractor.this.playerResponse = tvHtml5EmbedPlayerResponse;
+                    updateAvailableAt(tvHtml5EmbedPlayerResponse);
 
                     final JsonObject streamingData = tvHtml5EmbedPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
@@ -1911,6 +1988,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
 
                     YoutubeStreamExtractor.this.playerResponse = safariPlayerResponse;
+                    updateAvailableAt(safariPlayerResponse);
 
                     final JsonObject streamingData = safariPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
@@ -2093,6 +2171,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             try {
                 final String randomString = UUID.randomUUID().toString().replaceAll("[^a-zA-Z]", "");
                 builder = new AudioStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
                         .setId(randomString)
                         .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
@@ -2157,6 +2236,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             final VideoStream.Builder builder;
             try {
                 builder = new VideoStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
                         .setId(String.valueOf(itagItem.id))
                         .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
                         .setMediaFormat(itagItem.getMediaFormat())
