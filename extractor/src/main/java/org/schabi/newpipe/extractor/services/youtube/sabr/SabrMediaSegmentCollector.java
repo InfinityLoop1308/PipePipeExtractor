@@ -77,7 +77,7 @@ public final class SabrMediaSegmentCollector {
             openSegments.put(header.getHeaderId(), new OpenSegment(header));
         }
 
-        public void onMedia(@Nonnull final byte[] partData) {
+        public void onMedia(@Nonnull final byte[] partData) throws SabrProtocolException {
             if (partData.length > 0) {
                 final OpenSegment openSegment = openSegments.get(partData[0] & 0xff);
                 if (openSegment != null) {
@@ -102,24 +102,60 @@ public final class SabrMediaSegmentCollector {
     private static final class OpenSegment {
         @Nonnull
         private final SabrMediaHeader header;
-        private final ByteArrayOutputStream data = new ByteArrayOutputStream();
+        @Nullable
+        private final byte[] fixedData;
+        @Nullable
+        private final ByteArrayOutputStream dynamicData;
+        private int length;
 
-        private OpenSegment(@Nonnull final SabrMediaHeader header) {
+        private OpenSegment(@Nonnull final SabrMediaHeader header) throws SabrProtocolException {
             this.header = header;
+            final long contentLength = header.getContentLength();
+            if (contentLength >= 0) {
+                if (contentLength > Integer.MAX_VALUE) {
+                    throw new SabrProtocolException("SABR media segment too large: headerId="
+                            + header.getHeaderId() + ", length=" + contentLength);
+                }
+                fixedData = new byte[(int) contentLength];
+                dynamicData = null;
+            } else {
+                fixedData = null;
+                dynamicData = new ByteArrayOutputStream();
+            }
         }
 
-        private void write(@Nonnull final byte[] bytes, final int offset, final int length) {
-            data.write(bytes, offset, length);
+        private void write(@Nonnull final byte[] bytes, final int offset, final int count)
+                throws SabrProtocolException {
+            if (count <= 0) {
+                return;
+            }
+            if (fixedData != null) {
+                if (length + count > fixedData.length) {
+                    throw new SabrProtocolException("SABR media length overflow: headerId="
+                            + header.getHeaderId()
+                            + ", expected=" + fixedData.length
+                            + ", actual>=" + (length + count));
+                }
+                System.arraycopy(bytes, offset, fixedData, length, count);
+            } else {
+                dynamicData.write(bytes, offset, count);
+            }
+            length += count;
         }
 
         @Nonnull
         private SabrMediaSegment toSegment() throws SabrProtocolException {
-            final byte[] rawBytes = data.toByteArray();
-            if (header.getContentLength() >= 0 && rawBytes.length != header.getContentLength()) {
+            final byte[] rawBytes;
+            if (fixedData != null) {
+                rawBytes = fixedData;
+            } else {
+                rawBytes = dynamicData.toByteArray();
+            }
+            if (header.getContentLength() >= 0 && length != header.getContentLength()) {
                 throw new SabrProtocolException("SABR media length mismatch: headerId="
                         + header.getHeaderId()
                         + ", expected=" + header.getContentLength()
-                        + ", actual=" + rawBytes.length);
+                        + ", actual=" + length);
             }
             return new SabrMediaSegment(header, maybeDecompress(header, rawBytes));
         }
