@@ -95,6 +95,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private int ageLimit = -1;
     private StreamType streamType;
     private volatile long availableAt = Stream.AVAILABLE_AT_UNKNOWN;
+    private volatile double finalWaitSeconds;
 
     // We need to store the contentPlaybackNonces because we need to append them to videoplayback
     // URLs (with the cpn parameter).
@@ -1514,6 +1515,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
         availableAt = Math.max(availableAt, (long) Math.ceil(
                 System.currentTimeMillis() / 1000.0 + waitSeconds[0]));
+        finalWaitSeconds = Math.max(finalWaitSeconds, waitSeconds[0]);
     }
 
     private static void addAdWaitSeconds(@Nullable final Object value,
@@ -1655,6 +1657,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
         setStreamType();
+        System.out.println("YouTube video " + videoId + " wait time: "
+                + finalWaitSeconds + " seconds");
 
         // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds
         // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
