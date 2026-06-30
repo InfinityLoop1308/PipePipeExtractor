@@ -36,8 +36,6 @@ import org.schabi.newpipe.extractor.services.youtube.*;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.*;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
-import org.schabi.newpipe.extractor.utils.Pair;
-import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.SubtitleDeduplicator;
 import org.schabi.newpipe.extractor.utils.Utils;
 
@@ -783,88 +781,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // of the classic URL/DASH/HLS path. The client drives a YoutubeSabrSession from these.
         if (streamType != StreamType.LIVE_STREAM
                 && (NewPipe.isForceSabr()
-                    || (isSabrOnlyResponse() && getHlsManifestUrlFromStreamingData().isEmpty()))) {
+                    || (hasSabrStreamingUrl() && getHlsManifestUrlFromStreamingData().isEmpty()))) {
             buildSabrStreams();
             streamsCached = true;
             return;
         }
 
-        // Collect all ItagInfo objects from all stream types
-        final List<ItagInfo> allItagInfos = new ArrayList<>();
-        final int audioStartIndex = 0;
-        final int videoStartIndex;
-        final int videoOnlyStartIndex;
-
         try {
-            // Collect audio streams
-            java.util.stream.Stream.of(
-                    new Pair<>(webSafariStreamingData, webSafariCpn),
-                    new Pair<>(webStreamingData, webCpn),
-                    new Pair<>(mwebStreamingData, mwebCpn)
-            )
-                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
-                            ADAPTIVE_FORMATS, ItagItem.ItagType.AUDIO, pair.getSecond()))
-                    .forEachOrdered(allItagInfos::add);
-
-            videoStartIndex = allItagInfos.size();
-
-            // Collect video streams
-            java.util.stream.Stream.of(
-                    new Pair<>(webSafariStreamingData, webSafariCpn),
-                    new Pair<>(webStreamingData, webCpn),
-                    new Pair<>(mwebStreamingData, mwebCpn)
-            )
-                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
-                            FORMATS, ItagItem.ItagType.VIDEO, pair.getSecond()))
-                    .forEachOrdered(allItagInfos::add);
-
-            videoOnlyStartIndex = allItagInfos.size();
-
-            // Collect video-only streams
-            java.util.stream.Stream.of(
-                    new Pair<>(webSafariStreamingData, webSafariCpn),
-                    new Pair<>(webStreamingData, webCpn),
-                    new Pair<>(mwebStreamingData, mwebCpn)
-            )
-                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
-                            ADAPTIVE_FORMATS, ItagItem.ItagType.VIDEO_ONLY, pair.getSecond()))
-                    .forEachOrdered(allItagInfos::add);
-
-            // Batch deobfuscate ALL streams in a single API call
-            batchDeobfuscateItagUrls(videoId, allItagInfos);
-
-            // Now build the separate stream lists
             cachedAudioStreams = new ArrayList<>();
-            for (int i = audioStartIndex; i < videoStartIndex; i++) {
-                final AudioStream stream = getAudioStreamBuilderHelper().apply(allItagInfos.get(i));
-                if (!Stream.containSimilarStream(stream, cachedAudioStreams)) {
-                    cachedAudioStreams.add(stream);
-                }
-            }
-            Collections.sort(cachedAudioStreams, Comparator.comparingInt(AudioStream::getBitrate).reversed());
-
             cachedVideoStreams = new ArrayList<>();
-            for (int i = videoStartIndex; i < videoOnlyStartIndex; i++) {
-                final VideoStream stream = getVideoStreamBuilderHelper(false).apply(allItagInfos.get(i));
-                if (!Stream.containSimilarStream(stream, cachedVideoStreams)) {
-                    cachedVideoStreams.add(stream);
-                }
-            }
-
             cachedVideoOnlyStreams = new ArrayList<>();
-            for (int i = videoOnlyStartIndex; i < allItagInfos.size(); i++) {
-                final VideoStream stream = getVideoStreamBuilderHelper(true).apply(allItagInfos.get(i));
-                if (!Stream.containSimilarStream(stream, cachedVideoOnlyStreams)) {
-                    cachedVideoOnlyStreams.add(stream);
-                }
-            }
-
-            if (cachedAudioStreams.isEmpty() && cachedVideoOnlyStreams.isEmpty()) {
-                tryExtractHlsStreams(videoId);
-            }
-
+            tryExtractHlsStreams(videoId);
             streamsCached = true;
-
         } catch (final Exception e) {
             throw new ParsingException("Could not get streams", e);
         }
@@ -1460,13 +1388,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // Fetch page
     //////////////////////////////////////////////////////////////////////////*/
 
-    private static final String FORMATS = "formats";
     private static final String ADAPTIVE_FORMATS = "adaptiveFormats";
     private static final String STREAMING_DATA = "streamingData";
     private static final String PLAYER = "player";
     private static final String NEXT = "next";
-    private static final String SIGNATURE_CIPHER = "signatureCipher";
-    private static final String CIPHER = "cipher";
 
     private synchronized void updateAvailableAt(@Nonnull final JsonObject response) {
         final double[] waitSeconds = {0};
@@ -1634,23 +1559,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
     }
 
-    private boolean isSabrOnlyResponse() {
+    private boolean hasSabrStreamingUrl() {
         for (final JsonObject sd : Arrays.asList(
                 webSafariStreamingData, webStreamingData, mwebStreamingData)) {
-            if (sd == null) {
-                continue;
+            if (sd != null && !sd.getString("serverAbrStreamingUrl", EMPTY_STRING).isEmpty()) {
+                return true;
             }
-            final JsonArray adaptive = sd.getArray(ADAPTIVE_FORMATS);
-            if (adaptive == null || adaptive.isEmpty()) {
-                continue;
-            }
-            for (int i = 0; i < adaptive.size(); i++) {
-                final JsonObject fmt = adaptive.getObject(i);
-                if (fmt.has("url") || fmt.has(SIGNATURE_CIPHER) || fmt.has(CIPHER)) {
-                    return false;
-                }
-            }
-            return true;
         }
         return false;
     }
@@ -1944,423 +1858,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .map(content -> content.getObject(videoRendererName))
                 .findFirst()
                 .orElse(new JsonObject());
-    }
-
-    @Nonnull
-    public <T extends Stream> List<T> getItags(
-            final String streamingDataKey,
-            final ItagItem.ItagType itagTypeWanted,
-            final java.util.function.Function<ItagInfo, T> streamBuilderHelper,
-            final String streamTypeExceptionMessage) throws ParsingException {
-        try {
-            final String videoId = getId();
-            final List<T> streamList = new ArrayList<>();
-
-            // First pass: collect all ItagInfo objects without deobfuscating URLs
-            final List<ItagInfo> itagInfoList = new ArrayList<>();
-
-            java.util.stream.Stream.of(
-                     /*
-                    Use the mwebStreamingData object first because there is no n param and no
-                    signatureCiphers in streaming URLs of the iOS client
-                    The mwebStreamingData is used as second way as it isn't used on livestreams,
-                    it doesn't return all available streams, and the Android client extraction is
-                    more likely to break
-                    As age-restricted videos are not common, use webSafariStreamingData
-                    last, which will be the only one not empty for age-restricted content
-                     */
-                    new Pair<>(webSafariStreamingData, webSafariCpn),
-                    new Pair<>(webStreamingData, webCpn),
-                    new Pair<>(mwebStreamingData, mwebCpn)
-
-            )
-                    .flatMap(pair -> getStreamsFromStreamingDataKey(videoId, pair.getFirst(),
-                            streamingDataKey, itagTypeWanted, pair.getSecond()))
-                    .forEachOrdered(itagInfoList::add);
-
-            // Second pass: batch deobfuscate all URLs if needed
-            batchDeobfuscateItagUrls(videoId, itagInfoList);
-
-            // Third pass: build stream objects
-            for (final ItagInfo itagInfo : itagInfoList) {
-                final T stream = streamBuilderHelper.apply(itagInfo);
-                if (!Stream.containSimilarStream(stream, streamList)) {
-                    streamList.add(stream);
-                }
-            }
-
-            return streamList;
-        } catch (final Exception e) {
-            throw new ParsingException(
-                    "Could not get " + streamTypeExceptionMessage + " streams", e);
-        }
-    }
-
-    /**
-     * Get the stream builder helper which will be used to build {@link AudioStream}s in
-     * {@link #getItags(String, ItagItem.ItagType, java.util.function.Function, String)}
-     *
-     * <p>
-     * The {@code StreamBuilderHelper} will set the following attributes in the
-     * {@link AudioStream}s built:
-     * <ul>
-     *     <li>the {@link ItagItem}'s id of the stream as its id;</li>
-     *     <li>{@link ItagInfo#getContent()} and {@link ItagInfo#getIsUrl()} as its content and
-     *     and as the value of {@code isUrl};</li>
-     *     <li>the media format returned by the {@link ItagItem} as its media format;</li>
-     *     <li>its average bitrate with the value returned by {@link
-     *     ItagItem#getAverageBitrate()};</li>
-     *     <li>the {@link ItagItem};</li>
-     *     <li>the {@link DeliveryMethod#DASH DASH delivery method}, for OTF streams, live streams
-     *     and ended streams.</li>
-     * </ul>
-     * </p>
-     *
-     * <p>
-     * Note that the {@link ItagItem} comes from an {@link ItagInfo} instance.
-     * </p>
-     *
-     * @return a stream builder helper to build {@link AudioStream}s
-     */
-    @Nonnull
-    private java.util.function.Function<ItagInfo, AudioStream> getAudioStreamBuilderHelper() {
-        return (itagInfo) -> {
-            final ItagItem itagItem = itagInfo.getItagItem();
-            final AudioStream.Builder builder;
-            try {
-                final String randomString = UUID.randomUUID().toString().replaceAll("[^a-zA-Z]", "");
-                builder = new AudioStream.Builder()
-                        .setAvailableAt(getStreamAvailableAt())
-                        .setId(randomString)
-                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
-                        .setMediaFormat(itagItem.getMediaFormat())
-                        .setAverageBitrate(itagItem.getAverageBitrate())
-                        .setItagItem(itagItem)
-                        .setAudioTrackId(itagInfo.getAudioTrackId())
-                        .setAudioTrackName(itagInfo.getAudioTrackName())
-                        .setAudioLocale(itagInfo.getAudioLocale());
-            } catch (ParsingException e) {
-                throw new RuntimeException(e);
-            }
-
-            if (streamType == StreamType.LIVE_STREAM
-                    || streamType == StreamType.POST_LIVE_STREAM
-                    || !itagInfo.getIsUrl()) {
-                builder.setDeliveryMethod(DeliveryMethod.DASH);
-            }
-
-            return builder.build();
-        };
-    }
-
-    /**
-     * Get the stream builder helper which will be used to build {@link VideoStream}s in
-     * {@link #getItags(String, ItagItem.ItagType, java.util.function.Function, String)}
-     *
-     * <p>
-     * The {@code StreamBuilderHelper} will set the following attributes in the
-     * {@link VideoStream}s built:
-     * <ul>
-     *     <li>the {@link ItagItem}'s id of the stream as its id;</li>
-     *     <li>{@link ItagInfo#getContent()} and {@link ItagInfo#getIsUrl()} as its content and
-     *     and as the value of {@code isUrl};</li>
-     *     <li>the media format returned by the {@link ItagItem} as its media format;</li>
-     *     <li>whether it is video-only with the {@code areStreamsVideoOnly} parameter</li>
-     *     <li>the {@link ItagItem};</li>
-     *     <li>the resolution, by trying to use, in this order:
-     *         <ol>
-     *             <li>the height returned by the {@link ItagItem} + {@code p} + the frame rate if
-     *             it is more than 30;</li>
-     *             <li>the default resolution string from the {@link ItagItem};</li>
-     *             <li>an {@link Utils#EMPTY_STRING empty string}.</li>
-     *         </ol>
-     *     </li>
-     *     <li>the {@link DeliveryMethod#DASH DASH delivery method}, for OTF streams, live streams
-     *     and ended streams.</li>
-     * </ul>
-     *
-     * <p>
-     * Note that the {@link ItagItem} comes from an {@link ItagInfo} instance.
-     * </p>
-     *
-     * @param areStreamsVideoOnly whether the stream builder helper will set the video
-     *                            streams as video-only streams
-     * @return a stream builder helper to build {@link VideoStream}s
-     */
-    @Nonnull
-    private java.util.function.Function<ItagInfo, VideoStream> getVideoStreamBuilderHelper(
-            final boolean areStreamsVideoOnly) {
-        return (itagInfo) -> {
-            final ItagItem itagItem = itagInfo.getItagItem();
-            final VideoStream.Builder builder;
-            try {
-                builder = new VideoStream.Builder()
-                        .setAvailableAt(getStreamAvailableAt())
-                        .setId(String.valueOf(itagItem.id))
-                        .setContent(itagInfo.getContent() + (itagInfo.getIsUrl()?("&pppid="+getId()):""), itagInfo.getIsUrl())
-                        .setMediaFormat(itagItem.getMediaFormat())
-                        .setIsVideoOnly(areStreamsVideoOnly)
-                        .setItagItem(itagItem);
-            } catch (ParsingException e) {
-                throw new RuntimeException(e);
-            }
-
-            final String resolutionString = itagItem.getResolutionString();
-            builder.setResolution(resolutionString != null ? resolutionString
-                    : EMPTY_STRING);
-
-            if (streamType != StreamType.VIDEO_STREAM || !itagInfo.getIsUrl()) {
-                // For YouTube videos on OTF streams and for all streams of post-live streams
-                // and live streams, only the DASH delivery method can be used.
-                builder.setDeliveryMethod(DeliveryMethod.DASH);
-            }
-
-            return builder.build();
-        };
-    }
-
-    @Nonnull
-    private java.util.stream.Stream<ItagInfo> getStreamsFromStreamingDataKey(
-            final String videoId,
-            final JsonObject streamingData,
-            final String streamingDataKey,
-            @Nonnull final ItagItem.ItagType itagTypeWanted,
-            @Nonnull final String contentPlaybackNonce) {
-        if (streamingData == null || !streamingData.has(streamingDataKey)) {
-            return java.util.stream.Stream.empty();
-        }
-
-        String preferredAudioLanguage = ServiceList.YouTube.getAudioLanguage();
-
-        java.util.stream.Stream<ItagInfo> result = streamingData.getArray(streamingDataKey).stream()
-                .filter(JsonObject.class::isInstance)
-                .map(JsonObject.class::cast)
-                .map(formatData -> {
-                    try {
-                        final ItagItem itagItem = ItagItem.getItag(formatData.getInt("itag"));
-                        if (itagItem.itagType == itagTypeWanted) {
-                            final ItagInfo itagInfo = buildAndAddItagInfoToList(videoId, formatData, itagItem,
-                                    itagItem.itagType, contentPlaybackNonce);
-                            if (itagInfo != null && itagItem.itagType == ItagItem.ItagType.AUDIO) {
-                                extractAndSetAudioTrackInfo(formatData, itagInfo, preferredAudioLanguage);
-                            }
-                            return itagInfo;
-                        }
-                    } catch (final IOException | ExtractionException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                })
-                .filter(Objects::nonNull);
-        return result;
-    }
-
-    private void extractAndSetAudioTrackInfo(final JsonObject formatData,
-                                              final ItagInfo itagInfo,
-                                              final String preferredAudioLanguage) {
-        if (!formatData.has("audioTrack")) {
-            return;
-        }
-        final JsonObject audioTrack = formatData.getObject("audioTrack");
-        if (audioTrack.has("id")) {
-            final String audioTrackId = audioTrack.getString("id");
-            final String displayName = audioTrack.getString("displayName");
-            final String langPart = audioTrackId.split("\\.")[0];
-            final String audioLocale = langPart.split("-")[0];
-            final boolean isDefault = displayName.contains("original") || displayName.contains("yokuqala");
-            final String audioTrackName = isDefault
-                    ? langPart + " (original)"
-                    : langPart;
-            itagInfo.setAudioTrackInfo(audioTrackId, audioTrackName, audioLocale);
-        }
-    }
-
-    private ItagInfo buildAndAddItagInfoToList(
-            @Nonnull final String videoId,
-            @Nonnull final JsonObject formatData,
-            @Nonnull final ItagItem itagItem,
-            @Nonnull final ItagItem.ItagType itagType,
-            @Nonnull final String contentPlaybackNonce) throws IOException, ExtractionException {
-        String streamUrl;
-        String obfuscatedSignature = null;
-
-        if (formatData.has("url")) {
-            streamUrl = formatData.getString("url");
-        } else if (formatData.has(SIGNATURE_CIPHER) || formatData.has(CIPHER)) {
-            final String cipherString = formatData.getString(CIPHER,
-                    formatData.getString(SIGNATURE_CIPHER));
-            final Map<String, String> cipher = Parser.compatParseMap(cipherString);
-            obfuscatedSignature = cipher.getOrDefault("s", "");
-            streamUrl = cipher.get("url") + "&" + cipher.get("sp") + "=SIGNATURE_PLACEHOLDER";
-        } else {
-            return null;
-        }
-
-        // Add the content playback nonce to the stream URL
-        streamUrl += "&" + CPN + "=" + contentPlaybackNonce;
-
-        // Note: Signature and throttling parameter deobfuscation will be done
-        // in batch by batchDeobfuscateItagUrls() method
-
-        final JsonObject initRange = formatData.getObject("initRange");
-        final JsonObject indexRange = formatData.getObject("indexRange");
-        final String mimeType = formatData.getString("mimeType", EMPTY_STRING);
-        final String codec = mimeType.contains("codecs")
-                ? mimeType.split("\"")[1] : EMPTY_STRING;
-        final int fps = formatData.getInt("fps", -1);
-
-        itagItem.setBitrate(formatData.getInt("bitrate"));
-        itagItem.setWidth(formatData.getInt("width"));
-        itagItem.setHeight(formatData.getInt("height"));
-        itagItem.setInitStart(Integer.parseInt(initRange.getString("start", "-1")));
-        itagItem.setInitEnd(Integer.parseInt(initRange.getString("end", "-1")));
-        itagItem.setIndexStart(Integer.parseInt(indexRange.getString("start", "-1")));
-        itagItem.setIndexEnd(Integer.parseInt(indexRange.getString("end", "-1")));
-        itagItem.setQuality(formatData.getString("quality"));
-        itagItem.setCodec(codec);
-        if (fps != -1) {
-            itagItem.setFps(fps);
-        }
-
-        if (streamType == StreamType.LIVE_STREAM || streamType == StreamType.POST_LIVE_STREAM) {
-            itagItem.setTargetDurationSec(formatData.getInt("targetDurationSec"));
-        } else if (itagType == ItagItem.ItagType.VIDEO
-                || itagType == ItagItem.ItagType.VIDEO_ONLY) {
-            itagItem.setFps(formatData.getInt("fps"));
-        } else if (itagType == ItagItem.ItagType.AUDIO) {
-            // YouTube return the audio sample rate as a string
-            itagItem.setSampleRate(Integer.parseInt(formatData.getString("audioSampleRate")));
-            itagItem.setAudioChannels(formatData.getInt("audioChannels"));
-        }
-
-        // YouTube return the content length and the approximate duration as strings
-        itagItem.setContentLength(Long.parseLong(formatData.getString("contentLength",
-                String.valueOf(CONTENT_LENGTH_UNKNOWN))));
-        itagItem.setApproxDurationMs(Long.parseLong(formatData.getString("approxDurationMs",
-                String.valueOf(APPROX_DURATION_MS_UNKNOWN))));
-
-        final ItagInfo itagInfo = new ItagInfo(streamUrl, itagItem);
-
-        // Store the obfuscated signature in ItagInfo for batch processing
-        if (obfuscatedSignature != null) {
-            itagInfo.setObfuscatedSignature(obfuscatedSignature);
-        }
-
-        if (streamType == StreamType.VIDEO_STREAM) {
-            itagInfo.setIsUrl(!formatData.getString("type", EMPTY_STRING)
-                    .equalsIgnoreCase("FORMAT_STREAM_TYPE_OTF"));
-        } else {
-            // We are currently not able to generate DASH manifests for running
-            // livestreams, so because of the requirements of StreamInfo
-            // objects, return these streams as DASH URL streams (even if they
-            // are not playable).
-            // Ended livestreams are returned as non URL streams
-            itagInfo.setIsUrl(streamType != StreamType.POST_LIVE_STREAM);
-        }
-
-        return itagInfo;
-    }
-
-    /**
-     * Batch deobfuscate signatures and throttling parameters for all ItagInfo objects.
-     * This replaces individual API calls with a single batch request.
-     *
-     * @param videoId      the video ID
-     * @param itagInfoList list of ItagInfo objects to process
-     * @throws ParsingException if batch deobfuscation fails
-     */
-    private void batchDeobfuscateItagUrls(@Nonnull final String videoId,
-                                          @Nonnull final List<ItagInfo> itagInfoList)
-            throws ParsingException {
-        if (itagInfoList.isEmpty()) {
-            return;
-        }
-
-        // Collect all unique signatures and throttling parameters
-        // Use LinkedHashSet to preserve order and avoid duplicates
-        final java.util.LinkedHashSet<String> uniqueSignatures = new java.util.LinkedHashSet<>();
-        final java.util.LinkedHashSet<String> uniqueThrottlingParams = new java.util.LinkedHashSet<>();
-
-        // Track which streams need which deobfuscations
-        final List<StreamDeobfuscationInfo> streamInfos = new ArrayList<>();
-
-        for (int i = 0; i < itagInfoList.size(); i++) {
-            final ItagInfo itagInfo = itagInfoList.get(i);
-            final String url = itagInfo.getContent();
-
-            final String obfuscatedSig = itagInfo.getObfuscatedSignature();
-            final String throttlingParam =
-                YoutubeJavaScriptPlayerManager.getThrottlingParameterFromStreamingUrl(url);
-
-            // Create deobfuscation info for this stream
-            final StreamDeobfuscationInfo info = new StreamDeobfuscationInfo(
-                i, obfuscatedSig, throttlingParam);
-            streamInfos.add(info);
-
-            // Add to unique sets
-            if (obfuscatedSig != null && !obfuscatedSig.isEmpty()) {
-                uniqueSignatures.add(obfuscatedSig);
-            }
-            if (throttlingParam != null && !throttlingParam.isEmpty()) {
-                uniqueThrottlingParams.add(throttlingParam);
-            }
-        }
-
-        // If nothing to deobfuscate, return early
-        if (uniqueSignatures.isEmpty() && uniqueThrottlingParams.isEmpty()) {
-            return;
-        }
-
-        // Make batch API call
-        final YoutubeApiDecoder.BatchDecodeResult result =
-            YoutubeJavaScriptPlayerManager.deobfuscateBatch(
-                videoId,
-                new ArrayList<>(uniqueSignatures),
-                new ArrayList<>(uniqueThrottlingParams));
-
-        final Map<String, String> decodedSignatures = result.getSignatures();
-        final Map<String, String> decodedThrottling = result.getNParameters();
-
-        // Apply deobfuscated values to each stream
-        for (final StreamDeobfuscationInfo info : streamInfos) {
-            final ItagInfo itagInfo = itagInfoList.get(info.streamIndex);
-            String updatedUrl = itagInfo.getContent();
-
-            // Apply deobfuscated signature if needed
-            if (info.obfuscatedSignature != null && !info.obfuscatedSignature.isEmpty()) {
-                final String deobfuscatedSig = decodedSignatures.get(info.obfuscatedSignature);
-                if (deobfuscatedSig != null) {
-                    updatedUrl = updatedUrl.replace("SIGNATURE_PLACEHOLDER", deobfuscatedSig);
-                }
-            }
-
-            // Apply deobfuscated throttling parameter if needed
-            if (info.throttlingParam != null && !info.throttlingParam.isEmpty()) {
-                final String deobfuscatedParam = decodedThrottling.get(info.throttlingParam);
-                if (deobfuscatedParam != null) {
-                    updatedUrl = updatedUrl.replace(info.throttlingParam, deobfuscatedParam);
-                }
-            }
-
-            itagInfo.setContent(updatedUrl);
-        }
-    }
-
-    /**
-     * Helper class to track deobfuscation requirements for each stream.
-     */
-    private static class StreamDeobfuscationInfo {
-        final int streamIndex;
-        final String obfuscatedSignature;
-        final String throttlingParam;
-
-        StreamDeobfuscationInfo(final int streamIndex,
-                                final String obfuscatedSignature,
-                                final String throttlingParam) {
-            this.streamIndex = streamIndex;
-            this.obfuscatedSignature = obfuscatedSignature;
-            this.throttlingParam = throttlingParam;
-        }
     }
 
     @Nonnull
