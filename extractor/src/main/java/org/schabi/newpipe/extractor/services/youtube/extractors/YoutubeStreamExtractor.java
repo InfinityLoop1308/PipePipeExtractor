@@ -1564,8 +1564,19 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
-        final CancellableCall mwebCall = fetchMwebJsonPlayer(
-                contentCountry, localization, videoId);
+        final CancellableCall jsonPlayerCall;
+        switch (NewPipe.getYoutubePlayerClient()) {
+            case "web_safari":
+                jsonPlayerCall = fetchWebSafariJsonPlayer(
+                        contentCountry, localization, videoId);
+                break;
+            case "web":
+                jsonPlayerCall = fetchWebJsonPlayer(contentCountry, localization, videoId);
+                break;
+            default:
+                jsonPlayerCall = fetchMwebJsonPlayer(contentCountry, localization, videoId);
+                break;
+        }
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
@@ -1603,12 +1614,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             long startTime = System.nanoTime();
             do {
-                if (mwebCall.isFinished() && webPageCall.isFinished() && nextDataCall.isFinished()) {
+                if (jsonPlayerCall.isFinished()
+                        && webPageCall.isFinished() && nextDataCall.isFinished()) {
                     break;
                 }
             } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= ServiceList.YouTube.getLoadingTimeout());
 
-            if (mwebStreamingData == null || nextResponse == null) {
+            if ((webSafariStreamingData == null && webStreamingData == null
+                    && mwebStreamingData == null) || nextResponse == null) {
                 for (Throwable e: errors) {
                     if (e instanceof AntiBotException) {
                         throw (AntiBotException) e;
