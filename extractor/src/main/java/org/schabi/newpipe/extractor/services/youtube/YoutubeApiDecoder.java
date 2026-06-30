@@ -35,6 +35,9 @@ public final class YoutubeApiDecoder {
     @Nonnull
     private static final Map<String, String> DECODE_CACHE = new HashMap<>();
 
+    @Nullable
+    private static YoutubeJavaScriptDecoder localDecoder;
+
     private YoutubeApiDecoder() {
     }
 
@@ -86,6 +89,20 @@ public final class YoutubeApiDecoder {
             return cachedResult;
         }
 
+        final YoutubeJavaScriptDecoder decoder = localDecoder;
+        if (decoder != null) {
+            final BatchDecodeResult result = decoder.decodeBatch(playerId,
+                    "sig".equals(paramType) ? Collections.singletonList(value) : null,
+                    "n".equals(paramType) ? Collections.singletonList(value) : null);
+            final String decodedValue = "sig".equals(paramType)
+                    ? result.getSignatures().get(value) : result.getNParameters().get(value);
+            if (decodedValue == null || decodedValue.isEmpty()) {
+                throw new ParsingException("Local decoder returned empty value for: " + value);
+            }
+            DECODE_CACHE.put(cacheKey, decodedValue);
+            return decodedValue;
+        }
+
         try {
             final String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8.name());
             final String url = API_BASE_URL + "?player=" + playerId + "&" + paramType + "=" + encodedValue;
@@ -128,6 +145,11 @@ public final class YoutubeApiDecoder {
         DECODE_CACHE.clear();
     }
 
+    public static void setLocalDecoder(@Nullable final YoutubeJavaScriptDecoder decoder) {
+        localDecoder = decoder;
+        clearCache();
+    }
+
     static int getCacheSize() {
         return DECODE_CACHE.size();
     }
@@ -146,6 +168,10 @@ public final class YoutubeApiDecoder {
                                          @Nullable final List<String> signatureParams,
                                          @Nullable final List<String> nParams)
             throws ParsingException {
+        final YoutubeJavaScriptDecoder decoder = localDecoder;
+        if (decoder != null) {
+            return decoder.decodeBatch(playerId, signatureParams, nParams);
+        }
         // Validate input
         final boolean hasSigs = signatureParams != null && !signatureParams.isEmpty();
         final boolean hasNs = nParams != null && !nParams.isEmpty();
@@ -274,8 +300,8 @@ public final class YoutubeApiDecoder {
         private final Map<String, String> signatures;
         private final Map<String, String> nParameters;
 
-        BatchDecodeResult(@Nonnull final Map<String, String> signatures,
-                          @Nonnull final Map<String, String> nParameters) {
+        public BatchDecodeResult(@Nonnull final Map<String, String> signatures,
+                                 @Nonnull final Map<String, String> nParameters) {
             this.signatures = signatures;
             this.nParameters = nParameters;
         }
