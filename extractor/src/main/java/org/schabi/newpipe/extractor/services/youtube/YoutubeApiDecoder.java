@@ -150,6 +150,11 @@ public final class YoutubeApiDecoder {
         clearCache();
     }
 
+    @Nullable
+    static YoutubeJavaScriptDecoder getLocalDecoder() {
+        return localDecoder;
+    }
+
     static int getCacheSize() {
         return DECODE_CACHE.size();
     }
