@@ -19,6 +19,7 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -499,7 +500,7 @@ public final class YoutubeSabrProbe {
     @Nullable
     private static String maybeDeobfuscateNParameter(@Nonnull final String videoId,
                                                       @Nullable final String url)
-            throws ParsingException {
+            throws ParsingException, UnsupportedEncodingException {
         if (url == null || url.isEmpty()) {
             return url;
         }
@@ -507,14 +508,14 @@ public final class YoutubeSabrProbe {
                 .matcher(url);
         if (queryMatcher.find()) {
             final String encryptedN = java.net.URLDecoder.decode(queryMatcher.group(2),
-                    StandardCharsets.UTF_8);
+                    StandardCharsets.UTF_8.name());
             final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
                     YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
                             Collections.singletonList(encryptedN));
             final String decryptedN = result.getNParameters().get(encryptedN);
             if (decryptedN != null) {
                 return url.substring(0, queryMatcher.start(2))
-                        + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8)
+                        + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8.name())
                         + url.substring(queryMatcher.end(2));
             }
         }
