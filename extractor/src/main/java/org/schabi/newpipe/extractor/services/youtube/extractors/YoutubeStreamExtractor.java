@@ -700,20 +700,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getDashMpdUrl() throws ParsingException {
-        assertPageFetched();
-        if (streamType == StreamType.VIDEO_STREAM)return "";
-        if (streamType == StreamType.LIVE_STREAM && !StringUtils.isBlank(ServiceList.YouTube.getTokens())) {
-            return "";
-        }
-        String dashUrl = getManifestUrl(
-                "dash",
-                Arrays.asList(webSafariStreamingData, webStreamingData, mwebStreamingData));
-
-        if (!dashUrl.isEmpty()) {
-            dashUrl = deobfuscateManifestUrl(dashUrl);
-        }
-
-        return dashUrl;
+        return "";
     }
 
     @Nonnull
