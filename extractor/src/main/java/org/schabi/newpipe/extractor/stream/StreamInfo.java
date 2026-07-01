@@ -58,8 +58,8 @@ public class StreamInfo extends Info {
     }
 
     public static class StreamExtractException extends ExtractionException {
-        StreamExtractException(final String message) {
-            super(message);
+        StreamExtractException(final String message, final Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -223,8 +223,13 @@ public class StreamInfo extends Info {
         // Either audio or video has to be available, otherwise we didn't get a stream (since
         // videoOnly are optional, they don't count).
         if ((streamInfo.videoStreams.isEmpty()) && (streamInfo.audioStreams.isEmpty())) {
-            throw new StreamExtractException(
-                    "Could not get any stream. See error variable to get further details.");
+            final List<Throwable> errors = streamInfo.getErrors();
+            final StreamExtractException exception = new StreamExtractException(
+                    "Could not get any stream", errors.isEmpty() ? null : errors.get(0));
+            for (int i = 1; i < errors.size(); i++) {
+                exception.addSuppressed(errors.get(i));
+            }
+            throw exception;
         }
     }
 
