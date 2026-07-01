@@ -11,6 +11,13 @@ import java.util.Map;
 import java.util.Set;
 
 public final class YoutubeSabrStreamState {
+    public static final int TRACK_MODE_VIDEO_AND_AUDIO =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
+    public static final int TRACK_MODE_AUDIO_ONLY =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_AUDIO_ONLY;
+    public static final int TRACK_MODE_VIDEO_ONLY =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_ONLY;
+
     private final FormatProgress audio;
     private final FormatProgress video;
     private final Map<Integer, SabrContextUpdate> sabrContexts = new LinkedHashMap<>();
@@ -369,6 +376,18 @@ public final class YoutubeSabrStreamState {
             setRequestTrackMode(YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO,
                     true, true);
         }
+    }
+
+    public void setAudioOnlyRequestMode() {
+        setRequestTrackMode(TRACK_MODE_AUDIO_ONLY, true, false);
+    }
+
+    public void setVideoOnlyRequestMode() {
+        setRequestTrackMode(TRACK_MODE_VIDEO_ONLY, false, true);
+    }
+
+    public void setVideoAndAudioRequestMode() {
+        setRequestTrackMode(TRACK_MODE_VIDEO_AND_AUDIO, true, true);
     }
 
     private boolean isAudioEnabled() {
