@@ -774,19 +774,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         assertPageFetched();
         final String videoId = getId();
 
-        // SABR-only responses carry no per-format URLs: build session-based SABR streams instead
-        // of the classic URL/DASH/HLS path. The client drives a YoutubeSabrSession from these.
-        if (streamType != StreamType.LIVE_STREAM
-                && hasSabrStreamingUrl() && getHlsManifestUrlFromStreamingData().isEmpty()) {
-            buildSabrStreams();
-            streamsCached = true;
-            return;
-        }
-
         try {
             cachedAudioStreams = new ArrayList<>();
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
+            if (streamType != StreamType.LIVE_STREAM && hasSabrStreamingUrl()) {
+                buildSabrStreams();
+            }
             tryExtractHlsStreams(videoId);
             streamsCached = true;
         } catch (final Exception e) {
@@ -803,10 +797,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * the selected itag to fetch media.</p>
      */
     private void buildSabrStreams() {
-        cachedAudioStreams = new ArrayList<>();
-        cachedVideoStreams = new ArrayList<>();
-        cachedVideoOnlyStreams = new ArrayList<>();
-
         final JsonObject streamingData = getSabrStreamingData();
         if (streamingData == null) {
             return;
