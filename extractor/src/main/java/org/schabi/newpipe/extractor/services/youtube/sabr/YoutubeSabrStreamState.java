@@ -184,6 +184,10 @@ public final class YoutubeSabrStreamState {
         return Math.min(audio.getBufferedEndMs(), video.getBufferedEndMs());
     }
 
+    public long getBufferedEndMs(@Nonnull final YoutubeSabrFormat format) {
+        return progressForItag(format.getItag()).getBufferedEndMs();
+    }
+
     public void setPlayerTimeMs(final long playerTimeMs) {
         playerTimeMsOverride = Math.max(0, playerTimeMs);
     }
@@ -705,46 +709,62 @@ public final class YoutubeSabrStreamState {
             if (!segment.getHeader().isInitSegment() || metadata == null || segmentIndex != null) {
                 return false;
             }
-            final String mimeType = metadata.getMimeType();
-            if (mimeType == null) {
-                return false;
-            }
-            try {
-                if (mimeType.contains("mp4")) {
-                    segmentIndex = SabrMp4SegmentIndexParser.parse(segment.getData(), metadata);
-                } else if (mimeType.contains("webm")) {
-                    segmentIndex = SabrWebmSegmentIndexParser.parse(segment.getData(), metadata);
-                } else {
-                    return false;
-                }
-                return true;
-            } catch (final SabrProtocolException ignored) {
-                return false;
-            }
+            return observeInitializationData(segment.getData());
         }
 
         private boolean observeInitializationData(@Nonnull final byte[] data) {
             if (segmentIndex != null) {
                 return false;
             }
-            final String mimeType = format.getMimeType();
+            final String mimeType = metadata == null ? format.getMimeType() : metadata.getMimeType();
             if (mimeType == null) {
                 return false;
             }
             try {
                 if (mimeType.contains("mp4")) {
-                    segmentIndex = SabrMp4SegmentIndexParser.parse(data);
+                    segmentIndex = metadata == null
+                            ? SabrMp4SegmentIndexParser.parse(data, format)
+                            : SabrMp4SegmentIndexParser.parse(data, metadata);
                 } else if (mimeType.contains("webm")) {
-                    segmentIndex = SabrWebmSegmentIndexParser.parse(data,
-                            format.getApproxDurationMs());
+                    segmentIndex = metadata == null
+                            ? SabrWebmSegmentIndexParser.parse(data, format)
+                            : SabrWebmSegmentIndexParser.parse(data, metadata);
                 } else {
                     return false;
                 }
-                initReceived = true;
-                endSegment = segmentIndex.size();
+                observeSegmentIndex();
                 return true;
             } catch (final SabrProtocolException ignored) {
+                if (metadata == null) {
+                    return false;
+                }
+                try {
+                    if (mimeType.contains("mp4")) {
+                        segmentIndex = SabrMp4SegmentIndexParser.parse(data, format);
+                    } else if (mimeType.contains("webm")) {
+                        segmentIndex = SabrWebmSegmentIndexParser.parse(data, format);
+                    } else {
+                        return false;
+                    }
+                    observeSegmentIndex();
+                    return true;
+                } catch (final SabrProtocolException ignoredFallback) {
+                    return false;
+                }
+            } catch (final Exception ignored) {
                 return false;
+            }
+        }
+
+        private void observeSegmentIndex() {
+            if (segmentIndex == null) {
+                return;
+            }
+            if (endSegment <= 0) {
+                endSegment = segmentIndex.size();
+            }
+            if (averageDurationMs <= 0 && format.getApproxDurationMs() > 0 && endSegment > 0) {
+                averageDurationMs = Math.max(1L, format.getApproxDurationMs() / endSegment);
             }
         }
 
