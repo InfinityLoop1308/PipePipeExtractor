@@ -15,8 +15,23 @@ final class SabrMp4SegmentIndexParser {
     static SabrSegmentIndex parse(@Nonnull final byte[] initData,
                                   @Nonnull final SabrFormatInitializationMetadata metadata)
             throws SabrProtocolException {
-        final int indexStart = checkedRangeOffset(metadata.getIndexRangeStart(), initData.length);
-        final int indexEnd = checkedRangeOffset(metadata.getIndexRangeEnd(), initData.length);
+        return parse(initData,
+                checkedRangeOffset(metadata.getIndexRangeStart(), initData.length),
+                checkedRangeOffset(metadata.getIndexRangeEnd(), initData.length));
+    }
+
+    @Nonnull
+    static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                  @Nonnull final YoutubeSabrFormat format)
+            throws SabrProtocolException {
+        return parse(initData, 0, initData.length - 1);
+    }
+
+    @Nonnull
+    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                          final int indexStart,
+                                          final int indexEnd)
+            throws SabrProtocolException {
         if (indexEnd < indexStart) {
             throw new SabrProtocolException("Invalid MP4 SIDX range");
         }
