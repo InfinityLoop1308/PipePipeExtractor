@@ -20,22 +20,36 @@ final class SabrMp4SegmentIndexParser {
         if (indexEnd < indexStart) {
             throw new SabrProtocolException("Invalid MP4 SIDX range");
         }
-
         final int sidxOffset = findSidxBox(initData, indexStart, indexEnd + 1);
+        return parse(initData, sidxOffset, indexEnd + 1);
+    }
+
+    @Nonnull
+    static SabrSegmentIndex parse(@Nonnull final byte[] initData)
+            throws SabrProtocolException {
+        final int sidxOffset = findSidxBox(initData, 0, initData.length);
+        return parse(initData, sidxOffset, initData.length);
+    }
+
+    @Nonnull
+    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                          final int sidxOffset,
+                                          final int rangeEnd)
+            throws SabrProtocolException {
         final long boxSize = readUint32(initData, sidxOffset);
-        final int boxEnd = checkedBoxEnd(sidxOffset, boxSize, indexEnd + 1);
+        final int boxEnd = checkedBoxEnd(sidxOffset, boxSize, rangeEnd);
         int cursor = sidxOffset + 8;
         final int version = initData[cursor] & 0xff;
-        cursor += 4;
-
         cursor += 4; // reference_ID
+
+        cursor += 4;
         final long timescale = readUint32(initData, cursor);
         cursor += 4;
         if (timescale <= 0) {
             throw new SabrProtocolException("Invalid MP4 SIDX timescale");
         }
 
-        long earliestPresentationTime;
+        final long earliestPresentationTime;
         if (version == 0) {
             earliestPresentationTime = readUint32(initData, cursor);
             cursor += 8; // earliest_presentation_time + first_offset

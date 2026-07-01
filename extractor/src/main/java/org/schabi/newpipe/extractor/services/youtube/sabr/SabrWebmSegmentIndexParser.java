@@ -25,15 +25,33 @@ final class SabrWebmSegmentIndexParser {
         final Element cues = findElement(initData,
                 checkedRangeOffset(metadata.getIndexRangeStart(), initData.length),
                 checkedRangeEnd(metadata.getIndexRangeEnd(), initData.length), CUES_ID);
-        final List<Long> cueTimes = readCueTimes(initData, cues, timecodeScaleNanos);
-        if (cueTimes.isEmpty()) {
-            throw new SabrProtocolException("WebM cues contain no cue times");
-        }
-
         final long totalDurationMs = metadata.getDurationUnits() > 0
                 && metadata.getDurationTimescale() > 0
                 ? scaleToMs(metadata.getDurationUnits(), metadata.getDurationTimescale())
                 : -1;
+        return parse(initData, cues, timecodeScaleNanos, totalDurationMs);
+    }
+
+    @Nonnull
+    static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                  final long totalDurationMs)
+            throws SabrProtocolException {
+        final Element segment = findElement(initData, 0, initData.length, SEGMENT_ID);
+        final long timecodeScaleNanos = readTimecodeScale(initData, segment);
+        final Element cues = findElement(initData, 0, initData.length, CUES_ID);
+        return parse(initData, cues, timecodeScaleNanos, totalDurationMs);
+    }
+
+    @Nonnull
+    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                          @Nonnull final Element cues,
+                                          final long timecodeScaleNanos,
+                                          final long totalDurationMs)
+            throws SabrProtocolException {
+        final List<Long> cueTimes = readCueTimes(initData, cues, timecodeScaleNanos);
+        if (cueTimes.isEmpty()) {
+            throw new SabrProtocolException("WebM cues contain no cue times");
+        }
         final List<SabrSegmentIndex.Entry> entries = new ArrayList<>(cueTimes.size());
         for (int i = 0; i < cueTimes.size(); i++) {
             final long startMs = cueTimes.get(i);

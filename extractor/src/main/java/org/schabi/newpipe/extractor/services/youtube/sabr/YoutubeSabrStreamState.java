@@ -119,6 +119,12 @@ public final class YoutubeSabrStreamState {
         return progress != null && progress.observeSegment(segment);
     }
 
+    public boolean ingestInitializationData(@Nonnull final YoutubeSabrFormat format,
+                                            @Nonnull final byte[] data) {
+        final FormatProgress progress = findProgressForItag(format.getItag());
+        return progress != null && progress.observeInitializationData(data);
+    }
+
     @Nonnull
     public List<SabrBufferedRange> getBufferedRanges() {
         if (bufferedRangesOverride != null) {
@@ -658,6 +664,31 @@ public final class YoutubeSabrStreamState {
                 } else {
                     return false;
                 }
+                return true;
+            } catch (final SabrProtocolException ignored) {
+                return false;
+            }
+        }
+
+        private boolean observeInitializationData(@Nonnull final byte[] data) {
+            if (segmentIndex != null) {
+                return false;
+            }
+            final String mimeType = format.getMimeType();
+            if (mimeType == null) {
+                return false;
+            }
+            try {
+                if (mimeType.contains("mp4")) {
+                    segmentIndex = SabrMp4SegmentIndexParser.parse(data);
+                } else if (mimeType.contains("webm")) {
+                    segmentIndex = SabrWebmSegmentIndexParser.parse(data,
+                            format.getApproxDurationMs());
+                } else {
+                    return false;
+                }
+                initReceived = true;
+                endSegment = segmentIndex.size();
                 return true;
             } catch (final SabrProtocolException ignored) {
                 return false;
