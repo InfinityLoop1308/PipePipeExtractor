@@ -19,6 +19,7 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -532,16 +533,20 @@ public final class YoutubeSabrProbe {
         final java.util.regex.Matcher queryMatcher = java.util.regex.Pattern.compile("([?&])n=([^&]+)")
                 .matcher(url);
         if (queryMatcher.find()) {
-            final String encryptedN = java.net.URLDecoder.decode(queryMatcher.group(2),
-                    StandardCharsets.UTF_8);
-            final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
-                    YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
-                            Collections.singletonList(encryptedN));
-            final String decryptedN = result.getNParameters().get(encryptedN);
-            if (decryptedN != null) {
-                return url.substring(0, queryMatcher.start(2))
-                        + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8)
-                        + url.substring(queryMatcher.end(2));
+            try {
+                final String encryptedN = java.net.URLDecoder.decode(queryMatcher.group(2),
+                        StandardCharsets.UTF_8.name());
+                final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
+                        YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
+                                Collections.singletonList(encryptedN));
+                final String decryptedN = result.getNParameters().get(encryptedN);
+                if (decryptedN != null) {
+                    return url.substring(0, queryMatcher.start(2))
+                            + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8.name())
+                            + url.substring(queryMatcher.end(2));
+                }
+            } catch (final UnsupportedEncodingException e) {
+                throw new ParsingException("Could not decode n parameter", e);
             }
         }
 
