@@ -34,6 +34,9 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.localization.*;
 import org.schabi.newpipe.extractor.services.youtube.*;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile;
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo;
+import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe;
 import org.schabi.newpipe.extractor.stream.*;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.SubtitleDeduplicator;
@@ -779,7 +782,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
             if (streamType != StreamType.LIVE_STREAM && hasSabrStreamingUrl()) {
-                buildSabrStreams();
+                buildSabrStreams(videoId);
             }
             tryExtractHlsStreams(videoId);
             streamsCached = true;
@@ -796,7 +799,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * and {@code isUrl} is false. The client drives a {@code YoutubeSabrSession} from the videoId and
      * the selected itag to fetch media.</p>
      */
-    private void buildSabrStreams() {
+    private void buildSabrStreams(@Nonnull final String videoId) {
+        final YoutubeSabrInfo sabrInfo = buildSabrInfo(videoId);
         final JsonObject streamingData = getSabrStreamingData();
         if (streamingData == null) {
             return;
@@ -823,6 +827,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                             .setAverageBitrate(itagItem.getAverageBitrate())
                             .setItagItem(itagItem)
                             .setDeliveryMethod(DeliveryMethod.SABR);
+                    builder.setDeliveryMethodInfo(sabrInfo);
                     // Multi-track audio: the same itag is served once per language. Carry the track
                     // info so the player can show a language selector, and key the id on (itag,
                     // track) so the languages aren't collapsed into one by the dedup below.
@@ -862,6 +867,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                             .setItagItem(itagItem)
                             .setResolution(resolution != null ? resolution : EMPTY_STRING)
                             .setDeliveryMethod(DeliveryMethod.SABR)
+                            .setDeliveryMethodInfo(sabrInfo)
                             .build();
                     if (cachedVideoOnlyStreams.stream().noneMatch(s -> id.equals(s.getId()))) {
                         cachedVideoOnlyStreams.add(stream);
@@ -885,6 +891,49 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return null;
         }
         return configuredStreamingData;
+    }
+
+    @Nullable
+    private YoutubeSabrInfo buildSabrInfo(@Nonnull final String videoId) {
+        if (playerResponse == null) {
+            return null;
+        }
+        try {
+            return YoutubeSabrProbe.fromPlayerResponse(videoId, getSabrClientProfile(),
+                    getSabrCpn(), playerResponse);
+        } catch (final Exception e) {
+            errors.add(e);
+            return null;
+        }
+    }
+
+    @Nonnull
+    private YoutubeSabrClientProfile getSabrClientProfile() {
+        switch (NewPipe.getYoutubePlayerClient()) {
+            case "web_safari":
+                return YoutubeSabrClientProfile.SAFARI_WEB;
+            case "web":
+                return YoutubeSabrClientProfile.WEB;
+            default:
+                return YoutubeSabrClientProfile.MWEB;
+        }
+    }
+
+    @Nonnull
+    private String getSabrCpn() {
+        final String cpn;
+        switch (NewPipe.getYoutubePlayerClient()) {
+            case "web_safari":
+                cpn = webSafariCpn;
+                break;
+            case "web":
+                cpn = webCpn;
+                break;
+            default:
+                cpn = mwebCpn;
+                break;
+        }
+        return isNullOrEmpty(cpn) ? generateContentPlaybackNonce() : cpn;
     }
 
     private static void fillSabrItagItem(@Nonnull final ItagItem itagItem,

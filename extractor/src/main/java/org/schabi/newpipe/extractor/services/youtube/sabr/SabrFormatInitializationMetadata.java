@@ -4,6 +4,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class SabrFormatInitializationMetadata {
+    @Nonnull
+    private final byte[] rawSummaryBytes;
     @Nullable
     private final String videoId;
     private final int itag;
@@ -23,6 +25,7 @@ public final class SabrFormatInitializationMetadata {
     private final long durationTimescale;
 
     private SabrFormatInitializationMetadata(@Nullable final String videoId,
+                                             @Nonnull final byte[] rawSummaryBytes,
                                              final int itag,
                                              final long lastModified,
                                              @Nullable final String xtags,
@@ -37,6 +40,7 @@ public final class SabrFormatInitializationMetadata {
                                                final long durationUnits,
                                                final long durationTimescale) {
         this.videoId = videoId;
+        this.rawSummaryBytes = rawSummaryBytes;
         this.itag = itag;
         this.lastModified = lastModified;
         this.xtags = xtags;
@@ -119,7 +123,7 @@ public final class SabrFormatInitializationMetadata {
             }
         }
 
-        return new SabrFormatInitializationMetadata(videoId, itag, lastModified, xtags,
+        return new SabrFormatInitializationMetadata(videoId, data.clone(), itag, lastModified, xtags,
                 endTimeMs, endSegmentNumber, mimeType, initRangeStart, initRangeEnd,
                 indexRangeStart, indexRangeEnd, field8, durationUnits, durationTimescale);
     }
@@ -197,6 +201,12 @@ public final class SabrFormatInitializationMetadata {
 
     @Nonnull
     public String summarize() {
+        String unknown = "unknown-error";
+        try {
+            unknown = SabrProto.summarizeUnknownFields(rawSummaryBytes, 1, 2, 3, 4, 5, 6, 7, 8,
+                    9, 10);
+        } catch (final Exception ignored) {
+        }
         return "itag=" + itag
                 + ", endSegment=" + endSegmentNumber
                 + ", endTimeMs=" + endTimeMs
@@ -204,7 +214,8 @@ public final class SabrFormatInitializationMetadata {
                 + ", init=" + initRangeStart + '-' + initRangeEnd
                 + ", index=" + indexRangeStart + '-' + indexRangeEnd
                 + ", field8=" + field8
-                + ", duration=" + durationUnits + '/' + durationTimescale;
+                + ", duration=" + durationUnits + '/' + durationTimescale
+                + ", unknown=" + unknown;
     }
 
     private static final class Range {

@@ -19,7 +19,6 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
@@ -54,6 +53,25 @@ public final class YoutubeSabrProbe {
         final String cpn = YoutubeParsingHelper.generateContentPlaybackNonce();
         final JsonObject playerResponse = fetchPlayerResponse(videoId, profile, localization,
                 contentCountry, cpn, playerPoToken, visitorDataOverride);
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride);
+    }
+
+    @Nonnull
+    public static YoutubeSabrInfo fromPlayerResponse(@Nonnull final String videoId,
+                                                     @Nonnull final YoutubeSabrClientProfile profile,
+                                                     @Nonnull final String cpn,
+                                                     @Nonnull final JsonObject playerResponse)
+            throws ExtractionException {
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse, null);
+    }
+
+    @Nonnull
+    private static YoutubeSabrInfo fromPlayerResponse(@Nonnull final String videoId,
+                                                      @Nonnull final YoutubeSabrClientProfile profile,
+                                                      @Nonnull final String cpn,
+                                                      @Nonnull final JsonObject playerResponse,
+                                                      @Nullable final String visitorDataOverride)
+            throws ExtractionException {
         final JsonObject streamingData = playerResponse.getObject(STREAMING_DATA);
         if (streamingData == null) {
             throw new SabrProtocolException("Player response has no streamingData for " + profile);
@@ -69,7 +87,7 @@ public final class YoutubeSabrProbe {
 
         return new YoutubeSabrInfo(profile, videoId, cpn, resolveClientVersion(profile),
                 visitorData, serverAbrStreamingUrl, ustreamerConfig,
-                YoutubeSabrFormat.fromAdaptiveFormats(adaptiveFormats));
+                YoutubeSabrFormat.fromAdaptiveFormats(videoId, adaptiveFormats));
     }
 
     @Nonnull
@@ -274,6 +292,9 @@ public final class YoutubeSabrProbe {
         if (profile.getOsVersion() != null) {
             builder.value("osVersion", profile.getOsVersion());
         }
+        if (profile == YoutubeSabrClientProfile.MWEB && profile.getUserAgent() != null) {
+            builder.value("userAgent", profile.getUserAgent());
+        }
         if (profile == YoutubeSabrClientProfile.ANDROID) {
             builder.value("clientScreen", "WATCH")
                     .value("androidSdkVersion", 36);
@@ -363,7 +384,10 @@ public final class YoutubeSabrProbe {
             headers.put("X-YouTube-Client-Name", Collections.singletonList(profile.getClientId()));
             headers.put("X-YouTube-Client-Version",
                     Collections.singletonList(resolveClientVersion(profile)));
-            YoutubeParsingHelper.addCookieHeader(headers);
+            YoutubeParsingHelper.addLoggedInHeaders(headers);
+            if (!headers.containsKey("Cookie")) {
+                YoutubeParsingHelper.addCookieHeader(headers);
+            }
         }
         return headers;
     }
@@ -464,7 +488,8 @@ public final class YoutubeSabrProbe {
     @Nonnull
     private static String resolveClientVersion(@Nonnull final YoutubeSabrClientProfile profile)
             throws ParsingException {
-        if (profile == YoutubeSabrClientProfile.WEB) {
+        if (profile == YoutubeSabrClientProfile.WEB
+                || profile == YoutubeSabrClientProfile.MWEB) {
             try {
                 return YoutubeParsingHelper.getClientVersion();
             } catch (final Exception e) {
@@ -498,9 +523,9 @@ public final class YoutubeSabrProbe {
     }
 
     @Nullable
-    private static String maybeDeobfuscateNParameter(@Nonnull final String videoId,
-                                                      @Nullable final String url)
-            throws ParsingException, UnsupportedEncodingException {
+    static String maybeDeobfuscateNParameter(@Nonnull final String videoId,
+                                             @Nullable final String url)
+            throws ParsingException {
         if (url == null || url.isEmpty()) {
             return url;
         }
@@ -508,14 +533,14 @@ public final class YoutubeSabrProbe {
                 .matcher(url);
         if (queryMatcher.find()) {
             final String encryptedN = java.net.URLDecoder.decode(queryMatcher.group(2),
-                    StandardCharsets.UTF_8.name());
+                    StandardCharsets.UTF_8);
             final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
                     YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
                             Collections.singletonList(encryptedN));
             final String decryptedN = result.getNParameters().get(encryptedN);
             if (decryptedN != null) {
                 return url.substring(0, queryMatcher.start(2))
-                        + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8.name())
+                        + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8)
                         + url.substring(queryMatcher.end(2));
             }
         }
