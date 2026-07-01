@@ -45,7 +45,6 @@ public final class NewPipe {
     private static Downloader downloader;
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
-    private static boolean forceSabr;
     private static String youtubePlayerClient = "mweb";
 
     private NewPipe() {
@@ -161,14 +160,6 @@ public final class NewPipe {
 
     public static void setPreferredContentCountry(final ContentCountry preferredContentCountry) {
         NewPipe.preferredContentCountry = preferredContentCountry;
-    }
-
-    public static boolean isForceSabr() {
-        return forceSabr;
-    }
-
-    public static void setForceSabr(final boolean forceSabr) {
-        NewPipe.forceSabr = forceSabr;
     }
 
     public static String getYoutubePlayerClient() {

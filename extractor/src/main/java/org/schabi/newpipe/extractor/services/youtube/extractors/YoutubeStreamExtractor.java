@@ -764,11 +764,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * This method collects all audio, video, and video-only streams,
      * then performs batch deobfuscation in one request.
      */
-    // TEMP (deep SABR testing): route every video through the real SABR pipeline (via
-    // serverAbrStreamingUrl). Set false for production. With it false, SABR only fills the
-    // SABR-only/no-HLS gap that upstream otherwise throws ContentNotSupportedException on.
-    // Controlled by the Force SABR advanced preference on the client side.
-
     private void ensureStreamsAreCached() throws ExtractionException {
         if (streamsCached) {
             return;
@@ -780,8 +775,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         // SABR-only responses carry no per-format URLs: build session-based SABR streams instead
         // of the classic URL/DASH/HLS path. The client drives a YoutubeSabrSession from these.
         if (streamType != StreamType.LIVE_STREAM
-                && (NewPipe.isForceSabr()
-                    || (hasSabrStreamingUrl() && getHlsManifestUrlFromStreamingData().isEmpty()))) {
+                && hasSabrStreamingUrl() && getHlsManifestUrlFromStreamingData().isEmpty()) {
             buildSabrStreams();
             streamsCached = true;
             return;
@@ -1476,17 +1470,20 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
-        final CancellableCall jsonPlayerCall;
+        final CancellableCall webSafariPlayerCall = fetchWebSafariJsonPlayer(
+                contentCountry, localization, videoId);
+        final CancellableCall configuredPlayerCall;
         switch (NewPipe.getYoutubePlayerClient()) {
             case "web_safari":
-                jsonPlayerCall = fetchWebSafariJsonPlayer(
-                        contentCountry, localization, videoId);
+                configuredPlayerCall = null;
                 break;
             case "web":
-                jsonPlayerCall = fetchWebJsonPlayer(contentCountry, localization, videoId);
+                configuredPlayerCall = fetchWebJsonPlayer(
+                        contentCountry, localization, videoId);
                 break;
             default:
-                jsonPlayerCall = fetchMwebJsonPlayer(contentCountry, localization, videoId);
+                configuredPlayerCall = fetchMwebJsonPlayer(
+                        contentCountry, localization, videoId);
                 break;
         }
 
@@ -1526,7 +1523,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             long startTime = System.nanoTime();
             do {
-                if (jsonPlayerCall.isFinished()
+                if (webSafariPlayerCall.isFinished()
+                        && (configuredPlayerCall == null || configuredPlayerCall.isFinished())
                         && webPageCall.isFinished() && nextDataCall.isFinished()) {
                     break;
                 }
