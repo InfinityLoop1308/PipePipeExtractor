@@ -80,6 +80,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private JsonObject webSafariStreamingData;
     @Nullable
     private JsonObject mwebStreamingData;
+    @Nullable
+    private JsonObject configuredStreamingData;
 
     private JsonObject videoPrimaryInfoRenderer;
     private JsonObject videoSecondaryInfoRenderer;
@@ -886,15 +888,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Nullable
     private JsonObject getSabrStreamingData() {
-        for (final JsonObject streamingData : Arrays.asList(
-                webSafariStreamingData, webStreamingData, mwebStreamingData)) {
-            if (streamingData != null
-                    && streamingData.getArray(ADAPTIVE_FORMATS) != null
-                    && !streamingData.getArray(ADAPTIVE_FORMATS).isEmpty()) {
-                return streamingData;
-            }
+        if ("web_safari".equals(NewPipe.getYoutubePlayerClient())
+                || configuredStreamingData == null
+                || configuredStreamingData.getArray(ADAPTIVE_FORMATS) == null
+                || configuredStreamingData.getArray(ADAPTIVE_FORMATS).isEmpty()) {
+            return null;
         }
-        return null;
+        return configuredStreamingData;
     }
 
     private static void fillSabrItagItem(@Nonnull final ItagItem itagItem,
@@ -1558,13 +1558,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     private boolean hasSabrStreamingUrl() {
-        for (final JsonObject sd : Arrays.asList(
-                webSafariStreamingData, webStreamingData, mwebStreamingData)) {
-            if (sd != null && !sd.getString("serverAbrStreamingUrl", EMPTY_STRING).isEmpty()) {
-                return true;
-            }
-        }
-        return false;
+        final JsonObject streamingData = getSabrStreamingData();
+        return streamingData != null
+                && !streamingData.getString("serverAbrStreamingUrl", EMPTY_STRING).isEmpty();
     }
 
 
@@ -1673,6 +1669,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         webStreamingData = streamingData;
+                        configuredStreamingData = streamingData;
                         playerCaptionsTracklistRenderer = webPlayerResponse.getObject("captions")
                                 .getObject("playerCaptionsTracklistRenderer");
                     }
@@ -1762,6 +1759,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     final JsonObject streamingData = mwebPlayerResponse.getObject(STREAMING_DATA);
                     if (!isNullOrEmpty(streamingData)) {
                         mwebStreamingData = streamingData;
+                        configuredStreamingData = streamingData;
                         if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
                             playerCaptionsTracklistRenderer = mwebPlayerResponse.getObject("captions")
                                     .getObject("playerCaptionsTracklistRenderer");
