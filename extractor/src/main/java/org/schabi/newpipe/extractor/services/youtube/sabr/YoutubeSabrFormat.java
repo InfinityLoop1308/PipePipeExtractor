@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerMana
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -151,15 +152,21 @@ public final class YoutubeSabrFormat implements Serializable {
                 final String signature = YoutubeJavaScriptPlayerManager
                         .deobfuscateSignature(videoId, obfuscatedSignature);
                 final String separator = url.contains("?") ? "&" : "?";
-                url = url + separator + URLEncoder.encode(signatureParameter, StandardCharsets.UTF_8)
-                        + '=' + URLEncoder.encode(signature, StandardCharsets.UTF_8);
+                try {
+                    url = url + separator + URLEncoder.encode(signatureParameter,
+                            StandardCharsets.UTF_8.name())
+                            + '=' + URLEncoder.encode(signature, StandardCharsets.UTF_8.name());
+                } catch (final UnsupportedEncodingException e) {
+                    throw new ParsingException("Could not encode signature", e);
+                }
             }
         }
         return YoutubeSabrProbe.maybeDeobfuscateNParameter(videoId, url);
     }
 
     @Nonnull
-    private static Map<String, String> parseQuery(@Nullable final String value) {
+    private static Map<String, String> parseQuery(@Nullable final String value)
+            throws ParsingException {
         final Map<String, String> params = new HashMap<>();
         if (value == null || value.isEmpty()) {
             return params;
@@ -170,10 +177,15 @@ public final class YoutubeSabrFormat implements Serializable {
             if (equals <= 0) {
                 continue;
             }
-            final String key = URLDecoder.decode(part.substring(0, equals), StandardCharsets.UTF_8);
-            final String decodedValue = URLDecoder.decode(part.substring(equals + 1),
-                    StandardCharsets.UTF_8);
-            params.put(key, decodedValue);
+            try {
+                final String key = URLDecoder.decode(part.substring(0, equals),
+                        StandardCharsets.UTF_8.name());
+                final String decodedValue = URLDecoder.decode(part.substring(equals + 1),
+                        StandardCharsets.UTF_8.name());
+                params.put(key, decodedValue);
+            } catch (final UnsupportedEncodingException e) {
+                throw new ParsingException("Could not decode query", e);
+            }
         }
         return params;
     }
