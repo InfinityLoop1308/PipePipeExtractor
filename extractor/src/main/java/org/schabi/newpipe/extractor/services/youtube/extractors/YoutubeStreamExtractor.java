@@ -1509,19 +1509,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
-        final CancellableCall webSafariPlayerCall = fetchWebSafariJsonPlayer(
-                contentCountry, localization, videoId);
-        final CancellableCall configuredPlayerCall;
+        final CancellableCall jsonPlayerCall;
         switch (NewPipe.getYoutubePlayerClient()) {
             case "web_safari":
-                configuredPlayerCall = null;
+                jsonPlayerCall = fetchWebSafariJsonPlayer(
+                        contentCountry, localization, videoId);
                 break;
             case "web":
-                configuredPlayerCall = fetchWebJsonPlayer(
+                jsonPlayerCall = fetchWebJsonPlayer(
                         contentCountry, localization, videoId);
                 break;
             default:
-                configuredPlayerCall = fetchMwebJsonPlayer(
+                jsonPlayerCall = fetchMwebJsonPlayer(
                         contentCountry, localization, videoId);
                 break;
         }
@@ -1562,8 +1561,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             long startTime = System.nanoTime();
             do {
-                if (webSafariPlayerCall.isFinished()
-                        && (configuredPlayerCall == null || configuredPlayerCall.isFinished())
+                if (jsonPlayerCall.isFinished()
                         && webPageCall.isFinished() && nextDataCall.isFinished()) {
                     break;
                 }
