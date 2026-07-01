@@ -728,7 +728,7 @@ public final class YoutubeSabrStreamState {
             if (endSegment <= 0) {
                 endSegment = segmentIndex.size();
             }
-            if (averageDurationMs <= 0 && format.getApproxDurationMs() > 0 && endSegment > 0) {
+            if (format.getApproxDurationMs() > 0 && endSegment > 0) {
                 averageDurationMs = Math.max(1L, format.getApproxDurationMs() / endSegment);
             }
         }
