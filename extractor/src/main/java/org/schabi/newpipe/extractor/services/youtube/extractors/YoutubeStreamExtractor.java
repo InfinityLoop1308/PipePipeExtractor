@@ -1533,10 +1533,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
             }
 
-        if (playerResponse == null) {
-            throw new ContentNotSupportedException("YouTube returned SABR-only streaming data without usable stream URLs. "
-                    + "Try logging in to get HLS fallback streams.");
-        }
 
         checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
         setStreamType();
