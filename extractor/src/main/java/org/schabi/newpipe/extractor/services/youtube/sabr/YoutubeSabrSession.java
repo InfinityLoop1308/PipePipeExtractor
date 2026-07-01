@@ -372,6 +372,15 @@ public final class YoutubeSabrSession {
         return segmentCache.get(cacheKey(request));
     }
 
+    public void discardCachedSegment(@Nonnull final SabrSegmentRequest request) {
+        final String key = cacheKey(request);
+        final SabrMediaSegment removed = segmentCache.remove(key);
+        if (removed != null && !removed.getHeader().isInitSegment()) {
+            cacheOrder.remove(key);
+            cachedBytes = Math.max(0, cachedBytes - removed.getLength());
+        }
+    }
+
 
     /** True once the requested media segment is known to be past the last segment of the stream. */
     public boolean isBeyondEnd(@Nonnull final SabrSegmentRequest request) {
