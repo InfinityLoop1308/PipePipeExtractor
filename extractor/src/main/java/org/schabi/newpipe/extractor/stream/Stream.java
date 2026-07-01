@@ -35,6 +35,7 @@ public abstract class Stream implements Serializable {
     private final DeliveryMethod deliveryMethod;
     @Nullable private final String manifestUrl;
     private final long availableAt;
+    @Nullable private final Serializable deliveryMethodInfo;
 
     /**
      * Instantiates a new {@code Stream} object.
@@ -55,13 +56,7 @@ public abstract class Stream implements Serializable {
                   @Nullable final MediaFormat format,
                   final DeliveryMethod deliveryMethod,
                   @Nullable final String manifestUrl) {
-        this.id = id;
-        this.content = content;
-        this.isUrl = isUrl;
-        this.mediaFormat = format;
-        this.deliveryMethod = deliveryMethod;
-        this.manifestUrl = manifestUrl;
-        this.availableAt = AVAILABLE_AT_UNKNOWN;
+        this(id, content, isUrl, format, deliveryMethod, manifestUrl, AVAILABLE_AT_UNKNOWN, null);
     }
 
     protected Stream(final String id,
@@ -71,6 +66,17 @@ public abstract class Stream implements Serializable {
                      final DeliveryMethod deliveryMethod,
                      @Nullable final String manifestUrl,
                      final long availableAt) {
+        this(id, content, isUrl, format, deliveryMethod, manifestUrl, availableAt, null);
+    }
+
+    protected Stream(final String id,
+                     final String content,
+                     final boolean isUrl,
+                     @Nullable final MediaFormat format,
+                     final DeliveryMethod deliveryMethod,
+                     @Nullable final String manifestUrl,
+                     final long availableAt,
+                     @Nullable final Serializable deliveryMethodInfo) {
         this.id = id;
         this.content = content;
         this.isUrl = isUrl;
@@ -78,6 +84,7 @@ public abstract class Stream implements Serializable {
         this.deliveryMethod = deliveryMethod;
         this.manifestUrl = manifestUrl;
         this.availableAt = availableAt;
+        this.deliveryMethodInfo = deliveryMethodInfo;
     }
 
     /**
@@ -215,6 +222,14 @@ public abstract class Stream implements Serializable {
 
     public long getAvailableAt() {
         return availableAt;
+    }
+
+    /**
+     * Optional protocol-specific metadata needed to consume non-URL delivery methods.
+     */
+    @Nullable
+    public Serializable getDeliveryMethodInfo() {
+        return deliveryMethodInfo;
     }
 
     /**

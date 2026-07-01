@@ -31,10 +31,6 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
-    // SABR-DIAG: spammy per-round logging (media/status/backoff) for when SABR is being a diva.
-    // off by default; flip to true to watch it suffer in logcat.
-    private static final boolean DIAG = false;
-
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
     private YoutubeSabrInfo info;
@@ -239,19 +235,6 @@ public final class YoutubeSabrSession {
     @Nonnull
     public List<SabrMediaSegment> pumpOnce(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
-        if (DIAG) {
-            final StringBuilder br = new StringBuilder();
-            for (final SabrBufferedRange r : streamState.getBufferedRanges()) {
-                br.append('[').append(r.summarize()).append(']');
-            }
-            System.out.println("SABR-DIAG >>send req=" + requestNumber
-                    + " playerTms=" + streamState.getPlayerTimeMs()
-                    + " aSeg=" + streamState.getMaxSegment(audioFormat)
-                    + "/" + streamState.getEndSegment(audioFormat)
-                    + " vSeg=" + streamState.getMaxSegment(videoFormat)
-                    + "/" + streamState.getEndSegment(videoFormat)
-                    + " buf=" + br);
-        }
         final YoutubeSabrProbeResult result = fetchNextResponse(localization);
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
@@ -260,15 +243,6 @@ public final class YoutubeSabrSession {
         }
         streamState.ingest(decoded);
         final List<SabrMediaSegment> segments = result.getSegments();
-        if (DIAG && !segments.isEmpty()) {
-            final StringBuilder sb = new StringBuilder();
-            for (final SabrMediaSegment s : segments) {
-                sb.append(' ').append(s.getHeader().getItag()).append(':')
-                        .append(s.getHeader().isInitSegment() ? "init" : s.getHeader()
-                                .getSequenceNumber());
-            }
-            System.out.println("SABR-PUMP got" + sb);
-        }
         for (final SabrMediaSegment segment : segments) {
             streamState.ingest(segment);
             final String key = cacheKey(segment);
@@ -279,28 +253,6 @@ public final class YoutubeSabrSession {
             }
         }
         evictCacheIfNeeded();
-        if (DIAG) {
-            final Map<Integer, Integer> segCount = new java.util.LinkedHashMap<>();
-            final Map<Integer, Long> segBytes = new java.util.LinkedHashMap<>();
-            for (final SabrMediaSegment s : segments) {
-                final int itag = s.getHeader().getItag();
-                segCount.merge(itag, 1, Integer::sum);
-                segBytes.merge(itag, (long) s.getLength(), Long::sum);
-            }
-            final StringBuilder fmt = new StringBuilder();
-            for (final Map.Entry<Integer, Integer> e : segCount.entrySet()) {
-                fmt.append(" itag").append(e.getKey()).append('=').append(e.getValue())
-                        .append("seg/").append(segBytes.get(e.getKey()) / 1024).append("KB");
-            }
-            System.out.println("SABR-DIAG req=" + requestNumber
-                    + " aFmt=" + audioFormat.getItag() + " vFmt=" + videoFormat.getItag()
-                    + " seg=" + segments.size() + fmt
-                    + " status3=" + decoded.isProtectedNoMediaResponse()
-                    + " backoffMs=" + decoded.getBackoffTimeMs()
-                    + " reload=" + decoded.isReloadRequested()
-                    + " err=" + (decoded.getSabrErrorDetails() != null)
-                    + " cacheKB=" + (cachedBytes / 1024));
-        }
         if (decoded.getSabrErrorDetails() != null) {
             throw new SabrProtocolException("SABR error: "
                     + decoded.getSabrErrorDetails().summarize());
@@ -340,6 +292,16 @@ public final class YoutubeSabrSession {
     /** Total cached media bytes. The pump throttles on this so high-bitrate (4K) can't OOM the heap. */
     public long getCachedBytes() {
         return cachedBytes;
+    }
+
+    /**
+     * Drop cached media bytes when the owning media period is released. Init segments are cheap to
+     * refetch and keeping old period caches alive during rapid video switches can fill the app heap.
+     */
+    public void clearCache() {
+        segmentCache.clear();
+        cacheOrder.clear();
+        cachedBytes = 0;
     }
 
     /**
@@ -557,18 +519,12 @@ public final class YoutubeSabrSession {
         if (ms == 0) {
             return;
         }
-        if (DIAG) {
-            System.out.println("SABR-DIAG backoff sleep " + ms + "ms (server=" + backoffTimeMs + ")");
-        }
         try {
             Thread.sleep(ms);
         } catch (final InterruptedException e) {
             // a random interrupt during a backoff must NOT kill the session, that drags audio AND
             // video down with it in one shot. swallow it and carry on; the loop figures out by
             // itself if playback is actually dead.
-            if (DIAG) {
-                System.out.println("SABR-DIAG backoff interrupted (non-fatal, continuing)");
-            }
         }
     }
 

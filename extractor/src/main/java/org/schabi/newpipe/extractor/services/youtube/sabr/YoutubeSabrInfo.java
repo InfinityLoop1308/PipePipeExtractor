@@ -2,10 +2,13 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-public final class YoutubeSabrInfo {
+public final class YoutubeSabrInfo implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Nonnull
     private final YoutubeSabrClientProfile profile;
     @Nonnull

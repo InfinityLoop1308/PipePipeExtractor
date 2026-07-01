@@ -25,6 +25,7 @@ import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.Serializable;
 
 public final class VideoStream extends Stream {
     public static final String RESOLUTION_UNKNOWN = "";
@@ -88,6 +89,8 @@ public final class VideoStream extends Stream {
         @Nullable
         private String audioLocale;
         private long availableAt = AVAILABLE_AT_UNKNOWN;
+        @Nullable
+        private Serializable deliveryMethodInfo;
 
         /**
          * Create a new {@link Builder} instance with its default values.
@@ -309,6 +312,11 @@ public final class VideoStream extends Stream {
             return this;
         }
 
+        public Builder setDeliveryMethodInfo(@Nullable final Serializable deliveryMethodInfo) {
+            this.deliveryMethodInfo = deliveryMethodInfo;
+            return this;
+        }
+
         /**
          * Build a {@link VideoStream} using the builder's current values.
          *
@@ -358,7 +366,7 @@ public final class VideoStream extends Stream {
             return new VideoStream(id, content, isUrl, mediaFormat, deliveryMethod, resolution, codec,
                     bitrate, initStart, initEnd, indexStart, indexEnd, width, height, fps,
                     isVideoOnly, manifestUrl, itagItem, audioTrackId, audioTrackName, audioLocale,
-                    availableAt);
+                    availableAt, deliveryMethodInfo);
         }
     }
 
@@ -400,8 +408,10 @@ public final class VideoStream extends Stream {
                         @Nullable final String audioTrackId,
                         @Nullable final String audioTrackName,
                         @Nullable final String audioLocale,
-                        final long availableAt) {
-        super(id, content, isUrl, format, deliveryMethod, manifestUrl, availableAt);
+                        final long availableAt,
+                        @Nullable final Serializable deliveryMethodInfo) {
+        super(id, content, isUrl, format, deliveryMethod, manifestUrl, availableAt,
+                deliveryMethodInfo);
         if (itagItem != null) {
             this.itagItem = itagItem;
             this.itag = itagItem.id;

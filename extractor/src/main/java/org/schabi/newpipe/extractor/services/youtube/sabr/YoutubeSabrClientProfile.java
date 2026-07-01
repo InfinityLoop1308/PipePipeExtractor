@@ -5,6 +5,9 @@ import javax.annotation.Nullable;
 
 public enum YoutubeSabrClientProfile {
     WEB("WEB", "1", "2.20250122.04.00", null, null, false, null),
+    MWEB("MWEB", "2", "2.20250122.04.00", null, null, true,
+            "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 "
+                    + "(KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)"),
     WEB_EMBEDDED("WEB_EMBEDDED_PLAYER", "56", "1.20250121.00.00", null, null, true, null),
     ANDROID("ANDROID", "3", "21.03.36", "Android", "16", false,
             "com.google.android.youtube/21.03.36 (Linux; U; Android 15; US) gzip"),
