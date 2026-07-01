@@ -11,6 +11,13 @@ import java.util.Map;
 import java.util.Set;
 
 public final class YoutubeSabrStreamState {
+    public static final int TRACK_MODE_VIDEO_AND_AUDIO =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
+    public static final int TRACK_MODE_AUDIO_ONLY =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_AUDIO_ONLY;
+    public static final int TRACK_MODE_VIDEO_ONLY =
+            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_ONLY;
+
     private final FormatProgress audio;
     private final FormatProgress video;
     private final Map<Integer, SabrContextUpdate> sabrContexts = new LinkedHashMap<>();
@@ -119,6 +126,11 @@ public final class YoutubeSabrStreamState {
         return progress != null && progress.observeSegment(segment);
     }
 
+    public boolean ingestInitializationData(@Nonnull final YoutubeSabrFormat format,
+                                            @Nonnull final byte[] data) {
+        return progressForItag(format.getItag()).observeInitializationData(data);
+    }
+
     @Nonnull
     public List<SabrBufferedRange> getBufferedRanges() {
         if (bufferedRangesOverride != null) {
@@ -159,6 +171,10 @@ public final class YoutubeSabrStreamState {
     /** buffered end (ms) of the slower track = how far we can actually play. the weakest link wins. */
     public long getMinBufferedEndMs() {
         return Math.min(audio.getBufferedEndMs(), video.getBufferedEndMs());
+    }
+
+    public long getBufferedEndMs(@Nonnull final YoutubeSabrFormat format) {
+        return progressForItag(format.getItag()).getBufferedEndMs();
     }
 
     public void setPlayerTimeMs(final long playerTimeMs) {
@@ -339,6 +355,18 @@ public final class YoutubeSabrStreamState {
         this.enabledTrackTypesBitfield = enabledTrackTypesBitfield;
         this.selectAudioFormat = selectAudioFormat;
         this.selectVideoFormat = selectVideoFormat;
+    }
+
+    public void setAudioOnlyRequestMode() {
+        setRequestTrackMode(TRACK_MODE_AUDIO_ONLY, true, false);
+    }
+
+    public void setVideoOnlyRequestMode() {
+        setRequestTrackMode(TRACK_MODE_VIDEO_ONLY, false, true);
+    }
+
+    public void setVideoAndAudioRequestMode() {
+        setRequestTrackMode(TRACK_MODE_VIDEO_AND_AUDIO, true, true);
     }
 
     public void setClientViewport(final int clientViewportWidth,
@@ -646,21 +674,62 @@ public final class YoutubeSabrStreamState {
             if (!segment.getHeader().isInitSegment() || metadata == null || segmentIndex != null) {
                 return false;
             }
-            final String mimeType = metadata.getMimeType();
+            return observeInitializationData(segment.getData());
+        }
+
+        private boolean observeInitializationData(@Nonnull final byte[] data) {
+            if (segmentIndex != null) {
+                return false;
+            }
+            final String mimeType = metadata == null ? format.getMimeType() : metadata.getMimeType();
             if (mimeType == null) {
                 return false;
             }
             try {
                 if (mimeType.contains("mp4")) {
-                    segmentIndex = SabrMp4SegmentIndexParser.parse(segment.getData(), metadata);
+                    segmentIndex = metadata == null
+                            ? SabrMp4SegmentIndexParser.parse(data, format)
+                            : SabrMp4SegmentIndexParser.parse(data, metadata);
                 } else if (mimeType.contains("webm")) {
-                    segmentIndex = SabrWebmSegmentIndexParser.parse(segment.getData(), metadata);
+                    segmentIndex = metadata == null
+                            ? SabrWebmSegmentIndexParser.parse(data, format)
+                            : SabrWebmSegmentIndexParser.parse(data, metadata);
                 } else {
                     return false;
                 }
+                observeSegmentIndex();
                 return true;
             } catch (final SabrProtocolException ignored) {
+                if (metadata == null) {
+                    return false;
+                }
+                try {
+                    if (mimeType.contains("mp4")) {
+                        segmentIndex = SabrMp4SegmentIndexParser.parse(data, format);
+                    } else if (mimeType.contains("webm")) {
+                        segmentIndex = SabrWebmSegmentIndexParser.parse(data, format);
+                    } else {
+                        return false;
+                    }
+                    observeSegmentIndex();
+                    return true;
+                } catch (final SabrProtocolException ignoredFallback) {
+                    return false;
+                }
+            } catch (final Exception ignored) {
                 return false;
+            }
+        }
+
+        private void observeSegmentIndex() {
+            if (segmentIndex == null) {
+                return;
+            }
+            if (endSegment <= 0) {
+                endSegment = segmentIndex.size();
+            }
+            if (format.getApproxDurationMs() > 0 && endSegment > 0) {
+                averageDurationMs = Math.max(1L, format.getApproxDurationMs() / endSegment);
             }
         }
 

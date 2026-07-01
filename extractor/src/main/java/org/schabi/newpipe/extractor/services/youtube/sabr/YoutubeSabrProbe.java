@@ -533,20 +533,14 @@ public final class YoutubeSabrProbe {
         final java.util.regex.Matcher queryMatcher = java.util.regex.Pattern.compile("([?&])n=([^&]+)")
                 .matcher(url);
         if (queryMatcher.find()) {
-            try {
-                final String encryptedN = java.net.URLDecoder.decode(queryMatcher.group(2),
-                        StandardCharsets.UTF_8.name());
-                final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
-                        YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
-                                Collections.singletonList(encryptedN));
-                final String decryptedN = result.getNParameters().get(encryptedN);
-                if (decryptedN != null) {
-                    return url.substring(0, queryMatcher.start(2))
-                            + java.net.URLEncoder.encode(decryptedN, StandardCharsets.UTF_8.name())
-                            + url.substring(queryMatcher.end(2));
-                }
-            } catch (final UnsupportedEncodingException e) {
-                throw new ParsingException("Could not decode n parameter", e);
+            final String encryptedN = urlDecode(queryMatcher.group(2));
+            final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
+                    YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
+                            Collections.singletonList(encryptedN));
+            final String decryptedN = result.getNParameters().get(encryptedN);
+            if (decryptedN != null) {
+                return url.substring(0, queryMatcher.start(2)) + urlEncode(decryptedN)
+                        + url.substring(queryMatcher.end(2));
             }
         }
 
@@ -561,5 +555,23 @@ public final class YoutubeSabrProbe {
                         Collections.singletonList(encryptedN));
         final String decryptedN = result.getNParameters().get(encryptedN);
         return decryptedN == null ? url : url.replace("/n/" + encryptedN, "/n/" + decryptedN);
+    }
+
+    @Nonnull
+    private static String urlEncode(@Nonnull final String value) throws ParsingException {
+        try {
+            return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new ParsingException("Could not encode SABR URL parameter", e);
+        }
+    }
+
+    @Nonnull
+    private static String urlDecode(@Nonnull final String value) throws ParsingException {
+        try {
+            return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new ParsingException("Could not decode SABR URL parameter", e);
+        }
     }
 }

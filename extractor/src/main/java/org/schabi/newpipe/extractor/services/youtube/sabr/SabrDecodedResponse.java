@@ -396,6 +396,10 @@ public final class SabrDecodedResponse {
         return isNoMediaResponse() && streamProtectionStatus >= 3;
     }
 
+    public boolean isProtectionBoundaryNoMediaResponse() {
+        return isNoMediaResponse() && streamProtectionStatus >= 2;
+    }
+
     @Nonnull
     public String summarizeNoMediaResponse() {
         return "parts=" + parts.size()
