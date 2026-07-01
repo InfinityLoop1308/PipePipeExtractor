@@ -152,13 +152,8 @@ public final class YoutubeSabrFormat implements Serializable {
                 final String signature = YoutubeJavaScriptPlayerManager
                         .deobfuscateSignature(videoId, obfuscatedSignature);
                 final String separator = url.contains("?") ? "&" : "?";
-                try {
-                    url = url + separator + URLEncoder.encode(signatureParameter,
-                            StandardCharsets.UTF_8.name())
-                            + '=' + URLEncoder.encode(signature, StandardCharsets.UTF_8.name());
-                } catch (final UnsupportedEncodingException e) {
-                    throw new ParsingException("Could not encode signature", e);
-                }
+                url = url + separator + urlEncode(signatureParameter) + '='
+                        + urlEncode(signature);
             }
         }
         return YoutubeSabrProbe.maybeDeobfuscateNParameter(videoId, url);
@@ -177,17 +172,28 @@ public final class YoutubeSabrFormat implements Serializable {
             if (equals <= 0) {
                 continue;
             }
-            try {
-                final String key = URLDecoder.decode(part.substring(0, equals),
-                        StandardCharsets.UTF_8.name());
-                final String decodedValue = URLDecoder.decode(part.substring(equals + 1),
-                        StandardCharsets.UTF_8.name());
-                params.put(key, decodedValue);
-            } catch (final UnsupportedEncodingException e) {
-                throw new ParsingException("Could not decode query", e);
-            }
+            params.put(urlDecode(part.substring(0, equals)),
+                    urlDecode(part.substring(equals + 1)));
         }
         return params;
+    }
+
+    @Nonnull
+    private static String urlEncode(@Nonnull final String value) throws ParsingException {
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new ParsingException("Could not encode SABR signature cipher", e);
+        }
+    }
+
+    @Nonnull
+    private static String urlDecode(@Nonnull final String value) throws ParsingException {
+        try {
+            return URLDecoder.decode(value, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new ParsingException("Could not decode SABR signature cipher", e);
+        }
     }
 
     private static long parseLong(@Nullable final Object value) {
