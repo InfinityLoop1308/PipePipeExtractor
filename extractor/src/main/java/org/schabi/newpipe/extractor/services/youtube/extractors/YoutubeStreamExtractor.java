@@ -781,7 +781,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             cachedAudioStreams = new ArrayList<>();
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
-            if (streamType != StreamType.LIVE_STREAM && hasSabrStreamingUrl()) {
+            if (streamType != StreamType.LIVE_STREAM
+                    && streamType != StreamType.POST_LIVE_STREAM
+                    && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
             }
             tryExtractHlsStreams(videoId);
