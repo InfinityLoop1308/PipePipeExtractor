@@ -34,7 +34,10 @@ final class YoutubeSabrRequestBuilder {
 
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, 0, false,
-                ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO, streamState));
+                streamState == null
+                        ? ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO
+                        : streamState.getEnabledTrackTypesBitfield(),
+                streamState));
         request.writeBytes(5, decodeBase64(ustreamerConfig));
         writePreferredFormats(request, info, audioFormat, videoFormat, streamState);
         request.writeMessage(19, streamState == null
@@ -221,19 +224,23 @@ final class YoutubeSabrRequestBuilder {
                 return;
             }
             for (final YoutubeSabrFormat format : info.getFormats()) {
-                if (format.isAudio()) {
+                if (format.isAudio() && streamState.shouldSelectAudioFormat()) {
                     request.writeMessage(16, SabrProto.formatId(format));
                 }
             }
             for (final YoutubeSabrFormat format : info.getFormats()) {
-                if (format.isVideo()) {
+                if (format.isVideo() && streamState.shouldSelectVideoFormat()) {
                     request.writeMessage(17, SabrProto.formatId(format));
                 }
             }
             return;
         }
-        request.writeMessage(16, SabrProto.formatId(audioFormat));
-        request.writeMessage(17, SabrProto.formatId(videoFormat));
+        if (streamState == null || streamState.shouldSelectAudioFormat()) {
+            request.writeMessage(16, SabrProto.formatId(audioFormat));
+        }
+        if (streamState == null || streamState.shouldSelectVideoFormat()) {
+            request.writeMessage(17, SabrProto.formatId(videoFormat));
+        }
     }
 
     private static void writeOfficialWebPreferredFormats(@Nonnull final SabrProto.Writer request,
