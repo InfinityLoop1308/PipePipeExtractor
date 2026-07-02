@@ -49,6 +49,17 @@ final class YoutubeSabrRequestBuilder {
                                             @Nonnull final YoutubeSabrFormat videoFormat,
                                             @Nonnull final YoutubeSabrStreamState streamState)
             throws SabrProtocolException {
+        synchronized (streamState) {
+            return buildFollowUpMediaRequestLocked(info, audioFormat, videoFormat, streamState);
+        }
+    }
+
+    @Nonnull
+    private static byte[] buildFollowUpMediaRequestLocked(@Nonnull final YoutubeSabrInfo info,
+                                                          @Nonnull final YoutubeSabrFormat audioFormat,
+                                                          @Nonnull final YoutubeSabrFormat videoFormat,
+                                                          @Nonnull final YoutubeSabrStreamState streamState)
+            throws SabrProtocolException {
         final String ustreamerConfig = info.getVideoPlaybackUstreamerConfig();
         if (ustreamerConfig == null || ustreamerConfig.isEmpty()) {
             throw new SabrProtocolException("Missing video playback ustreamer config");
