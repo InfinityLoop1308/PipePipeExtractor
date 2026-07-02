@@ -138,7 +138,7 @@ public final class YoutubeSabrSession {
                         + describeRequest(request) + " (reload budget spent): "
                         + decoded.summarizeNoMediaResponse());
             }
-            if (decoded.isProtectedNoMediaResponse()) {
+            if (decoded.isProtectionBoundaryNoMediaResponse()) {
                 if (applyPoTokenForProtectedResponse()) {
                     if (decoded.getBackoffTimeMs() > 0) {
                         sleepBackoff(decoded.getBackoffTimeMs());
@@ -265,10 +265,10 @@ public final class YoutubeSabrSession {
             throw new SabrProtocolException("SABR requested player reload (reload budget spent): "
                     + decoded.summarizeNoMediaResponse());
         }
-        if (decoded.isProtectedNoMediaResponse()) {
-            // mint / re-mint the token, best effort. don't throw on a single status=3: it's normal
-            // pacing, the server usually clears it next round. pump keeps trying; the stall watchdog
-            // is the real give-up.
+        if (decoded.isProtectionBoundaryNoMediaResponse()) {
+            // Mint / re-mint the token as soon as SABR reaches the protection boundary. Do not throw
+            // on a single no-media round: the server usually clears it next round. The pump keeps
+            // trying; the stall watchdog is the real give-up.
             applyPoTokenForProtectedResponse();
         }
         if (!segments.isEmpty()) {
@@ -370,6 +370,15 @@ public final class YoutubeSabrSession {
     @Nullable
     public SabrMediaSegment getCachedSegment(@Nonnull final SabrSegmentRequest request) {
         return segmentCache.get(cacheKey(request));
+    }
+
+    public void discardCachedSegment(@Nonnull final SabrSegmentRequest request) {
+        final String key = cacheKey(request);
+        final SabrMediaSegment removed = segmentCache.remove(key);
+        if (removed != null && !removed.getHeader().isInitSegment()) {
+            cacheOrder.remove(key);
+            cachedBytes = Math.max(0, cachedBytes - removed.getLength());
+        }
     }
 
 

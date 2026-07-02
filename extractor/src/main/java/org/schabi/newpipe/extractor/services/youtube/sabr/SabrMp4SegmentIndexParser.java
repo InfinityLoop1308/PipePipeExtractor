@@ -15,26 +15,41 @@ final class SabrMp4SegmentIndexParser {
     static SabrSegmentIndex parse(@Nonnull final byte[] initData,
                                   @Nonnull final SabrFormatInitializationMetadata metadata)
             throws SabrProtocolException {
-        final int indexStart = checkedRangeOffset(metadata.getIndexRangeStart(), initData.length);
-        final int indexEnd = checkedRangeOffset(metadata.getIndexRangeEnd(), initData.length);
+        return parse(initData,
+                checkedRangeOffset(metadata.getIndexRangeStart(), initData.length),
+                checkedRangeOffset(metadata.getIndexRangeEnd(), initData.length));
+    }
+
+    @Nonnull
+    static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                  @Nonnull final YoutubeSabrFormat format)
+            throws SabrProtocolException {
+        return parse(initData, 0, initData.length - 1);
+    }
+
+    @Nonnull
+    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
+                                          final int indexStart,
+                                          final int indexEnd)
+            throws SabrProtocolException {
         if (indexEnd < indexStart) {
             throw new SabrProtocolException("Invalid MP4 SIDX range");
         }
         final int sidxOffset = findSidxBox(initData, indexStart, indexEnd + 1);
-        return parse(initData, sidxOffset, indexEnd + 1);
+        return parseSidx(initData, sidxOffset, indexEnd + 1);
     }
 
     @Nonnull
     static SabrSegmentIndex parse(@Nonnull final byte[] initData)
             throws SabrProtocolException {
         final int sidxOffset = findSidxBox(initData, 0, initData.length);
-        return parse(initData, sidxOffset, initData.length);
+        return parseSidx(initData, sidxOffset, initData.length);
     }
 
     @Nonnull
-    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
-                                          final int sidxOffset,
-                                          final int rangeEnd)
+    private static SabrSegmentIndex parseSidx(@Nonnull final byte[] initData,
+                                              final int sidxOffset,
+                                              final int rangeEnd)
             throws SabrProtocolException {
         final long boxSize = readUint32(initData, sidxOffset);
         final int boxEnd = checkedBoxEnd(sidxOffset, boxSize, rangeEnd);
