@@ -1649,8 +1649,13 @@ YoutubeParsingHelper {
                            streamExtractor.watchDataCache.startAt = streamExtractor.getStartAt();
                         } catch (Exception e) {
                             e.printStackTrace();
-                            streamExtractor.errors.add(e);
+                            streamExtractor.addError(e);
                         }
+                    }
+
+                    @Override
+                    public void onError(final Exception error) {
+                        streamExtractor.addError(error);
                     }
                 });
     }

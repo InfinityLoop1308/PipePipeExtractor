@@ -106,6 +106,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     public final ArrayList<Throwable> errors = new ArrayList<>();
 
+    public void addError(final Throwable error) {
+        synchronized (errors) {
+            errors.add(error);
+        }
+    }
+
     public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler, WatchDataCache watchDataCache) {
         super(service, linkHandler);
         this.watchDataCache = watchDataCache;
@@ -904,7 +910,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return YoutubeSabrProbe.fromPlayerResponse(videoId, getSabrClientProfile(),
                     getSabrCpn(), playerResponse);
         } catch (final Exception e) {
-            errors.add(e);
+            addError(e);
             return null;
         }
     }
@@ -1506,7 +1512,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final Localization localization = new Localization("en");
         final ContentCountry contentCountry = getExtractorContentCountry();
 
-        errors.clear();
+        synchronized (errors) {
+            errors.clear();
+        }
 
         CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
@@ -1534,15 +1542,20 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .value(RACY_CHECK_OK, true)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
-       CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
+        CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
             @Override
             public void onSuccess(Response response) throws ExtractionException {
                 try {
                     nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                 } catch (Exception e) {
                     e.printStackTrace();
-                    errors.add(e);
+                    addError(e);
                 }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
             }
         });
 
@@ -1561,25 +1574,21 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 });
             }
-            long startTime = System.nanoTime();
-            do {
-                if (jsonPlayerCall.isFinished()
-                        && webPageCall.isFinished() && nextDataCall.isFinished()) {
-                    break;
-                }
-            } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= ServiceList.YouTube.getLoadingTimeout());
+            final CancellableCall[] requiredCalls = {
+                    jsonPlayerCall, webPageCall, nextDataCall
+            };
+            awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
 
-            if ((webSafariStreamingData == null && webStreamingData == null
-                    && mwebStreamingData == null) || nextResponse == null) {
-                for (Throwable e: errors) {
-                    if (e instanceof AntiBotException) {
-                        throw (AntiBotException) e;
-                    }
-                    if (e instanceof ContentNotAvailableException) {
-                        throw (ContentNotAvailableException) e;
-                    }
-                    throw new ExtractionException(e) ;
-                }
+            throwIfErrors();
+            if (playerResponse == null) {
+                throw new ExtractionException("YouTube player response is missing");
+            }
+            if (webSafariStreamingData == null && webStreamingData == null
+                    && mwebStreamingData == null) {
+                throw new ExtractionException("YouTube streaming data is missing");
+            }
+            if (nextResponse == null) {
+                throw new ExtractionException("YouTube next response is missing");
             }
 
 
@@ -1590,6 +1599,53 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds
         // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
+    }
+
+    private void awaitRequiredCalls(@Nonnull final CancellableCall[] calls,
+                                    final long timeoutSeconds) throws ExtractionException {
+        final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        try {
+            for (final CancellableCall call : calls) {
+                final long remaining = deadline - System.nanoTime();
+                if (remaining <= 0 || !call.await(remaining, TimeUnit.NANOSECONDS)) {
+                    cancelCalls(calls);
+                    throwIfErrors();
+                    throw new ExtractionException("YouTube requests timed out");
+                }
+            }
+        } catch (final InterruptedException e) {
+            cancelCalls(calls);
+            Thread.currentThread().interrupt();
+            throw new ExtractionException("YouTube extraction interrupted", e);
+        }
+    }
+
+    private static void cancelCalls(@Nonnull final CancellableCall[] calls) {
+        for (final CancellableCall call : calls) {
+            if (!call.isFinished()) {
+                call.cancel();
+            }
+        }
+    }
+
+    private void throwIfErrors() throws ExtractionException {
+        final List<Throwable> recordedErrors;
+        synchronized (errors) {
+            recordedErrors = new ArrayList<>(errors);
+        }
+        for (final Throwable error : recordedErrors) {
+            if (error instanceof AntiBotException) {
+                throw (AntiBotException) error;
+            }
+        }
+        for (final Throwable error : recordedErrors) {
+            if (error instanceof ContentNotAvailableException) {
+                throw (ContentNotAvailableException) error;
+            }
+        }
+        if (!recordedErrors.isEmpty()) {
+            throw new ExtractionException(recordedErrors.get(0));
+        }
     }
 
     private boolean hasSabrStreamingUrl() {
@@ -1710,8 +1766,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    errors.add(e);
+                    addError(e);
                 }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
             }
         };
 
@@ -1754,8 +1815,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    errors.add(e);
+                    addError(e);
                 }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
             }
         };
 
@@ -1802,8 +1868,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
-                    errors.add(e);
+                    addError(e);
                 }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
             }
         };
 
