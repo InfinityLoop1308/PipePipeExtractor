@@ -80,8 +80,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     private JsonObject webStreamingData;
     @Nullable
-    private JsonObject webSafariStreamingData;
-    @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
     private JsonObject configuredStreamingData;
@@ -97,9 +95,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // We need to store the contentPlaybackNonces because we need to append them to videoplayback
     // URLs (with the cpn parameter).
     // Also because a nonce should be unique, it should be different between clients used, so
-    // three different strings are used.
+    // two different strings are used.
     private String webCpn;
-    private String webSafariCpn;
     private String mwebCpn;
 
     public WatchDataCache watchDataCache;
@@ -301,7 +298,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    webSafariStreamingData, webStreamingData, mwebStreamingData));
+                    webStreamingData, mwebStreamingData));
         }
     }
 
@@ -719,7 +716,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String hlsUrl = getManifestUrl(
                 "hls",
-                Arrays.asList(webSafariStreamingData, webStreamingData, mwebStreamingData));
+                Arrays.asList(webStreamingData, mwebStreamingData));
 
         if (!hlsUrl.isEmpty()) {
             hlsUrl = deobfuscateManifestUrl(hlsUrl);
@@ -791,8 +788,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     && streamType != StreamType.POST_LIVE_STREAM
                     && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
+            } else if (streamType == StreamType.POST_LIVE_STREAM) {
+                tryExtractHlsStreams(videoId);
             }
-            tryExtractHlsStreams(videoId);
             streamsCached = true;
         } catch (final Exception e) {
             throw new ParsingException("Could not get streams", e);
@@ -892,8 +890,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Nullable
     private JsonObject getSabrStreamingData() {
-        if ("web_safari".equals(NewPipe.getYoutubePlayerClient())
-                || configuredStreamingData == null
+        if (configuredStreamingData == null
                 || configuredStreamingData.getArray(ADAPTIVE_FORMATS) == null
                 || configuredStreamingData.getArray(ADAPTIVE_FORMATS).isEmpty()) {
             return null;
@@ -918,8 +915,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private YoutubeSabrClientProfile getSabrClientProfile() {
         switch (NewPipe.getYoutubePlayerClient()) {
-            case "web_safari":
-                return YoutubeSabrClientProfile.SAFARI_WEB;
             case "web":
                 return YoutubeSabrClientProfile.WEB;
             default:
@@ -931,9 +926,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private String getSabrCpn() {
         final String cpn;
         switch (NewPipe.getYoutubePlayerClient()) {
-            case "web_safari":
-                cpn = webSafariCpn;
-                break;
             case "web":
                 cpn = webCpn;
                 break;
@@ -999,7 +991,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getHlsManifestUrlFromStreamingData() {
         for (final JsonObject sd : Arrays.asList(
-                webSafariStreamingData, webStreamingData, mwebStreamingData)) {
+                webStreamingData, mwebStreamingData)) {
             if (sd != null) {
                 final String url = sd.getString("hlsManifestUrl");
                 if (url != null && !url.isEmpty()) {
@@ -1521,10 +1513,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         final CancellableCall jsonPlayerCall;
         switch (NewPipe.getYoutubePlayerClient()) {
-            case "web_safari":
-                jsonPlayerCall = fetchWebSafariJsonPlayer(
-                        contentCountry, localization, videoId);
-                break;
             case "web":
                 jsonPlayerCall = fetchWebJsonPlayer(
                         contentCountry, localization, videoId);
@@ -1583,8 +1571,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (playerResponse == null) {
                 throw new ExtractionException("YouTube player response is missing");
             }
-            if (webSafariStreamingData == null && webStreamingData == null
-                    && mwebStreamingData == null) {
+            if (webStreamingData == null && mwebStreamingData == null) {
                 throw new ExtractionException("YouTube streaming data is missing");
             }
             if (nextResponse == null) {
@@ -1783,57 +1770,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
                         webCpn,
                         "WEB", WEB_USER_AGENT), localization, "1", WEB_USER_AGENT, callback);
-    }
-
-    private CancellableCall fetchWebSafariJsonPlayer(@Nonnull final ContentCountry contentCountry,
-                                                     @Nonnull final Localization localization,
-                                                     @Nonnull final String videoId)
-            throws IOException, ExtractionException {
-        webSafariCpn = generateContentPlaybackNonce();
-
-        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                JsonObject webSafariPlayerResponse = null;
-                try {
-                    webSafariPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                    if (isPlayerResponseNotValid(webSafariPlayerResponse, videoId)) {
-                        if (webSafariPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new AntiBotException("WEB Safari player response is not valid");
-                        }
-                        throw new ExtractionException("WEB Safari player response is not valid");
-                    }
-
-                    YoutubeStreamExtractor.this.playerResponse = webSafariPlayerResponse;
-                    updateAvailableAt(webSafariPlayerResponse);
-
-                    final JsonObject streamingData = webSafariPlayerResponse.getObject(STREAMING_DATA);
-                    if (!isNullOrEmpty(streamingData)) {
-                        webSafariStreamingData = streamingData;
-                        playerCaptionsTracklistRenderer = webSafariPlayerResponse.getObject("captions")
-                                .getObject("playerCaptionsTracklistRenderer");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addError(e);
-                }
-            }
-
-            @Override
-            public void onError(final Exception error) {
-                addError(error);
-            }
-        };
-
-        return getJsonPlayerResponseAsync(PLAYER,
-                createJsonPlayerBody(localization,
-                        contentCountry,
-                        videoId,
-                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                        webSafariCpn,
-                        "WEB",
-                        WEB_SAFARI_USER_AGENT), localization, "1",
-                WEB_SAFARI_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebJsonPlayer(@Nonnull final ContentCountry contentCountry,

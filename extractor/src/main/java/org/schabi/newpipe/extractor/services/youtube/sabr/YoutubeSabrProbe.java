@@ -280,7 +280,7 @@ public final class YoutubeSabrProbe {
             builder.value("visitorData", visitorDataOverride);
         }
 
-        if (profile == YoutubeSabrClientProfile.WEB || profile == YoutubeSabrClientProfile.SAFARI_WEB) {
+        if (profile == YoutubeSabrClientProfile.WEB) {
             builder.value("platform", "DESKTOP");
         } else if (profile == YoutubeSabrClientProfile.TVHTML5) {
             builder.value("platform", "GAME_CONSOLE");
@@ -419,8 +419,7 @@ public final class YoutubeSabrProbe {
 
     private static boolean isWebSabrProfile(@Nonnull final YoutubeSabrClientProfile profile) {
         return profile.isWebLike()
-                || profile == YoutubeSabrClientProfile.WEB
-                || profile == YoutubeSabrClientProfile.SAFARI_WEB;
+                || profile == YoutubeSabrClientProfile.WEB;
     }
 
     @Nonnull

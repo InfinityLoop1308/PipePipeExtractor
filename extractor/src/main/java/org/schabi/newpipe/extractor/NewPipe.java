@@ -167,8 +167,7 @@ public final class NewPipe {
     }
 
     public static void setYoutubePlayerClient(final String youtubePlayerClient) {
-        if ("web_safari".equals(youtubePlayerClient)
-                || "web".equals(youtubePlayerClient)
+        if ("web".equals(youtubePlayerClient)
                 || "mweb".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
