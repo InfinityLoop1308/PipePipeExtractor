@@ -36,20 +36,20 @@ final class SabrMp4SegmentIndexParser {
             throw new SabrProtocolException("Invalid MP4 SIDX range");
         }
         final int sidxOffset = findSidxBox(initData, indexStart, indexEnd + 1);
-        return parse(initData, sidxOffset, indexEnd + 1);
+        return parseSidx(initData, sidxOffset, indexEnd + 1);
     }
 
     @Nonnull
     static SabrSegmentIndex parse(@Nonnull final byte[] initData)
             throws SabrProtocolException {
         final int sidxOffset = findSidxBox(initData, 0, initData.length);
-        return parse(initData, sidxOffset, initData.length);
+        return parseSidx(initData, sidxOffset, initData.length);
     }
 
     @Nonnull
-    private static SabrSegmentIndex parse(@Nonnull final byte[] initData,
-                                          final int sidxOffset,
-                                          final int rangeEnd)
+    private static SabrSegmentIndex parseSidx(@Nonnull final byte[] initData,
+                                              final int sidxOffset,
+                                              final int rangeEnd)
             throws SabrProtocolException {
         final long boxSize = readUint32(initData, sidxOffset);
         final int boxEnd = checkedBoxEnd(sidxOffset, boxSize, rangeEnd);
