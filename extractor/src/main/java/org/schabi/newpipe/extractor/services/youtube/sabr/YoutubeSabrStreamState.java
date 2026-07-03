@@ -35,6 +35,9 @@ public final class YoutubeSabrStreamState {
     private volatile int enabledTrackTypesBitfield = YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
     private volatile boolean selectAudioFormat = true;
     private volatile boolean selectVideoFormat = true;
+    private volatile boolean preferAudioFormat = true;
+    private volatile boolean preferVideoFormat = true;
+    private boolean writeFirstRequestPlaybackState;
     private boolean writeTopLevelPlayerTimeMs = true;
     private int clientViewportWidth = -1;
     private int clientViewportHeight = -1;
@@ -159,11 +162,25 @@ public final class YoutubeSabrStreamState {
         return ranges;
     }
 
-    public void setBufferedRangesOverride(
+    void setBufferedRangesOverride(
             @Nullable final List<SabrBufferedRange> bufferedRangesOverride) {
         this.bufferedRangesOverride = bufferedRangesOverride == null
                 ? null
                 : new ArrayList<>(bufferedRangesOverride);
+    }
+
+    @Nullable
+    SabrBufferedRange getObservedBufferedRange(
+            @Nonnull final YoutubeSabrFormat format) {
+        return progressForItag(format.getItag()).getObservedBufferedRange();
+    }
+
+    void setWriteFirstRequestPlaybackState(final boolean writeFirstRequestPlaybackState) {
+        this.writeFirstRequestPlaybackState = writeFirstRequestPlaybackState;
+    }
+
+    boolean shouldWriteFirstRequestPlaybackState() {
+        return writeFirstRequestPlaybackState;
     }
 
     public long getPlayerTimeMs() {
@@ -362,11 +379,19 @@ public final class YoutubeSabrStreamState {
     }
 
     public synchronized void setRequestTrackMode(final int enabledTrackTypesBitfield,
-                                                 final boolean selectAudioFormat,
-                                                 final boolean selectVideoFormat) {
+                                                  final boolean selectAudioFormat,
+                                                  final boolean selectVideoFormat) {
         this.enabledTrackTypesBitfield = enabledTrackTypesBitfield;
         this.selectAudioFormat = selectAudioFormat;
         this.selectVideoFormat = selectVideoFormat;
+        this.preferAudioFormat = selectAudioFormat;
+        this.preferVideoFormat = selectVideoFormat;
+    }
+
+    synchronized void setPreferredTrackTypes(final boolean videoActive,
+                                             final boolean audioActive) {
+        preferAudioFormat = audioActive;
+        preferVideoFormat = videoActive;
     }
 
     public void setActiveTrackTypes(final boolean videoActive, final boolean audioActive) {
@@ -446,6 +471,14 @@ public final class YoutubeSabrStreamState {
 
     boolean shouldSelectVideoFormat() {
         return selectVideoFormat;
+    }
+
+    boolean shouldPreferAudioFormat() {
+        return preferAudioFormat;
+    }
+
+    boolean shouldPreferVideoFormat() {
+        return preferVideoFormat;
     }
 
     public void setWriteTopLevelPlayerTimeMs(final boolean writeTopLevelPlayerTimeMs) {
@@ -673,6 +706,9 @@ public final class YoutubeSabrStreamState {
         private long observedStartMs = -1;
         private long observedEndMs = -1;
         private long lastObservedDurationMs = -1;
+        private final Map<Integer, ObservedSegmentTiming> observedTimings = new LinkedHashMap<>();
+        private long observedDurationTotalMs;
+        private int observedTimingCount;
         @Nullable
         private SabrFormatInitializationMetadata metadata;
         @Nullable
@@ -688,12 +724,15 @@ public final class YoutubeSabrStreamState {
         private boolean observeMetadata(@Nonnull final SabrFormatInitializationMetadata metadata) {
             this.metadata = metadata;
             final long previousEndSegment = endSegment;
-            endSegment = metadata.getEndSegmentNumber();
+            final long metadataEndSegment = metadata.getEndSegmentNumber();
+            if (metadataEndSegment > 0) {
+                endSegment = metadataEndSegment;
+            }
             if (metadata.getDurationUnits() > 0 && metadata.getDurationTimescale() > 0
-                    && metadata.getEndSegmentNumber() > 0) {
+                    && metadataEndSegment > 0) {
                 final long totalMs = metadata.getDurationUnits() * 1000L
                         / metadata.getDurationTimescale();
-                averageDurationMs = Math.max(1L, totalMs / metadata.getEndSegmentNumber());
+                averageDurationMs = Math.max(1L, totalMs / metadataEndSegment);
             } else if (endSegment > 0 && format.getApproxDurationMs() > 0) {
                 // The init metadata gives the segment count but no per-segment timing for this
                 // format (seen on some YouTube responses). Derive the average from the format's
@@ -797,6 +836,7 @@ public final class YoutubeSabrStreamState {
                 lastObservedDurationMs = header.getDurationMs();
             }
             if (header.getStartMs() >= 0 && header.getDurationMs() > 0) {
+                observeTiming(seq, header.getStartMs(), header.getDurationMs());
                 if (observedStartMs < 0 || header.getStartMs() < observedStartMs) {
                     observedStartMs = header.getStartMs();
                 }
@@ -806,6 +846,22 @@ public final class YoutubeSabrStreamState {
                 return true;
             }
             return false;
+        }
+
+        private void observeTiming(final int sequenceNumber,
+                                   final long startMs,
+                                   final long durationMs) {
+            final ObservedSegmentTiming previous = observedTimings.put(sequenceNumber,
+                    new ObservedSegmentTiming(sequenceNumber, startMs, durationMs));
+            if (previous == null) {
+                observedDurationTotalMs += durationMs;
+                observedTimingCount++;
+            } else {
+                observedDurationTotalMs += durationMs - previous.durationMs;
+            }
+            if (observedTimingCount > 0 && observedDurationTotalMs > 0) {
+                averageDurationMs = Math.max(1L, observedDurationTotalMs / observedTimingCount);
+            }
         }
 
         private void addBufferedRange(@Nonnull final List<SabrBufferedRange> ranges,
@@ -840,6 +896,20 @@ public final class YoutubeSabrStreamState {
                     applySegmentIndexOffset(contiguousMaxSegment, endSegmentIndexOffset), 1000));
         }
 
+        @Nullable
+        private SabrBufferedRange getObservedBufferedRange() {
+            if (firstObservedSegment <= 0 || lastObservedSegment <= 0) {
+                return null;
+            }
+            final long startMs = observedStartMs >= 0 ? observedStartMs : getSegmentStartMs(firstObservedSegment);
+            final long endMs = observedEndMs > startMs ? observedEndMs : getSegmentEndMs(lastObservedSegment);
+            if (endMs <= startMs) {
+                return null;
+            }
+            return new SabrBufferedRange(itag, lastModified, xtags, startMs, endMs - startMs,
+                    firstObservedSegment, lastObservedSegment, 1000);
+        }
+
         private int applySegmentIndexOffset(final int segmentIndex,
                                             final int segmentIndexOffset) {
             return Math.max(0, segmentIndex + segmentIndexOffset);
@@ -855,6 +925,10 @@ public final class YoutubeSabrStreamState {
         }
 
         private long getSegmentStartMs(final int sequenceNumber) {
+            final ObservedSegmentTiming observed = observedTimings.get(sequenceNumber);
+            if (observed != null) {
+                return observed.startMs;
+            }
             if (sequenceNumber <= 1) {
                 return 0;
             }
@@ -868,6 +942,10 @@ public final class YoutubeSabrStreamState {
         }
 
         private long getSegmentEndMs(final int sequenceNumber) {
+            final ObservedSegmentTiming observed = observedTimings.get(sequenceNumber);
+            if (observed != null) {
+                return observed.endMs();
+            }
             if (segmentIndex != null) {
                 final SabrSegmentIndex.Entry entry = segmentIndex.getEntry(sequenceNumber);
                 if (entry != null) {
@@ -884,24 +962,46 @@ public final class YoutubeSabrStreamState {
             if (timeMs <= 0) {
                 return 1;
             }
+            for (final ObservedSegmentTiming observed : observedTimings.values()) {
+                if (observed.contains(timeMs)) {
+                    return observed.sequenceNumber;
+                }
+            }
             if (segmentIndex != null) {
                 for (int i = 1; i <= segmentIndex.size(); i++) {
                     final SabrSegmentIndex.Entry entry = segmentIndex.getEntry(i);
-                    if (entry != null && entry.getEndMs() >= timeMs) {
+                    if (entry != null && entry.getStartMs() <= timeMs && timeMs < entry.getEndMs()) {
                         return entry.getSequenceNumber();
                     }
                 }
                 return Math.max(1, segmentIndex.size());
             }
             final long durationMs = Math.max(1, averageDurationMs);
-            final long sequenceNumber = (timeMs + durationMs - 1) / durationMs;
+            long sequenceNumber = timeMs / durationMs + 1;
+            if (endSegment > 0) {
+                sequenceNumber = Math.min(sequenceNumber, endSegment);
+            }
             return sequenceNumber > Integer.MAX_VALUE
                     ? Integer.MAX_VALUE
                     : Math.max(1, (int) sequenceNumber);
         }
 
         private void assumeBufferedUntil(final int endSegment) {
-            maxSegment = Math.max(maxSegment, endSegment);
+            if (endSegment <= 0) {
+                return;
+            }
+            if (endSegment > contiguousMaxSegment) {
+                contiguousMaxSegment = endSegment;
+                aheadOfContiguous.removeIf(seq -> seq <= contiguousMaxSegment);
+                while (aheadOfContiguous.remove(contiguousMaxSegment + 1)) {
+                    contiguousMaxSegment++;
+                }
+                firstObservedSegment = -1;
+                lastObservedSegment = -1;
+                observedStartMs = -1;
+                observedEndMs = -1;
+            }
+            maxSegment = Math.max(maxSegment, contiguousMaxSegment);
         }
 
         private void rewindBufferedTo(final int fromSegment) {
@@ -950,6 +1050,28 @@ public final class YoutubeSabrStreamState {
 
         private boolean isComplete() {
             return initReceived && endSegment > 0 && maxSegment >= endSegment;
+        }
+    }
+
+    private static final class ObservedSegmentTiming {
+        private final int sequenceNumber;
+        private final long startMs;
+        private final long durationMs;
+
+        private ObservedSegmentTiming(final int sequenceNumber,
+                                      final long startMs,
+                                      final long durationMs) {
+            this.sequenceNumber = sequenceNumber;
+            this.startMs = startMs;
+            this.durationMs = durationMs;
+        }
+
+        private long endMs() {
+            return startMs + durationMs;
+        }
+
+        private boolean contains(final long timeMs) {
+            return startMs <= timeMs && timeMs < endMs();
         }
     }
 }
