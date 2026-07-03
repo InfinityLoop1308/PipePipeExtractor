@@ -8,6 +8,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
@@ -184,6 +185,76 @@ public final class YoutubeSabrSession {
                 + (request.isInitializationSegment()
                 ? ":init"
                 : ":seq=" + request.getSequenceNumber()));
+    }
+
+    @Nonnull
+    public List<SabrMediaSegment> fetchMediaAt(final long playerTimeMs,
+                                               final boolean videoActive,
+                                               final boolean audioActive,
+                                               @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final List<SabrSegmentRequest> requests = new ArrayList<>();
+        if (videoActive) {
+            requests.add(mediaRequestAt(videoFormat, playerTimeMs));
+        }
+        if (audioActive) {
+            requests.add(mediaRequestAt(audioFormat, playerTimeMs));
+        }
+        if (requests.isEmpty()) {
+            return Collections.emptyList();
+        }
+        streamState.setActiveTrackTypes(videoActive, audioActive);
+        final long requestPlayerTimeMs = Math.max(0, playerTimeMs);
+        final List<SabrMediaSegment> segments = new ArrayList<>();
+        for (final SabrSegmentRequest request : requests) {
+            final SabrMediaSegment cachedSegment = segmentCache.get(cacheKey(request));
+            if (cachedSegment != null) {
+                segments.add(cachedSegment);
+            }
+        }
+        for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT
+                && !hasMediaForAllRequests(segments, requests, requestPlayerTimeMs); attempts++) {
+            final SabrSegmentRequest request = firstMissingMediaRequest(segments, requests,
+                    requestPlayerTimeMs);
+            if (request == null) {
+                break;
+            }
+            failIfKnownOutOfBounds(request);
+            prepareForTargetedMediaSegment(request, playerTimeMs, videoActive, audioActive);
+            try {
+                segments.addAll(pumpOnce(localization));
+            } finally {
+                clearTargetedMediaRequestState(videoActive, audioActive);
+            }
+        }
+        if (!hasMediaForAllRequests(segments, requests, requestPlayerTimeMs)) {
+            throw new SabrProtocolException("SABR media incomplete at playerTimeMs="
+                    + requestPlayerTimeMs + ", received=" + summarizeSegments(segments));
+        }
+        return segments;
+    }
+
+    @Nonnull
+    public SabrMediaSegment fetchMediaSegmentAt(@Nonnull final SabrSegmentRequest request,
+                                                final long playerTimeMs,
+                                                final boolean videoActive,
+                                                final boolean audioActive,
+                                                @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        if (request.isInitializationSegment()) {
+            return fetchSegment(request, localization);
+        }
+        final SabrMediaSegment cachedSegment = segmentCache.get(cacheKey(request));
+        if (cachedSegment != null) {
+            return cachedSegment;
+        }
+        failIfKnownOutOfBounds(request);
+        prepareForTargetedMediaSegment(request, playerTimeMs, videoActive, audioActive);
+        try {
+            return fetchSegment(request, localization);
+        } finally {
+            clearTargetedMediaRequestState(videoActive, audioActive);
+        }
     }
 
     @Nonnull
@@ -442,6 +513,138 @@ public final class YoutubeSabrSession {
 
     public int getRequestNumber() {
         return requestNumber;
+    }
+
+    private void prepareForTargetedMediaSegment(@Nonnull final SabrSegmentRequest request,
+                                                final long playerTimeMs,
+                                                final boolean videoActive,
+                                                final boolean audioActive) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+
+        final YoutubeSabrFormat targetFormat = request.getFormat();
+        final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
+        final long requestPlayerTimeMs = Math.max(0, playerTimeMs);
+        streamState.setWriteFirstRequestPlaybackState(true);
+        streamState.setWriteTopLevelPlayerTimeMs(false);
+        streamState.setWriteLastManualSelectedResolution(targetFormat.isVideo());
+        streamState.setLastOnlyRange(targetFormat, false);
+        streamState.setLastOnlyRange(companionFormat, false);
+        final List<SabrBufferedRange> bufferedRanges = new ArrayList<>();
+        final SabrBufferedRange targetRange = streamState.getObservedBufferedRange(targetFormat);
+        if (targetRange != null) {
+            bufferedRanges.add(targetRange);
+        }
+        bufferedRanges.add(SabrBufferedRange.full(companionFormat));
+        streamState.setBufferedRangesOverride(bufferedRanges);
+        streamState.setRequestTrackMode(targetFormat.isVideo()
+                        ? YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
+                        : YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY,
+                audioActive, videoActive);
+        streamState.setPreferredTrackTypes(videoActive, audioActive);
+        streamState.setSelectVideoFormatBeforeAudio(targetFormat.isAudio());
+        streamState.setFullyBuffered(targetFormat, false);
+        streamState.setFullyBuffered(companionFormat, true);
+
+        final int companionSequence = streamState.getSegmentNumberAtOrAfterTimeMs(
+                companionFormat, requestPlayerTimeMs);
+        if (request.getSequenceNumber() <= streamState.getMaxSegment(targetFormat)) {
+            streamState.rewindBufferedTo(targetFormat, request.getSequenceNumber());
+            streamState.rewindBufferedTo(companionFormat, companionSequence);
+            evictOutsideSeekWindow(requestPlayerTimeMs);
+        } else if (request.getSequenceNumber() > streamState.getMaxSegment(targetFormat) + 1) {
+            streamState.jumpBufferedTo(targetFormat, request.getSequenceNumber());
+            streamState.jumpBufferedTo(companionFormat, companionSequence);
+            evictOutsideSeekWindow(requestPlayerTimeMs);
+        } else {
+            streamState.assumeBufferedUntil(targetFormat, request.getSequenceNumber() - 1);
+            streamState.assumeBufferedUntil(companionFormat, companionSequence);
+            evictOutsideSeekWindow(requestPlayerTimeMs);
+        }
+        streamState.setPlayerTimeMs(requestPlayerTimeMs);
+    }
+
+    private void clearTargetedMediaRequestState(final boolean videoActive,
+                                                final boolean audioActive) {
+        streamState.setWriteFirstRequestPlaybackState(false);
+        streamState.setWriteTopLevelPlayerTimeMs(true);
+        streamState.setWriteLastManualSelectedResolution(false);
+        streamState.setBufferedRangesOverride(null);
+        streamState.clearPlayerTimeMsOverride();
+        streamState.setFullyBuffered(audioFormat, false);
+        streamState.setFullyBuffered(videoFormat, false);
+        streamState.setSelectVideoFormatBeforeAudio(false);
+        streamState.setActiveTrackTypes(videoActive, audioActive);
+    }
+
+    @Nonnull
+    private SabrSegmentRequest mediaRequestAt(@Nonnull final YoutubeSabrFormat format,
+                                              final long playerTimeMs) {
+        final int sequenceNumber = Math.max(1,
+                streamState.getSegmentNumberAtOrAfterTimeMs(format, Math.max(0, playerTimeMs)));
+        return SabrSegmentRequest.media(format, sequenceNumber);
+    }
+
+    private static boolean hasMediaForRequest(@Nonnull final List<SabrMediaSegment> segments,
+                                              @Nonnull final SabrSegmentRequest request,
+                                              final long playerTimeMs) {
+        for (final SabrMediaSegment segment : segments) {
+            final SabrMediaHeader header = segment.getHeader();
+            if (request.matches(header) || coversPlayerTime(header, request, playerTimeMs)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean coversPlayerTime(@Nonnull final SabrMediaHeader header,
+                                            @Nonnull final SabrSegmentRequest request,
+                                            final long playerTimeMs) {
+        return !header.isInitSegment()
+                && header.getItag() == request.getFormat().getItag()
+                && header.getStartMs() >= 0
+                && header.getDurationMs() > 0
+                && header.getStartMs() <= playerTimeMs
+                && playerTimeMs < header.getStartMs() + header.getDurationMs();
+    }
+
+    private static boolean hasMediaForAllRequests(
+            @Nonnull final List<SabrMediaSegment> segments,
+            @Nonnull final List<SabrSegmentRequest> requests,
+            final long playerTimeMs) {
+        return firstMissingMediaRequest(segments, requests, playerTimeMs) == null;
+    }
+
+    @Nullable
+    private static SabrSegmentRequest firstMissingMediaRequest(
+            @Nonnull final List<SabrMediaSegment> segments,
+            @Nonnull final List<SabrSegmentRequest> requests,
+            final long playerTimeMs) {
+        for (final SabrSegmentRequest request : requests) {
+            if (!hasMediaForRequest(segments, request, playerTimeMs)) {
+                return request;
+            }
+        }
+        return null;
+    }
+
+    @Nonnull
+    private static String summarizeSegments(@Nonnull final List<SabrMediaSegment> segments) {
+        if (segments.isEmpty()) {
+            return "[]";
+        }
+        final StringBuilder builder = new StringBuilder("[");
+        for (int i = 0; i < segments.size(); i++) {
+            if (i > 0) {
+                builder.append(',');
+            }
+            final SabrMediaHeader header = segments.get(i).getHeader();
+            builder.append(header.getItag());
+            builder.append(header.isInitSegment() ? ":init" : ":seq=" + header.getSequenceNumber());
+        }
+        builder.append(']');
+        return builder.toString();
     }
 
     public void prepareForMediaSegment(@Nonnull final SabrSegmentRequest request) {
