@@ -887,14 +887,15 @@ public final class YoutubeSabrStreamState {
             if (segmentIndex != null) {
                 for (int i = 1; i <= segmentIndex.size(); i++) {
                     final SabrSegmentIndex.Entry entry = segmentIndex.getEntry(i);
-                    if (entry != null && entry.getEndMs() >= timeMs) {
+                    if (entry != null && entry.getEndMs() > timeMs) {
                         return entry.getSequenceNumber();
                     }
                 }
-                return Math.max(1, segmentIndex.size());
+                return segmentIndex.size() == Integer.MAX_VALUE
+                        ? Integer.MAX_VALUE : Math.max(1, segmentIndex.size() + 1);
             }
             final long durationMs = Math.max(1, averageDurationMs);
-            final long sequenceNumber = (timeMs + durationMs - 1) / durationMs;
+            final long sequenceNumber = timeMs / durationMs + 1;
             return sequenceNumber > Integer.MAX_VALUE
                     ? Integer.MAX_VALUE
                     : Math.max(1, (int) sequenceNumber);
