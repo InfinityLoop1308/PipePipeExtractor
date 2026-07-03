@@ -220,9 +220,9 @@ public class StreamInfo extends Info {
             streamInfo.setAudioStreams(Collections.emptyList());
         }
 
-        // Either audio or video has to be available, otherwise we didn't get a stream (since
-        // videoOnly are optional, they don't count).
-        if ((streamInfo.videoStreams.isEmpty()) && (streamInfo.audioStreams.isEmpty())) {
+        // Either audio, video or a manifest has to be available (videoOnly streams are optional).
+        if (streamInfo.videoStreams.isEmpty() && streamInfo.audioStreams.isEmpty()
+                && streamInfo.dashMpdUrl.isEmpty() && streamInfo.hlsUrl.isEmpty()) {
             final List<Throwable> errors = streamInfo.getErrors();
             final StreamExtractException exception = new StreamExtractException(
                     "Could not get any stream", errors.isEmpty() ? null : errors.get(0));
