@@ -23,6 +23,8 @@ public final class YoutubeSabrSession {
     // server can ask us to reload the player response (URLs/config expired on a long watch). re-probe
     // and resume in place instead of killing the session. bounded so a reload loop can't run forever.
     private static final int MAX_RELOADS_PER_SESSION = 2;
+    private static final int INTEGRITY_RELOAD_AFTER_FAILURES = 2;
+    private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     // How many times a stale/rejected PO token may be force-re-minted before giving up (token
     // expiry mid-playback). Bounded so a genuinely-rejected token can't loop forever.
     private static final int MAX_PO_TOKEN_REFRESHES = 2;
@@ -48,6 +50,7 @@ public final class YoutubeSabrSession {
     private int redirectCount;
     private int poTokenRefreshes;
     private int reloads;
+    private int consecutiveIntegrityFailures;
     // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
@@ -111,7 +114,19 @@ public final class YoutubeSabrSession {
         for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
             final YoutubeSabrProbeResult result = fetchNextResponse(localization);
             final SabrDecodedResponse decoded = result.getDecodedResponse();
-            validateResponseIntegrity(decoded, request);
+            final List<String> integrityIssues = decoded.getIntegrityIssues();
+            if (!integrityIssues.isEmpty()) {
+                if (isRecoverableIncompleteMediaResponse(integrityIssues)) {
+                    if (recoverFromIncompleteMediaResponse(localization, decoded)) {
+                        continue;
+                    }
+                    throw new SabrProtocolException("SABR media integrity issue while fetching "
+                            + describeRequest(request) + ": " + integrityIssues);
+                }
+                throw new SabrProtocolException("SABR media integrity issue while fetching "
+                        + describeRequest(request) + ": " + integrityIssues);
+            }
+            consecutiveIntegrityFailures = 0;
             streamState.ingest(decoded);
             final List<SabrMediaSegment> segments = result.getSegments();
             for (final SabrMediaSegment segment : segments) {
@@ -239,8 +254,15 @@ public final class YoutubeSabrSession {
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
         if (!integrityIssues.isEmpty()) {
+            if (isRecoverableIncompleteMediaResponse(integrityIssues)) {
+                if (recoverFromIncompleteMediaResponse(localization, decoded)) {
+                    return Collections.emptyList();
+                }
+                throw new SabrProtocolException("SABR media integrity issue: " + integrityIssues);
+            }
             throw new SabrProtocolException("SABR media integrity issue: " + integrityIssues);
         }
+        consecutiveIntegrityFailures = 0;
         streamState.ingest(decoded);
         final List<SabrMediaSegment> segments = result.getSegments();
         for (final SabrMediaSegment segment : segments) {
@@ -495,16 +517,6 @@ public final class YoutubeSabrSession {
         }
     }
 
-    private void validateResponseIntegrity(@Nonnull final SabrDecodedResponse decoded,
-                                           @Nonnull final SabrSegmentRequest request)
-            throws SabrProtocolException {
-        final List<String> integrityIssues = decoded.getIntegrityIssues();
-        if (!integrityIssues.isEmpty()) {
-            throw new SabrProtocolException("SABR media integrity issue while fetching "
-                    + describeRequest(request) + ": " + integrityIssues);
-        }
-    }
-
     private boolean maybePrepareForDistantMediaSegment(
             @Nonnull final SabrSegmentRequest request) {
         if (request.isInitializationSegment() || requestNumber == 0) {
@@ -518,6 +530,39 @@ public final class YoutubeSabrSession {
             return false;
         }
         prepareForMediaSegment(request);
+        return true;
+    }
+
+    private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
+                                                       @Nonnull final SabrDecodedResponse decoded)
+            throws IOException, ExtractionException {
+        consecutiveIntegrityFailures++;
+        if (consecutiveIntegrityFailures >= MAX_INCOMPLETE_MEDIA_RESPONSES) {
+            return false;
+        }
+        if (consecutiveIntegrityFailures >= INTEGRITY_RELOAD_AFTER_FAILURES
+                && maybeReload(localization)) {
+            return true;
+        }
+        final int backoffMs = decoded.getBackoffTimeMs() > 0
+                ? decoded.getBackoffTimeMs()
+                : 500 * consecutiveIntegrityFailures;
+        sleepBackoff(backoffMs);
+        return true;
+    }
+
+    private static boolean isRecoverableIncompleteMediaResponse(
+            @Nonnull final List<String> integrityIssues) {
+        if (integrityIssues.isEmpty()) {
+            return false;
+        }
+        for (final String issue : integrityIssues) {
+            if (!issue.startsWith("length-mismatch:")
+                    && !issue.startsWith("missing-media-end:")
+                    && !issue.startsWith("missing-media:")) {
+                return false;
+            }
+        }
         return true;
     }
 

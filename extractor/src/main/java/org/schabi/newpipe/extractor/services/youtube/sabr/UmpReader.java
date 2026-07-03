@@ -1,6 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import javax.annotation.Nonnull;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -47,7 +48,7 @@ public final class UmpReader {
     private static int readUmpInt(@Nonnull final InputStream in, final int first)
             throws SabrProtocolException, IOException {
         if (first < 0) {
-            throw new SabrProtocolException("Unexpected EOF in UMP integer");
+            throw new EOFException("Unexpected EOF in UMP integer");
         }
         if (first < 128) {
             return first;
@@ -71,7 +72,7 @@ public final class UmpReader {
         throwIfInterrupted();
         final int b = in.read();
         if (b < 0) {
-            throw new SabrProtocolException("Unexpected EOF in UMP integer");
+            throw new EOFException("Unexpected EOF in UMP integer");
         }
         return b;
     }
@@ -89,7 +90,7 @@ public final class UmpReader {
             throwIfInterrupted();
             final int read = in.read(result, offset, length - offset);
             if (read < 0) {
-                throw new SabrProtocolException("Unexpected EOF while reading UMP part data");
+                throw new EOFException("Unexpected EOF while reading UMP part data");
             }
             offset += read;
         }

@@ -131,7 +131,7 @@ public final class SabrMediaSegmentCollector {
             }
             if (fixedData != null) {
                 if (length + count > fixedData.length) {
-                    throw new SabrProtocolException("SABR media length overflow: headerId="
+                    throw new SabrRecoverableException("SABR media length overflow: headerId="
                             + header.getHeaderId()
                             + ", expected=" + fixedData.length
                             + ", actual>=" + (length + count));
@@ -152,7 +152,7 @@ public final class SabrMediaSegmentCollector {
                 rawBytes = dynamicData.toByteArray();
             }
             if (header.getContentLength() >= 0 && length != header.getContentLength()) {
-                throw new SabrProtocolException("SABR media length mismatch: headerId="
+                throw new SabrRecoverableException("SABR media length mismatch: headerId="
                         + header.getHeaderId()
                         + ", expected=" + header.getContentLength()
                         + ", actual=" + length);
@@ -189,7 +189,8 @@ public final class SabrMediaSegmentCollector {
                 }
                 return output.toByteArray();
             } catch (final IOException e) {
-                throw new SabrProtocolException("Could not decompress gzip SABR media segment", e);
+                throw new SabrRecoverableException(
+                        "Could not decompress gzip SABR media segment", e);
             }
         }
 
@@ -204,7 +205,8 @@ public final class SabrMediaSegmentCollector {
                 }
                 return output.toByteArray();
             } catch (final IOException e) {
-                throw new SabrProtocolException("Could not decompress brotli SABR media segment", e);
+                throw new SabrRecoverableException(
+                        "Could not decompress brotli SABR media segment", e);
             }
         }
     }
