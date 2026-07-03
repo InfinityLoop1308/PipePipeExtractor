@@ -2228,6 +2228,84 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return itagInfo;
     }
 
+    private void batchDeobfuscateItagUrls(@Nonnull final String videoId,
+                                          @Nonnull final List<ItagInfo> itagInfoList)
+            throws ParsingException {
+        if (itagInfoList.isEmpty()) {
+            return;
+        }
+
+        final LinkedHashSet<String> uniqueSignatures = new LinkedHashSet<>();
+        final LinkedHashSet<String> uniqueThrottlingParams = new LinkedHashSet<>();
+        final List<StreamDeobfuscationInfo> streamInfos = new ArrayList<>();
+
+        for (int i = 0; i < itagInfoList.size(); i++) {
+            final ItagInfo itagInfo = itagInfoList.get(i);
+            final String url = itagInfo.getContent();
+            final String obfuscatedSignature = itagInfo.getObfuscatedSignature();
+            final String throttlingParam =
+                    YoutubeJavaScriptPlayerManager.getThrottlingParameterFromStreamingUrl(url);
+
+            streamInfos.add(new StreamDeobfuscationInfo(i, obfuscatedSignature, throttlingParam));
+            if (!isNullOrEmpty(obfuscatedSignature)) {
+                uniqueSignatures.add(obfuscatedSignature);
+            }
+            if (!isNullOrEmpty(throttlingParam)) {
+                uniqueThrottlingParams.add(throttlingParam);
+            }
+        }
+
+        if (uniqueSignatures.isEmpty() && uniqueThrottlingParams.isEmpty()) {
+            return;
+        }
+
+        final YoutubeApiDecoder.BatchDecodeResult result =
+                YoutubeJavaScriptPlayerManager.deobfuscateBatch(
+                        videoId,
+                        new ArrayList<>(uniqueSignatures),
+                        new ArrayList<>(uniqueThrottlingParams));
+
+        final Map<String, String> decodedSignatures = result.getSignatures();
+        final Map<String, String> decodedThrottling = result.getNParameters();
+
+        for (final StreamDeobfuscationInfo info : streamInfos) {
+            final ItagInfo itagInfo = itagInfoList.get(info.streamIndex);
+            String updatedUrl = itagInfo.getContent();
+
+            if (!isNullOrEmpty(info.obfuscatedSignature)) {
+                final String deobfuscatedSig = decodedSignatures.get(info.obfuscatedSignature);
+                if (deobfuscatedSig != null) {
+                    updatedUrl = updatedUrl.replace("SIGNATURE_PLACEHOLDER", deobfuscatedSig);
+                }
+            }
+
+            if (!isNullOrEmpty(info.throttlingParam)) {
+                final String deobfuscatedParam = decodedThrottling.get(info.throttlingParam);
+                if (deobfuscatedParam != null) {
+                    updatedUrl = updatedUrl.replace(info.throttlingParam, deobfuscatedParam);
+                }
+            }
+
+            itagInfo.setContent(updatedUrl);
+        }
+    }
+
+    private static class StreamDeobfuscationInfo {
+        private final int streamIndex;
+        @Nullable
+        private final String obfuscatedSignature;
+        @Nullable
+        private final String throttlingParam;
+
+        StreamDeobfuscationInfo(final int streamIndex,
+                                @Nullable final String obfuscatedSignature,
+                                @Nullable final String throttlingParam) {
+            this.streamIndex = streamIndex;
+            this.obfuscatedSignature = obfuscatedSignature;
+            this.throttlingParam = throttlingParam;
+        }
+    }
+
 
     /*//////////////////////////////////////////////////////////////////////////
     // Utils
