@@ -213,6 +213,8 @@ YoutubeParsingHelper {
     private static final String[] INITIAL_DATA_REGEXES =
             {"window\\[\"ytInitialData\"\\]\\s*=\\s*(\\{.*?\\});",
                     "var\\s*ytInitialData\\s*=\\s*(\\{.*?\\});"};
+    private static final String[] YTCFG_REGEXES =
+            {"ytcfg\\.set\\s*\\(\\s*(\\{.+?\\})\\s*\\)\\s*;"};
     private static final String CONTENT_PLAYBACK_NONCE_ALPHABET =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
@@ -1795,6 +1797,37 @@ YoutubeParsingHelper {
         }
     }
 
+    @Nonnull
+    public static JsonObject getWebWatchYtcfg(@Nonnull final String videoId)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>(getCookieHeader());
+        if (ServiceList.YouTube.hasTokens()) {
+            headers.put("Cookie", singletonList(ServiceList.YouTube.getTokens()));
+        }
+        headers.put("User-Agent", singletonList(WEB_USER_AGENT));
+
+        final String html = getDownloader().get(
+                "https://www.youtube.com/watch?v=" + videoId, headers).responseBody();
+        final JsonObject mergedYtcfg = new JsonObject();
+        final java.util.regex.Matcher matcher = Pattern.compile(YTCFG_REGEXES[0]).matcher(html);
+        while (matcher.find()) {
+            try {
+                final JsonObject ytcfg = JsonParser.object().from(matcher.group(1));
+                mergedYtcfg.putAll(ytcfg);
+                if (!isNullOrEmpty(mergedYtcfg.getString("VISITOR_DATA", ""))
+                        && mergedYtcfg.get("SESSION_INDEX") != null) {
+                    return mergedYtcfg;
+                }
+            } catch (final JsonParserException ignored) {
+                // Some pages include small ytcfg fragments; keep looking for the full config.
+            }
+        }
+        if (!mergedYtcfg.isEmpty()) {
+            return mergedYtcfg;
+        }
+        throw new ParsingException("Could not get ytcfg");
+    }
+
     /**
      * Returns a {@link Map} containing the required YouTube Music headers.
      */
@@ -2411,20 +2444,32 @@ YoutubeParsingHelper {
         String ytURL = "https://www.youtube.com";
 
         Map<String, String> cookies = parseCookies(cookie);
-        String sapisid = cookies.get("SAPISID");
+        final List<String> authorizations = new ArrayList<>();
 
-        if (sapisid == null) {
-            sapisid = cookies.get("__Secure-3PAPISID");
-            if (sapisid == null) {
-                throw new IllegalArgumentException("SAPISID not found in cookies");
-            }
+        appendAuthorization(authorizations, "SAPISIDHASH", cookies.get("SAPISID"), ytURL);
+        appendAuthorization(authorizations, "SAPISID1PHASH", cookies.get("__Secure-1PAPISID"), ytURL);
+        appendAuthorization(authorizations, "SAPISID3PHASH", cookies.get("__Secure-3PAPISID"), ytURL);
+
+        if (authorizations.isEmpty()) {
+            throw new IllegalArgumentException("SAPISID not found in cookies");
         }
 
+        return String.join(" ", authorizations);
+    }
+
+    private static void appendAuthorization(@Nonnull final List<String> authorizations,
+                                            @Nonnull final String scheme,
+                                            @Nullable final String sid,
+                                            @Nonnull final String ytURL)
+            throws NoSuchAlgorithmException {
+        if (isNullOrEmpty(sid)) {
+            return;
+        }
         long currentTimestamp = Instant.now().getEpochSecond();
-        String initialData = currentTimestamp + " " + sapisid + " " + ytURL;
+        String initialData = currentTimestamp + " " + sid + " " + ytURL;
         String hash = sha1(initialData);
 
-        return "SAPISIDHASH " + currentTimestamp + "_" + hash;
+        authorizations.add(scheme + " " + currentTimestamp + "_" + hash);
     }
 
     @Nonnull
