@@ -51,9 +51,22 @@ public final class YoutubeSabrProbe {
                                                 @Nullable final String playerPoToken,
                                                 @Nullable final String visitorDataOverride)
             throws IOException, ExtractionException {
+        return fetchSabrInfo(videoId, profile, localization, contentCountry, playerPoToken,
+                visitorDataOverride, null);
+    }
+
+    @Nonnull
+    public static YoutubeSabrInfo fetchSabrInfo(@Nonnull final String videoId,
+                                                @Nonnull final YoutubeSabrClientProfile profile,
+                                                @Nonnull final Localization localization,
+                                                @Nonnull final ContentCountry contentCountry,
+                                                @Nullable final String playerPoToken,
+                                                @Nullable final String visitorDataOverride,
+                                                @Nullable final Integer startTimeSecs)
+            throws IOException, ExtractionException {
         final String cpn = YoutubeParsingHelper.generateContentPlaybackNonce();
         final JsonObject playerResponse = fetchPlayerResponse(videoId, profile, localization,
-                contentCountry, cpn, playerPoToken, visitorDataOverride);
+                contentCountry, cpn, playerPoToken, visitorDataOverride, startTimeSecs);
         return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride);
     }
 
@@ -243,13 +256,14 @@ public final class YoutubeSabrProbe {
     private static JsonObject fetchPlayerResponse(@Nonnull final String videoId,
                                                    @Nonnull final YoutubeSabrClientProfile profile,
                                                    @Nonnull final Localization localization,
-                                                   @Nonnull final ContentCountry contentCountry,
-                                                   @Nonnull final String cpn,
-                                                   @Nullable final String playerPoToken,
-                                                   @Nullable final String visitorDataOverride)
+                                                    @Nonnull final ContentCountry contentCountry,
+                                                    @Nonnull final String cpn,
+                                                    @Nullable final String playerPoToken,
+                                                    @Nullable final String visitorDataOverride,
+                                                    @Nullable final Integer startTimeSecs)
             throws IOException, ExtractionException {
         final byte[] body = createPlayerBody(videoId, profile, localization, contentCountry,
-                cpn, playerPoToken, visitorDataOverride);
+                cpn, playerPoToken, visitorDataOverride, startTimeSecs);
         final String url = getInnertubeBaseUrl(profile) + PLAYER + "?"
                 + YoutubeParsingHelper.DISABLE_PRETTY_PRINT_PARAMETER;
         final Response response = NewPipe.getDownloader().post(url,
@@ -265,7 +279,8 @@ public final class YoutubeSabrProbe {
                                             @Nonnull final ContentCountry contentCountry,
                                             @Nonnull final String cpn,
                                             @Nullable final String playerPoToken,
-                                            @Nullable final String visitorDataOverride)
+                                            @Nullable final String visitorDataOverride,
+                                            @Nullable final Integer startTimeSecs)
             throws ParsingException {
         final JsonBuilder<JsonObject> builder = JsonObject.builder()
                 .object("context")
@@ -337,6 +352,10 @@ public final class YoutubeSabrProbe {
                 .value(YoutubeParsingHelper.VIDEO_ID, videoId)
                 .value(YoutubeParsingHelper.CONTENT_CHECK_OK, true)
                 .value(YoutubeParsingHelper.RACY_CHECK_OK, true);
+
+        if (startTimeSecs != null && startTimeSecs >= 0) {
+            builder.value("startTimeSecs", startTimeSecs);
+        }
 
         if (playerPoToken != null && !playerPoToken.isEmpty()) {
             builder.object("serviceIntegrityDimensions")
