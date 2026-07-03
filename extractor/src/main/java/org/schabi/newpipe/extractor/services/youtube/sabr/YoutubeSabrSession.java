@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -769,7 +770,7 @@ public final class YoutubeSabrSession {
         return true;
     }
 
-    private static void sleepBackoff(final int backoffTimeMs) throws SabrProtocolException {
+    private static void sleepBackoff(final int backoffTimeMs) throws InterruptedIOException {
         // Clamp to [0, MAX_BACKOFF_MS]: a negative (overflowed varint) must not skip the wait, and
         // a huge server backoff must not be honoured verbatim (would stall playback for minutes).
         final long ms = Math.min(Math.max(0, backoffTimeMs), MAX_BACKOFF_MS);
@@ -779,9 +780,8 @@ public final class YoutubeSabrSession {
         try {
             Thread.sleep(ms);
         } catch (final InterruptedException e) {
-            // a random interrupt during a backoff must NOT kill the session, that drags audio AND
-            // video down with it in one shot. swallow it and carry on; the loop figures out by
-            // itself if playback is actually dead.
+            Thread.currentThread().interrupt();
+            throw new InterruptedIOException("Interrupted during SABR backoff");
         }
     }
 
