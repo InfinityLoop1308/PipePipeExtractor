@@ -82,6 +82,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
+    private JsonObject tvStreamingData;
+    @Nullable
     private JsonObject configuredStreamingData;
 
     private JsonObject videoPrimaryInfoRenderer;
@@ -98,6 +100,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // two different strings are used.
     private String webCpn;
     private String mwebCpn;
+    private String tvCpn;
 
     public WatchDataCache watchDataCache;
 
@@ -298,7 +301,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    webStreamingData, mwebStreamingData));
+                    webStreamingData, mwebStreamingData, tvStreamingData));
         }
     }
 
@@ -716,7 +719,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String hlsUrl = getManifestUrl(
                 "hls",
-                Arrays.asList(webStreamingData, mwebStreamingData));
+                Arrays.asList(webStreamingData, mwebStreamingData, tvStreamingData));
 
         if (!hlsUrl.isEmpty()) {
             hlsUrl = deobfuscateManifestUrl(hlsUrl);
@@ -993,7 +996,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getHlsManifestUrlFromStreamingData() {
         for (final JsonObject sd : Arrays.asList(
-                webStreamingData, mwebStreamingData)) {
+                webStreamingData, mwebStreamingData, tvStreamingData)) {
             if (sd != null) {
                 final String url = sd.getString("hlsManifestUrl");
                 if (url != null && !url.isEmpty()) {
@@ -1569,11 +1572,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             };
             awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
 
+            if ((playerResponse == null || (webStreamingData == null && mwebStreamingData == null))
+                    && ServiceList.YouTube.hasTokens()) {
+                fetchTvDowngradedJsonPlayer(contentCountry, localization, videoId);
+            }
+            if (tvStreamingData != null) {
+                removeLoggedInAgeGateErrorsAfterTvFallback();
+            }
             throwIfErrors();
             if (playerResponse == null) {
                 throw new ExtractionException("YouTube player response is missing");
             }
-            if (webStreamingData == null && mwebStreamingData == null) {
+            if (webStreamingData == null && mwebStreamingData == null && tvStreamingData == null) {
                 throw new ExtractionException("YouTube streaming data is missing");
             }
             if (nextResponse == null) {
@@ -1614,6 +1624,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (!call.isFinished()) {
                 call.cancel();
             }
+        }
+    }
+
+    private void removeLoggedInAgeGateErrorsAfterTvFallback() {
+        synchronized (errors) {
+            errors.removeIf(error -> error instanceof AgeRestrictedContentException
+                    && error.getMessage() != null
+                    && error.getMessage().contains("anonymously"));
         }
     }
 
@@ -1824,6 +1842,97 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         mwebCpn,
                         "MWEB",
                         MWEB_USER_AGENT), localization, "2", MWEB_USER_AGENT, callback);
+    }
+
+    private void fetchTvDowngradedJsonPlayer(@Nonnull final ContentCountry contentCountry,
+                                             @Nonnull final Localization localization,
+                                             @Nonnull final String videoId)
+            throws IOException, ExtractionException {
+        if (!ServiceList.YouTube.hasTokens()) {
+            return;
+        }
+
+        tvCpn = generateContentPlaybackNonce();
+        final JsonObject ytcfg = getWebWatchYtcfg(videoId);
+        final String visitorData = ytcfg.getString("VISITOR_DATA", EMPTY_STRING);
+        final Object sessionIndexObject = ytcfg.get("SESSION_INDEX");
+        final String sessionIndex = sessionIndexObject == null
+                ? EMPTY_STRING : String.valueOf(sessionIndexObject);
+
+        final byte[] body = JsonWriter.string(
+                        JsonObject.builder()
+                                .object("context")
+                                    .object("client")
+                                        .value("clientName", "TVHTML5")
+                                        .value("clientVersion", "5.20260114")
+                                        .value("hl", localization.getLocalizationCode())
+                                        .value("gl", contentCountry.getCountryCode())
+                                        .value("timeZone", "UTC")
+                                        .value("userAgent", "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version")
+                                        .value("utcOffsetMinutes", 0)
+                                    .end()
+                                    .object("request")
+                                        .array("internalExperimentFlags")
+                                        .end()
+                                        .value("useSsl", true)
+                                    .end()
+                                    .object("user")
+                                        .value("lockedSafetyMode", false)
+                                    .end()
+                                .end()
+                                .object("playbackContext")
+                                    .object("contentPlaybackContext")
+                                        .value("html5Preference", "HTML5_PREF_WANTS")
+                                        .value("signatureTimestamp",
+                                                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId))
+                                    .end()
+                                .end()
+                                .value(VIDEO_ID, videoId)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList("Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"));
+        headers.put("Origin", singletonList("https://www.youtube.com"));
+        headers.put("X-YouTube-Client-Name", singletonList("7"));
+        headers.put("X-YouTube-Client-Version", singletonList("5.20260114"));
+        addLoggedInHeaders(headers);
+        if (!isNullOrEmpty(visitorData)) {
+            headers.put("X-Goog-Visitor-Id", singletonList(visitorData));
+        }
+        if (!isNullOrEmpty(sessionIndex)) {
+            headers.put("X-Goog-AuthUser", singletonList(sessionIndex));
+        }
+
+        final Response response = NewPipe.getDownloader().post(
+                YOUTUBEI_V1_URL + PLAYER + "?" + DISABLE_PRETTY_PRINT_PARAMETER,
+                headers, body, localization);
+        final JsonObject tvPlayerResponse =
+                JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+        if (isPlayerResponseNotValid(tvPlayerResponse, videoId)) {
+            throw new ExtractionException("TV player response is not valid");
+        }
+
+        final JsonObject streamingData = tvPlayerResponse.getObject(STREAMING_DATA);
+        if (!isNullOrEmpty(streamingData)) {
+            if (playerResponse == null) {
+                playerResponse = tvPlayerResponse;
+            } else {
+                playerResponse.put("playabilityStatus",
+                        tvPlayerResponse.getObject("playabilityStatus"));
+                playerResponse.put(STREAMING_DATA, streamingData);
+                if (isNullOrEmpty(playerResponse.getObject("videoDetails"))
+                        && !isNullOrEmpty(tvPlayerResponse.getObject("videoDetails"))) {
+                    playerResponse.put("videoDetails", tvPlayerResponse.getObject("videoDetails"));
+                }
+            }
+            updateAvailableAt(playerResponse);
+            tvStreamingData = streamingData;
+            configuredStreamingData = streamingData;
+        }
     }
 
 
