@@ -103,82 +103,94 @@ public final class YoutubeSabrSession {
 
     @Nonnull
     public SabrMediaSegment fetchSegment(@Nonnull final SabrSegmentRequest request,
-                                         @Nonnull final Localization localization)
+                                          @Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final SabrMediaSegment cachedSegment = segmentCache.get(cacheKey(request));
         if (cachedSegment != null) {
             return cachedSegment;
         }
+        if (request.isInitializationSegment()) {
+            prepareForInitializationSegment(request);
+        }
         failIfKnownOutOfBounds(request);
 
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
-        int policyOnlyResponses = 0;
-        for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
-            final YoutubeSabrProbeResult result = fetchNextResponse(localization);
-            final SabrDecodedResponse decoded = result.getDecodedResponse();
-            final List<String> integrityIssues = decoded.getIntegrityIssues();
-            if (!integrityIssues.isEmpty()) {
-                if (isRecoverableIncompleteMediaResponse(integrityIssues)) {
-                    if (recoverFromIncompleteMediaResponse(localization, decoded)) {
-                        continue;
+        try {
+            int policyOnlyResponses = 0;
+            for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
+                final YoutubeSabrProbeResult result = fetchNextResponse(localization);
+                final SabrDecodedResponse decoded = result.getDecodedResponse();
+                final List<String> integrityIssues = decoded.getIntegrityIssues();
+                if (!integrityIssues.isEmpty()) {
+                    if (isRecoverableIncompleteMediaResponse(integrityIssues)) {
+                        if (recoverFromIncompleteMediaResponse(localization, decoded)) {
+                            continue;
+                        }
+                        throw new SabrProtocolException("SABR media integrity issue while fetching "
+                                + describeRequest(request) + ": " + integrityIssues);
                     }
                     throw new SabrProtocolException("SABR media integrity issue while fetching "
                             + describeRequest(request) + ": " + integrityIssues);
                 }
-                throw new SabrProtocolException("SABR media integrity issue while fetching "
-                        + describeRequest(request) + ": " + integrityIssues);
-            }
-            consecutiveIntegrityFailures = 0;
-            streamState.ingest(decoded);
-            final List<SabrMediaSegment> segments = result.getSegments();
-            for (final SabrMediaSegment segment : segments) {
-                streamState.ingest(segment);
-                segmentCache.put(cacheKey(segment), segment);
-            }
-            final SabrMediaSegment segment = segmentCache.get(cacheKey(request));
-            if (segment != null) {
-                return segment;
-            }
-            failIfKnownOutOfBounds(request);
-            if (!targetPrepared) {
-                targetPrepared = maybePrepareForDistantMediaSegment(request);
-            }
-            if (decoded.getSabrErrorDetails() != null) {
-                throw new SabrProtocolException("SABR error while fetching "
-                        + describeRequest(request) + ": " + decoded.getSabrErrorDetails().summarize());
-            }
-            if (decoded.isReloadRequested()) {
-                if (maybeReload(localization)) {
-                    continue;
+                consecutiveIntegrityFailures = 0;
+                streamState.ingest(decoded);
+                final List<SabrMediaSegment> segments = result.getSegments();
+                for (final SabrMediaSegment segment : segments) {
+                    streamState.ingest(segment);
+                    segmentCache.put(cacheKey(segment), segment);
                 }
-                throw new SabrProtocolException("SABR requested player reload while fetching "
-                        + describeRequest(request) + " (reload budget spent): "
-                        + decoded.summarizeNoMediaResponse());
-            }
-            if (decoded.isProtectionBoundaryNoMediaResponse()) {
-                if (applyPoTokenForProtectedResponse()) {
-                    if (decoded.getBackoffTimeMs() > 0) {
-                        sleepBackoff(decoded.getBackoffTimeMs());
+                final SabrMediaSegment segment = segmentCache.get(cacheKey(request));
+                if (segment != null) {
+                    return segment;
+                }
+                failIfKnownOutOfBounds(request);
+                if (!targetPrepared) {
+                    targetPrepared = maybePrepareForDistantMediaSegment(request);
+                }
+                if (decoded.getSabrErrorDetails() != null) {
+                    throw new SabrProtocolException("SABR error while fetching "
+                            + describeRequest(request) + ": "
+                            + decoded.getSabrErrorDetails().summarize());
+                }
+                if (decoded.isReloadRequested()) {
+                    if (maybeReload(localization)) {
+                        continue;
                     }
-                    continue;
+                    throw new SabrProtocolException("SABR requested player reload while fetching "
+                            + describeRequest(request) + " (reload budget spent): "
+                            + decoded.summarizeNoMediaResponse());
                 }
-                throw new SabrProtocolException("SABR protected no-media response while fetching "
-                        + describeRequest(request) + ": " + decoded.summarizeNoMediaResponse());
-            }
-            if (decoded.isPolicyOnlyResponse()) {
-                policyOnlyResponses++;
-                if (policyOnlyResponses >= MAX_POLICY_ONLY_RESPONSES_PER_SEGMENT) {
-                    throw new SabrProtocolException("SABR repeated policy-only responses while fetching "
+                if (decoded.isProtectionBoundaryNoMediaResponse()) {
+                    if (applyPoTokenForProtectedResponse()) {
+                        if (decoded.getBackoffTimeMs() > 0) {
+                            sleepBackoff(decoded.getBackoffTimeMs());
+                        }
+                        continue;
+                    }
+                    throw new SabrProtocolException("SABR protected no-media response while fetching "
                             + describeRequest(request) + ": " + decoded.summarizeNoMediaResponse());
                 }
-            } else if (!segments.isEmpty()) {
-                policyOnlyResponses = 0;
+                if (decoded.isPolicyOnlyResponse()) {
+                    policyOnlyResponses++;
+                    if (policyOnlyResponses >= MAX_POLICY_ONLY_RESPONSES_PER_SEGMENT) {
+                        throw new SabrProtocolException(
+                                "SABR repeated policy-only responses while fetching "
+                                        + describeRequest(request) + ": "
+                                        + decoded.summarizeNoMediaResponse());
+                    }
+                } else if (!segments.isEmpty()) {
+                    policyOnlyResponses = 0;
+                }
+                if (decoded.getBackoffTimeMs() > 0) {
+                    sleepBackoff(decoded.getBackoffTimeMs());
+                }
+                if (streamState.isComplete()) {
+                    break;
+                }
             }
-            if (decoded.getBackoffTimeMs() > 0) {
-                sleepBackoff(decoded.getBackoffTimeMs());
-            }
-            if (streamState.isComplete()) {
-                break;
+        } finally {
+            if (request.isInitializationSegment()) {
+                clearInitializationSegmentState();
             }
         }
         throw new SabrProtocolException("Requested SABR segment was not returned: itag="
@@ -564,6 +576,29 @@ public final class YoutubeSabrSession {
             evictOutsideSeekWindow(requestPlayerTimeMs);
         }
         streamState.setPlayerTimeMs(requestPlayerTimeMs);
+    }
+
+    private void prepareForInitializationSegment(@Nonnull final SabrSegmentRequest request) {
+        final YoutubeSabrFormat targetFormat = request.getFormat();
+        streamState.setWriteFirstRequestPlaybackState(true);
+        streamState.setWriteTopLevelPlayerTimeMs(false);
+        streamState.setWriteLastManualSelectedResolution(targetFormat.isVideo());
+        streamState.setBufferedRangesOverride(Collections.emptyList());
+        streamState.setRequestTrackMode(targetFormat.isVideo()
+                        ? YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
+                        : YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY,
+                false, false);
+        streamState.setPreferredTrackTypes(true, true);
+        streamState.setPlayerTimeMs(streamState.getPlayerTimeMs());
+    }
+
+    private void clearInitializationSegmentState() {
+        streamState.setWriteFirstRequestPlaybackState(false);
+        streamState.setWriteTopLevelPlayerTimeMs(true);
+        streamState.setWriteLastManualSelectedResolution(false);
+        streamState.setBufferedRangesOverride(null);
+        streamState.clearPlayerTimeMsOverride();
+        streamState.setActiveTrackTypes(true, true);
     }
 
     private void clearTargetedMediaRequestState(final boolean videoActive,
