@@ -196,6 +196,8 @@ public final class YoutubeSabrSession {
         addDiagnosticEvent("request n=" + requestNumber
                 + " playerMs=" + streamState.getPlayerTimeMs()
                 + " edgeMs=" + streamState.getMinBufferedEndMs()
+                + " poTokenBytes=" + (streamState.getRawPoToken() == null
+                ? -1 : streamState.getRawPoToken().length)
                 + " ranges=" + streamState.summarizeBufferedRanges());
         final YoutubeSabrProbeResult result;
         try {
