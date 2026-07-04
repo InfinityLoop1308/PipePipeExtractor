@@ -68,6 +68,15 @@ public final class SabrResponseDecoder {
         for (final UmpPart part : parts) {
             final byte[] partData = part.getRawData();
             decoded.addPart(part);
+            if (part.getType() != MEDIA && part.getType() != MEDIA_END) {
+                try {
+                    decoded.addWireFieldSummary(part.getType(),
+                            SabrProto.summarizeFields(partData));
+                } catch (final SabrProtocolException ignored) {
+                    decoded.addWireFieldSummary(part.getType(),
+                            "opaqueBytes=" + partData.length);
+                }
+            }
             switch (part.getType()) {
                 case ONESIE_HEADER:
                     final SabrOnesieHeader onesieHeader =

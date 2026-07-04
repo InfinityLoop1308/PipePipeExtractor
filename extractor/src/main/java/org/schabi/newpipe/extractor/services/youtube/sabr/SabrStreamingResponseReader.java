@@ -24,6 +24,7 @@ public final class SabrStreamingResponseReader {
     public static Result read(@Nonnull final InputStream in)
             throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
+        final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
         // headerId -> total media bytes seen, so the decoded response passes the same integrity check
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
@@ -31,6 +32,7 @@ public final class SabrStreamingResponseReader {
         final SabrMediaSegmentCollector.Incremental collector =
                 new SabrMediaSegmentCollector.Incremental();
         UmpReader.readStreaming(in, (type, payload) -> {
+            SabrDecodedResponse.addPartSummary(partSummaries, type, payload.length);
             switch (type) {
                 case SabrResponseDecoder.MEDIA_HEADER:
                     collector.onMediaHeader(payload);
@@ -61,6 +63,7 @@ public final class SabrStreamingResponseReader {
             }
         });
         final SabrDecodedResponse decoded = SabrResponseDecoder.decodeParts(controlParts);
+        decoded.setPartSummaries(partSummaries);
         for (final Map.Entry<Integer, Long> entry : mediaBytesByHeaderId.entrySet()) {
             decoded.addMediaBytes(entry.getKey(), entry.getValue());
         }

@@ -34,7 +34,7 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
-    private static final int MAX_DIAGNOSTIC_EVENTS = 32;
+    private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
     private YoutubeSabrInfo info;
@@ -57,6 +57,7 @@ public final class YoutubeSabrSession {
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
     private final Deque<String> diagnosticEvents = new ArrayDeque<>();
+    private int diagnosticChars;
     private long cachedBytes;
     // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
     private volatile long playHeadMs;
@@ -214,10 +215,7 @@ public final class YoutubeSabrSession {
                 + " http=" + result.getResponseCode()
                 + " contentType=" + result.getContentType()
                 + " segments=" + summarizeSegments(result.getSegments())
-                + " integrity=" + result.getDecodedResponse().getIntegrityIssues()
-                + " empty=" + result.getSegments().isEmpty()
-                + " backoffMs=" + result.getDecodedResponse().getBackoffTimeMs()
-                + " reload=" + result.getDecodedResponse().isReloadRequested());
+                + " decoded={" + result.getDecodedResponse().summarizeForDiagnostics() + '}');
         if (result.getDecodedResponse().getRedirectUrl() != null
                 && !result.getDecodedResponse().getRedirectUrl().isEmpty()) {
             redirectCount++;
@@ -232,10 +230,14 @@ public final class YoutubeSabrSession {
     }
 
     public synchronized void addDiagnosticEvent(@Nonnull final String event) {
-        if (diagnosticEvents.size() == MAX_DIAGNOSTIC_EVENTS) {
-            diagnosticEvents.removeFirst();
+        final String bounded = event.length() > MAX_DIAGNOSTIC_CHARS
+                ? event.substring(0, MAX_DIAGNOSTIC_CHARS) : event;
+        while (!diagnosticEvents.isEmpty()
+                && diagnosticChars + bounded.length() > MAX_DIAGNOSTIC_CHARS) {
+            diagnosticChars -= diagnosticEvents.removeFirst().length();
         }
-        diagnosticEvents.addLast(event.length() > 512 ? event.substring(0, 512) : event);
+        diagnosticEvents.addLast(bounded);
+        diagnosticChars += bounded.length();
     }
 
     @Nonnull

@@ -10,6 +10,8 @@ import java.util.Map;
 
 public final class SabrDecodedResponse {
     private final List<UmpPart> parts = new ArrayList<>();
+    private final List<String> partSummaries = new ArrayList<>();
+    private final List<String> wireFieldSummaries = new ArrayList<>();
     private final List<SabrFormatInitializationMetadata> formatInitializationMetadata =
             new ArrayList<>();
     private final List<SabrMediaHeader> mediaHeaders = new ArrayList<>();
@@ -60,10 +62,40 @@ public final class SabrDecodedResponse {
 
     void addPart(@Nonnull final UmpPart part) {
         parts.add(part);
+        addPartSummary(partSummaries, part.getType(), part.getSize());
+    }
+
+    void setPartSummaries(@Nonnull final List<String> summaries) {
+        partSummaries.clear();
+        partSummaries.addAll(summaries);
+    }
+
+    static void addPartSummary(@Nonnull final List<String> summaries,
+                               final int type,
+                               final int size) {
+        final String value = type + ":" + size;
+        if (summaries.isEmpty()) {
+            summaries.add(value);
+            return;
+        }
+        final int lastIndex = summaries.size() - 1;
+        final String last = summaries.get(lastIndex);
+        if (last.equals(value)) {
+            summaries.set(lastIndex, value + "x2");
+        } else if (last.startsWith(value + 'x')) {
+            summaries.set(lastIndex, value
+                    + 'x' + (Integer.parseInt(last.substring(value.length() + 1)) + 1));
+        } else {
+            summaries.add(value);
+        }
     }
 
     void addUnknownPartType(final int type) {
         unknownPartTypes.add(type);
+    }
+
+    void addWireFieldSummary(final int type, @Nonnull final String summary) {
+        wireFieldSummaries.add(type + "={" + summary + '}');
     }
 
     void addGenericPartDescription(final int type, @Nonnull final String description) {
@@ -398,6 +430,30 @@ public final class SabrDecodedResponse {
 
     public boolean isProtectionBoundaryNoMediaResponse() {
         return isNoMediaResponse() && streamProtectionStatus >= 2;
+    }
+
+    @Nonnull
+    public String summarizeForDiagnostics() {
+        final List<String> initialization = new ArrayList<>();
+        for (final SabrFormatInitializationMetadata metadata : formatInitializationMetadata) {
+            initialization.add(metadata.summarize());
+        }
+        final List<String> headers = new ArrayList<>();
+        for (final SabrMediaHeader header : mediaHeaders) {
+            headers.add(header.summarize());
+        }
+        return "parts=" + partSummaries
+                + ", wireFields=" + wireFieldSummaries
+                + ", controls=" + genericPartDescriptions
+                + ", initialization=" + initialization
+                + ", mediaHeaders=" + headers
+                + ", mediaBytes=" + mediaBytesByHeaderId
+                + ", mediaEnds=" + mediaEndHeaderIds
+                + ", integrity=" + getIntegrityIssues()
+                + ", unknownParts=" + unknownPartTypes
+                + ", protection=" + streamProtectionStatus + '/' + streamProtectionMaxRetries
+                + ", backoffMs=" + backoffTimeMs
+                + ", reload=" + reloadRequested;
     }
 
     @Nonnull
