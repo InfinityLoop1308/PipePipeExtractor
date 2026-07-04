@@ -34,6 +34,7 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
+    private static final int MAX_DIAGNOSTIC_EVENTS = 32;
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
     private YoutubeSabrInfo info;
@@ -55,6 +56,7 @@ public final class YoutubeSabrSession {
     // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
+    private final Deque<String> diagnosticEvents = new ArrayDeque<>();
     private long cachedBytes;
     // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
     private volatile long playHeadMs;
@@ -190,14 +192,32 @@ public final class YoutubeSabrSession {
     @Nonnull
     public YoutubeSabrProbeResult fetchNextResponse(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
+        addDiagnosticEvent("request n=" + requestNumber
+                + " playerMs=" + streamState.getPlayerTimeMs()
+                + " edgeMs=" + streamState.getMinBufferedEndMs()
+                + " ranges=" + streamState.summarizeBufferedRanges());
         final YoutubeSabrProbeResult result;
-        if (requestNumber == 0) {
-            result = YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat, streamState,
-                    serverAbrStreamingUrl, localization);
-        } else {
-            result = YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
-                    streamState, requestNumber, serverAbrStreamingUrl, localization);
+        try {
+            if (requestNumber == 0) {
+                result = YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat,
+                        streamState, serverAbrStreamingUrl, localization);
+            } else {
+                result = YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
+                        streamState, requestNumber, serverAbrStreamingUrl, localization);
+            }
+        } catch (final IOException | ExtractionException e) {
+            addDiagnosticEvent("request_failed n=" + requestNumber
+                    + " type=" + e.getClass().getSimpleName());
+            throw e;
         }
+        addDiagnosticEvent("response n=" + requestNumber
+                + " http=" + result.getResponseCode()
+                + " contentType=" + result.getContentType()
+                + " segments=" + summarizeSegments(result.getSegments())
+                + " integrity=" + result.getDecodedResponse().getIntegrityIssues()
+                + " empty=" + result.getSegments().isEmpty()
+                + " backoffMs=" + result.getDecodedResponse().getBackoffTimeMs()
+                + " reload=" + result.getDecodedResponse().isReloadRequested());
         if (result.getDecodedResponse().getRedirectUrl() != null
                 && !result.getDecodedResponse().getRedirectUrl().isEmpty()) {
             redirectCount++;
@@ -209,6 +229,46 @@ public final class YoutubeSabrSession {
         }
         requestNumber++;
         return result;
+    }
+
+    public synchronized void addDiagnosticEvent(@Nonnull final String event) {
+        if (diagnosticEvents.size() == MAX_DIAGNOSTIC_EVENTS) {
+            diagnosticEvents.removeFirst();
+        }
+        diagnosticEvents.addLast(event.length() > 512 ? event.substring(0, 512) : event);
+    }
+
+    @Nonnull
+    public synchronized String getDiagnosticTrace() {
+        final StringBuilder trace = new StringBuilder();
+        for (final String event : diagnosticEvents) {
+            if (trace.length() > 0) {
+                trace.append(" | ");
+            }
+            trace.append(event);
+        }
+        return trace.toString();
+    }
+
+    @Nonnull
+    private static String summarizeSegments(@Nonnull final List<SabrMediaSegment> segments) {
+        if (segments.isEmpty()) {
+            return "[]";
+        }
+        final StringBuilder summary = new StringBuilder("[");
+        for (int i = 0; i < segments.size(); i++) {
+            if (i > 0) {
+                summary.append(',');
+            }
+            final SabrMediaSegment segment = segments.get(i);
+            summary.append(segment.getHeader().getItag()).append(':');
+            if (segment.getHeader().isInitSegment()) {
+                summary.append("init");
+            } else {
+                summary.append(segment.getHeader().getSequenceNumber());
+            }
+        }
+        return summary.append(']').toString();
     }
 
     /**
