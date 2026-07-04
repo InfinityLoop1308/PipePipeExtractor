@@ -46,6 +46,7 @@ public final class YoutubeSabrSession {
     private final YoutubeSabrStreamState streamState;
     @Nullable
     private final SabrPoTokenProvider poTokenProvider;
+    private final boolean allowColdStartInitializationFetch;
     private final Map<String, SabrMediaSegment> segmentCache = new ConcurrentHashMap<>();
     private String serverAbrStreamingUrl;
     private int requestNumber;
@@ -79,6 +80,14 @@ public final class YoutubeSabrSession {
                               @Nonnull final YoutubeSabrFormat audioFormat,
                               @Nonnull final YoutubeSabrFormat videoFormat,
                               @Nullable final SabrPoTokenProvider poTokenProvider) {
+        this(info, audioFormat, videoFormat, poTokenProvider, true);
+    }
+
+    private YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
+                               @Nonnull final YoutubeSabrFormat audioFormat,
+                               @Nonnull final YoutubeSabrFormat videoFormat,
+                               @Nullable final SabrPoTokenProvider poTokenProvider,
+                               final boolean allowColdStartInitializationFetch) {
         if (!audioFormat.isAudio()) {
             throw new IllegalArgumentException("SABR audio format must be audio: itag="
                     + audioFormat.getItag());
@@ -98,12 +107,13 @@ public final class YoutubeSabrSession {
         this.videoFormat = videoFormat;
         this.streamState = new YoutubeSabrStreamState(audioFormat, videoFormat);
         this.poTokenProvider = poTokenProvider;
+        this.allowColdStartInitializationFetch = allowColdStartInitializationFetch;
         this.serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
     }
 
     @Nonnull
-    public SabrMediaSegment fetchSegment(@Nonnull final SabrSegmentRequest request,
-                                          @Nonnull final Localization localization)
+    public synchronized SabrMediaSegment fetchSegment(@Nonnull final SabrSegmentRequest request,
+                                                       @Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final SabrMediaSegment cachedSegment = segmentCache.get(cacheKey(request));
         if (cachedSegment != null) {
@@ -111,6 +121,13 @@ public final class YoutubeSabrSession {
         }
         final boolean initializationSegment = request.isInitializationSegment();
         final long initialPlayerTimeMs = initializationSegment ? streamState.getPlayerTimeMs() : -1;
+        if (initializationSegment && initialPlayerTimeMs > 0 && allowColdStartInitializationFetch) {
+            final SabrMediaSegment coldStartSegment = tryFetchInitializationSegmentFromColdStart(
+                    request, localization);
+            if (coldStartSegment != null) {
+                return coldStartSegment;
+            }
+        }
         final int initRounds = initializationSegment && initialPlayerTimeMs > 0 ? 2 : 1;
         SabrProtocolException initRoundError = null;
         try {
@@ -222,10 +239,10 @@ public final class YoutubeSabrSession {
     }
 
     @Nonnull
-    public List<SabrMediaSegment> fetchMediaAt(final long playerTimeMs,
-                                               final boolean videoActive,
-                                               final boolean audioActive,
-                                               @Nonnull final Localization localization)
+    public synchronized List<SabrMediaSegment> fetchMediaAt(final long playerTimeMs,
+                                                            final boolean videoActive,
+                                                            final boolean audioActive,
+                                                            @Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final List<SabrSegmentRequest> requests = new ArrayList<>();
         if (videoActive) {
@@ -292,7 +309,7 @@ public final class YoutubeSabrSession {
     }
 
     @Nonnull
-    public YoutubeSabrProbeResult fetchNextResponse(@Nonnull final Localization localization)
+    public synchronized YoutubeSabrProbeResult fetchNextResponse(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final YoutubeSabrProbeResult result;
         if (requestNumber == 0) {
@@ -353,7 +370,7 @@ public final class YoutubeSabrSession {
      * server feed the track that is behind the play head, so neither track starves the other.
      */
     @Nonnull
-    public List<SabrMediaSegment> pumpOnce(@Nonnull final Localization localization)
+    public synchronized List<SabrMediaSegment> pumpOnce(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final YoutubeSabrProbeResult result = fetchNextResponse(localization);
         final SabrDecodedResponse decoded = result.getDecodedResponse();
@@ -621,6 +638,34 @@ public final class YoutubeSabrSession {
         streamState.setBufferedRangesOverride(null);
         streamState.clearPlayerTimeMsOverride();
         streamState.setActiveTrackTypes(true, true);
+    }
+
+    @Nullable
+    private SabrMediaSegment tryFetchInitializationSegmentFromColdStart(
+            @Nonnull final SabrSegmentRequest request,
+            @Nonnull final Localization localization) throws IOException, ExtractionException {
+        try {
+            final YoutubeSabrSession initSession = new YoutubeSabrSession(
+                    info, audioFormat, videoFormat, poTokenProvider, false);
+            initSession.streamState.setPoToken(streamState.getPoToken());
+            final SabrMediaSegment segment = initSession.fetchSegment(request, localization);
+            ingestColdStartInitializationSegment(initSession, audioFormat);
+            ingestColdStartInitializationSegment(initSession, videoFormat);
+            final SabrMediaSegment cachedSegment = segmentCache.get(cacheKey(request));
+            return cachedSegment == null ? segment : cachedSegment;
+        } catch (final IOException | ExtractionException ignored) {
+            return null;
+        }
+    }
+
+    private void ingestColdStartInitializationSegment(@Nonnull final YoutubeSabrSession initSession,
+                                                     @Nonnull final YoutubeSabrFormat format) {
+        final SabrMediaSegment segment = initSession.getCachedSegment(
+                SabrSegmentRequest.initialization(format));
+        if (segment != null) {
+            segmentCache.put(cacheKey(segment), segment);
+            streamState.ingest(segment);
+        }
     }
 
     private void clearTargetedMediaRequestState(final boolean videoActive,
