@@ -84,6 +84,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private JsonObject mwebStreamingData;
     @Nullable
     private JsonObject configuredStreamingData;
+    private String mwebHlsManifestUrl = EMPTY_STRING;
 
     private JsonObject videoPrimaryInfoRenderer;
     private JsonObject videoSecondaryInfoRenderer;
@@ -723,6 +724,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         String hlsUrl = getManifestUrl(
                 "hls",
                 Arrays.asList(configuredStreamingData, webStreamingData, mwebStreamingData));
+        if (hlsUrl.isEmpty()
+                && (streamType == StreamType.LIVE_STREAM
+                || streamType == StreamType.POST_LIVE_STREAM)
+                && !mwebHlsManifestUrl.isEmpty()) {
+            hlsUrl = mwebHlsManifestUrl + "?mpd_version=7";
+        }
 
         if (!hlsUrl.isEmpty()) {
             hlsUrl = deobfuscateManifestUrl(hlsUrl);
@@ -802,6 +809,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 extractAdaptiveFormats(videoId);
             }
             if (streamType == StreamType.POST_LIVE_STREAM
+                    || (streamType == StreamType.LIVE_STREAM
+                        && "tv_downgraded".equals(selectedClient))
                     || "web_safari".equals(selectedClient)) {
                 tryExtractHlsStreams(videoId);
             }
@@ -1142,7 +1151,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
             }
         }
-        return EMPTY_STRING;
+        return streamType == StreamType.LIVE_STREAM
+                || streamType == StreamType.POST_LIVE_STREAM
+                ? mwebHlsManifestUrl : EMPTY_STRING;
     }
 
     private void parseHlsMasterManifest(@Nonnull final String manifestContent,
@@ -1674,6 +1685,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         contentCountry, localization, videoId);
                 break;
         }
+        final CancellableCall mwebHlsCall = "tv_downgraded".equals(
+                NewPipe.getYoutubePlayerClient())
+                ? fetchMwebHlsManifest(contentCountry, localization, videoId) : null;
 
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
@@ -1714,9 +1728,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 });
             }
-            final CancellableCall[] requiredCalls = {
-                    jsonPlayerCall, webPageCall, nextDataCall
-            };
+            final CancellableCall[] requiredCalls = mwebHlsCall == null
+                    ? new CancellableCall[]{jsonPlayerCall, webPageCall, nextDataCall}
+                    : new CancellableCall[]{jsonPlayerCall, mwebHlsCall,
+                            webPageCall, nextDataCall};
             awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
 
             throwIfErrors();
@@ -1961,6 +1976,39 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         mwebCpn,
                         "MWEB",
                         MWEB_USER_AGENT), localization, "2", MWEB_USER_AGENT, callback);
+    }
+
+    private CancellableCall fetchMwebHlsManifest(
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final Localization localization,
+            @Nonnull final String videoId) throws IOException, ExtractionException {
+        final String cpn = generateContentPlaybackNonce();
+        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
+            @Override
+            public void onSuccess(final Response response) {
+                try {
+                    final JsonObject mwebPlayerResponse = JsonUtils.toJsonObject(
+                            getValidJsonResponseBody(response));
+                    if (isPlayerResponseNotValid(mwebPlayerResponse, videoId)) {
+                        throw new ExtractionException("MWEB player response is not valid");
+                    }
+                    mwebHlsManifestUrl = mwebPlayerResponse.getObject(STREAMING_DATA)
+                            .getString("hlsManifestUrl", EMPTY_STRING);
+                } catch (final Exception e) {
+                    addError(e);
+                }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
+            }
+        };
+        return getJsonPlayerResponseAsync(PLAYER,
+                createJsonPlayerBody(localization, contentCountry, videoId,
+                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId), cpn,
+                        "MWEB", MWEB_USER_AGENT),
+                localization, "2", MWEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchConfiguredJsonPlayer(
