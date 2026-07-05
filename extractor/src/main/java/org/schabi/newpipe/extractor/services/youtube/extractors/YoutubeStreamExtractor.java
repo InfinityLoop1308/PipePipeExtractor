@@ -2019,6 +2019,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 try {
                     final JsonObject configuredResponse = JsonUtils.toJsonObject(
                             getValidJsonResponseBody(response));
+                    checkPlayabilityStatus(
+                            configuredResponse.getObject("playabilityStatus"), videoId);
                     if (isPlayerResponseNotValid(configuredResponse, videoId)) {
                         throw new ExtractionException(selectedClient + " player response is not valid");
                     }
