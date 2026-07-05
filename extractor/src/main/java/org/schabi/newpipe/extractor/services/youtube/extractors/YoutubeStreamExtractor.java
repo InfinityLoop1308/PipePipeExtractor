@@ -1723,6 +1723,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (playerResponse == null) {
                 throw new ExtractionException("YouTube player response is missing");
             }
+            checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
             if (configuredStreamingData == null
                     && webStreamingData == null && mwebStreamingData == null) {
                 throw new ExtractionException("YouTube streaming data is missing");
@@ -1730,9 +1731,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (nextResponse == null) {
                 throw new ExtractionException("YouTube next response is missing");
             }
-
-
-        checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
         setStreamType();
         System.out.println("YouTube video " + videoId + " wait time: "
                 + finalWaitSeconds + " seconds");
