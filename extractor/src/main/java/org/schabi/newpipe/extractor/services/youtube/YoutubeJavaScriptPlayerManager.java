@@ -211,10 +211,13 @@ public final class YoutubeJavaScriptPlayerManager {
 
         final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
         if (decoder != null) {
-            final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
-            playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
-                    System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
-            return playerMetadata;
+            try {
+                final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
+                playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
+                        System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+                return playerMetadata;
+            } catch (final Exception ignored) {
+            }
         }
 
         playerMetadata = fetchLatestPlayerMetadata();
