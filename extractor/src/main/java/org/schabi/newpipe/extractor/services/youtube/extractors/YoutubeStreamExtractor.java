@@ -39,6 +39,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo;
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe;
 import org.schabi.newpipe.extractor.stream.*;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
+import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.SubtitleDeduplicator;
 import org.schabi.newpipe.extractor.utils.Utils;
 
@@ -98,6 +99,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // two different strings are used.
     private String webCpn;
     private String mwebCpn;
+    private String configuredCpn;
 
     public WatchDataCache watchDataCache;
 
@@ -298,7 +300,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    webStreamingData, mwebStreamingData));
+                    configuredStreamingData, webStreamingData, mwebStreamingData));
         }
     }
 
@@ -716,7 +718,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String hlsUrl = getManifestUrl(
                 "hls",
-                Arrays.asList(webStreamingData, mwebStreamingData));
+                Arrays.asList(configuredStreamingData, webStreamingData, mwebStreamingData));
 
         if (!hlsUrl.isEmpty()) {
             hlsUrl = deobfuscateManifestUrl(hlsUrl);
@@ -786,11 +788,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             cachedAudioStreams = new ArrayList<>();
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
-            if (streamType != StreamType.LIVE_STREAM
+            final String selectedClient = NewPipe.getYoutubePlayerClient();
+            if (("mweb".equals(selectedClient) || "web".equals(selectedClient))
+                    && streamType != StreamType.LIVE_STREAM
                     && streamType != StreamType.POST_LIVE_STREAM
                     && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
-            } else if (streamType == StreamType.POST_LIVE_STREAM) {
+            } else {
+                extractAdaptiveFormats(videoId);
+            }
+            if (streamType == StreamType.POST_LIVE_STREAM
+                    || "web_safari".equals(selectedClient)) {
                 tryExtractHlsStreams(videoId);
             }
             streamsCached = true;
@@ -888,6 +896,135 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         Collections.sort(cachedAudioStreams,
                 Comparator.comparingInt(AudioStream::getBitrate).reversed());
+    }
+
+    private void extractAdaptiveFormats(@Nonnull final String videoId) throws ParsingException {
+        if (configuredStreamingData == null) {
+            return;
+        }
+        final JsonArray formats = configuredStreamingData.getArray(ADAPTIVE_FORMATS);
+        if (formats == null) {
+            return;
+        }
+        final List<ItagInfo> itags = new ArrayList<>();
+        for (int i = 0; i < formats.size(); i++) {
+            final JsonObject format = formats.getObject(i);
+            try {
+                final ItagItem item = ItagItem.getItag(format.getInt("itag"));
+                final ItagInfo info = createDirectItag(format, item, configuredCpn);
+                if (info != null) {
+                    if (item.itagType == ItagItem.ItagType.AUDIO && format.has("audioTrack")) {
+                        final JsonObject track = format.getObject("audioTrack");
+                        final String id = track.getString("id", EMPTY_STRING);
+                        final String language = id.split("\\.")[0];
+                        info.setAudioTrackInfo(id, track.getString("displayName", language),
+                                language.split("-")[0]);
+                    }
+                    itags.add(info);
+                }
+            } catch (final Exception ignored) {
+            }
+        }
+        deobfuscateDirectUrls(videoId, itags);
+        for (final ItagInfo info : itags) {
+            final ItagItem item = info.getItagItem();
+            if (item.itagType == ItagItem.ItagType.AUDIO) {
+                final AudioStream stream = new AudioStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
+                        .setId(UUID.randomUUID().toString())
+                        .setContent(info.getContent(), info.getIsUrl())
+                        .setMediaFormat(item.getMediaFormat())
+                        .setAverageBitrate(item.getAverageBitrate())
+                        .setItagItem(item)
+                        .setAudioTrackId(info.getAudioTrackId())
+                        .setAudioTrackName(info.getAudioTrackName())
+                        .setAudioLocale(info.getAudioLocale())
+                        .build();
+                if (!Stream.containSimilarStream(stream, cachedAudioStreams)) {
+                    cachedAudioStreams.add(stream);
+                }
+            } else if (item.itagType == ItagItem.ItagType.VIDEO_ONLY) {
+                final VideoStream stream = new VideoStream.Builder()
+                        .setAvailableAt(getStreamAvailableAt())
+                        .setId(String.valueOf(item.id))
+                        .setContent(info.getContent(), info.getIsUrl())
+                        .setMediaFormat(item.getMediaFormat())
+                        .setIsVideoOnly(true)
+                        .setItagItem(item)
+                        .setResolution(item.getResolutionString() == null
+                                ? EMPTY_STRING : item.getResolutionString())
+                        .build();
+                if (!Stream.containSimilarStream(stream, cachedVideoOnlyStreams)) {
+                    cachedVideoOnlyStreams.add(stream);
+                }
+            }
+        }
+        Collections.sort(cachedAudioStreams,
+                Comparator.comparingInt(AudioStream::getBitrate).reversed());
+    }
+
+    @Nullable
+    private ItagInfo createDirectItag(@Nonnull final JsonObject format,
+                                      @Nonnull final ItagItem item,
+                                      @Nonnull final String cpn) throws IOException {
+        String url;
+        String signature = null;
+        if (format.has("url")) {
+            url = format.getString("url");
+        } else if (format.has("signatureCipher") || format.has("cipher")) {
+            final Map<String, String> cipher = Parser.compatParseMap(format.getString("cipher",
+                    format.getString("signatureCipher")));
+            url = cipher.get("url") + "&" + cipher.get("sp") + "=SIGNATURE_PLACEHOLDER";
+            signature = cipher.get("s");
+        } else {
+            return null;
+        }
+        url += "&" + CPN + "=" + cpn;
+        fillSabrItagItem(item, format);
+        final ItagInfo info = new ItagInfo(url, item);
+        info.setIsUrl(!"FORMAT_STREAM_TYPE_OTF".equalsIgnoreCase(
+                format.getString("type", EMPTY_STRING)));
+        if (signature != null) {
+            info.setObfuscatedSignature(signature);
+        }
+        return info;
+    }
+
+    private void deobfuscateDirectUrls(@Nonnull final String videoId,
+                                       @Nonnull final List<ItagInfo> itags)
+            throws ParsingException {
+        final LinkedHashSet<String> signatures = new LinkedHashSet<>();
+        final LinkedHashSet<String> throttling = new LinkedHashSet<>();
+        for (final ItagInfo info : itags) {
+            if (!isNullOrEmpty(info.getObfuscatedSignature())) {
+                signatures.add(info.getObfuscatedSignature());
+            }
+            final String n = YoutubeJavaScriptPlayerManager
+                    .getThrottlingParameterFromStreamingUrl(info.getContent());
+            if (!isNullOrEmpty(n)) {
+                throttling.add(n);
+            }
+        }
+        if (signatures.isEmpty() && throttling.isEmpty()) {
+            return;
+        }
+        final YoutubeApiDecoder.BatchDecodeResult result =
+                YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId,
+                        new ArrayList<>(signatures), new ArrayList<>(throttling));
+        for (final ItagInfo info : itags) {
+            String url = info.getContent();
+            final String signature = info.getObfuscatedSignature();
+            if (!isNullOrEmpty(signature) && result.getSignatures().get(signature) != null) {
+                url = url.replace("SIGNATURE_PLACEHOLDER",
+                        result.getSignatures().get(signature));
+            }
+            final String n = YoutubeJavaScriptPlayerManager
+                    .getThrottlingParameterFromStreamingUrl(url);
+            if (!isNullOrEmpty(n) && result.getNParameters().get(n) != null) {
+                url = url.replace(n, result.getNParameters().get(n));
+            }
+            info.setContent(url);
+        }
     }
 
     @Nullable
@@ -993,7 +1130,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getHlsManifestUrlFromStreamingData() {
         for (final JsonObject sd : Arrays.asList(
-                webStreamingData, mwebStreamingData)) {
+                configuredStreamingData, webStreamingData, mwebStreamingData)) {
             if (sd != null) {
                 final String url = sd.getString("hlsManifestUrl");
                 if (url != null && !url.isEmpty()) {
@@ -1516,6 +1653,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         final CancellableCall jsonPlayerCall;
         switch (NewPipe.getYoutubePlayerClient()) {
+            case "web_safari":
+            case "android_vr":
+            case "tv_simply":
+            case "tv_downgraded":
+                jsonPlayerCall = fetchConfiguredJsonPlayer(
+                        contentCountry, localization, videoId,
+                        NewPipe.getYoutubePlayerClient());
+                break;
             case "web":
                 jsonPlayerCall = fetchWebJsonPlayer(
                         contentCountry, localization, videoId);
@@ -1825,6 +1970,106 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         mwebCpn,
                         "MWEB",
                         MWEB_USER_AGENT), localization, "2", MWEB_USER_AGENT, callback);
+    }
+
+    private CancellableCall fetchConfiguredJsonPlayer(
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final Localization localization,
+            @Nonnull final String videoId,
+            @Nonnull final String selectedClient) throws IOException, ExtractionException {
+        final PlayerClient client = PlayerClient.forName(selectedClient);
+        configuredCpn = generateContentPlaybackNonce();
+        final JsonBuilder<JsonObject> clientBuilder = JsonObject.builder()
+                .value("utcOffsetMinutes", 0)
+                .value("timeZone", "UTC")
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("userAgent", client.userAgent)
+                .value("clientName", client.clientName)
+                .value("clientVersion", client.clientVersion);
+        if ("android_vr".equals(selectedClient)) {
+            clientBuilder.value("deviceMake", "Oculus")
+                    .value("deviceModel", "Quest 3")
+                    .value("androidSdkVersion", 32)
+                    .value("osName", "Android")
+                    .value("osVersion", "12L");
+        }
+        final byte[] body = JsonWriter.string(JsonObject.builder()
+                .object("context")
+                    .value("client", clientBuilder.done())
+                .end()
+                .object("playbackContext")
+                    .object("contentPlaybackContext")
+                        .value("html5Preference", "HTML5_PREF_WANTS")
+                        .value("signatureTimestamp",
+                                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId))
+                    .end()
+                .end()
+                .value(CPN, configuredCpn)
+                .value(VIDEO_ID, videoId)
+                .value(CONTENT_CHECK_OK, true)
+                .value(RACY_CHECK_OK, true)
+                .done()).getBytes(StandardCharsets.UTF_8);
+        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
+            @Override
+            public void onSuccess(final Response response) {
+                try {
+                    final JsonObject configuredResponse = JsonUtils.toJsonObject(
+                            getValidJsonResponseBody(response));
+                    if (isPlayerResponseNotValid(configuredResponse, videoId)) {
+                        throw new ExtractionException(selectedClient + " player response is not valid");
+                    }
+                    playerResponse = configuredResponse;
+                    updateAvailableAt(configuredResponse);
+                    final JsonObject streamingData = configuredResponse.getObject(STREAMING_DATA);
+                    if (!isNullOrEmpty(streamingData)) {
+                        configuredStreamingData = streamingData;
+                        playerCaptionsTracklistRenderer = configuredResponse.getObject("captions")
+                                .getObject("playerCaptionsTracklistRenderer");
+                    }
+                } catch (final Exception e) {
+                    addError(e);
+                }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
+            }
+        };
+        return getJsonPlayerResponseAsync(PLAYER, body, localization, client.clientId,
+                client.clientVersion, client.userAgent, callback);
+    }
+
+    private static final class PlayerClient {
+        private final String clientName;
+        private final String clientVersion;
+        private final String clientId;
+        private final String userAgent;
+
+        private PlayerClient(final String clientName, final String clientVersion,
+                             final String clientId, final String userAgent) {
+            this.clientName = clientName;
+            this.clientVersion = clientVersion;
+            this.clientId = clientId;
+            this.userAgent = userAgent;
+        }
+
+        private static PlayerClient forName(final String name) {
+            switch (name) {
+                case "android_vr":
+                    return new PlayerClient("ANDROID_VR", "1.65.10", "28",
+                            "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip");
+                case "tv_simply":
+                    return new PlayerClient("TVHTML5_SIMPLY", "1.0", "75", WEB_USER_AGENT);
+                case "tv_downgraded":
+                    return new PlayerClient("TVHTML5", "5.20260114", "7",
+                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
+                default:
+                    return new PlayerClient("WEB", "2.20260114.08.00", "1",
+                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)");
+            }
+        }
     }
 
 

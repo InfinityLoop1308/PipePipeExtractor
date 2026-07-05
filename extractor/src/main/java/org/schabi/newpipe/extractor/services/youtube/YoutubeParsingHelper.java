@@ -1575,6 +1575,24 @@ YoutubeParsingHelper {
         return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
     }
 
+    public static CancellableCall getJsonPlayerResponseAsync(final String endpoint,
+                                                             final byte[] body,
+                                                             final Localization localization,
+                                                             final String clientId,
+                                                             final String clientVersion,
+                                                             final String userAgent,
+                                                             final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(userAgent));
+        headers.put("X-YouTube-Client-Name", singletonList(clientId));
+        headers.put("X-Youtube-Client-Version", singletonList(clientVersion));
+        addLoggedInHeaders(headers);
+        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?"
+                + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
+    }
+
     public static Response getWebPlayerResponseSync(@Nonnull final String videoId)
             throws IOException, ExtractionException {
         Localization localization = new Localization("en");
