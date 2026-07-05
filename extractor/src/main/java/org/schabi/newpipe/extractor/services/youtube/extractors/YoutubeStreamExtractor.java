@@ -1719,7 +1719,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (playerResponse == null) {
                 throw new ExtractionException("YouTube player response is missing");
             }
-            if (webStreamingData == null && mwebStreamingData == null) {
+            if (configuredStreamingData == null
+                    && webStreamingData == null && mwebStreamingData == null) {
                 throw new ExtractionException("YouTube streaming data is missing");
             }
             if (nextResponse == null) {

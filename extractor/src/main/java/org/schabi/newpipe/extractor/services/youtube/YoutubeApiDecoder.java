@@ -91,19 +91,16 @@ public final class YoutubeApiDecoder {
 
         final YoutubeJavaScriptDecoder decoder = localDecoder;
         if (decoder != null) {
-            try {
-                final BatchDecodeResult result = decoder.decodeBatch(playerId,
-                        "sig".equals(paramType) ? Collections.singletonList(value) : null,
-                        "n".equals(paramType) ? Collections.singletonList(value) : null);
-                final String decodedValue = "sig".equals(paramType)
-                        ? result.getSignatures().get(value) : result.getNParameters().get(value);
-                if (decodedValue == null || decodedValue.isEmpty()) {
-                    throw new ParsingException("Local decoder returned empty value for: " + value);
-                }
-                DECODE_CACHE.put(cacheKey, decodedValue);
-                return decodedValue;
-            } catch (final Exception ignored) {
+            final BatchDecodeResult result = decoder.decodeBatch(playerId,
+                    "sig".equals(paramType) ? Collections.singletonList(value) : null,
+                    "n".equals(paramType) ? Collections.singletonList(value) : null);
+            final String decodedValue = "sig".equals(paramType)
+                    ? result.getSignatures().get(value) : result.getNParameters().get(value);
+            if (decodedValue == null || decodedValue.isEmpty()) {
+                throw new ParsingException("Local decoder returned empty value for: " + value);
             }
+            DECODE_CACHE.put(cacheKey, decodedValue);
+            return decodedValue;
         }
 
         try {
@@ -178,10 +175,7 @@ public final class YoutubeApiDecoder {
             throws ParsingException {
         final YoutubeJavaScriptDecoder decoder = localDecoder;
         if (decoder != null) {
-            try {
-                return decoder.decodeBatch(playerId, signatureParams, nParams);
-            } catch (final Exception ignored) {
-            }
+            return decoder.decodeBatch(playerId, signatureParams, nParams);
         }
         // Validate input
         final boolean hasSigs = signatureParams != null && !signatureParams.isEmpty();
