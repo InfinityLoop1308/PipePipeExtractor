@@ -805,7 +805,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     && streamType != StreamType.POST_LIVE_STREAM
                     && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
-            } else {
+            } else if (!("tv_downgraded".equals(selectedClient)
+                    && (streamType == StreamType.LIVE_STREAM
+                    || streamType == StreamType.POST_LIVE_STREAM))) {
                 extractAdaptiveFormats(videoId);
             }
             if (streamType == StreamType.POST_LIVE_STREAM
