@@ -137,6 +137,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             title = playerResponse.getObject("videoDetails").getString("title");
 
             if (isNullOrEmpty(title)) {
+                title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject("title"));
+            }
+
+            if (isNullOrEmpty(title)) {
                 throw new ParsingException("Could not get name");
             }
         }
