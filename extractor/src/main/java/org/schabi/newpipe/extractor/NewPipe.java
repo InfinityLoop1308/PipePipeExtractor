@@ -45,7 +45,7 @@ public final class NewPipe {
     private static Downloader downloader;
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
-    private static String youtubePlayerClient = "mweb";
+    private static String youtubePlayerClient = "web_safari";
 
     private NewPipe() {
 
@@ -175,7 +175,7 @@ public final class NewPipe {
                 || "tv_downgraded".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
-            NewPipe.youtubePlayerClient = "mweb";
+            NewPipe.youtubePlayerClient = "web_safari";
         }
     }
 
