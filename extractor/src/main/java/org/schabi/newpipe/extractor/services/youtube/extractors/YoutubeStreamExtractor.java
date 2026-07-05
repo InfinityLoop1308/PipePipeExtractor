@@ -1801,18 +1801,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return null;
         }
 
-        try {
-            JsonObject response = JsonParser.object().from(getWebPlayerResponseSync(videoId).responseBody());
-            playabilityStatus = response.getObject("playabilityStatus");
-            status = playabilityStatus.getString("status");
-            if (status == null || status.equalsIgnoreCase("ok")) {
-                return response;
-            }
-        } catch (IOException | ExtractionException | JsonParserException e) {
-            // this should not happen
-        }
-
-
         final String reason = playabilityStatus.getString("reason");
 
         if (status.equalsIgnoreCase("login_required")) {
