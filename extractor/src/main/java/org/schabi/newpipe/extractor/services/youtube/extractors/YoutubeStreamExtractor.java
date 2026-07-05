@@ -1738,8 +1738,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
             setStreamType();
-            if ("tv_downgraded".equals(NewPipe.getYoutubePlayerClient())
-                    && streamType == StreamType.LIVE_STREAM) {
+            final String selectedClient = NewPipe.getYoutubePlayerClient();
+            final boolean hasConfiguredHls = configuredStreamingData != null
+                    && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
+            if (streamType == StreamType.LIVE_STREAM
+                    && ("tv_downgraded".equals(selectedClient)
+                    || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
                 final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
                         contentCountry, localization, videoId);
                 awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
