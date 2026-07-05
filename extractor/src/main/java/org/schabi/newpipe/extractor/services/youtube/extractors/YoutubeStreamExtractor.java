@@ -1473,7 +1473,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     public void setStreamType() {
-        if (playerResponse.getObject("playabilityStatus").has("liveStreamability")) {
+        final JsonObject videoDetails = playerResponse.getObject("videoDetails");
+        final JsonObject playabilityStatus = playerResponse.getObject("playabilityStatus");
+        if (videoDetails.getBoolean("isLive", false)) {
+            streamType = StreamType.LIVE_STREAM;
+        } else if (videoDetails.getBoolean("isPostLiveDvr", false)) {
+            streamType = StreamType.POST_LIVE_STREAM;
+        } else if (playabilityStatus.has("liveStreamability")) {
             if (StringUtils.isBlank(ServiceList.YouTube.getTokens())
                     && !playerResponse.getObject(STREAMING_DATA).has("hlsManifestUrl")
                     && !"tv_downgraded".equals(NewPipe.getYoutubePlayerClient())) {
@@ -1481,8 +1487,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             } else {
                 streamType = StreamType.LIVE_STREAM;
             }
-        } else if (playerResponse.getObject("videoDetails").getBoolean("isPostLiveDvr", false)) {
-            streamType = StreamType.POST_LIVE_STREAM;
         } else {
             streamType = StreamType.VIDEO_STREAM;
         }
