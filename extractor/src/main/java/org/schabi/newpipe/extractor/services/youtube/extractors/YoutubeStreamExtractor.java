@@ -724,9 +724,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         String hlsUrl = getManifestUrl(
                 "hls",
                 Arrays.asList(configuredStreamingData, webStreamingData, mwebStreamingData));
-        if (hlsUrl.isEmpty()
-                && (streamType == StreamType.LIVE_STREAM
-                || streamType == StreamType.POST_LIVE_STREAM)
+        if (hlsUrl.isEmpty() && streamType == StreamType.LIVE_STREAM
                 && !mwebHlsManifestUrl.isEmpty()) {
             hlsUrl = mwebHlsManifestUrl + "?mpd_version=7";
         }
@@ -806,8 +804,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
             } else if (!("tv_downgraded".equals(selectedClient)
-                    && (streamType == StreamType.LIVE_STREAM
-                    || streamType == StreamType.POST_LIVE_STREAM))) {
+                    && streamType == StreamType.LIVE_STREAM)) {
                 extractAdaptiveFormats(videoId);
             }
             if (streamType == StreamType.POST_LIVE_STREAM
@@ -1153,9 +1150,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 }
             }
         }
-        return streamType == StreamType.LIVE_STREAM
-                || streamType == StreamType.POST_LIVE_STREAM
-                ? mwebHlsManifestUrl : EMPTY_STRING;
+        return streamType == StreamType.LIVE_STREAM ? mwebHlsManifestUrl : EMPTY_STRING;
     }
 
     private void parseHlsMasterManifest(@Nonnull final String manifestContent,
@@ -1479,7 +1474,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     public void setStreamType() {
         if (playerResponse.getObject("playabilityStatus").has("liveStreamability")) {
-            if (StringUtils.isBlank(ServiceList.YouTube.getTokens()) && !playerResponse.getObject(STREAMING_DATA).has("hlsManifestUrl")) {
+            if (StringUtils.isBlank(ServiceList.YouTube.getTokens())
+                    && !playerResponse.getObject(STREAMING_DATA).has("hlsManifestUrl")
+                    && !"tv_downgraded".equals(NewPipe.getYoutubePlayerClient())) {
                 streamType = StreamType.VIDEO_STREAM;
             } else {
                 streamType = StreamType.LIVE_STREAM;
@@ -1687,10 +1684,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         contentCountry, localization, videoId);
                 break;
         }
-        final CancellableCall mwebHlsCall = "tv_downgraded".equals(
-                NewPipe.getYoutubePlayerClient())
-                ? fetchMwebHlsManifest(contentCountry, localization, videoId) : null;
-
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
                         .value(VIDEO_ID, videoId)
@@ -1730,10 +1723,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     }
                 });
             }
-            final CancellableCall[] requiredCalls = mwebHlsCall == null
-                    ? new CancellableCall[]{jsonPlayerCall, webPageCall, nextDataCall}
-                    : new CancellableCall[]{jsonPlayerCall, mwebHlsCall,
-                            webPageCall, nextDataCall};
+            final CancellableCall[] requiredCalls = {
+                    jsonPlayerCall, webPageCall, nextDataCall
+            };
             awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
 
             throwIfErrors();
@@ -1741,6 +1733,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 throw new ExtractionException("YouTube player response is missing");
             }
             checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+            setStreamType();
+            if ("tv_downgraded".equals(NewPipe.getYoutubePlayerClient())
+                    && streamType == StreamType.LIVE_STREAM) {
+                final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
+                        contentCountry, localization, videoId);
+                awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
+                        ServiceList.YouTube.getLoadingTimeout());
+                throwIfErrors();
+            }
             if (configuredStreamingData == null
                     && webStreamingData == null && mwebStreamingData == null) {
                 throw new ExtractionException("YouTube streaming data is missing");
@@ -1748,7 +1749,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (nextResponse == null) {
                 throw new ExtractionException("YouTube next response is missing");
             }
-        setStreamType();
         System.out.println("YouTube video " + videoId + " wait time: "
                 + finalWaitSeconds + " seconds");
 
