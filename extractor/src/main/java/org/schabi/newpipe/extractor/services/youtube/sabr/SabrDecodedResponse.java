@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class SabrDecodedResponse {
+    private static final int MAX_MALFORMED_PARTS = 16;
+    private static final int MAX_MALFORMED_MESSAGE_CHARS = 256;
     private final List<UmpPart> parts = new ArrayList<>();
     private final List<String> partSummaries = new ArrayList<>();
     private final List<String> wireFieldSummaries = new ArrayList<>();
@@ -22,6 +24,7 @@ public final class SabrDecodedResponse {
     private final Map<Integer, Long> mediaBytesByHeaderId = new LinkedHashMap<>();
     private final List<Integer> mediaEndHeaderIds = new ArrayList<>();
     private final List<Integer> unknownPartTypes = new ArrayList<>();
+    private final List<String> malformedParts = new ArrayList<>();
     private final Map<Integer, List<String>> genericPartDescriptions = new LinkedHashMap<>();
     @Nullable
     private String redirectUrl;
@@ -92,6 +95,17 @@ public final class SabrDecodedResponse {
 
     void addUnknownPartType(final int type) {
         unknownPartTypes.add(type);
+    }
+
+    void addMalformedPart(final int type, final int size,
+                          @Nonnull final SabrProtocolException error) {
+        if (malformedParts.size() >= MAX_MALFORMED_PARTS) {
+            return;
+        }
+        final String message = String.valueOf(error.getMessage());
+        malformedParts.add(type + ":" + size + ":" + (message.length()
+                > MAX_MALFORMED_MESSAGE_CHARS
+                ? message.substring(0, MAX_MALFORMED_MESSAGE_CHARS) : message));
     }
 
     void addWireFieldSummary(final int type, @Nonnull final String summary) {
@@ -308,6 +322,11 @@ public final class SabrDecodedResponse {
     }
 
     @Nonnull
+    public List<String> getMalformedParts() {
+        return Collections.unmodifiableList(malformedParts);
+    }
+
+    @Nonnull
     public Map<Integer, List<String>> getGenericPartDescriptions() {
         final Map<Integer, List<String>> copy = new LinkedHashMap<>();
         for (final Map.Entry<Integer, List<String>> entry : genericPartDescriptions.entrySet()) {
@@ -450,6 +469,7 @@ public final class SabrDecodedResponse {
                 + ", mediaBytes=" + mediaBytesByHeaderId
                 + ", mediaEnds=" + mediaEndHeaderIds
                 + ", integrity=" + getIntegrityIssues()
+                + ", malformedParts=" + malformedParts
                 + ", unknownParts=" + unknownPartTypes
                 + ", protection=" + streamProtectionStatus + '/' + streamProtectionMaxRetries
                 + ", backoffMs=" + backoffTimeMs

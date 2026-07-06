@@ -10,6 +10,7 @@ public final class YoutubeSabrProbeResult {
     private final SabrDecodedResponse decodedResponse;
     @Nonnull
     private final List<SabrMediaSegment> segments;
+    private final int segmentCount;
     private final int responseCode;
     @Nonnull
     private final String contentType;
@@ -17,11 +18,13 @@ public final class YoutubeSabrProbeResult {
     YoutubeSabrProbeResult(@Nonnull final YoutubeSabrInfo info,
                            @Nonnull final SabrDecodedResponse decodedResponse,
                            @Nonnull final List<SabrMediaSegment> segments,
+                           final int segmentCount,
                            final int responseCode,
                            @Nonnull final String contentType) {
         this.info = info;
         this.decodedResponse = decodedResponse;
         this.segments = segments;
+        this.segmentCount = segmentCount;
         this.responseCode = responseCode;
         this.contentType = contentType;
     }
@@ -40,6 +43,11 @@ public final class YoutubeSabrProbeResult {
     @Nonnull
     public List<SabrMediaSegment> getSegments() {
         return segments;
+    }
+
+    /** Number delivered, including segments streamed to a consumer and therefore not retained. */
+    public int getSegmentCount() {
+        return segmentCount;
     }
 
     public int getResponseCode() {

@@ -23,9 +23,27 @@ public final class SabrStreamingResponseReader {
     @Nonnull
     public static Result read(@Nonnull final InputStream in)
             throws SabrProtocolException, IOException {
+        return read(in, null);
+    }
+
+    @FunctionalInterface
+    public interface SegmentConsumer {
+        void accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
+    }
+
+    /**
+     * Streams completed segments directly to {@code segmentConsumer}. When a consumer is supplied,
+     * completed segments are not retained by the result, bounding the response reader to one open
+     * segment instead of the sum of every segment in the response.
+     */
+    @Nonnull
+    public static Result read(@Nonnull final InputStream in,
+                              final SegmentConsumer segmentConsumer)
+            throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
+        final int[] segmentCount = {0};
         // headerId -> total media bytes seen, so the decoded response passes the same integrity check
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
@@ -35,9 +53,14 @@ public final class SabrStreamingResponseReader {
             SabrDecodedResponse.addPartSummary(partSummaries, type, payload.length);
             switch (type) {
                 case SabrResponseDecoder.MEDIA_HEADER:
-                    collector.onMediaHeader(payload);
                     // small (just the header) -> keep so the decoder records it (observeHeader).
                     controlParts.add(new UmpPart(type, payload.length, payload));
+                    try {
+                        collector.onMediaHeader(payload);
+                    } catch (final SabrProtocolException ignored) {
+                        // decodeParts records the malformed header. Following MEDIA is deliberately
+                        // left without an open header so integrity recovery requests a clean batch.
+                    }
                     break;
                 case SabrResponseDecoder.MEDIA:
                     // big payload -> assemble into the open segment, do NOT retain.
@@ -52,7 +75,12 @@ public final class SabrStreamingResponseReader {
                 case SabrResponseDecoder.MEDIA_END: {
                     final SabrMediaSegment segment = collector.onMediaEnd(payload);
                     if (segment != null) {
-                        segments.add(segment);
+                        segmentCount[0]++;
+                        if (segmentConsumer == null) {
+                            segments.add(segment);
+                        } else {
+                            segmentConsumer.accept(segment);
+                        }
                     }
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
@@ -67,7 +95,7 @@ public final class SabrStreamingResponseReader {
         for (final Map.Entry<Integer, Long> entry : mediaBytesByHeaderId.entrySet()) {
             decoded.addMediaBytes(entry.getKey(), entry.getValue());
         }
-        return new Result(decoded, segments);
+        return new Result(decoded, segments, segmentCount[0]);
     }
 
     /** The decoded control response plus the segments assembled while streaming. */
@@ -76,11 +104,14 @@ public final class SabrStreamingResponseReader {
         private final SabrDecodedResponse decodedResponse;
         @Nonnull
         private final List<SabrMediaSegment> segments;
+        private final int segmentCount;
 
         Result(@Nonnull final SabrDecodedResponse decodedResponse,
-               @Nonnull final List<SabrMediaSegment> segments) {
+               @Nonnull final List<SabrMediaSegment> segments,
+               final int segmentCount) {
             this.decodedResponse = decodedResponse;
             this.segments = segments;
+            this.segmentCount = segmentCount;
         }
 
         @Nonnull
@@ -91,6 +122,10 @@ public final class SabrStreamingResponseReader {
         @Nonnull
         public List<SabrMediaSegment> getSegments() {
             return segments;
+        }
+
+        public int getSegmentCount() {
+            return segmentCount;
         }
     }
 }

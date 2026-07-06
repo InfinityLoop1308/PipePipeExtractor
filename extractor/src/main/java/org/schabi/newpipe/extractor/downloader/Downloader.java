@@ -100,6 +100,17 @@ public abstract class Downloader {
                 .build(), callback);
     }
 
+    public StreamingResponse getStreaming(final String url,
+                                          @Nullable final Map<String, List<String>> headers,
+                                          @Nullable final Localization localization)
+            throws IOException, ReCaptchaException {
+        final Response response = get(url, headers, localization);
+        final byte[] raw = response.rawResponseBody() == null
+                ? new byte[0] : response.rawResponseBody();
+        return new StreamingResponse(response.responseCode(), response.responseHeaders(),
+                new ByteArrayInputStream(raw));
+    }
+
     /**
      * Do a HEAD request.
      *

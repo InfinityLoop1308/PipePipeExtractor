@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
+import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
@@ -7,6 +9,7 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -35,6 +38,7 @@ public final class YoutubeSabrSession {
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
     private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
+    private static final int MAX_INITIALIZATION_BYTES = 16 * 1024 * 1024;
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
     private YoutubeSabrInfo info;
@@ -59,6 +63,7 @@ public final class YoutubeSabrSession {
     private final Deque<String> diagnosticEvents = new ArrayDeque<>();
     private int diagnosticChars;
     private long cachedBytes;
+    private long peakCachedBytes;
     // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
     private volatile long playHeadMs;
     // Keep this much already-played media before evicting: the two tracks read slightly apart and a
@@ -116,7 +121,8 @@ public final class YoutubeSabrSession {
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
         int policyOnlyResponses = 0;
         for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
-            final YoutubeSabrProbeResult result = fetchNextResponse(localization);
+            final YoutubeSabrProbeResult result = fetchNextResponse(localization,
+                    this::ingestAndCacheSegment);
             final SabrDecodedResponse decoded = result.getDecodedResponse();
             final List<String> integrityIssues = decoded.getIntegrityIssues();
             if (!integrityIssues.isEmpty()) {
@@ -133,10 +139,6 @@ public final class YoutubeSabrSession {
             consecutiveIntegrityFailures = 0;
             streamState.ingest(decoded);
             final List<SabrMediaSegment> segments = result.getSegments();
-            for (final SabrMediaSegment segment : segments) {
-                streamState.ingest(segment);
-                segmentCache.put(cacheKey(segment), segment);
-            }
             final SabrMediaSegment segment = segmentCache.get(cacheKey(request));
             if (segment != null) {
                 return segment;
@@ -173,7 +175,7 @@ public final class YoutubeSabrSession {
                     throw new SabrProtocolException("SABR repeated policy-only responses while fetching "
                             + describeRequest(request) + ": " + decoded.summarizeNoMediaResponse());
                 }
-            } else if (!segments.isEmpty()) {
+            } else if (result.getSegmentCount() > 0) {
                 policyOnlyResponses = 0;
             }
             if (decoded.getBackoffTimeMs() > 0) {
@@ -193,8 +195,16 @@ public final class YoutubeSabrSession {
     @Nonnull
     public YoutubeSabrProbeResult fetchNextResponse(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
+        return fetchNextResponse(localization, null);
+    }
+
+    @Nonnull
+    private YoutubeSabrProbeResult fetchNextResponse(
+            @Nonnull final Localization localization,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
+            throws IOException, ExtractionException {
         addDiagnosticEvent("request n=" + requestNumber
-                + " playerMs=" + streamState.getPlayerTimeMs()
+                + " playerMs=" + streamState.getRequestPlayerTimeMs()
                 + " edgeMs=" + streamState.getMinBufferedEndMs()
                 + " poTokenBytes=" + (streamState.getRawPoToken() == null
                 ? -1 : streamState.getRawPoToken().length)
@@ -202,11 +212,19 @@ public final class YoutubeSabrSession {
         final YoutubeSabrProbeResult result;
         try {
             if (requestNumber == 0) {
-                result = YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat,
-                        streamState, serverAbrStreamingUrl, localization);
+                result = segmentConsumer == null
+                        ? YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat,
+                        streamState, serverAbrStreamingUrl, localization)
+                        : YoutubeSabrProbe.probeFirstMediaResponseStreaming(info, audioFormat,
+                        videoFormat, streamState, serverAbrStreamingUrl, segmentConsumer,
+                        localization);
             } else {
-                result = YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
-                        streamState, requestNumber, serverAbrStreamingUrl, localization);
+                result = segmentConsumer == null
+                        ? YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
+                        streamState, requestNumber, serverAbrStreamingUrl, localization)
+                        : YoutubeSabrProbe.probeFollowUpMediaResponseStreaming(info, audioFormat,
+                        videoFormat, streamState, requestNumber, serverAbrStreamingUrl,
+                        segmentConsumer, localization);
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
@@ -216,7 +234,8 @@ public final class YoutubeSabrSession {
         addDiagnosticEvent("response n=" + requestNumber
                 + " http=" + result.getResponseCode()
                 + " contentType=" + result.getContentType()
-                + " segments=" + summarizeSegments(result.getSegments())
+                + " segments=" + (result.getSegments().isEmpty()
+                ? "count=" + result.getSegmentCount() : summarizeSegments(result.getSegments()))
                 + " decoded={" + result.getDecodedResponse().summarizeForDiagnostics() + '}');
         if (result.getDecodedResponse().getRedirectUrl() != null
                 && !result.getDecodedResponse().getRedirectUrl().isEmpty()) {
@@ -315,13 +334,30 @@ public final class YoutubeSabrSession {
     @Nonnull
     public List<SabrMediaSegment> pumpOnce(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = fetchNextResponse(localization);
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, false);
+        return result == null ? Collections.emptyList() : result.getSegments();
+    }
+
+    /** Production pump path: consume/cache each segment before reading the next one. */
+    public int pumpOnceStreaming(@Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true);
+        return result == null ? 0 : result.getSegmentCount();
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
+                                                     final boolean streaming)
+            throws IOException, ExtractionException {
+        final YoutubeSabrProbeResult result = streaming
+                ? fetchNextResponse(localization, this::ingestAndCacheSegment)
+                : fetchNextResponse(localization);
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
         if (!integrityIssues.isEmpty()) {
             if (isRecoverableIncompleteMediaResponse(integrityIssues)) {
                 if (recoverFromIncompleteMediaResponse(localization, decoded)) {
-                    return Collections.emptyList();
+                    return null;
                 }
                 throw new SabrProtocolException("SABR media integrity issue: " + integrityIssues);
             }
@@ -330,13 +366,9 @@ public final class YoutubeSabrSession {
         consecutiveIntegrityFailures = 0;
         streamState.ingest(decoded);
         final List<SabrMediaSegment> segments = result.getSegments();
-        for (final SabrMediaSegment segment : segments) {
-            streamState.ingest(segment);
-            final String key = cacheKey(segment);
-            final SabrMediaSegment prev = segmentCache.put(key, segment);
-            if (prev == null && !segment.getHeader().isInitSegment()) {
-                cacheOrder.addLast(key);
-                cachedBytes += segment.getLength();
+        if (!streaming) {
+            for (final SabrMediaSegment segment : segments) {
+                ingestAndCacheSegment(segment);
             }
         }
         evictCacheIfNeeded();
@@ -347,7 +379,7 @@ public final class YoutubeSabrSession {
         if (decoded.isReloadRequested()) {
             if (maybeReload(localization)) {
                 // fresh session applied; this round yields no media, the pump will call us again
-                return Collections.emptyList();
+                return null;
             }
             throw new SabrProtocolException("SABR requested player reload (reload budget spent): "
                     + decoded.summarizeNoMediaResponse());
@@ -358,7 +390,7 @@ public final class YoutubeSabrSession {
             // trying; the stall watchdog is the real give-up.
             applyPoTokenForProtectedResponse();
         }
-        if (!segments.isEmpty()) {
+        if (result.getSegmentCount() > 0) {
             // A media-bearing response means the current token works and CDN hops are normal: clear
             // the cumulative redirect and token-refresh budgets so a long session isn't capped.
             redirectCount = 0;
@@ -367,7 +399,21 @@ public final class YoutubeSabrSession {
         if (decoded.getBackoffTimeMs() > 0) {
             sleepBackoff(decoded.getBackoffTimeMs());
         }
-        return segments;
+        return result;
+    }
+
+    private void ingestAndCacheSegment(@Nonnull final SabrMediaSegment segment) {
+        streamState.ingest(segment);
+        final String key = cacheKey(segment);
+        final SabrMediaSegment previous = segmentCache.put(key, segment);
+        if (previous == null && !segment.getHeader().isInitSegment()) {
+            cacheOrder.addLast(key);
+            cachedBytes += segment.getLength();
+            peakCachedBytes = Math.max(peakCachedBytes, cachedBytes);
+        }
+        // Streaming responses may contain many large completed segments. Evict between segments,
+        // not only after the whole response has already reached its peak memory use.
+        evictCacheIfNeeded();
     }
 
     /** Drop the oldest cached media segments (furthest behind the play head) to bound memory. */
@@ -379,6 +425,10 @@ public final class YoutubeSabrSession {
     /** Total cached media bytes. The pump throttles on this so high-bitrate (4K) can't OOM the heap. */
     public long getCachedBytes() {
         return cachedBytes;
+    }
+
+    public long getPeakCachedBytes() {
+        return peakCachedBytes;
     }
 
     /**
@@ -521,6 +571,62 @@ public final class YoutubeSabrSession {
         streamState.assumeBufferedUntil(companionFormat,
                 streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
         streamState.setPlayerTimeMs(targetStartMs);
+        streamState.clearPlaybackCookie();
+    }
+
+    public void prepareForInitialization(@Nonnull final YoutubeSabrFormat format) {
+        discardCachedSegment(SabrSegmentRequest.initialization(format));
+        streamState.resetInitialization(format);
+        streamState.clearPlaybackCookie();
+    }
+
+    @Nonnull
+    public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
+                                                   @Nonnull final Localization localization)
+            throws IOException {
+        final String url = format.getInitializationUrl();
+        final long start = format.getInitRangeStart();
+        final long end = format.getInitRangeEnd();
+        if (url == null || url.isEmpty() || start < 0 || end < start
+                || end - start >= MAX_INITIALIZATION_BYTES) {
+            throw new IOException("Invalid SABR initialization fallback: itag="
+                    + format.getItag() + ", start=" + start + ", end=" + end);
+        }
+        final int length = (int) (end - start + 1);
+        final Map<String, List<String>> headers = Collections.singletonMap(
+                "Range", Collections.singletonList("bytes=" + start + '-' + end));
+        try (StreamingResponse response = NewPipe.getDownloader().getStreaming(
+                url, headers, localization)) {
+            if (response.responseCode() != 206
+                    && !(response.responseCode() == 200 && start == 0)) {
+                throw new IOException("SABR initialization fallback failed: itag="
+                        + format.getItag() + ", status=" + response.responseCode());
+            }
+            final byte[] data = readExactly(response.body(), length);
+            streamState.ingestInitializationData(format, data);
+            addDiagnosticEvent("initialization_fallback itag=" + format.getItag()
+                    + " status=" + response.responseCode() + " bytes=" + data.length);
+            return data;
+        } catch (final ExtractionException e) {
+            throw new IOException("SABR initialization fallback failed: itag="
+                    + format.getItag(), e);
+        }
+    }
+
+    @Nonnull
+    private static byte[] readExactly(@Nonnull final InputStream input, final int length)
+            throws IOException {
+        final byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            final int read = input.read(data, offset, length - offset);
+            if (read < 0) {
+                throw new IOException("Truncated SABR initialization fallback: expected="
+                        + length + ", actual=" + offset);
+            }
+            offset += read;
+        }
+        return data;
     }
 
     /**
@@ -540,6 +646,7 @@ public final class YoutubeSabrSession {
         streamState.rewindBufferedTo(companionFormat,
                 streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
         streamState.setPlayerTimeMs(targetStartMs);
+        streamState.clearPlaybackCookie();
         // Discard the now-disconnected forward span (old play position) so the cache doesn't hold two
         // disjoint spans over the byte cap -> OOM at 4K. The pump re-fetches forward from the target.
         evictOutsideSeekWindow(targetStartMs);
@@ -564,6 +671,7 @@ public final class YoutubeSabrSession {
         streamState.jumpBufferedTo(companionFormat,
                 streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
         streamState.setPlayerTimeMs(targetStartMs);
+        streamState.clearPlaybackCookie();
         // Drop the old span behind the jump target right away (don't wait for the reader to advance:
         // a track blocked on the uncached target keeps reader_tail stale, so play-head eviction never
         // runs and the heap fills -> stuck buffering / OOM at 4K). The pump fetches from the target.
@@ -624,7 +732,9 @@ public final class YoutubeSabrSession {
         for (final String issue : integrityIssues) {
             if (!issue.startsWith("length-mismatch:")
                     && !issue.startsWith("missing-media-end:")
-                    && !issue.startsWith("missing-media:")) {
+                    && !issue.startsWith("missing-media:")
+                    && !issue.startsWith("media-without-header:")
+                    && !issue.startsWith("media-end-without-header:")) {
                 return false;
             }
         }

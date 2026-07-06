@@ -159,6 +159,22 @@ public final class YoutubeSabrProbe {
     }
 
     @Nonnull
+    static YoutubeSabrProbeResult probeFirstMediaResponseStreaming(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final YoutubeSabrFormat audioFormat,
+            @Nonnull final YoutubeSabrFormat videoFormat,
+            @Nullable final YoutubeSabrStreamState streamState,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentConsumer,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final byte[] requestBody = YoutubeSabrRequestBuilder.buildFirstMediaRequest(
+                info, audioFormat, videoFormat, streamState);
+        return postMediaRequest(info, requestBody, 0, serverAbrStreamingUrlOverride,
+                segmentConsumer, localization);
+    }
+
+    @Nonnull
     public static YoutubeSabrProbeResult probeFollowUpMediaResponse(
             @Nonnull final YoutubeSabrInfo info,
             @Nonnull final YoutubeSabrFormat audioFormat,
@@ -195,13 +211,33 @@ public final class YoutubeSabrProbe {
     }
 
     @Nonnull
+    static YoutubeSabrProbeResult probeFollowUpMediaResponseStreaming(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final YoutubeSabrFormat audioFormat,
+            @Nonnull final YoutubeSabrFormat videoFormat,
+            @Nonnull final YoutubeSabrStreamState streamState,
+            final int requestNumber,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentConsumer,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        if (requestNumber <= 0) {
+            throw new SabrProtocolException("Follow-up request number must be positive");
+        }
+        final byte[] requestBody = YoutubeSabrRequestBuilder.buildFollowUpMediaRequest(
+                info, audioFormat, videoFormat, streamState);
+        return postMediaRequest(info, requestBody, requestNumber, serverAbrStreamingUrlOverride,
+                segmentConsumer, localization);
+    }
+
+    @Nonnull
     private static YoutubeSabrProbeResult postMediaRequest(
             @Nonnull final YoutubeSabrInfo info,
             @Nonnull final byte[] requestBody,
             final int requestNumber,
             @Nonnull final Localization localization)
             throws IOException, ExtractionException {
-        return postMediaRequest(info, requestBody, requestNumber, null, localization);
+        return postMediaRequest(info, requestBody, requestNumber, null, null, localization);
     }
 
     @Nonnull
@@ -210,6 +246,19 @@ public final class YoutubeSabrProbe {
             @Nonnull final byte[] requestBody,
             final int requestNumber,
             @Nullable final String serverAbrStreamingUrlOverride,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        return postMediaRequest(info, requestBody, requestNumber, serverAbrStreamingUrlOverride,
+                null, localization);
+    }
+
+    @Nonnull
+    static YoutubeSabrProbeResult postMediaRequest(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final byte[] requestBody,
+            final int requestNumber,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer,
             @Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final String serverAbrStreamingUrl = serverAbrStreamingUrlOverride == null
@@ -233,9 +282,10 @@ public final class YoutubeSabrProbe {
                         + contentType + ", status=" + response.responseCode());
             }
             final SabrStreamingResponseReader.Result streamed =
-                    SabrStreamingResponseReader.read(response.body());
+                    SabrStreamingResponseReader.read(response.body(), segmentConsumer);
             return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
-                    streamed.getSegments(), response.responseCode(), contentType);
+                    streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),
+                    contentType);
         }
     }
 

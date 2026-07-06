@@ -129,7 +129,12 @@ public final class YoutubeSabrStreamState {
     public boolean ingestInitializationData(@Nonnull final YoutubeSabrFormat format,
                                             @Nonnull final byte[] data) {
         final FormatProgress progress = findProgressForItag(format.getItag());
-        return progress != null && progress.observeInitializationData(data);
+        if (progress == null) {
+            return false;
+        }
+        progress.initReceived = true;
+        progress.observeInitializationData(data);
+        return true;
     }
 
     @Nonnull
@@ -173,6 +178,14 @@ public final class YoutubeSabrStreamState {
         return Math.max(audio.getBufferedEndMs(), video.getBufferedEndMs());
     }
 
+    long getRequestPlayerTimeMs() {
+        if ((isAudioEnabled() && !audio.initReceived)
+                || (isVideoEnabled() && !video.initReceived)) {
+            return 0;
+        }
+        return getPlayerTimeMs();
+    }
+
     /** buffered end (ms) of the slower track = how far we can actually play. the weakest link wins. */
     public long getMinBufferedEndMs() {
         if (!isVideoEnabled()) {
@@ -194,6 +207,18 @@ public final class YoutubeSabrStreamState {
 
     public void clearPlayerTimeMsOverride() {
         playerTimeMsOverride = -1;
+    }
+
+    void clearPlaybackCookie() {
+        playbackCookie = null;
+    }
+
+    boolean isInitialized(@Nonnull final YoutubeSabrFormat format) {
+        return progressForItag(format.getItag()).initReceived;
+    }
+
+    void resetInitialization(@Nonnull final YoutubeSabrFormat format) {
+        progressForItag(format.getItag()).initReceived = false;
     }
 
     @Nullable
@@ -813,7 +838,7 @@ public final class YoutubeSabrStreamState {
                                       final boolean lastOnlyRangeUseObservedTiming,
                                       final int startSegmentIndexOffset,
                                       final int endSegmentIndexOffset) {
-            if (maxSegment <= 0) {
+            if (!initReceived || maxSegment <= 0) {
                 return;
             }
             if (lastOnlyRange && lastObservedSegment > 0) {

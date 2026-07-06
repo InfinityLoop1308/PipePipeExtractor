@@ -68,17 +68,21 @@ final class YoutubeSabrRequestBuilder {
             throw new SabrProtocolException("Missing video playback ustreamer config");
         }
 
-        final long playerTimeMs = streamState.getPlayerTimeMs();
+        final long playerTimeMs = streamState.getRequestPlayerTimeMs();
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
                 true, streamState.getEnabledTrackTypesBitfield(), streamState));
-        if (streamState.shouldSelectVideoFormatBeforeAudio() && streamState.shouldSelectVideoFormat()) {
+        if (streamState.shouldSelectVideoFormatBeforeAudio()
+                && streamState.shouldSelectVideoFormat()
+                && streamState.isInitialized(videoFormat)) {
             request.writeMessage(2, SabrProto.formatId(videoFormat));
         }
-        if (streamState.shouldSelectAudioFormat()) {
+        if (streamState.shouldSelectAudioFormat() && streamState.isInitialized(audioFormat)) {
             request.writeMessage(2, SabrProto.formatId(audioFormat));
         }
-        if (!streamState.shouldSelectVideoFormatBeforeAudio() && streamState.shouldSelectVideoFormat()) {
+        if (!streamState.shouldSelectVideoFormatBeforeAudio()
+                && streamState.shouldSelectVideoFormat()
+                && streamState.isInitialized(videoFormat)) {
             request.writeMessage(2, SabrProto.formatId(videoFormat));
         }
         final List<SabrBufferedRange> bufferedRanges = streamState.getBufferedRanges();
