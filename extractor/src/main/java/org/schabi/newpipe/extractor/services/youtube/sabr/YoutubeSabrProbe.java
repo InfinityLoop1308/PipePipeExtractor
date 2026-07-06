@@ -18,7 +18,9 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.FilterInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -281,11 +283,45 @@ public final class YoutubeSabrProbe {
                 throw new SabrProtocolException("Expected UMP response, got content type: "
                         + contentType + ", status=" + response.responseCode());
             }
+            final CountingInputStream body = new CountingInputStream(response.body());
             final SabrStreamingResponseReader.Result streamed =
-                    SabrStreamingResponseReader.read(response.body(), segmentConsumer);
+                    SabrStreamingResponseReader.read(body, segmentConsumer);
             return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
                     streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),
-                    contentType);
+                    contentType, body.getCount(), streamed.getMediaPayloadBytes(),
+                    streamed.getMediaPartPayloadBytes(), streamed.getControlPayloadBytes(),
+                    streamed.getTotalPayloadBytes());
+        }
+    }
+
+    private static final class CountingInputStream extends FilterInputStream {
+        private long count;
+
+        private CountingInputStream(@Nonnull final InputStream input) {
+            super(input);
+        }
+
+        @Override
+        public int read() throws IOException {
+            final int value = super.read();
+            if (value >= 0) {
+                count++;
+            }
+            return value;
+        }
+
+        @Override
+        public int read(@Nonnull final byte[] buffer, final int offset, final int length)
+                throws IOException {
+            final int read = super.read(buffer, offset, length);
+            if (read > 0) {
+                count += read;
+            }
+            return read;
+        }
+
+        private long getCount() {
+            return count;
         }
     }
 

@@ -26,6 +26,8 @@ public final class YoutubeSabrStreamState {
     private byte[] playbackCookie;
     @Nullable
     private byte[] poToken;
+    @Nullable
+    private volatile SabrNextRequestPolicy nextRequestPolicy;
     private long playerTimeMsOverride = -1;
     private boolean audioFullyBuffered;
     private boolean videoFullyBuffered;
@@ -86,6 +88,9 @@ public final class YoutubeSabrStreamState {
     public boolean ingest(@Nonnull final SabrDecodedResponse response) {
         boolean progressed = false;
         final SabrNextRequestPolicy nextRequestPolicy = response.getNextRequestPolicy();
+        if (nextRequestPolicy != null) {
+            this.nextRequestPolicy = nextRequestPolicy;
+        }
         if (nextRequestPolicy != null && nextRequestPolicy.getRawPlaybackCookie() != null) {
             playbackCookie = nextRequestPolicy.getRawPlaybackCookie().clone();
         }
@@ -447,8 +452,13 @@ public final class YoutubeSabrStreamState {
         this.bandwidthEstimate = bandwidthEstimate;
     }
 
-    long getBandwidthEstimate() {
+    public long getBandwidthEstimate() {
         return bandwidthEstimate;
+    }
+
+    @Nullable
+    public SabrNextRequestPolicy getNextRequestPolicy() {
+        return nextRequestPolicy;
     }
 
     public void setPlaybackRate(final float playbackRate) {

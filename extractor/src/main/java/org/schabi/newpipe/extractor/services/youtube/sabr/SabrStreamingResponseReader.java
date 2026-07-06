@@ -44,6 +44,10 @@ public final class SabrStreamingResponseReader {
         final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
         final int[] segmentCount = {0};
+        final long[] mediaPayloadBytes = {0};
+        final long[] mediaPartPayloadBytes = {0};
+        final long[] controlPayloadBytes = {0};
+        final long[] totalPayloadBytes = {0};
         // headerId -> total media bytes seen, so the decoded response passes the same integrity check
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
@@ -51,8 +55,10 @@ public final class SabrStreamingResponseReader {
                 new SabrMediaSegmentCollector.Incremental();
         UmpReader.readStreaming(in, (type, payload) -> {
             SabrDecodedResponse.addPartSummary(partSummaries, type, payload.length);
+            totalPayloadBytes[0] += payload.length;
             switch (type) {
                 case SabrResponseDecoder.MEDIA_HEADER:
+                    controlPayloadBytes[0] += payload.length;
                     // small (just the header) -> keep so the decoder records it (observeHeader).
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     try {
@@ -65,14 +71,17 @@ public final class SabrStreamingResponseReader {
                 case SabrResponseDecoder.MEDIA:
                     // big payload -> assemble into the open segment, do NOT retain.
                     collector.onMedia(payload);
+                    mediaPartPayloadBytes[0] += payload.length;
                     if (payload.length > 0) {
                         final int headerId = payload[0] & 0xff;
+                        mediaPayloadBytes[0] += payload.length - 1L;
                         mediaBytesByHeaderId.put(headerId,
                                 mediaBytesByHeaderId.getOrDefault(headerId, 0L)
                                         + (payload.length - 1L));
                     }
                     break;
                 case SabrResponseDecoder.MEDIA_END: {
+                    controlPayloadBytes[0] += payload.length;
                     final SabrMediaSegment segment = collector.onMediaEnd(payload);
                     if (segment != null) {
                         segmentCount[0]++;
@@ -86,6 +95,7 @@ public final class SabrStreamingResponseReader {
                     break;
                 }
                 default:
+                    controlPayloadBytes[0] += payload.length;
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
             }
@@ -95,7 +105,8 @@ public final class SabrStreamingResponseReader {
         for (final Map.Entry<Integer, Long> entry : mediaBytesByHeaderId.entrySet()) {
             decoded.addMediaBytes(entry.getKey(), entry.getValue());
         }
-        return new Result(decoded, segments, segmentCount[0]);
+        return new Result(decoded, segments, segmentCount[0], mediaPayloadBytes[0],
+                mediaPartPayloadBytes[0], controlPayloadBytes[0], totalPayloadBytes[0]);
     }
 
     /** The decoded control response plus the segments assembled while streaming. */
@@ -105,13 +116,25 @@ public final class SabrStreamingResponseReader {
         @Nonnull
         private final List<SabrMediaSegment> segments;
         private final int segmentCount;
+        private final long mediaPayloadBytes;
+        private final long mediaPartPayloadBytes;
+        private final long controlPayloadBytes;
+        private final long totalPayloadBytes;
 
         Result(@Nonnull final SabrDecodedResponse decodedResponse,
                @Nonnull final List<SabrMediaSegment> segments,
-               final int segmentCount) {
+               final int segmentCount,
+               final long mediaPayloadBytes,
+               final long mediaPartPayloadBytes,
+               final long controlPayloadBytes,
+               final long totalPayloadBytes) {
             this.decodedResponse = decodedResponse;
             this.segments = segments;
             this.segmentCount = segmentCount;
+            this.mediaPayloadBytes = mediaPayloadBytes;
+            this.mediaPartPayloadBytes = mediaPartPayloadBytes;
+            this.controlPayloadBytes = controlPayloadBytes;
+            this.totalPayloadBytes = totalPayloadBytes;
         }
 
         @Nonnull
@@ -126,6 +149,22 @@ public final class SabrStreamingResponseReader {
 
         public int getSegmentCount() {
             return segmentCount;
+        }
+
+        public long getMediaPayloadBytes() {
+            return mediaPayloadBytes;
+        }
+
+        public long getMediaPartPayloadBytes() {
+            return mediaPartPayloadBytes;
+        }
+
+        public long getControlPayloadBytes() {
+            return controlPayloadBytes;
+        }
+
+        public long getTotalPayloadBytes() {
+            return totalPayloadBytes;
         }
     }
 }
