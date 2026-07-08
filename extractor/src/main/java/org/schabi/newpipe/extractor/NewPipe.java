@@ -46,6 +46,8 @@ public final class NewPipe {
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
     private static String youtubePlayerClient = "web_safari";
+    @Nullable
+    private static WebViewAvailabilityChecker webViewAvailabilityChecker;
 
     private NewPipe() {
 
@@ -176,6 +178,18 @@ public final class NewPipe {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
             NewPipe.youtubePlayerClient = "web_safari";
+        }
+    }
+
+    public static void setWebViewAvailabilityChecker(
+            @Nullable final WebViewAvailabilityChecker checker) {
+        webViewAvailabilityChecker = checker;
+    }
+
+    public static void checkWebViewAvailable() throws ExtractionException {
+        final WebViewAvailabilityChecker checker = webViewAvailabilityChecker;
+        if (checker != null) {
+            checker.checkWebViewAvailable();
         }
     }
 
