@@ -1,7 +1,5 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
@@ -9,7 +7,6 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -38,7 +35,6 @@ public final class YoutubeSabrSession {
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
     private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
-    private static final int MAX_INITIALIZATION_BYTES = 16 * 1024 * 1024;
     private static final int MAX_TRACE_EVENTS = 1024;
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
@@ -837,55 +833,6 @@ public final class YoutubeSabrSession {
         discardCachedSegment(SabrSegmentRequest.initialization(format));
         streamState.resetInitialization(format);
         streamState.clearPlaybackCookie();
-    }
-
-    @Nonnull
-    public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
-                                                   @Nonnull final Localization localization)
-            throws IOException {
-        final String url = format.getInitializationUrl();
-        final long start = format.getInitRangeStart();
-        final long end = format.getInitRangeEnd();
-        if (url == null || url.isEmpty() || start < 0 || end < start
-                || end - start >= MAX_INITIALIZATION_BYTES) {
-            throw new IOException("Invalid SABR initialization fallback: itag="
-                    + format.getItag() + ", start=" + start + ", end=" + end);
-        }
-        final int length = (int) (end - start + 1);
-        final Map<String, List<String>> headers = Collections.singletonMap(
-                "Range", Collections.singletonList("bytes=" + start + '-' + end));
-        try (StreamingResponse response = NewPipe.getDownloader().getStreaming(
-                url, headers, localization)) {
-            if (response.responseCode() != 206
-                    && !(response.responseCode() == 200 && start == 0)) {
-                throw new IOException("SABR initialization fallback failed: itag="
-                        + format.getItag() + ", status=" + response.responseCode());
-            }
-            final byte[] data = readExactly(response.body(), length);
-            streamState.ingestInitializationData(format, data);
-            addDiagnosticEvent("initialization_fallback itag=" + format.getItag()
-                    + " status=" + response.responseCode() + " bytes=" + data.length);
-            return data;
-        } catch (final ExtractionException e) {
-            throw new IOException("SABR initialization fallback failed: itag="
-                    + format.getItag(), e);
-        }
-    }
-
-    @Nonnull
-    private static byte[] readExactly(@Nonnull final InputStream input, final int length)
-            throws IOException {
-        final byte[] data = new byte[length];
-        int offset = 0;
-        while (offset < length) {
-            final int read = input.read(data, offset, length - offset);
-            if (read < 0) {
-                throw new IOException("Truncated SABR initialization fallback: expected="
-                        + length + ", actual=" + offset);
-            }
-            offset += read;
-        }
-        return data;
     }
 
     /**
