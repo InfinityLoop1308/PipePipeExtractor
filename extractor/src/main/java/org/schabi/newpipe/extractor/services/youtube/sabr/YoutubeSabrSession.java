@@ -217,6 +217,17 @@ public final class YoutubeSabrSession {
             @Nonnull final Localization localization,
             @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
+        return fetchNextResponseUntil(localization, segmentConsumer == null ? null : segment -> {
+            segmentConsumer.accept(segment);
+            return true;
+        });
+    }
+
+    @Nonnull
+    private YoutubeSabrProbeResult fetchNextResponseUntil(
+            @Nonnull final Localization localization,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
+            throws IOException, ExtractionException {
         addDiagnosticEvent("request n=" + requestNumber
                 + " playerMs=" + streamState.getRequestPlayerTimeMs()
                 + " edgeMs=" + streamState.getMinBufferedEndMs()
@@ -230,14 +241,14 @@ public final class YoutubeSabrSession {
                 result = segmentConsumer == null
                         ? YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat,
                         streamState, serverAbrStreamingUrl, localization)
-                        : YoutubeSabrProbe.probeFirstMediaResponseStreaming(info, audioFormat,
+                        : YoutubeSabrProbe.probeFirstMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, serverAbrStreamingUrl, segmentConsumer,
                         localization);
             } else {
                 result = segmentConsumer == null
                         ? YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
                         streamState, requestNumber, serverAbrStreamingUrl, localization)
-                        : YoutubeSabrProbe.probeFollowUpMediaResponseStreaming(info, audioFormat,
+                        : YoutubeSabrProbe.probeFollowUpMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, requestNumber, serverAbrStreamingUrl,
                         segmentConsumer, localization);
             }
@@ -376,13 +387,36 @@ public final class YoutubeSabrSession {
         return result == null ? 0 : result.getSegmentCount();
     }
 
+    /** Like {@link #pumpOnceStreaming(Localization)}, but closes the response once target is cached. */
+    public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
+                                            @Nonnull final SabrSegmentRequest target)
+            throws IOException, ExtractionException {
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization,
+                segment -> {
+                    ingestAndCacheSegment(segment);
+                    return getCachedSegment(target) == null;
+                });
+        return result == null ? 0 : result.getSegmentCount();
+    }
+
     @Nullable
     private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
                                                      final boolean streaming)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = streaming
-                ? fetchNextResponse(localization, this::ingestAndCacheSegment)
-                : fetchNextResponse(localization);
+        return pumpOnceInternal(localization, streaming ? segment -> {
+            ingestAndCacheSegment(segment);
+            return true;
+        } : null);
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(
+            @Nonnull final Localization localization,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
+            throws IOException, ExtractionException {
+        final YoutubeSabrProbeResult result = segmentConsumer == null
+                ? fetchNextResponse(localization)
+                : fetchNextResponseUntil(localization, segmentConsumer);
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
         if (!integrityIssues.isEmpty()) {
@@ -397,7 +431,7 @@ public final class YoutubeSabrSession {
         consecutiveIntegrityFailures = 0;
         streamState.ingest(decoded);
         final List<SabrMediaSegment> segments = result.getSegments();
-        if (!streaming) {
+        if (segmentConsumer == null) {
             for (final SabrMediaSegment segment : segments) {
                 ingestAndCacheSegment(segment);
             }

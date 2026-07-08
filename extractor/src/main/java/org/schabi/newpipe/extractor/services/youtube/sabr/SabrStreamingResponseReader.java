@@ -31,6 +31,11 @@ public final class SabrStreamingResponseReader {
         void accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
     }
 
+    @FunctionalInterface
+    public interface StoppableSegmentConsumer {
+        boolean accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
+    }
+
     /**
      * Streams completed segments directly to {@code segmentConsumer}. When a consumer is supplied,
      * completed segments are not retained by the result, bounding the response reader to one open
@@ -39,6 +44,16 @@ public final class SabrStreamingResponseReader {
     @Nonnull
     public static Result read(@Nonnull final InputStream in,
                               final SegmentConsumer segmentConsumer)
+            throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer == null ? null : segment -> {
+            segmentConsumer.accept(segment);
+            return true;
+        });
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer)
             throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
@@ -53,7 +68,7 @@ public final class SabrStreamingResponseReader {
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
         final SabrMediaSegmentCollector.Incremental collector =
                 new SabrMediaSegmentCollector.Incremental();
-        UmpReader.readStreaming(in, (type, payload) -> {
+        UmpReader.readStreamingUntil(in, (type, payload) -> {
             SabrDecodedResponse.addPartSummary(partSummaries, type, payload.length);
             totalPayloadBytes[0] += payload.length;
             switch (type) {
@@ -83,15 +98,15 @@ public final class SabrStreamingResponseReader {
                 case SabrResponseDecoder.MEDIA_END: {
                     controlPayloadBytes[0] += payload.length;
                     final SabrMediaSegment segment = collector.onMediaEnd(payload);
+                    controlParts.add(new UmpPart(type, payload.length, payload));
                     if (segment != null) {
                         segmentCount[0]++;
                         if (segmentConsumer == null) {
                             segments.add(segment);
                         } else {
-                            segmentConsumer.accept(segment);
+                            return segmentConsumer.accept(segment);
                         }
                     }
-                    controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
                 }
                 default:
@@ -99,6 +114,7 @@ public final class SabrStreamingResponseReader {
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
             }
+            return true;
         });
         final SabrDecodedResponse decoded = SabrResponseDecoder.decodeParts(controlParts);
         decoded.setPartSummaries(partSummaries);

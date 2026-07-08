@@ -20,6 +20,12 @@ public final class UmpReader {
         void accept(int type, @Nonnull byte[] payload) throws SabrProtocolException;
     }
 
+    /** Receives one UMP part and returns false when the caller has enough data. */
+    @FunctionalInterface
+    public interface StoppablePartConsumer {
+        boolean accept(int type, @Nonnull byte[] payload) throws SabrProtocolException;
+    }
+
     /**
      * Stream the UMP envelope: read one part (type, size, payload) at a time from {@code in} and
      * hand it to {@code consumer}, so the whole response body is never held in memory at once. Peak
@@ -28,6 +34,19 @@ public final class UmpReader {
      */
     public static void readStreaming(@Nonnull final InputStream in,
                                      @Nonnull final PartConsumer consumer)
+            throws SabrProtocolException, IOException {
+        readStreamingUntil(in, (type, payload) -> {
+            consumer.accept(type, payload);
+            return true;
+        });
+    }
+
+    /**
+     * Like {@link #readStreaming(InputStream, PartConsumer)}, but stops at a part boundary when
+     * {@code consumer} returns false. The caller owns and closes the stream.
+     */
+    public static void readStreamingUntil(@Nonnull final InputStream in,
+                                          @Nonnull final StoppablePartConsumer consumer)
             throws SabrProtocolException, IOException {
         while (true) {
             throwIfInterrupted();
@@ -40,7 +59,9 @@ public final class UmpReader {
             if (type < 0 || size < 0) {
                 throw new SabrProtocolException("Invalid UMP part header");
             }
-            consumer.accept(type, readExactly(in, size));
+            if (!consumer.accept(type, readExactly(in, size))) {
+                return;
+            }
         }
     }
 
