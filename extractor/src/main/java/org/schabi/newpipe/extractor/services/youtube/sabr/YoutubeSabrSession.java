@@ -387,15 +387,16 @@ public final class YoutubeSabrSession {
         return result == null ? 0 : result.getSegmentCount();
     }
 
-    /** Like {@link #pumpOnceStreaming(Localization)}, but closes the response once target is cached. */
+    /**
+     * Like {@link #pumpOnceStreaming(Localization)}, but used by callers that are waiting on a
+     * concrete segment. Keep consuming the whole response: SABR/UMP response boundaries are part of
+     * the protocol state, and closing after the target segment can cut off a following media header
+     * whose body/end is still in the same response.
+     */
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = pumpOnceInternal(localization,
-                segment -> {
-                    ingestAndCacheSegment(segment);
-                    return getCachedSegment(target) == null;
-                });
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true);
         return result == null ? 0 : result.getSegmentCount();
     }
 

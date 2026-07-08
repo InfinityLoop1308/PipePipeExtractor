@@ -27,17 +27,59 @@ final class YoutubeSabrRequestBuilder {
                                          @Nonnull final YoutubeSabrFormat videoFormat,
                                          @Nullable final YoutubeSabrStreamState streamState)
             throws SabrProtocolException {
+        if (streamState != null) {
+            synchronized (streamState) {
+                return buildFirstMediaRequestLocked(info, audioFormat, videoFormat, streamState);
+            }
+        }
+        return buildFirstMediaRequestLocked(info, audioFormat, videoFormat, null);
+    }
+
+    @Nonnull
+    private static byte[] buildFirstMediaRequestLocked(@Nonnull final YoutubeSabrInfo info,
+                                                       @Nonnull final YoutubeSabrFormat audioFormat,
+                                                       @Nonnull final YoutubeSabrFormat videoFormat,
+                                                       @Nullable final YoutubeSabrStreamState streamState)
+            throws SabrProtocolException {
         final String ustreamerConfig = info.getVideoPlaybackUstreamerConfig();
         if (ustreamerConfig == null || ustreamerConfig.isEmpty()) {
             throw new SabrProtocolException("Missing video playback ustreamer config");
         }
 
+        final long playerTimeMs = streamState == null ? 0 : streamState.getRequestPlayerTimeMs();
+        final List<SabrBufferedRange> bufferedRanges = streamState == null
+                ? java.util.Collections.emptyList()
+                : streamState.getBufferedRanges();
+        final boolean includeInitialPlaybackState = playerTimeMs > 0 || !bufferedRanges.isEmpty();
         final SabrProto.Writer request = new SabrProto.Writer();
-        request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, 0, false,
+        request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
+                includeInitialPlaybackState,
                 streamState == null
                         ? ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO
                         : streamState.getEnabledTrackTypesBitfield(),
                 streamState));
+        if (includeInitialPlaybackState) {
+            if (streamState.shouldSelectVideoFormatBeforeAudio()
+                    && streamState.shouldSelectVideoFormat()
+                    && streamState.isInitialized(videoFormat)) {
+                request.writeMessage(2, SabrProto.formatId(videoFormat));
+            }
+            if (streamState.shouldSelectAudioFormat() && streamState.isInitialized(audioFormat)) {
+                request.writeMessage(2, SabrProto.formatId(audioFormat));
+            }
+            if (!streamState.shouldSelectVideoFormatBeforeAudio()
+                    && streamState.shouldSelectVideoFormat()
+                    && streamState.isInitialized(videoFormat)) {
+                request.writeMessage(2, SabrProto.formatId(videoFormat));
+            }
+            for (final SabrBufferedRange range : bufferedRanges) {
+                request.writeMessage(3, range.toProto(
+                        streamState.shouldWriteBufferedRangeTimeRange()));
+            }
+            if (streamState.shouldWriteTopLevelPlayerTimeMs()) {
+                request.writeUInt64(4, playerTimeMs);
+            }
+        }
         request.writeBytes(5, decodeBase64(ustreamerConfig));
         writePreferredFormats(request, info, audioFormat, videoFormat, streamState);
         request.writeMessage(19, streamState == null
