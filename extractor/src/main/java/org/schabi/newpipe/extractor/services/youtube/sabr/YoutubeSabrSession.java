@@ -67,6 +67,11 @@ public final class YoutubeSabrSession {
     private long cachedBytes;
     private long peakCachedBytes;
     private volatile long totalResponseBytes;
+    private volatile long maxResponseBytes;
+    private volatile long maxUmpPartBytes;
+    private volatile long maxMediaPartPayloadBytes;
+    private volatile long maxSegmentBytes;
+    private volatile int maxSegmentsPerResponse;
     private volatile boolean traceEnabled;
     private final Object traceLock = new Object();
     private long traceResponseBytes;
@@ -272,6 +277,7 @@ public final class YoutubeSabrSession {
                 ? "count=" + result.getSegmentCount() : summarizeSegments(result.getSegments()))
                 + " decoded={" + result.getDecodedResponse().summarizeForDiagnostics() + '}');
         totalResponseBytes += result.getResponseBytes();
+        recordMemoryStats(result);
         recordTraceResponse(result);
         updateBandwidthEstimate(result.getResponseBytes(), System.nanoTime() - requestStartNs);
         if (result.getDecodedResponse().getRedirectUrl() != null
@@ -537,6 +543,39 @@ public final class YoutubeSabrSession {
         return totalResponseBytes;
     }
 
+    public long getMaxResponseBytes() {
+        return maxResponseBytes;
+    }
+
+    public long getMaxUmpPartBytes() {
+        return maxUmpPartBytes;
+    }
+
+    public long getMaxMediaPartPayloadBytes() {
+        return maxMediaPartPayloadBytes;
+    }
+
+    public long getMaxSegmentBytes() {
+        return maxSegmentBytes;
+    }
+
+    public int getMaxSegmentsPerResponse() {
+        return maxSegmentsPerResponse;
+    }
+
+    @Nonnull
+    public String getMemoryDiagnosticSummary() {
+        return "requestNumber=" + requestNumber
+                + ", cachedBytes=" + cachedBytes
+                + ", peakCachedBytes=" + peakCachedBytes
+                + ", totalResponseBytes=" + totalResponseBytes
+                + ", maxResponseBytes=" + maxResponseBytes
+                + ", maxUmpPartBytes=" + maxUmpPartBytes
+                + ", maxMediaPartPayloadBytes=" + maxMediaPartPayloadBytes
+                + ", maxSegmentBytes=" + maxSegmentBytes
+                + ", maxSegmentsPerResponse=" + maxSegmentsPerResponse;
+    }
+
     /**
      * Drop cached media bytes when the owning media period is released. Init segments are cheap to
      * refetch and keeping old period caches alive during rapid video switches can fill the app heap.
@@ -554,6 +593,15 @@ public final class YoutubeSabrSession {
      */
     public void evictPlayed() {
         evictCacheIfNeeded();
+    }
+
+    private void recordMemoryStats(@Nonnull final YoutubeSabrProbeResult result) {
+        maxResponseBytes = Math.max(maxResponseBytes, result.getResponseBytes());
+        maxUmpPartBytes = Math.max(maxUmpPartBytes, result.getMaxPartBytes());
+        maxMediaPartPayloadBytes = Math.max(maxMediaPartPayloadBytes,
+                result.getMaxMediaPartPayloadBytes());
+        maxSegmentBytes = Math.max(maxSegmentBytes, result.getMaxSegmentBytes());
+        maxSegmentsPerResponse = Math.max(maxSegmentsPerResponse, result.getSegmentCount());
     }
 
     private void evictCacheIfNeeded() {

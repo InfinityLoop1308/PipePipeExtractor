@@ -328,7 +328,8 @@ public final class YoutubeSabrProbe {
                     streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),
                     contentType, body.getCount(), streamed.getMediaPayloadBytes(),
                     streamed.getMediaPartPayloadBytes(), streamed.getControlPayloadBytes(),
-                    streamed.getTotalPayloadBytes());
+                    streamed.getTotalPayloadBytes(), streamed.getMaxPartBytes(),
+                    streamed.getMaxMediaPartPayloadBytes(), streamed.getMaxSegmentBytes());
         }
     }
 
