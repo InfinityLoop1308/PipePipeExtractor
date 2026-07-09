@@ -184,6 +184,9 @@ public final class YoutubeSabrStreamState {
     }
 
     long getRequestPlayerTimeMs() {
+        if (playerTimeMsOverride >= 0) {
+            return playerTimeMsOverride;
+        }
         if ((isAudioEnabled() && !audio.initReceived)
                 || (isVideoEnabled() && !video.initReceived)) {
             return 0;

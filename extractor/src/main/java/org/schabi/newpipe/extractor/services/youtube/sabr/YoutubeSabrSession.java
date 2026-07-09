@@ -37,8 +37,8 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
-    private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
     private static final int MAX_INITIALIZATION_BYTES = 16 * 1024 * 1024;
+    private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
     private static final int MAX_TRACE_EVENTS = 1024;
     @Nonnull
     // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
@@ -135,8 +135,15 @@ public final class YoutubeSabrSession {
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
         int policyOnlyResponses = 0;
         for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
-            final YoutubeSabrProbeResult result = fetchNextResponse(localization,
-                    this::ingestAndCacheSegment);
+            final YoutubeSabrProbeResult result;
+            try {
+                result = fetchNextResponse(localization, this::ingestAndCacheSegment);
+            } catch (final SabrRecoverableException e) {
+                if (recoverFromStreamingMediaException(localization, e)) {
+                    continue;
+                }
+                throw e;
+            }
             final SabrDecodedResponse decoded = result.getDecodedResponse();
             final List<String> integrityIssues = decoded.getIntegrityIssues();
             if (!integrityIssues.isEmpty()) {
@@ -254,7 +261,8 @@ public final class YoutubeSabrSession {
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
-                    + " type=" + e.getClass().getSimpleName());
+                    + " type=" + e.getClass().getSimpleName()
+                    + " message=" + String.valueOf(e.getMessage()));
             throw e;
         }
         addDiagnosticEvent("response n=" + requestNumber
@@ -391,12 +399,14 @@ public final class YoutubeSabrSession {
      * Like {@link #pumpOnceStreaming(Localization)}, but used by callers that are waiting on a
      * concrete segment. Keep consuming the whole response: SABR/UMP response boundaries are part of
      * the protocol state, and closing after the target segment can cut off a following media header
-     * whose body/end is still in the same response.
+     * whose body/end is still in the same response. Do not honor long server backoff here: the
+     * player loader is synchronously waiting for {@code target}, and the client data-source recovery
+     * loop needs short retries instead of a minutes-long buffering sleep.
      */
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true);
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
         return result == null ? 0 : result.getSegmentCount();
     }
 
@@ -404,20 +414,37 @@ public final class YoutubeSabrSession {
     private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
                                                      final boolean streaming)
             throws IOException, ExtractionException {
+        return pumpOnceInternal(localization, streaming, true);
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
+                                                     final boolean streaming,
+                                                     final boolean honorBackoff)
+            throws IOException, ExtractionException {
         return pumpOnceInternal(localization, streaming ? segment -> {
             ingestAndCacheSegment(segment);
             return true;
-        } : null);
+        } : null, honorBackoff);
     }
 
     @Nullable
     private YoutubeSabrProbeResult pumpOnceInternal(
             @Nonnull final Localization localization,
-            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            final boolean honorBackoff)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = segmentConsumer == null
-                ? fetchNextResponse(localization)
-                : fetchNextResponseUntil(localization, segmentConsumer);
+        final YoutubeSabrProbeResult result;
+        try {
+            result = segmentConsumer == null
+                    ? fetchNextResponse(localization)
+                    : fetchNextResponseUntil(localization, segmentConsumer);
+        } catch (final SabrRecoverableException e) {
+            if (recoverFromStreamingMediaException(localization, e)) {
+                return null;
+            }
+            throw e;
+        }
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
         if (!integrityIssues.isEmpty()) {
@@ -462,8 +489,10 @@ public final class YoutubeSabrSession {
             redirectCount = 0;
             poTokenRefreshes = 0;
         }
-        if (decoded.getBackoffTimeMs() > 0) {
+        if (decoded.getBackoffTimeMs() > 0 && honorBackoff) {
             sleepBackoff(decoded.getBackoffTimeMs());
+        } else if (decoded.getBackoffTimeMs() > 0) {
+            addDiagnosticEvent("skip_backoff waitTarget backoffMs=" + decoded.getBackoffTimeMs());
         }
         return result;
     }
@@ -841,7 +870,7 @@ public final class YoutubeSabrSession {
 
     @Nonnull
     public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
-                                                   @Nonnull final Localization localization)
+                                                  @Nonnull final Localization localization)
             throws IOException {
         final String url = format.getInitializationUrl();
         final long start = format.getInitRangeStart();
@@ -968,6 +997,20 @@ public final class YoutubeSabrSession {
     private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
                                                        @Nonnull final SabrDecodedResponse decoded)
             throws IOException, ExtractionException {
+        return recoverFromIncompleteMediaResponse(localization, decoded.getBackoffTimeMs());
+    }
+
+    private boolean recoverFromStreamingMediaException(@Nonnull final Localization localization,
+                                                       @Nonnull final SabrRecoverableException error)
+            throws IOException, ExtractionException {
+        addDiagnosticEvent("streaming_integrity_recoverable type="
+                + error.getClass().getSimpleName() + " message=" + error.getMessage());
+        return recoverFromIncompleteMediaResponse(localization, -1);
+    }
+
+    private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
+                                                       final int responseBackoffMs)
+            throws IOException, ExtractionException {
         consecutiveIntegrityFailures++;
         if (consecutiveIntegrityFailures >= MAX_INCOMPLETE_MEDIA_RESPONSES) {
             return false;
@@ -976,8 +1019,8 @@ public final class YoutubeSabrSession {
                 && maybeReload(localization)) {
             return true;
         }
-        final int backoffMs = decoded.getBackoffTimeMs() > 0
-                ? decoded.getBackoffTimeMs()
+        final int backoffMs = responseBackoffMs > 0
+                ? responseBackoffMs
                 : 500 * consecutiveIntegrityFailures;
         sleepBackoff(backoffMs);
         return true;

@@ -79,6 +79,9 @@ public final class SabrStreamingResponseReader {
                     try {
                         collector.onMediaHeader(payload);
                     } catch (final SabrProtocolException ignored) {
+                        if (!isMalformedMediaHeader(payload)) {
+                            throw ignored;
+                        }
                         // decodeParts records the malformed header. Following MEDIA is deliberately
                         // left without an open header so integrity recovery requests a clean batch.
                     }
@@ -123,6 +126,15 @@ public final class SabrStreamingResponseReader {
         }
         return new Result(decoded, segments, segmentCount[0], mediaPayloadBytes[0],
                 mediaPartPayloadBytes[0], controlPayloadBytes[0], totalPayloadBytes[0]);
+    }
+
+    private static boolean isMalformedMediaHeader(@Nonnull final byte[] payload) {
+        try {
+            SabrMediaHeader.decode(payload);
+            return false;
+        } catch (final SabrProtocolException e) {
+            return true;
+        }
     }
 
     /** The decoded control response plus the segments assembled while streaming. */
