@@ -131,8 +131,15 @@ public final class YoutubeSabrSession {
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
         int policyOnlyResponses = 0;
         for (int attempts = 0; attempts < MAX_REQUESTS_PER_SEGMENT; attempts++) {
-            final YoutubeSabrProbeResult result = fetchNextResponse(localization,
-                    this::ingestAndCacheSegment);
+            final YoutubeSabrProbeResult result;
+            try {
+                result = fetchNextResponse(localization, this::ingestAndCacheSegment);
+            } catch (final SabrRecoverableException e) {
+                if (recoverFromStreamingMediaException(localization, e)) {
+                    continue;
+                }
+                throw e;
+            }
             final SabrDecodedResponse decoded = result.getDecodedResponse();
             final List<String> integrityIssues = decoded.getIntegrityIssues();
             if (!integrityIssues.isEmpty()) {
@@ -250,7 +257,8 @@ public final class YoutubeSabrSession {
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
-                    + " type=" + e.getClass().getSimpleName());
+                    + " type=" + e.getClass().getSimpleName()
+                    + " message=" + String.valueOf(e.getMessage()));
             throw e;
         }
         addDiagnosticEvent("response n=" + requestNumber
@@ -422,9 +430,17 @@ public final class YoutubeSabrSession {
             @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
             final boolean honorBackoff)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = segmentConsumer == null
-                ? fetchNextResponse(localization)
-                : fetchNextResponseUntil(localization, segmentConsumer);
+        final YoutubeSabrProbeResult result;
+        try {
+            result = segmentConsumer == null
+                    ? fetchNextResponse(localization)
+                    : fetchNextResponseUntil(localization, segmentConsumer);
+        } catch (final SabrRecoverableException e) {
+            if (recoverFromStreamingMediaException(localization, e)) {
+                return null;
+            }
+            throw e;
+        }
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final List<String> integrityIssues = decoded.getIntegrityIssues();
         if (!integrityIssues.isEmpty()) {
@@ -928,6 +944,20 @@ public final class YoutubeSabrSession {
     private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
                                                        @Nonnull final SabrDecodedResponse decoded)
             throws IOException, ExtractionException {
+        return recoverFromIncompleteMediaResponse(localization, decoded.getBackoffTimeMs());
+    }
+
+    private boolean recoverFromStreamingMediaException(@Nonnull final Localization localization,
+                                                       @Nonnull final SabrRecoverableException error)
+            throws IOException, ExtractionException {
+        addDiagnosticEvent("streaming_integrity_recoverable type="
+                + error.getClass().getSimpleName() + " message=" + error.getMessage());
+        return recoverFromIncompleteMediaResponse(localization, -1);
+    }
+
+    private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
+                                                       final int responseBackoffMs)
+            throws IOException, ExtractionException {
         consecutiveIntegrityFailures++;
         if (consecutiveIntegrityFailures >= MAX_INCOMPLETE_MEDIA_RESPONSES) {
             return false;
@@ -936,8 +966,8 @@ public final class YoutubeSabrSession {
                 && maybeReload(localization)) {
             return true;
         }
-        final int backoffMs = decoded.getBackoffTimeMs() > 0
-                ? decoded.getBackoffTimeMs()
+        final int backoffMs = responseBackoffMs > 0
+                ? responseBackoffMs
                 : 500 * consecutiveIntegrityFailures;
         sleepBackoff(backoffMs);
         return true;
