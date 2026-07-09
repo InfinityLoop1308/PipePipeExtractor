@@ -356,6 +356,15 @@ public final class YoutubeSabrProbe {
         // Stream the response instead of buffering the whole body: a 4K media batch can be
         // 50-150MB, and reading it into one byte[] (+ the parts copy) OOM'd the 512MB heap. The
         // streaming reader parses parts one at a time and assembles segments on the fly.
+        final long requestStartNs = System.nanoTime();
+        final long[] firstSegmentElapsedMs = {-1};
+        final SabrStreamingResponseReader.StoppableSegmentConsumer timedConsumer =
+                segmentConsumer == null ? null : segment -> {
+                    if (firstSegmentElapsedMs[0] < 0) {
+                        firstSegmentElapsedMs[0] = elapsedMs(requestStartNs);
+                    }
+                    return segmentConsumer.accept(segment);
+                };
         try (StreamingResponse response = NewPipe.getDownloader().postStreaming(
                 withSabrSessionParameters(serverAbrStreamingUrl, info.getCpn(), requestNumber),
                 buildSabrHeaders(info), requestBody, localization)) {
@@ -367,17 +376,23 @@ public final class YoutubeSabrProbe {
             }
             final CountingInputStream body = new CountingInputStream(response.body());
             final SabrStreamingResponseReader.Result streamed =
-                    segmentConsumer == null
+                    timedConsumer == null
                             ? SabrStreamingResponseReader.read(body)
-                            : SabrStreamingResponseReader.readUntil(body, segmentConsumer,
+                            : SabrStreamingResponseReader.readUntil(body, timedConsumer,
                                     segmentSpoolDirectory);
+            final long requestElapsedMs = elapsedMs(requestStartNs);
             return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
                     streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),
                     contentType, body.getCount(), streamed.getMediaPayloadBytes(),
                     streamed.getMediaPartPayloadBytes(), streamed.getControlPayloadBytes(),
                     streamed.getTotalPayloadBytes(), streamed.getMaxPartBytes(),
-                    streamed.getMaxMediaPartPayloadBytes(), streamed.getMaxSegmentBytes());
+                    streamed.getMaxMediaPartPayloadBytes(), streamed.getMaxSegmentBytes(),
+                    requestElapsedMs, firstSegmentElapsedMs[0]);
         }
+    }
+
+    private static long elapsedMs(final long startNs) {
+        return Math.max(0, (System.nanoTime() - startNs) / 1_000_000L);
     }
 
     @Nonnull

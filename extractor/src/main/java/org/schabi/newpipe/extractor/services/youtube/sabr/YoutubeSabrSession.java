@@ -82,10 +82,13 @@ public final class YoutubeSabrSession {
     private long traceControlPayloadBytes;
     private long traceUmpOverheadBytes;
     private long traceDiscardedBytes;
+    private long traceCurrentSegmentElapsedMs = -1;
     @Nonnull
     private final Deque<String> traceSegments = new ArrayDeque<>();
     @Nonnull
     private final Deque<String> traceDiscards = new ArrayDeque<>();
+    @Nonnull
+    private final Deque<String> traceResponses = new ArrayDeque<>();
     // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
     private volatile long playHeadMs;
     // Keep this much already-played media before evicting: the two tracks read slightly apart and a
@@ -258,23 +261,32 @@ public final class YoutubeSabrSession {
                 + " poTokenBytes=" + (streamState.getRawPoToken() == null
                 ? -1 : streamState.getRawPoToken().length)
                 + " ranges=" + streamState.summarizeBufferedRanges());
-        final YoutubeSabrProbeResult result;
         final long requestStartNs = System.nanoTime();
+        final SabrStreamingResponseReader.StoppableSegmentConsumer timedConsumer =
+                segmentConsumer == null ? null : segment -> {
+                    traceCurrentSegmentElapsedMs = elapsedMs(requestStartNs);
+                    try {
+                        return segmentConsumer.accept(segment);
+                    } finally {
+                        traceCurrentSegmentElapsedMs = -1;
+                    }
+                };
+        final YoutubeSabrProbeResult result;
         try {
             if (requestNumber == 0) {
-                result = segmentConsumer == null
+                result = timedConsumer == null
                         ? YoutubeSabrProbe.probeFirstMediaResponse(info, audioFormat, videoFormat,
                         streamState, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFirstMediaResponseStreamingUntil(info, audioFormat,
-                        videoFormat, streamState, serverAbrStreamingUrl, segmentConsumer,
+                        videoFormat, streamState, serverAbrStreamingUrl, timedConsumer,
                         segmentSpoolDirectory, localization);
             } else {
-                result = segmentConsumer == null
+                result = timedConsumer == null
                         ? YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
                         streamState, requestNumber, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFollowUpMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, requestNumber, serverAbrStreamingUrl,
-                        segmentConsumer, segmentSpoolDirectory, localization);
+                        timedConsumer, segmentSpoolDirectory, localization);
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
@@ -730,7 +742,8 @@ public final class YoutubeSabrSession {
                     traceControlPayloadBytes, traceUmpOverheadBytes, traceDiscardedBytes,
                     requestNumber, cachedBytes, peakCachedBytes,
                     new java.util.ArrayList<>(traceSegments),
-                    new java.util.ArrayList<>(traceDiscards));
+                    new java.util.ArrayList<>(traceDiscards),
+                    new java.util.ArrayList<>(traceResponses));
         }
     }
 
@@ -745,6 +758,12 @@ public final class YoutubeSabrSession {
             traceMediaPayloadBytes += result.getMediaPayloadBytes();
             traceControlPayloadBytes += result.getControlPayloadBytes();
             traceUmpOverheadBytes += umpOverheadBytes;
+            addBoundedTraceEvent(traceResponses, "request=" + requestNumber
+                    + ",elapsedMs=" + result.getRequestElapsedMs()
+                    + ",firstSegmentMs=" + result.getFirstSegmentElapsedMs()
+                    + ",bytes=" + result.getResponseBytes()
+                    + ",mediaBytes=" + result.getMediaPayloadBytes()
+                    + ",segments=" + result.getSegmentCount());
         }
     }
 
@@ -760,7 +779,8 @@ public final class YoutubeSabrSession {
                 : ",seq=" + header.getSequenceNumber())
                 + ",startMs=" + header.getStartMs()
                 + ",durationMs=" + header.getDurationMs()
-                + ",bytes=" + segment.getLength();
+                + ",bytes=" + segment.getLength()
+                + ",elapsedMs=" + traceCurrentSegmentElapsedMs;
         synchronized (traceLock) {
             addBoundedTraceEvent(traceSegments, value);
         }
@@ -809,6 +829,8 @@ public final class YoutubeSabrSession {
         private final List<String> segments;
         @Nonnull
         private final List<String> discards;
+        @Nonnull
+        private final List<String> responses;
 
         private TraceSnapshot(final long responseBytes,
                               final long mediaPayloadBytes,
@@ -819,7 +841,8 @@ public final class YoutubeSabrSession {
                               final long cachedBytes,
                               final long peakCachedBytes,
                               @Nonnull final List<String> segments,
-                              @Nonnull final List<String> discards) {
+                              @Nonnull final List<String> discards,
+                              @Nonnull final List<String> responses) {
             this.responseBytes = responseBytes;
             this.mediaPayloadBytes = mediaPayloadBytes;
             this.controlPayloadBytes = controlPayloadBytes;
@@ -830,6 +853,7 @@ public final class YoutubeSabrSession {
             this.peakCachedBytes = peakCachedBytes;
             this.segments = Collections.unmodifiableList(segments);
             this.discards = Collections.unmodifiableList(discards);
+            this.responses = Collections.unmodifiableList(responses);
         }
 
         public long getResponseBytes() {
@@ -872,6 +896,11 @@ public final class YoutubeSabrSession {
         @Nonnull
         public List<String> getDiscards() {
             return discards;
+        }
+
+        @Nonnull
+        public List<String> getResponses() {
+            return responses;
         }
     }
 
@@ -1125,6 +1154,10 @@ public final class YoutubeSabrSession {
             Thread.currentThread().interrupt();
             throw new InterruptedIOException("Interrupted during SABR backoff");
         }
+    }
+
+    private static long elapsedMs(final long startNs) {
+        return Math.max(0, (System.nanoTime() - startNs) / 1_000_000L);
     }
 
     private boolean maybeApplyPoToken(final boolean forceRefresh)
