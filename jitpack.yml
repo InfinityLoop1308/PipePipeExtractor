@@ -3,4 +3,4 @@ jdk:
 
 install:
   - chmod +x gradlew
-  - ./gradlew clean publishToMavenLocal -x test -x check
+  - ./gradlew --no-daemon clean :extractor:publishToMavenLocal -x test -x check
