@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.localization.Localization;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InterruptedIOException;
@@ -51,6 +52,8 @@ public final class YoutubeSabrSession {
     private final YoutubeSabrStreamState streamState;
     @Nullable
     private final SabrPoTokenProvider poTokenProvider;
+    @Nullable
+    private final File segmentSpoolDirectory;
     private final Map<String, SabrMediaSegment> segmentCache = new ConcurrentHashMap<>();
     private final Object segmentAvailable = new Object();
     private String serverAbrStreamingUrl;
@@ -98,13 +101,21 @@ public final class YoutubeSabrSession {
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
                                @Nonnull final YoutubeSabrFormat audioFormat,
                                @Nonnull final YoutubeSabrFormat videoFormat) {
-        this(info, audioFormat, videoFormat, null);
+        this(info, audioFormat, videoFormat, null, null);
     }
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
                               @Nonnull final YoutubeSabrFormat audioFormat,
                               @Nonnull final YoutubeSabrFormat videoFormat,
                               @Nullable final SabrPoTokenProvider poTokenProvider) {
+        this(info, audioFormat, videoFormat, poTokenProvider, null);
+    }
+
+    public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
+                              @Nonnull final YoutubeSabrFormat audioFormat,
+                              @Nonnull final YoutubeSabrFormat videoFormat,
+                              @Nullable final SabrPoTokenProvider poTokenProvider,
+                              @Nullable final File segmentSpoolDirectory) {
         if (!audioFormat.isAudio()) {
             throw new IllegalArgumentException("SABR audio format must be audio: itag="
                     + audioFormat.getItag());
@@ -124,6 +135,7 @@ public final class YoutubeSabrSession {
         this.videoFormat = videoFormat;
         this.streamState = new YoutubeSabrStreamState(audioFormat, videoFormat);
         this.poTokenProvider = poTokenProvider;
+        this.segmentSpoolDirectory = segmentSpoolDirectory;
         this.serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
     }
 
@@ -255,14 +267,14 @@ public final class YoutubeSabrSession {
                         streamState, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFirstMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, serverAbrStreamingUrl, segmentConsumer,
-                        localization);
+                        segmentSpoolDirectory, localization);
             } else {
                 result = segmentConsumer == null
                         ? YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
                         streamState, requestNumber, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFollowUpMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, requestNumber, serverAbrStreamingUrl,
-                        segmentConsumer, localization);
+                        segmentConsumer, segmentSpoolDirectory, localization);
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
@@ -507,6 +519,9 @@ public final class YoutubeSabrSession {
         streamState.ingest(segment);
         final String key = cacheKey(segment);
         final SabrMediaSegment previous = segmentCache.put(key, segment);
+        if (previous != null) {
+            previous.delete();
+        }
         synchronized (segmentAvailable) {
             segmentAvailable.notifyAll();
         }
@@ -581,6 +596,9 @@ public final class YoutubeSabrSession {
      * refetch and keeping old period caches alive during rapid video switches can fill the app heap.
      */
     public void clearCache() {
+        for (final SabrMediaSegment segment : segmentCache.values()) {
+            segment.delete();
+        }
         segmentCache.clear();
         cacheOrder.clear();
         cachedBytes = 0;
@@ -625,6 +643,7 @@ public final class YoutubeSabrSession {
             if (removed != null) {
                 cachedBytes -= removed.getLength();
                 recordTraceDiscard(removed, "cache_limit");
+                removed.delete();
             }
         }
     }
@@ -656,6 +675,7 @@ public final class YoutubeSabrSession {
                 segmentCache.remove(key);
                 cachedBytes -= seg.getLength();
                 recordTraceDiscard(seg, "seek_window");
+                seg.delete();
             }
         }
     }
@@ -695,6 +715,7 @@ public final class YoutubeSabrSession {
             cacheOrder.remove(key);
             cachedBytes = Math.max(0, cachedBytes - removed.getLength());
             recordTraceDiscard(removed, "explicit");
+            removed.delete();
         }
     }
 

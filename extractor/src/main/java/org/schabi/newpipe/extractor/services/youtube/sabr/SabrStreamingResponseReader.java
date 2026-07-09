@@ -1,6 +1,9 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -55,6 +58,14 @@ public final class SabrStreamingResponseReader {
     public static Result readUntil(@Nonnull final InputStream in,
                                    final StoppableSegmentConsumer segmentConsumer)
             throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer, null);
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer,
+                                   @Nullable final File spoolDirectory)
+            throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
@@ -70,13 +81,14 @@ public final class SabrStreamingResponseReader {
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
         final SabrMediaSegmentCollector.Incremental collector =
-                new SabrMediaSegmentCollector.Incremental();
-        UmpReader.readStreamingUntil(in, (type, payload) -> {
-            SabrDecodedResponse.addPartSummary(partSummaries, type, payload.length);
-            maxPartBytes[0] = Math.max(maxPartBytes[0], payload.length);
-            totalPayloadBytes[0] += payload.length;
+                new SabrMediaSegmentCollector.Incremental(spoolDirectory);
+        UmpReader.readPayloadsUntil(in, (type, size, payloadStream) -> {
+            SabrDecodedResponse.addPartSummary(partSummaries, type, size);
+            maxPartBytes[0] = Math.max(maxPartBytes[0], size);
+            totalPayloadBytes[0] += size;
             switch (type) {
-                case SabrResponseDecoder.MEDIA_HEADER:
+                case SabrResponseDecoder.MEDIA_HEADER: {
+                    final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     // small (just the header) -> keep so the decoder records it (observeHeader).
                     controlParts.add(new UmpPart(type, payload.length, payload));
@@ -90,21 +102,28 @@ public final class SabrStreamingResponseReader {
                         // left without an open header so integrity recovery requests a clean batch.
                     }
                     break;
+                }
                 case SabrResponseDecoder.MEDIA:
-                    // big payload -> assemble into the open segment, do NOT retain.
-                    collector.onMedia(payload);
-                    mediaPartPayloadBytes[0] += payload.length;
-                    if (payload.length > 0) {
-                        final int headerId = payload[0] & 0xff;
+                    mediaPartPayloadBytes[0] += size;
+                    if (size > 0) {
+                        final int headerId = payloadStream.read();
+                        if (headerId < 0) {
+                            throw new SabrRecoverableException(
+                                    "Unexpected EOF while reading SABR media header id");
+                        }
+                        final int mediaBytes = size - 1;
+                        // big payload -> assemble into the open segment, do NOT retain.
+                        collector.onMedia(headerId, payloadStream, mediaBytes);
                         maxMediaPartPayloadBytes[0] =
-                                Math.max(maxMediaPartPayloadBytes[0], payload.length - 1L);
-                        mediaPayloadBytes[0] += payload.length - 1L;
+                                Math.max(maxMediaPartPayloadBytes[0], mediaBytes);
+                        mediaPayloadBytes[0] += mediaBytes;
                         mediaBytesByHeaderId.put(headerId,
                                 mediaBytesByHeaderId.getOrDefault(headerId, 0L)
-                                        + (payload.length - 1L));
+                                        + mediaBytes);
                     }
                     break;
                 case SabrResponseDecoder.MEDIA_END: {
+                    final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     final SabrMediaSegment segment = collector.onMediaEnd(payload);
                     controlParts.add(new UmpPart(type, payload.length, payload));
@@ -119,10 +138,12 @@ public final class SabrStreamingResponseReader {
                     }
                     break;
                 }
-                default:
+                default: {
+                    final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
+                }
             }
             return true;
         });
@@ -134,6 +155,23 @@ public final class SabrStreamingResponseReader {
         return new Result(decoded, segments, segmentCount[0], mediaPayloadBytes[0],
                 mediaPartPayloadBytes[0], controlPayloadBytes[0], totalPayloadBytes[0],
                 maxPartBytes[0], maxMediaPartPayloadBytes[0], maxSegmentBytes[0]);
+    }
+
+    @Nonnull
+    private static byte[] readPayloadBytes(@Nonnull final InputStream input, final int size)
+            throws IOException {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream(size);
+        final byte[] buffer = new byte[8192];
+        int remaining = size;
+        while (remaining > 0) {
+            final int read = input.read(buffer, 0, Math.min(buffer.length, remaining));
+            if (read < 0) {
+                throw new IOException("Unexpected EOF while reading UMP part data");
+            }
+            output.write(buffer, 0, read);
+            remaining -= read;
+        }
+        return output.toByteArray();
     }
 
     private static boolean isMalformedMediaHeader(@Nonnull final byte[] payload) {
