@@ -6,14 +6,12 @@ allprojects {
     version = "v1.0.0-levyra.6"
 
     java {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(17)
-        }
         withSourcesJar()
     }
 
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+        options.release = 17
         sourceCompatibility = JavaVersion.VERSION_17.toString()
         targetCompatibility = JavaVersion.VERSION_17.toString()
     }
