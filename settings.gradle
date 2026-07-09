@@ -22,4 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "LevyraExtractor"
 
-include "extractor", "timeago-parser"
+include "timeago-parser"
+include "extractor"

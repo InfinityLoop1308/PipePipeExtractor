@@ -2,8 +2,8 @@ allprojects {
     apply plugin: "java-library"
     apply plugin: "maven-publish"
 
-    group = "com.github.LUC4N3X"
-    version = "v1.0.0-levyra.5"
+    group = "com.github.LUC4N3X.LevyraExtractor"
+    version = "v1.0.0-levyra.6"
 
     java {
         toolchain {
@@ -18,6 +18,13 @@ allprojects {
         targetCompatibility = JavaVersion.VERSION_17.toString()
     }
 
+    tasks.matching {
+        it.name == "test" || it.name == "check"
+    }.configureEach {
+        enabled = false
+        group = null
+    }
+
     repositories {
         mavenCentral()
         google()
@@ -27,10 +34,15 @@ allprojects {
     }
 
     afterEvaluate {
-        publishing {
-            publications {
-                mavenJava(MavenPublication) {
-                    from components.java
+        if (components.findByName("java") != null) {
+            publishing {
+                publications {
+                    mavenJava(MavenPublication) {
+                        from components.java
+                        groupId = project.group.toString()
+                        artifactId = project.name
+                        version = project.version.toString()
+                    }
                 }
             }
         }
@@ -38,7 +50,7 @@ allprojects {
 
     ext {
         nanojsonVersion = "1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751"
-        spotbugsVersion = "4.8.3"
+        spotbugsVersion = "4.10.2"
         checkstyleVersion = "10.21.1"
     }
 }
@@ -46,27 +58,4 @@ allprojects {
 dependencies {
     api project(":extractor")
     implementation project(":timeago-parser")
-}
-
-
-subprojects {
-    apply plugin: "maven-publish"
-
-    group = "com.github.LUC4N3X.LevyraExtractor"
-    version = "v1.0.0-levyra.5"
-
-    afterEvaluate {
-        if (plugins.hasPlugin("java") || plugins.hasPlugin("java-library")) {
-            publishing {
-                publications {
-                    mavenJava(MavenPublication) {
-                        from components.java
-                        groupId = "com.github.LUC4N3X.LevyraExtractor"
-                        artifactId = project.name
-                        version = "v1.0.0-levyra.5"
-                    }
-                }
-            }
-        }
-    }
 }

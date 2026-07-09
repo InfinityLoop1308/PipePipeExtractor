@@ -1,5 +1,5 @@
 jdk:
-  - openjdk25
+  - openjdk17
 
 install:
   - chmod +x gradlew
