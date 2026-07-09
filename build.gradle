@@ -16,13 +16,6 @@ allprojects {
         targetCompatibility = JavaVersion.VERSION_17.toString()
     }
 
-    tasks.matching {
-        it.name == "test" || it.name == "check"
-    }.configureEach {
-        enabled = false
-        group = null
-    }
-
     repositories {
         mavenCentral()
         google()
