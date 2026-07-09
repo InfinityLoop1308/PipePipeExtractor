@@ -29,19 +29,6 @@ public abstract class Downloader {
      * @return the result of the GET request
      */
     private static Localization defaultLocalization = Localization.DEFAULT;
-
-    /**
-     * Whether this downloader overrides streaming response methods with true streaming bodies.
-     *
-     * <p>The default {@link #getStreaming(String, Map, Localization)} and
-     * {@link #postStreaming(String, Map, byte[], Localization)} implementations buffer the whole
-     * response before wrapping it in an {@link java.io.InputStream}. Consumers that need low-latency
-     * media startup or bounded memory should check this method before using SABR media paths.</p>
-     */
-    public boolean supportsStreamingResponses() {
-        return false;
-    }
-
     public Response get(final String url) throws IOException, ReCaptchaException {
         return get(url, null, defaultLocalization);
     }
