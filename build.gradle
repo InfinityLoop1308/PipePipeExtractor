@@ -3,7 +3,7 @@ allprojects {
     apply plugin: "maven-publish"
 
     group = "com.github.LUC4N3X"
-    version = "v1.0.0-levyra.3"
+    version = "v1.0.0-levyra.4"
 
     java {
         toolchain {
