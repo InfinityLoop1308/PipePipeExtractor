@@ -387,12 +387,14 @@ public final class YoutubeSabrSession {
      * Like {@link #pumpOnceStreaming(Localization)}, but used by callers that are waiting on a
      * concrete segment. Keep consuming the whole response: SABR/UMP response boundaries are part of
      * the protocol state, and closing after the target segment can cut off a following media header
-     * whose body/end is still in the same response.
+     * whose body/end is still in the same response. Do not honor long server backoff here: the
+     * player loader is synchronously waiting for {@code target}, and the client data-source recovery
+     * loop needs short retries instead of a minutes-long buffering sleep.
      */
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true);
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
         return result == null ? 0 : result.getSegmentCount();
     }
 
@@ -400,16 +402,25 @@ public final class YoutubeSabrSession {
     private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
                                                      final boolean streaming)
             throws IOException, ExtractionException {
+        return pumpOnceInternal(localization, streaming, true);
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
+                                                     final boolean streaming,
+                                                     final boolean honorBackoff)
+            throws IOException, ExtractionException {
         return pumpOnceInternal(localization, streaming ? segment -> {
             ingestAndCacheSegment(segment);
             return true;
-        } : null);
+        } : null, honorBackoff);
     }
 
     @Nullable
     private YoutubeSabrProbeResult pumpOnceInternal(
             @Nonnull final Localization localization,
-            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            final boolean honorBackoff)
             throws IOException, ExtractionException {
         final YoutubeSabrProbeResult result = segmentConsumer == null
                 ? fetchNextResponse(localization)
@@ -458,8 +469,10 @@ public final class YoutubeSabrSession {
             redirectCount = 0;
             poTokenRefreshes = 0;
         }
-        if (decoded.getBackoffTimeMs() > 0) {
+        if (decoded.getBackoffTimeMs() > 0 && honorBackoff) {
             sleepBackoff(decoded.getBackoffTimeMs());
+        } else if (decoded.getBackoffTimeMs() > 0) {
+            addDiagnosticEvent("skip_backoff waitTarget backoffMs=" + decoded.getBackoffTimeMs());
         }
         return result;
     }
