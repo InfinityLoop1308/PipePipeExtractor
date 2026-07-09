@@ -3,7 +3,7 @@ allprojects {
     apply plugin: "maven-publish"
 
     group = "com.github.LUC4N3X"
-    version = "v1.0.0-levyra.4"
+    version = "v1.0.0-levyra.5"
 
     java {
         toolchain {
@@ -46,4 +46,27 @@ allprojects {
 dependencies {
     api project(":extractor")
     implementation project(":timeago-parser")
+}
+
+
+subprojects {
+    apply plugin: "maven-publish"
+
+    group = "com.github.LUC4N3X.LevyraExtractor"
+    version = "v1.0.0-levyra.5"
+
+    afterEvaluate {
+        if (plugins.hasPlugin("java") || plugins.hasPlugin("java-library")) {
+            publishing {
+                publications {
+                    mavenJava(MavenPublication) {
+                        from components.java
+                        groupId = "com.github.LUC4N3X.LevyraExtractor"
+                        artifactId = project.name
+                        version = "v1.0.0-levyra.5"
+                    }
+                }
+            }
+        }
+    }
 }
