@@ -1,2 +1,6 @@
 jdk:
-  - openjdk25
+  - openjdk17
+
+install:
+  - chmod +x gradlew
+  - ./gradlew clean publishToMavenLocal -x test -x check

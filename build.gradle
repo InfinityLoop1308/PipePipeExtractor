@@ -1,26 +1,29 @@
 allprojects {
-    apply plugin: 'java-library'
-    apply plugin: 'maven-publish'
+    apply plugin: "java-library"
+    apply plugin: "maven-publish"
+
+    group = "com.github.LUC4N3X"
+    version = "v1.0.0-levyra.2"
 
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(25)
+            languageVersion = JavaLanguageVersion.of(17)
         }
         withSourcesJar()
     }
+
     tasks.withType(JavaCompile).configureEach {
-        options.encoding = 'UTF-8'
+        options.encoding = "UTF-8"
+        sourceCompatibility = JavaVersion.VERSION_17.toString()
+        targetCompatibility = JavaVersion.VERSION_17.toString()
     }
-    tasks.matching { it.name == 'test' || it.name == 'check' }.configureEach {
-        enabled = false
-        group = null
-    }
-    version 'v5.2.2'
-    group 'com.github.InfinityLoop1308.PipePipeExtractor'
 
     repositories {
         mavenCentral()
-        maven { url "https://jitpack.io" }
+        google()
+        maven {
+            url "https://jitpack.io"
+        }
     }
 
     afterEvaluate {
@@ -35,11 +38,12 @@ allprojects {
 
     ext {
         nanojsonVersion = "1d9e1aea9049fc9f85e68b43ba39fe7be1c1f751"
-        spotbugsVersion = "4.10.2"
+        spotbugsVersion = "4.8.3"
+        checkstyleVersion = "10.21.1"
     }
 }
 
 dependencies {
-    api project(':extractor')
-    implementation project(':timeago-parser')
+    api project(":extractor")
+    implementation project(":timeago-parser")
 }

@@ -1,2 +1,25 @@
-include 'extractor', 'timeago-parser'
-rootProject.name = 'PipePipeExtractor'
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        google()
+        maven {
+            url "https://jitpack.io"
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+        google()
+        maven {
+            url "https://jitpack.io"
+        }
+    }
+}
+
+rootProject.name = "LevyraExtractor"
+
+include "extractor", "timeago-parser"
