@@ -45,7 +45,7 @@ public final class NewPipe {
     private static Downloader downloader;
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
-    private static String youtubePlayerClient = "web_safari";
+    private static String youtubePlayerClient = "android_vr";
     @Nullable
     private static WebViewAvailabilityChecker webViewAvailabilityChecker;
 
@@ -175,7 +175,7 @@ public final class NewPipe {
                 || "tv_downgraded".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
-            NewPipe.youtubePlayerClient = "web_safari";
+            NewPipe.youtubePlayerClient = "android_vr";
         }
     }
 
