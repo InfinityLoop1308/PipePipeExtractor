@@ -2,6 +2,8 @@ package org.schabi.newpipe.extractor.levyra;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.List;
 
 public final class LevyraResolvedStream {
     public enum Source {
@@ -21,6 +23,10 @@ public final class LevyraResolvedStream {
     private final int videoItag;
     private final int videoHeight;
     private final LevyraResolveDiagnostics diagnostics;
+    @Nonnull
+    private final List<LevyraSponsorBlockSegment> sponsorBlockSegments;
+    private final long likeCount;
+    private final long dislikeCount;
 
     private LevyraResolvedStream(@Nonnull final Builder builder) {
         this.source = builder.source;
@@ -31,6 +37,9 @@ public final class LevyraResolvedStream {
         this.videoItag = builder.videoItag;
         this.videoHeight = builder.videoHeight;
         this.diagnostics = builder.diagnostics;
+        this.sponsorBlockSegments = builder.sponsorBlockSegments == null ? Collections.emptyList() : builder.sponsorBlockSegments;
+        this.likeCount = builder.likeCount;
+        this.dislikeCount = builder.dislikeCount;
     }
 
     @Nonnull
@@ -85,6 +94,19 @@ public final class LevyraResolvedStream {
         return diagnostics;
     }
 
+    @Nonnull
+    public List<LevyraSponsorBlockSegment> getSponsorBlockSegments() {
+        return sponsorBlockSegments;
+    }
+
+    public long getLikeCount() {
+        return likeCount;
+    }
+
+    public long getDislikeCount() {
+        return dislikeCount;
+    }
+
     static final class Builder {
         private final Source source;
         private final LevyraResolveDiagnostics diagnostics;
@@ -94,6 +116,9 @@ public final class LevyraResolvedStream {
         private int audioItag = -1;
         private int videoItag = -1;
         private int videoHeight = -1;
+        private List<LevyraSponsorBlockSegment> sponsorBlockSegments = null;
+        private long likeCount = -1;
+        private long dislikeCount = -1;
 
         private Builder(@Nonnull final Source source,
                         @Nonnull final LevyraResolveDiagnostics diagnostics) {
@@ -119,6 +144,19 @@ public final class LevyraResolvedStream {
         @Nonnull
         Builder resolved(final boolean resolved) {
             this.resolved = resolved;
+            return this;
+        }
+
+        @Nonnull
+        Builder sponsorBlockSegments(@Nullable final List<LevyraSponsorBlockSegment> segments) {
+            this.sponsorBlockSegments = segments;
+            return this;
+        }
+
+        @Nonnull
+        Builder stats(final long likeCount, final long dislikeCount) {
+            this.likeCount = likeCount;
+            this.dislikeCount = dislikeCount;
             return this;
         }
 
