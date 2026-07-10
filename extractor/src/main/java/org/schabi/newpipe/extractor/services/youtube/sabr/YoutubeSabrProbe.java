@@ -111,7 +111,7 @@ public final class YoutubeSabrProbe {
             @Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final YoutubeSabrFormat audioFormat = info.findBestAudioFormat();
-        final YoutubeSabrFormat videoFormat = info.findBestVideoFormat();
+        final YoutubeSabrFormat videoFormat = info.findLowestVideoFormat();
         if (audioFormat == null || videoFormat == null) {
             throw new SabrProtocolException("Could not select audio/video SABR formats");
         }

@@ -108,14 +108,14 @@ public final class YoutubeSabrInfo implements Serializable {
     }
 
     @Nullable
-    public YoutubeSabrFormat findBestVideoFormat() {
-        YoutubeSabrFormat best = null;
+    public YoutubeSabrFormat findLowestVideoFormat() {
+        YoutubeSabrFormat lowest = null;
         for (final YoutubeSabrFormat format : formats) {
-            if (format.isVideo() && (best == null || format.getHeight() > best.getHeight())) {
-                best = format;
+            if (format.isVideo() && (lowest == null || format.getHeight() < lowest.getHeight())) {
+                lowest = format;
             }
         }
-        return best;
+        return lowest;
     }
 
     @Nullable
