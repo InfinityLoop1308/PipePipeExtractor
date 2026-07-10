@@ -2,151 +2,90 @@
 
 # LevyraExtractor
 
-**The extraction engine behind Levyra.**
+**The extraction engine built for Levyra.**
 
 [![Release](https://img.shields.io/github/v/release/LUC4N3X/LevyraExtractor?style=flat-square&logo=github)](https://github.com/LUC4N3X/LevyraExtractor/releases)
 [![JitPack](https://img.shields.io/jitpack/version/com.github.LUC4N3X/LevyraExtractor?style=flat-square)](https://jitpack.io/#LUC4N3X/LevyraExtractor)
 [![Java 17](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
 [![GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
 
-A NewPipe/PipePipe-based extractor adapted for Levyra, with modern YouTube stream resolution, SABR support and better playback diagnostics.
-
-[Features](#features) · [Installation](#installation) · [Usage](#basic-usage) · [Credits](#credits) · [License](#license)
+Reliable media extraction, stream resolution and playback support for Levyra.
 
 </div>
 
 ---
 
-## What is it?
+## About
 
-LevyraExtractor is the component that helps **Levyra** find metadata and playable media streams.
+LevyraExtractor is the media extraction layer used by **Levyra**.
 
-It builds on the excellent NewPipe and PipePipe ecosystem, then adds the pieces Levyra needs for more reliable YouTube playback: Android VR client handling, SABR preflight, format selection, caching and clear fallback information.
+It reads metadata, discovers playable audio and video streams, selects suitable formats and gives the app clearer information when a source cannot be resolved.
 
-This is an independent downstream project. It is not an official NewPipe, PipePipe or Metrolist repository.
+The project is based on the NewPipe and PipePipe ecosystem, with additional work focused on Levyra's playback needs.
 
-## Features
+This is an independent downstream project. It is not an official NewPipe, PipePipe, Metrolist, Google or YouTube repository.
 
-- Dedicated `LevyraYoutubeResolver`
-- Android VR Innertube client
+## Main features
+
+- YouTube audio and video stream resolution
+- Android VR client support
 - SABR stream discovery
-- Smart audio and video format selection
-- Short-lived preflight cache
-- Shared resolution for identical concurrent requests
-- SponsorBlock and Return YouTube Dislike data
-- Streaming downloader support
-- Timing, cache and fallback diagnostics
+- Automatic format selection
+- Fast short-lived caching
+- Duplicate request sharing
+- Playback and fallback diagnostics
+- SponsorBlock integration
+- Return YouTube Dislike integration
+- Support for YouTube, SoundCloud, Bandcamp, PeerTube, media.ccc.de, BiliBili and NicoNico
 
-Supported services include **YouTube, SoundCloud, Bandcamp, PeerTube, media.ccc.de, BiliBili and NicoNico**.
+## Why it exists
 
-```text
-Request → Cache → Resolve → Select format → Return stream
-```
+Levyra needs an extractor that is fast, predictable and easy to diagnose when upstream services change.
 
-## Installation
+LevyraExtractor keeps the proven foundation of its upstream projects while adding a dedicated resolution layer for the Levyra player.
 
-Requires **Java 17** and a concrete NewPipe `Downloader` implementation.
+The main goal is simple: make playback more reliable without hiding failures or making the host application harder to maintain.
 
-Add JitPack to `settings.gradle.kts`:
+## Requirements
 
-```kotlin
-dependencyResolutionManagement {
-    repositories {
-        google()
-        mavenCentral()
-        maven("https://jitpack.io")
-    }
-}
-```
+LevyraExtractor targets **Java 17** and is distributed through **JitPack**.
 
-Add the dependency:
+The host application must provide its own downloader and remains responsible for network timeouts, retries, cancellation and response cleanup.
 
-```kotlin
-dependencies {
-    implementation("com.github.LUC4N3X.LevyraExtractor:extractor:v1.0.0-levyra.6")
-}
-```
-
-## Basic usage
-
-```java
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.levyra.LevyraResolveRequest;
-import org.schabi.newpipe.extractor.levyra.LevyraResolvedStream;
-import org.schabi.newpipe.extractor.levyra.LevyraYoutubeResolver;
-import org.schabi.newpipe.extractor.localization.ContentCountry;
-import org.schabi.newpipe.extractor.localization.Localization;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile;
-
-NewPipe.init(downloader, new Localization("it", "IT"), new ContentCountry("IT"));
-NewPipe.setYoutubePlayerClient("android_vr");
-
-LevyraYoutubeResolver resolver = new LevyraYoutubeResolver(downloader);
-
-LevyraResolveRequest request = LevyraResolveRequest
-        .forVideoId("VIDEO_ID")
-        .setVideoMode(false)
-        .setRequireStreamingDownloader(true)
-        .setPreferMp4Audio(true)
-        .setProfile(YoutubeSabrClientProfile.ANDROID_VR)
-        .build();
-
-LevyraResolvedStream stream = resolver.resolveSabrPreflight(request);
-
-if (!stream.isResolved()) {
-    throw new IllegalStateException(stream.getDiagnostics().getFallbackReason());
-}
-
-String audioUrl = stream.getAudioUrl();
-```
-
-The host application provides the `Downloader` and manages timeouts, retries, cancellation and streaming response cleanup.
-
-## Build
-
-```bash
-chmod +x gradlew
-./gradlew clean build
-```
-
-On Windows PowerShell:
-
-```powershell
-.\gradlew.bat clean build
-```
+Release information and published versions are available from the repository releases and JitPack pages.
 
 ## Credits
 
-LevyraExtractor exists thanks to the work of many open-source developers. This repository keeps the original copyright and license notices inside the source tree.
+LevyraExtractor would not exist without the work of the open-source community.
 
-| Project | Contribution |
-| --- | --- |
-| [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) | Original extractor architecture, service contracts and core implementation |
-| [NewPipe](https://github.com/TeamNewPipe/NewPipe) | Original application and ecosystem |
-| [PipePipe](https://codeberg.org/NullPointerException/PipePipe) | Extended downstream ecosystem |
-| [PipePipeExtractor](https://github.com/InfinityLoop1308/PipePipeExtractor) | Main downstream extractor lineage |
-| [MetrolistExtractor](https://github.com/MetrolistGroup/MetrolistExtractor) | Reference for modern YouTube client and playback handling |
-| [Metrolist](https://github.com/MetrolistGroup/Metrolist) | Open-source YouTube Music client ecosystem |
-| [SponsorBlock](https://github.com/ajayyy/SponsorBlock) | Community skip-segment data |
-| [Return YouTube Dislike](https://github.com/Anarios/return-youtube-dislike) | Community like and dislike statistics |
+Core upstream projects:
 
-Special thanks to **Christian Schabesberger**, **Team NewPipe**, and all PipePipe, Metrolist and downstream contributors whose work remains part of this codebase.
+- [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) — original extractor architecture and service implementations
+- [NewPipe](https://github.com/TeamNewPipe/NewPipe) — original application and ecosystem
+- [PipePipe](https://codeberg.org/NullPointerException/PipePipe) — extended downstream ecosystem
+- [PipePipeExtractor](https://github.com/InfinityLoop1308/PipePipeExtractor) — main downstream extractor lineage
+- [MetrolistExtractor](https://github.com/MetrolistGroup/MetrolistExtractor) — reference work for modern YouTube playback handling
+- [Metrolist](https://github.com/MetrolistGroup/Metrolist) — open-source YouTube Music client ecosystem
+- [SponsorBlock](https://github.com/ajayyy/SponsorBlock) — community skip-segment data
+- [Return YouTube Dislike](https://github.com/Anarios/return-youtube-dislike) — community rating data
 
-The project also uses open-source libraries including [jsoup](https://jsoup.org/), [OkHttp](https://square.github.io/okhttp/), [Wire](https://square.github.io/wire/), [Protocol Buffers](https://github.com/protocolbuffers/protobuf), [nanojson](https://github.com/mmastrac/nanojson), [Java-WebSocket](https://github.com/TooTallNate/Java-WebSocket), Brotli, Apache Commons and SpotBugs Annotations.
+Special thanks to **Christian Schabesberger**, **Team NewPipe**, and every NewPipe, PipePipe, Metrolist and downstream contributor whose work remains part of this codebase.
 
-All names, trademarks and source code remain the property of their respective owners and are distributed under their applicable licenses.
+The project also uses open-source libraries including jsoup, OkHttp, Wire, Protocol Buffers, nanojson, Java-WebSocket, Brotli, Apache Commons and SpotBugs Annotations.
+
+All original copyright notices and licenses remain available in the source tree. Names and trademarks belong to their respective owners.
 
 ## Disclaimer
 
-Upstream services can change without notice, so extraction may occasionally require updates.
+Online services can change without notice, so extraction may occasionally require updates.
 
-Use this project responsibly and respect copyright, service terms and applicable laws. LevyraExtractor is not affiliated with Google, YouTube, Team NewPipe, PipePipe or Metrolist.
+Use this project responsibly and respect copyright, service terms and applicable laws.
 
 ## License
 
-Distributed under the **GNU General Public License v3.0**.
+LevyraExtractor is distributed under the **GNU General Public License v3.0**.
 
-See [`LICENSE`](LICENSE) for the complete license text.
+See [LICENSE](LICENSE) for the complete license text.
 
 ---
 
