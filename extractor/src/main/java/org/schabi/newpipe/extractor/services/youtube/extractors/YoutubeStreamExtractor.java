@@ -2044,6 +2044,26 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     .value("androidSdkVersion", 32)
                     .value("osName", "Android")
                     .value("osVersion", "12L");
+            // YouTube only serves ANDROID_VR streaming data when the request carries a visitorData
+            // session token (this mirrors the upstream fetchAndroidVRJsonPlayer). Without it the
+            // player response comes back with no usable streamingData, so playback never resolves.
+            try {
+                final java.util.Map<String, java.util.List<String>> vrHeaders =
+                        new java.util.HashMap<>();
+                vrHeaders.put("Content-Type", singletonList("application/json"));
+                vrHeaders.put("User-Agent", singletonList(getAndroidUserAgent(localization)));
+                vrHeaders.put("X-Goog-Api-Format-Version", singletonList("2"));
+                final String visitorData = getVisitorDataFromInnertube(
+                        org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo
+                                .ofAndroidVRClient(),
+                        localization, contentCountry, vrHeaders,
+                        YOUTUBEI_V1_GAPIS_URL, null, false);
+                if (!isNullOrEmpty(visitorData)) {
+                    clientBuilder.value("visitorData", visitorData);
+                }
+            } catch (final Exception visitorDataError) {
+                // Best-effort: fall back to a request without visitorData rather than hard-failing.
+            }
         }
         final byte[] body = JsonWriter.string(JsonObject.builder()
                 .object("context")
