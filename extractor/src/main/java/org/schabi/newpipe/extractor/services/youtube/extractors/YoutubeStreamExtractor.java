@@ -83,6 +83,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
+    private JsonObject androidStreamingData;
+    @Nullable
+    private JsonObject safariStreamingData;
+    @Nullable
     private JsonObject configuredStreamingData;
     private String mwebHlsManifestUrl = EMPTY_STRING;
 
@@ -100,6 +104,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // two different strings are used.
     private String webCpn;
     private String mwebCpn;
+    private String androidCpn;
+    private String safariCpn;
     private String configuredCpn;
 
     public WatchDataCache watchDataCache;
@@ -1657,29 +1663,42 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
-
         NewPipe.checkWebViewAvailable();
 
         final String videoId = getId();
         final Localization localization = new Localization("en");
         final ContentCountry contentCountry = getExtractorContentCountry();
+        final String selectedClient = NewPipe.getYoutubePlayerClient();
 
         synchronized (errors) {
             errors.clear();
         }
+        playerResponse = null;
+        nextResponse = null;
+        webStreamingData = null;
+        mwebStreamingData = null;
+        androidStreamingData = null;
+        safariStreamingData = null;
+        configuredStreamingData = null;
+        mwebHlsManifestUrl = EMPTY_STRING;
 
-        CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
+        final CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
 
         final CancellableCall jsonPlayerCall;
-        switch (NewPipe.getYoutubePlayerClient()) {
-            case "web_safari":
+        switch (selectedClient) {
             case "android_vr":
+                jsonPlayerCall = fetchAndroidVRJsonPlayer(
+                        contentCountry, localization, videoId);
+                break;
+            case "web_safari":
+                jsonPlayerCall = fetchSafariJsonPlayer(
+                        contentCountry, localization, videoId);
+                break;
             case "tv_simply":
             case "tv_downgraded":
                 jsonPlayerCall = fetchConfiguredJsonPlayer(
-                        contentCountry, localization, videoId,
-                        NewPipe.getYoutubePlayerClient());
+                        contentCountry, localization, videoId, selectedClient);
                 break;
             case "web":
                 jsonPlayerCall = fetchWebJsonPlayer(
@@ -1690,6 +1709,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         contentCountry, localization, videoId);
                 break;
         }
+
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
                         .value(VIDEO_ID, videoId)
@@ -1697,73 +1717,96 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .value(RACY_CHECK_OK, true)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
-        CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) throws ExtractionException {
-                try {
-                    nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addError(e);
-                }
-            }
-
-            @Override
-            public void onError(final Exception error) {
-                addError(error);
-            }
-        });
-
-        // fetch dislike
-
-            CancellableCall dislikeCall = null;
-            if (ServiceList.YouTube.isFetchDislike()) {
-                dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
+        final CancellableCall nextDataCall = getJsonPostResponseAsync(
+                NEXT,
+                body,
+                localization,
+                new Downloader.AsyncCallback() {
                     @Override
-                    public void onSuccess(Response response) throws ExtractionException {
+                    public void onSuccess(final Response response) {
                         try {
-                            dislikeData = new JSONObject(getValidJsonResponseBody(response));
-                        } catch (JSONException | MalformedURLException e) {
-                            e.printStackTrace();
+                            nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
+                        } catch (final Exception error) {
+                            addError(error);
                         }
                     }
-                });
-            }
-            final CancellableCall[] requiredCalls = {
-                    jsonPlayerCall, webPageCall, nextDataCall
-            };
-            awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
 
+                    @Override
+                    public void onError(final Exception error) {
+                        addError(error);
+                    }
+                });
+
+        CancellableCall dislikeCall = null;
+        if (ServiceList.YouTube.isFetchDislike()) {
+            dislikeCall = downloader.getAsync(
+                    "https://returnyoutubedislikeapi.com/votes?videoId=" + videoId,
+                    new Downloader.AsyncCallback() {
+                        @Override
+                        public void onSuccess(final Response response) throws ExtractionException {
+                            try {
+                                dislikeData = new JSONObject(getValidJsonResponseBody(response));
+                            } catch (final JSONException | MalformedURLException ignored) {
+                            }
+                        }
+                    });
+        }
+
+        awaitRequiredCalls(
+                new CancellableCall[]{jsonPlayerCall, webPageCall, nextDataCall},
+                ServiceList.YouTube.getLoadingTimeout());
+
+        if ("android_vr".equals(selectedClient)
+                && !hasUsableDirectStreams(androidStreamingData)) {
+            final CancellableCall safariCall = fetchSafariJsonPlayer(
+                    contentCountry, localization, videoId);
+            awaitRequiredCalls(
+                    new CancellableCall[]{safariCall},
+                    ServiceList.YouTube.getLoadingTimeout());
+        }
+
+        if (hasUsableDirectStreams(androidStreamingData)) {
+            configuredStreamingData = androidStreamingData;
+            configuredCpn = androidCpn;
+        } else if (hasUsableDirectStreams(safariStreamingData)) {
+            configuredStreamingData = safariStreamingData;
+            configuredCpn = safariCpn;
+        }
+
+        if (playerResponse == null
+                || !hasUsableDirectStreams(configuredStreamingData)
+                || nextResponse == null) {
             throwIfErrors();
             if (playerResponse == null) {
                 throw new ExtractionException("YouTube player response is missing");
             }
-            checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
-            setStreamType();
-            final String selectedClient = NewPipe.getYoutubePlayerClient();
-            final boolean hasConfiguredHls = configuredStreamingData != null
-                    && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
-            if (streamType == StreamType.LIVE_STREAM
-                    && ("tv_downgraded".equals(selectedClient)
-                    || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
-                final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
-                        contentCountry, localization, videoId);
-                awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
-                        ServiceList.YouTube.getLoadingTimeout());
+            if (!hasUsableDirectStreams(configuredStreamingData)) {
+                throw new ContentNotSupportedException(
+                        "YouTube returned no usable direct stream URLs");
+            }
+            throw new ExtractionException("YouTube next response is missing");
+        }
+
+        checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+        setStreamType();
+
+        final boolean hasConfiguredHls = configuredStreamingData != null
+                && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
+        if (streamType == StreamType.LIVE_STREAM
+                && ("tv_downgraded".equals(selectedClient)
+                || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
+            final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
+                    contentCountry, localization, videoId);
+            awaitRequiredCalls(
+                    new CancellableCall[]{mwebHlsCall},
+                    ServiceList.YouTube.getLoadingTimeout());
+            if (mwebHlsManifestUrl.isEmpty()) {
                 throwIfErrors();
             }
-            if (configuredStreamingData == null
-                    && webStreamingData == null && mwebStreamingData == null) {
-                throw new ExtractionException("YouTube streaming data is missing");
-            }
-            if (nextResponse == null) {
-                throw new ExtractionException("YouTube next response is missing");
-            }
+        }
+
         System.out.println("YouTube video " + videoId + " wait time: "
                 + finalWaitSeconds + " seconds");
-
-        // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds
-        // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
     }
 
     private void awaitRequiredCalls(@Nonnull final CancellableCall[] calls,
@@ -2021,6 +2064,154 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId), cpn,
                         "MWEB", MWEB_USER_AGENT),
                 localization, "2", MWEB_USER_AGENT, callback);
+    }
+
+    private CancellableCall fetchAndroidVRJsonPlayer(
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final Localization localization,
+            @Nonnull final String videoId) throws IOException, ExtractionException {
+        androidCpn = generateContentPlaybackNonce();
+        final InnertubeClientRequestInfo requestInfo =
+                InnertubeClientRequestInfo.ofAndroidClient();
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(getAndroidUserAgent(localization)));
+        headers.put("X-Goog-Api-Format-Version", singletonList("2"));
+        final String visitorData = getVisitorDataFromInnertube(
+                requestInfo,
+                localization,
+                contentCountry,
+                headers,
+                YOUTUBEI_V1_GAPIS_URL,
+                null,
+                false);
+        final byte[] body = JsonWriter.string(
+                        prepareAndroidVRJsonBuilder(localization, contentCountry, visitorData)
+                                .value(VIDEO_ID, videoId)
+                                .value(CPN, androidCpn)
+                                .value(CONTENT_CHECK_OK, true)
+                                .value(RACY_CHECK_OK, true)
+                                .done())
+                .getBytes(StandardCharsets.UTF_8);
+        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
+            @Override
+            public void onSuccess(final Response response) {
+                try {
+                    final JsonObject androidResponse = JsonUtils.toJsonObject(
+                            getValidJsonResponseBody(response));
+                    if (isPlayerResponseNotValid(androidResponse, videoId)) {
+                        throw new ExtractionException(
+                                "ANDROID_VR player response is not valid");
+                    }
+                    checkPlayabilityStatus(
+                            androidResponse.getObject("playabilityStatus"), videoId);
+                    playerResponse = androidResponse;
+                    updateAvailableAt(androidResponse);
+                    final JsonObject streamingData = androidResponse.getObject(STREAMING_DATA);
+                    if (!isNullOrEmpty(streamingData)) {
+                        androidStreamingData = streamingData;
+                        configuredStreamingData = streamingData;
+                        configuredCpn = androidCpn;
+                        if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
+                            playerCaptionsTracklistRenderer = androidResponse
+                                    .getObject("captions")
+                                    .getObject("playerCaptionsTracklistRenderer");
+                        }
+                    }
+                } catch (final Exception error) {
+                    addError(error);
+                }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
+            }
+        };
+        return getJsonAndroidVRPostResponseAsync(
+                PLAYER,
+                body,
+                localization,
+                "&t=" + generateTParameter() + "&id=" + videoId,
+                callback);
+    }
+
+    private CancellableCall fetchSafariJsonPlayer(
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final Localization localization,
+            @Nonnull final String videoId) throws IOException, ExtractionException {
+        safariCpn = generateContentPlaybackNonce();
+        final byte[] body = createSafariPlayerBody(
+                localization,
+                contentCountry,
+                videoId,
+                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
+                safariCpn);
+        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
+            @Override
+            public void onSuccess(final Response response) {
+                try {
+                    final JsonObject safariResponse = JsonUtils.toJsonObject(
+                            getValidJsonResponseBody(response));
+                    if (isPlayerResponseNotValid(safariResponse, videoId)) {
+                        throw new ExtractionException(
+                                "Safari player response is not valid");
+                    }
+                    checkPlayabilityStatus(
+                            safariResponse.getObject("playabilityStatus"), videoId);
+                    playerResponse = safariResponse;
+                    updateAvailableAt(safariResponse);
+                    final JsonObject streamingData = safariResponse.getObject(STREAMING_DATA);
+                    if (!isNullOrEmpty(streamingData)) {
+                        safariStreamingData = streamingData;
+                        configuredStreamingData = streamingData;
+                        configuredCpn = safariCpn;
+                        if (isNullOrEmpty(playerCaptionsTracklistRenderer)) {
+                            playerCaptionsTracklistRenderer = safariResponse
+                                    .getObject("captions")
+                                    .getObject("playerCaptionsTracklistRenderer");
+                        }
+                    }
+                } catch (final Exception error) {
+                    addError(error);
+                }
+            }
+
+            @Override
+            public void onError(final Exception error) {
+                addError(error);
+            }
+        };
+        return getSafariPostResponseAsync(
+                PLAYER,
+                body,
+                localization,
+                callback);
+    }
+
+    private static boolean hasUsableDirectStreams(@Nullable final JsonObject streamingData) {
+        if (streamingData == null || streamingData.isEmpty()) {
+            return false;
+        }
+        if (!streamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty()
+                || !streamingData.getString("dashManifestUrl", EMPTY_STRING).isEmpty()) {
+            return true;
+        }
+        for (final String key : Arrays.asList("formats", ADAPTIVE_FORMATS)) {
+            final JsonArray formats = streamingData.getArray(key);
+            if (formats == null) {
+                continue;
+            }
+            for (int i = 0; i < formats.size(); i++) {
+                final JsonObject format = formats.getObject(i);
+                if (!format.getString("url", EMPTY_STRING).isEmpty()
+                        || !format.getString("signatureCipher", EMPTY_STRING).isEmpty()
+                        || !format.getString("cipher", EMPTY_STRING).isEmpty()) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private CancellableCall fetchConfiguredJsonPlayer(
