@@ -10,9 +10,15 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonArray;
 
 public final class LevyraYoutubeResolver {
     private static final long DEFAULT_PREFLIGHT_TTL_MS = 90_000L;
@@ -60,9 +66,13 @@ public final class LevyraYoutubeResolver {
 
         final String key = request.cacheKey();
         final CacheEntry cached = preflightCache.get(key);
+        
+        final CompletableFuture<List<LevyraSponsorBlockSegment>> sponsorBlockFuture = CompletableFuture.supplyAsync(() -> fetchSponsorBlock(downloader, request.getVideoId()));
+        final CompletableFuture<long[]> rydFuture = CompletableFuture.supplyAsync(() -> fetchRydStats(downloader, request.getVideoId()));
+
         if (cached != null && cached.isFresh()) {
             return fromPreflight(request, cached.preflight, startedNs, streamingSupported,
-                    true, false);
+                    true, false, sponsorBlockFuture.join(), rydFuture.join());
         }
 
         final CompletableFuture<LevyraSabrPreflight> created = new CompletableFuture<>();
@@ -84,7 +94,7 @@ public final class LevyraYoutubeResolver {
 
         try {
             return fromPreflight(request, future.join(), startedNs, streamingSupported,
-                    false, joined);
+                    false, joined, sponsorBlockFuture.join(), rydFuture.join());
         } catch (final CompletionException error) {
             return unresolved(
                     LevyraResolvedStream.Source.UNRESOLVED,
@@ -103,7 +113,9 @@ public final class LevyraYoutubeResolver {
             final long startedNs,
             final boolean streamingSupported,
             final boolean cacheHit,
-            final boolean inFlightJoin) {
+            final boolean inFlightJoin,
+            @Nullable final List<LevyraSponsorBlockSegment> sponsorBlockSegments,
+            @Nullable final long[] rydStats) {
         final LevyraSabrPreflight.Format audio = formatPolicy.selectAudio(preflight, request);
         final LevyraSabrPreflight.Format video = request.isVideoMode()
                 ? formatPolicy.selectVideo(preflight, request) : null;
@@ -120,6 +132,12 @@ public final class LevyraYoutubeResolver {
         }
         if (video != null) {
             builder.video(video.getUrl(), video.getItag(), video.getHeight());
+        }
+        if (sponsorBlockSegments != null) {
+            builder.sponsorBlockSegments(sponsorBlockSegments);
+        }
+        if (rydStats != null) {
+            builder.stats(rydStats[0], rydStats[1]);
         }
         return builder.build();
     }
@@ -156,6 +174,43 @@ public final class LevyraYoutubeResolver {
     private static String rootMessage(@Nonnull final CompletionException error) {
         final Throwable cause = error.getCause() == null ? error : error.getCause();
         return cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+    }
+
+    private static List<LevyraSponsorBlockSegment> fetchSponsorBlock(final Downloader downloader, final String videoId) {
+        try {
+            final String url = "https://sponsor.ajay.app/api/skipSegments?videoID=" + videoId;
+            final org.schabi.newpipe.extractor.downloader.Response response = downloader.get(url);
+            if (response.responseCode() == 200) {
+                final JsonArray array = JsonParser.array().from(response.responseBody());
+                final List<LevyraSponsorBlockSegment> segments = new ArrayList<>();
+                for (int i = 0; i < array.size(); i++) {
+                    final JsonObject obj = array.getObject(i);
+                    final String category = obj.getString("category");
+                    final JsonArray segment = obj.getArray("segment");
+                    if (category != null && segment != null && segment.size() == 2) {
+                        segments.add(new LevyraSponsorBlockSegment(category, segment.getDouble(0), segment.getDouble(1)));
+                    }
+                }
+                return segments;
+            }
+        } catch (final Exception ignored) {
+        }
+        return Collections.emptyList();
+    }
+
+    private static long[] fetchRydStats(final Downloader downloader, final String videoId) {
+        try {
+            final String url = "https://returnyoutubedislikeapi.com/votes?videoId=" + videoId;
+            final org.schabi.newpipe.extractor.downloader.Response response = downloader.get(url);
+            if (response.responseCode() == 200) {
+                final JsonObject obj = JsonParser.object().from(response.responseBody());
+                final long likes = obj.getLong("likes", -1);
+                final long dislikes = obj.getLong("dislikes", -1);
+                return new long[]{likes, dislikes};
+            }
+        } catch (final Exception ignored) {
+        }
+        return new long[]{-1, -1};
     }
 
     public interface SabrPreflightFetcher {

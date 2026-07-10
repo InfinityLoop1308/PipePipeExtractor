@@ -49,6 +49,9 @@ public final class LevyraFormatPolicy {
         final boolean mp4 = mime.contains("mp4") || mime.contains("m4a");
         final boolean opus = mime.contains("opus") || mime.contains("webm");
         int score = Math.max(0, format.getBitrate());
+        if (format.getBitrate() >= 256_000) {
+            score += 2_000_000;
+        }
         if (format.isOriginalAudio()) {
             score += 600_000;
         }
@@ -63,7 +66,11 @@ public final class LevyraFormatPolicy {
     private int scoreVideo(@Nonnull final LevyraSabrPreflight.Format format) {
         final String mime = format.getMimeType().toLowerCase(java.util.Locale.ROOT);
         int score = Math.max(0, format.getHeight()) * 10_000 + Math.max(0, format.getBitrate());
-        if (mime.contains("mp4") || mime.contains("avc")) {
+        if (mime.contains("av01") || mime.contains("av1")) {
+            score += 4_000_000;
+        } else if (mime.contains("vp9")) {
+            score += 3_000_000;
+        } else if (mime.contains("mp4") || mime.contains("avc")) {
             score += 2_000_000;
         }
         return score;
