@@ -76,7 +76,10 @@ public final class YoutubeJavaScriptPlayerManager {
     @Nonnull
     public static Integer getSignatureTimestamp(@Nonnull final String videoId)
             throws ParsingException {
-        return getPlayerMetadata(videoId).signatureTimestamp;
+        final long startedAtNanos = System.nanoTime();
+        final int signatureTimestamp = getPlayerMetadata(videoId).signatureTimestamp;
+        logPerformance(videoId, "ejs.signatureTimestamp", startedAtNanos);
+        return signatureTimestamp;
     }
 
     /**
@@ -193,8 +196,12 @@ public final class YoutubeJavaScriptPlayerManager {
             @Nonnull final String videoId,
             @Nullable final List<String> signatures,
             @Nullable final List<String> throttlingParams) throws ParsingException {
-        return YoutubeApiDecoder.decodeBatch(
-                getPlayerMetadata(videoId).playerId, signatures, throttlingParams);
+        final String playerId = getPlayerMetadata(videoId).playerId;
+        final long startedAtNanos = System.nanoTime();
+        final YoutubeApiDecoder.BatchDecodeResult result = YoutubeApiDecoder.decodeBatch(
+                playerId, signatures, throttlingParams);
+        logPerformanceIfSlow(videoId, "ejs.batch.decode", startedAtNanos);
+        return result;
     }
 
     /**
@@ -211,8 +218,10 @@ public final class YoutubeJavaScriptPlayerManager {
             return currentMetadata;
         }
 
+        final long startedAtNanos = System.nanoTime();
         try {
             playerMetadata = fetchLatestPlayerMetadata();
+            logPerformance(videoId, "ejs.playerMetadata.remote", startedAtNanos);
             return playerMetadata;
         } catch (final ParsingException apiFailure) {
             final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
@@ -224,11 +233,32 @@ public final class YoutubeJavaScriptPlayerManager {
                 final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
                 playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
                         System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+                logPerformance(videoId, "ejs.playerMetadata.fallback", startedAtNanos);
                 return playerMetadata;
             } catch (final Exception localFailure) {
                 apiFailure.addSuppressed(localFailure);
                 throw apiFailure;
             }
+        }
+    }
+
+    private static void logPerformance(@Nonnull final String videoId,
+                                       @Nonnull final String stage,
+                                       final long startedAtNanos) {
+        System.out.println("YT_PERF videoId=" + videoId + " stage=" + stage
+                + " durationMs="
+                + java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - startedAtNanos));
+    }
+
+    private static void logPerformanceIfSlow(@Nonnull final String videoId,
+                                             @Nonnull final String stage,
+                                             final long startedAtNanos) {
+        final long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                System.nanoTime() - startedAtNanos);
+        if (durationMs >= 5) {
+            System.out.println("YT_PERF videoId=" + videoId + " stage=" + stage
+                    + " durationMs=" + durationMs);
         }
     }
 

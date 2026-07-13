@@ -1618,6 +1618,7 @@ YoutubeParsingHelper {
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final String videoId,
             final YoutubeStreamExtractor streamExtractor) throws IOException, ExtractionException {
+        long stageStartedAt = System.nanoTime();
         final byte[] body = JsonWriter.string(
                         prepareDesktopJsonBuilder(localization, contentCountry)
                                 .value(VIDEO_ID, videoId)
@@ -1625,14 +1626,18 @@ YoutubeParsingHelper {
                                 .value(RACY_CHECK_OK, true)
                                 .done())
                 .getBytes(StandardCharsets.UTF_8);
+        logPerformance(videoId, "webPlayer.prepareBody", stageStartedAt);
         final String url = YOUTUBEI_V1_URL + "player" + "?" + DISABLE_PRETTY_PRINT_PARAMETER
                 + "&$fields=microformat,playabilityStatus,storyboards,videoDetails";
 
+        stageStartedAt = System.nanoTime();
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
         addLoggedInHeaders(headers);
-        return getDownloader().postAsync(
+        logPerformance(videoId, "webPlayer.prepareHeaders", stageStartedAt);
+        stageStartedAt = System.nanoTime();
+        final CancellableCall call = getDownloader().postAsync(
                 url, headers, body, localization, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(Response response) throws ExtractionException {
@@ -1674,6 +1679,8 @@ YoutubeParsingHelper {
                         streamExtractor.addError(error);
                     }
                 });
+        logPerformance(videoId, "webPlayer.enqueue", stageStartedAt);
+        return call;
     }
 
     @Nonnull
@@ -2535,5 +2542,14 @@ YoutubeParsingHelper {
                 .end();
 
         return builder;
+    }
+
+    private static void logPerformance(@Nonnull final String videoId,
+                                       @Nonnull final String stage,
+                                       final long startedAtNanos) {
+        System.out.println("YT_PERF videoId=" + videoId + " stage=" + stage
+                + " durationMs="
+                + java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(
+                        System.nanoTime() - startedAtNanos));
     }
 }

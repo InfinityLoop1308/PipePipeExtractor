@@ -1658,6 +1658,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
 
+        final long fetchStartedAt = System.nanoTime();
         NewPipe.checkWebViewAvailable();
 
         final String videoId = getId();
@@ -1668,10 +1669,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             errors.clear();
         }
 
-        CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
+        long stageStartedAt = System.nanoTime();
+        final CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
                 localization, contentCountry, videoId, this);
+        logPerformance(videoId, "schedule.webPlayer", stageStartedAt);
 
         final CancellableCall jsonPlayerCall;
+        stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
             case "web_safari":
             case "android_vr":
@@ -1690,6 +1694,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         contentCountry, localization, videoId);
                 break;
         }
+        logPerformance(videoId, "schedule.jsonPlayer", stageStartedAt);
         final byte[] body = JsonWriter.string(
                 prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
                         .value(VIDEO_ID, videoId)
@@ -1697,7 +1702,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         .value(RACY_CHECK_OK, true)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
-        CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
+        stageStartedAt = System.nanoTime();
+        final CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
             @Override
             public void onSuccess(Response response) throws ExtractionException {
                 try {
@@ -1713,11 +1719,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 addError(error);
             }
         });
+        logPerformance(videoId, "schedule.next", stageStartedAt);
 
         // fetch dislike
 
             CancellableCall dislikeCall = null;
             if (ServiceList.YouTube.isFetchDislike()) {
+                stageStartedAt = System.nanoTime();
                 dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(Response response) throws ExtractionException {
@@ -1728,11 +1736,20 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         }
                     }
                 });
+                logPerformance(videoId, "schedule.dislike", stageStartedAt);
             }
             final CancellableCall[] requiredCalls = {
                     jsonPlayerCall, webPageCall, nextDataCall
             };
+            stageStartedAt = System.nanoTime();
             awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
+            logPerformance(videoId, "await.required", stageStartedAt);
+            logCallPerformance(videoId, "request.jsonPlayer", jsonPlayerCall);
+            logCallPerformance(videoId, "request.webPlayer", webPageCall);
+            logCallPerformance(videoId, "request.next", nextDataCall);
+            if (dislikeCall != null) {
+                logCallPerformance(videoId, "request.dislike", dislikeCall);
+            }
 
             throwIfErrors();
             if (playerResponse == null) {
@@ -1759,11 +1776,26 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             if (nextResponse == null) {
                 throw new ExtractionException("YouTube next response is missing");
             }
-        System.out.println("YouTube video " + videoId + " wait time: "
-                + finalWaitSeconds + " seconds");
+        logPerformance(videoId, "fetchPage.total", fetchStartedAt);
 
         // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds
         // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
+    }
+
+    private static void logCallPerformance(@Nonnull final String videoId,
+                                           @Nonnull final String stage,
+                                           @Nonnull final CancellableCall call) {
+        System.out.println("YT_PERF videoId=" + videoId + " stage=" + stage
+                + " durationMs=" + call.getElapsedTimeMillis()
+                + " finished=" + call.isFinished());
+    }
+
+    private static void logPerformance(@Nonnull final String videoId,
+                                       @Nonnull final String stage,
+                                       final long startedAtNanos) {
+        System.out.println("YT_PERF videoId=" + videoId + " stage=" + stage
+                + " durationMs="
+                + TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos));
     }
 
     private void awaitRequiredCalls(@Nonnull final CancellableCall[] calls,
