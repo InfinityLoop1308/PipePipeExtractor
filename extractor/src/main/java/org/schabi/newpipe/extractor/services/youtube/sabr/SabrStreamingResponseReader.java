@@ -66,6 +66,15 @@ public final class SabrStreamingResponseReader {
                                    final StoppableSegmentConsumer segmentConsumer,
                                    @Nullable final File spoolDirectory)
             throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer, null, spoolDirectory);
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer,
+                                   @Nullable final SegmentConsumer segmentStartConsumer,
+                                   @Nullable final File spoolDirectory)
+            throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
@@ -82,18 +91,22 @@ public final class SabrStreamingResponseReader {
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
         final SabrMediaSegmentCollector.Incremental collector =
                 new SabrMediaSegmentCollector.Incremental(spoolDirectory);
-        UmpReader.readPayloadsUntil(in, (type, size, payloadStream) -> {
-            SabrDecodedResponse.addPartSummary(partSummaries, type, size);
-            maxPartBytes[0] = Math.max(maxPartBytes[0], size);
-            totalPayloadBytes[0] += size;
-            switch (type) {
+        try {
+            UmpReader.readPayloadsUntil(in, (type, size, payloadStream) -> {
+                SabrDecodedResponse.addPartSummary(partSummaries, type, size);
+                maxPartBytes[0] = Math.max(maxPartBytes[0], size);
+                totalPayloadBytes[0] += size;
+                switch (type) {
                 case SabrResponseDecoder.MEDIA_HEADER: {
                     final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     // small (just the header) -> keep so the decoder records it (observeHeader).
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     try {
-                        collector.onMediaHeader(payload);
+                        final SabrMediaSegment started = collector.onMediaHeader(payload);
+                        if (started != null && segmentStartConsumer != null) {
+                            segmentStartConsumer.accept(started);
+                        }
                     } catch (final SabrProtocolException ignored) {
                         if (!isMalformedMediaHeader(payload)) {
                             throw ignored;
@@ -144,9 +157,14 @@ public final class SabrStreamingResponseReader {
                     controlParts.add(new UmpPart(type, payload.length, payload));
                     break;
                 }
-            }
-            return true;
-        });
+                }
+                return true;
+            });
+        } finally {
+            // Any header left open after EOF, cancellation or failure must wake a growing-file
+            // reader. Completed segments have already been removed from the collector.
+            collector.abort();
+        }
         final SabrDecodedResponse decoded = SabrResponseDecoder.decodeParts(controlParts);
         decoded.setPartSummaries(partSummaries);
         for (final Map.Entry<Integer, Long> entry : mediaBytesByHeaderId.entrySet()) {

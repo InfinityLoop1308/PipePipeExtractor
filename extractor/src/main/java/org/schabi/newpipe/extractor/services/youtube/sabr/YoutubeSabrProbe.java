@@ -209,6 +209,24 @@ public final class YoutubeSabrProbe {
     }
 
     @Nonnull
+    static YoutubeSabrProbeResult probeFirstMediaResponseStreamingUntil(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final YoutubeSabrFormat audioFormat,
+            @Nonnull final YoutubeSabrFormat videoFormat,
+            @Nullable final YoutubeSabrStreamState streamState,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nonnull final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentStartConsumer,
+            @Nullable final File segmentSpoolDirectory,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final byte[] requestBody = YoutubeSabrRequestBuilder.buildFirstMediaRequest(
+                info, audioFormat, videoFormat, streamState);
+        return postMediaRequest(info, requestBody, 0, serverAbrStreamingUrlOverride,
+                segmentConsumer, segmentStartConsumer, segmentSpoolDirectory, localization);
+    }
+
+    @Nonnull
     public static YoutubeSabrProbeResult probeFollowUpMediaResponse(
             @Nonnull final YoutubeSabrInfo info,
             @Nonnull final YoutubeSabrFormat audioFormat,
@@ -301,6 +319,28 @@ public final class YoutubeSabrProbe {
     }
 
     @Nonnull
+    static YoutubeSabrProbeResult probeFollowUpMediaResponseStreamingUntil(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final YoutubeSabrFormat audioFormat,
+            @Nonnull final YoutubeSabrFormat videoFormat,
+            @Nonnull final YoutubeSabrStreamState streamState,
+            final int requestNumber,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nonnull final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentStartConsumer,
+            @Nullable final File segmentSpoolDirectory,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        if (requestNumber <= 0) {
+            throw new SabrProtocolException("Follow-up request number must be positive");
+        }
+        final byte[] requestBody = YoutubeSabrRequestBuilder.buildFollowUpMediaRequest(
+                info, audioFormat, videoFormat, streamState);
+        return postMediaRequest(info, requestBody, requestNumber, serverAbrStreamingUrlOverride,
+                segmentConsumer, segmentStartConsumer, segmentSpoolDirectory, localization);
+    }
+
+    @Nonnull
     private static YoutubeSabrProbeResult postMediaRequest(
             @Nonnull final YoutubeSabrInfo info,
             @Nonnull final byte[] requestBody,
@@ -345,6 +385,21 @@ public final class YoutubeSabrProbe {
             @Nullable final File segmentSpoolDirectory,
             @Nonnull final Localization localization)
             throws IOException, ExtractionException {
+        return postMediaRequest(info, requestBody, requestNumber, serverAbrStreamingUrlOverride,
+                segmentConsumer, null, segmentSpoolDirectory, localization);
+    }
+
+    @Nonnull
+    static YoutubeSabrProbeResult postMediaRequest(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final byte[] requestBody,
+            final int requestNumber,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentStartConsumer,
+            @Nullable final File segmentSpoolDirectory,
+            @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
         final String serverAbrStreamingUrl = serverAbrStreamingUrlOverride == null
                 || serverAbrStreamingUrlOverride.isEmpty()
                 ? info.getServerAbrStreamingUrl()
@@ -365,6 +420,13 @@ public final class YoutubeSabrProbe {
                     }
                     return segmentConsumer.accept(segment);
                 };
+        final SabrStreamingResponseReader.SegmentConsumer timedStartConsumer =
+                segmentStartConsumer == null ? null : segment -> {
+                    if (firstSegmentElapsedMs[0] < 0) {
+                        firstSegmentElapsedMs[0] = elapsedMs(requestStartNs);
+                    }
+                    segmentStartConsumer.accept(segment);
+                };
         try (StreamingResponse response = NewPipe.getDownloader().postStreaming(
                 withSabrSessionParameters(serverAbrStreamingUrl, info.getCpn(), requestNumber),
                 buildSabrHeaders(info), requestBody, localization)) {
@@ -376,10 +438,10 @@ public final class YoutubeSabrProbe {
             }
             final CountingInputStream body = new CountingInputStream(response.body());
             final SabrStreamingResponseReader.Result streamed =
-                    timedConsumer == null
+                    timedConsumer == null && timedStartConsumer == null
                             ? SabrStreamingResponseReader.read(body)
                             : SabrStreamingResponseReader.readUntil(body, timedConsumer,
-                                    segmentSpoolDirectory);
+                                    timedStartConsumer, segmentSpoolDirectory);
             final long requestElapsedMs = elapsedMs(requestStartNs);
             return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
                     streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),

@@ -18,6 +18,8 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 public final class SabrMediaSegmentCollector {
+    private static final int MIN_PROGRESSIVE_SEGMENT_BYTES = 64 * 1024;
+
     private SabrMediaSegmentCollector() {
     }
 
@@ -86,13 +88,16 @@ public final class SabrMediaSegmentCollector {
             this.spoolDirectory = spoolDirectory;
         }
 
-        public void onMediaHeader(@Nonnull final byte[] partData) throws SabrProtocolException {
+        @Nullable
+        public SabrMediaSegment onMediaHeader(@Nonnull final byte[] partData)
+                throws SabrProtocolException {
             final SabrMediaHeader header = SabrMediaHeader.decode(partData);
-            final OpenSegment previous = openSegments.put(header.getHeaderId(),
-                    new OpenSegment(header, spoolDirectory));
+            final OpenSegment current = new OpenSegment(header, spoolDirectory);
+            final OpenSegment previous = openSegments.put(header.getHeaderId(), current);
             if (previous != null) {
                 previous.abort();
             }
+            return current.getProgressiveSegment();
         }
 
         public void onMedia(@Nonnull final byte[] partData) throws SabrProtocolException {
@@ -131,6 +136,13 @@ public final class SabrMediaSegmentCollector {
             }
             return null;
         }
+
+        public void abort() {
+            for (final OpenSegment segment : openSegments.values()) {
+                segment.abort();
+            }
+            openSegments.clear();
+        }
     }
 
     private static final class OpenSegment {
@@ -144,6 +156,8 @@ public final class SabrMediaSegmentCollector {
         private final File file;
         @Nullable
         private final OutputStream fileOutput;
+        @Nullable
+        private final SabrMediaSegment progressiveSegment;
         private int length;
         private boolean fileOutputClosed;
 
@@ -170,6 +184,8 @@ public final class SabrMediaSegmentCollector {
                     file = File.createTempFile("sabr-" + header.getItag() + '-'
                             + header.getSequenceNumber() + '-', ".seg", spoolDirectory);
                     fileOutput = new FileOutputStream(file);
+                    progressiveSegment = contentLength < MIN_PROGRESSIVE_SEGMENT_BYTES ? null
+                            : SabrMediaSegment.progressive(header, file, (int) contentLength);
                 } catch (final IOException e) {
                     throw new SabrRecoverableException("Could not open SABR spool file", e);
                 }
@@ -184,12 +200,19 @@ public final class SabrMediaSegmentCollector {
                 dynamicData = null;
                 file = null;
                 fileOutput = null;
+                progressiveSegment = null;
             } else {
                 fixedData = null;
                 dynamicData = new ByteArrayOutputStream();
                 file = null;
                 fileOutput = null;
+                progressiveSegment = null;
             }
+        }
+
+        @Nullable
+        private SabrMediaSegment getProgressiveSegment() {
+            return progressiveSegment;
         }
 
         private void write(@Nonnull final byte[] bytes, final int offset, final int count)
@@ -210,13 +233,19 @@ public final class SabrMediaSegmentCollector {
             } else if (fileOutput != null) {
                 try {
                     fileOutput.write(bytes, offset, count);
+                    length += count;
+                    if (progressiveSegment != null) {
+                        progressiveSegment.onBytesWritten(count);
+                    }
                 } catch (final IOException e) {
                     throw new SabrRecoverableException("Could not write SABR spool file", e);
                 }
             } else {
                 dynamicData.write(bytes, offset, count);
             }
-            length += count;
+            if (fileOutput == null) {
+                length += count;
+            }
         }
 
         private void write(@Nonnull final InputStream input, final int count)
@@ -254,6 +283,10 @@ public final class SabrMediaSegmentCollector {
                     if (fileOutput != null) {
                         try {
                             fileOutput.write(buffer, 0, read);
+                            length += read;
+                            if (progressiveSegment != null) {
+                                progressiveSegment.onBytesWritten(read);
+                            }
                         } catch (final IOException e) {
                             throw new SabrRecoverableException(
                                     "Could not write SABR spool file", e);
@@ -264,7 +297,9 @@ public final class SabrMediaSegmentCollector {
                     remaining -= read;
                 }
             }
-            length += count;
+            if (fileOutput == null) {
+                length += count;
+            }
         }
 
         @Nonnull
@@ -276,6 +311,10 @@ public final class SabrMediaSegmentCollector {
                             + header.getHeaderId()
                             + ", expected=" + header.getContentLength()
                             + ", actual=" + length);
+                }
+                if (progressiveSegment != null) {
+                    progressiveSegment.completeProgressive();
+                    return progressiveSegment;
                 }
                 return new SabrMediaSegment(header, file, length);
             }
@@ -322,6 +361,10 @@ public final class SabrMediaSegmentCollector {
         }
 
         private void abort() {
+            if (progressiveSegment != null) {
+                progressiveSegment.failProgressive(
+                        new IOException("SABR media segment ended before MEDIA_END"));
+            }
             try {
                 closeFileOutput();
             } catch (final SabrProtocolException ignored) {

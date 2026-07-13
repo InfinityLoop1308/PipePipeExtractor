@@ -59,6 +59,7 @@ public final class YoutubeSabrSession {
     @Nullable
     private final File segmentSpoolDirectory;
     private final Map<String, SabrMediaSegment> segmentCache = new ConcurrentHashMap<>();
+    private final Map<String, SabrMediaSegment> inFlightSegments = new ConcurrentHashMap<>();
     private final Object segmentAvailable = new Object();
     private String serverAbrStreamingUrl;
     private int requestNumber;
@@ -81,6 +82,7 @@ public final class YoutubeSabrSession {
     private volatile int maxSegmentsPerResponse;
     private volatile long demandBackoffUntilNs;
     private volatile long mediaProgressVersion;
+    private volatile boolean cacheClosed;
     private volatile boolean traceEnabled;
     private final Object traceLock = new Object();
     private long traceResponseBytes;
@@ -277,6 +279,14 @@ public final class YoutubeSabrSession {
                         traceCurrentSegmentElapsedMs = -1;
                     }
                 };
+        final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> {
+            traceCurrentSegmentElapsedMs = elapsedMs(requestStartNs);
+            try {
+                publishInFlightSegment(segment);
+            } finally {
+                traceCurrentSegmentElapsedMs = -1;
+            }
+        };
         final YoutubeSabrProbeResult result;
         try {
             if (requestNumber == 0) {
@@ -285,20 +295,27 @@ public final class YoutubeSabrSession {
                         streamState, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFirstMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, serverAbrStreamingUrl, timedConsumer,
-                        segmentSpoolDirectory, localization);
+                        startedConsumer, segmentSpoolDirectory, localization);
             } else {
                 result = timedConsumer == null
                         ? YoutubeSabrProbe.probeFollowUpMediaResponse(info, audioFormat, videoFormat,
                         streamState, requestNumber, serverAbrStreamingUrl, localization)
                         : YoutubeSabrProbe.probeFollowUpMediaResponseStreamingUntil(info, audioFormat,
                         videoFormat, streamState, requestNumber, serverAbrStreamingUrl,
-                        timedConsumer, segmentSpoolDirectory, localization);
+                        timedConsumer, startedConsumer, segmentSpoolDirectory, localization);
             }
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
                     + " type=" + e.getClass().getSimpleName()
                     + " message=" + String.valueOf(e.getMessage()));
             throw e;
+        } finally {
+            // A normal EOF can still leave an unmatched/duplicate MEDIA_HEADER. The response
+            // reader fails those growing files; remove their descriptors so a retry cannot see a
+            // stale in-flight segment.
+            if (!inFlightSegments.isEmpty()) {
+                abortInFlightSegments("SABR response ended before segment completion", null);
+            }
         }
         addDiagnosticEvent("response n=" + requestNumber
                 + " http=" + result.getResponseCode()
@@ -562,10 +579,16 @@ public final class YoutubeSabrSession {
     }
 
     private void ingestAndCacheSegment(@Nonnull final SabrMediaSegment segment) {
-        streamState.ingest(segment);
         final String key = cacheKey(segment);
+        if (cacheClosed || !segment.isComplete() || segment.hasFailed()) {
+            inFlightSegments.remove(key, segment);
+            segment.delete();
+            return;
+        }
+        streamState.ingest(segment);
+        inFlightSegments.remove(key, segment);
         final SabrMediaSegment previous = segmentCache.put(key, segment);
-        if (previous != null) {
+        if (previous != null && previous != segment) {
             previous.delete();
         }
         synchronized (segmentAvailable) {
@@ -583,6 +606,41 @@ public final class YoutubeSabrSession {
         // Streaming responses may contain many large completed segments. Evict between segments,
         // not only after the whole response has already reached its peak memory use.
         evictCacheIfNeeded();
+    }
+
+    private void publishInFlightSegment(@Nonnull final SabrMediaSegment segment) {
+        if (segment.isComplete() || segment.getHeader().isInitSegment()) {
+            return;
+        }
+        if (cacheClosed) {
+            segment.failProgressive(new IOException("SABR session cache is closed"));
+            segment.delete();
+            return;
+        }
+        final String key = cacheKey(segment);
+        final SabrMediaSegment previous = inFlightSegments.put(key, segment);
+        if (previous != null && previous != segment) {
+            previous.delete();
+        }
+        synchronized (segmentAvailable) {
+            segmentAvailable.notifyAll();
+        }
+        addDiagnosticEvent("segment_started itag=" + segment.getHeader().getItag()
+                + " seq=" + segment.getHeader().getSequenceNumber()
+                + " bytes=" + segment.getLength());
+    }
+
+    private void abortInFlightSegments(@Nonnull final String message,
+                                       @Nullable final Throwable cause) {
+        for (final SabrMediaSegment segment : inFlightSegments.values()) {
+            final IOException failure = new IOException(message, cause);
+            segment.failProgressive(failure);
+            segment.delete();
+        }
+        inFlightSegments.clear();
+        synchronized (segmentAvailable) {
+            segmentAvailable.notifyAll();
+        }
     }
 
     /** Drop the oldest cached media segments (furthest behind the play head) to bound memory. */
@@ -644,6 +702,8 @@ public final class YoutubeSabrSession {
      */
     public void clearCache() {
         demandBackoffUntilNs = 0;
+        cacheClosed = true;
+        abortInFlightSegments("SABR session cache was cleared", null);
         for (final SabrMediaSegment segment : segmentCache.values()) {
             segment.delete();
         }
@@ -733,6 +793,21 @@ public final class YoutubeSabrSession {
         return segmentCache.get(cacheKey(request));
     }
 
+    @Nullable
+    public SabrMediaSegment getReadableSegment(@Nonnull final SabrSegmentRequest request) {
+        final String key = cacheKey(request);
+        final SabrMediaSegment complete = segmentCache.get(key);
+        if (complete != null) {
+            return complete;
+        }
+        final SabrMediaSegment inFlight = inFlightSegments.get(key);
+        if (inFlight != null && inFlight.hasFailed()) {
+            inFlightSegments.remove(key, inFlight);
+            return null;
+        }
+        return inFlight;
+    }
+
     /**
      * Wait until a streaming response publishes the requested segment. The cache is checked before
      * and while holding the notification monitor so a segment arriving between those two operations
@@ -756,8 +831,30 @@ public final class YoutubeSabrSession {
         return segment;
     }
 
+    @Nullable
+    public SabrMediaSegment awaitReadableSegment(@Nonnull final SabrSegmentRequest request,
+                                                 final long timeoutMs)
+            throws InterruptedException {
+        SabrMediaSegment segment = getReadableSegment(request);
+        if (segment != null || timeoutMs <= 0) {
+            return segment;
+        }
+        synchronized (segmentAvailable) {
+            segment = getReadableSegment(request);
+            if (segment == null) {
+                segmentAvailable.wait(timeoutMs);
+                segment = getReadableSegment(request);
+            }
+        }
+        return segment;
+    }
+
     public void discardCachedSegment(@Nonnull final SabrSegmentRequest request) {
         final String key = cacheKey(request);
+        final SabrMediaSegment inFlight = inFlightSegments.remove(key);
+        if (inFlight != null) {
+            inFlight.delete();
+        }
         final SabrMediaSegment removed = segmentCache.remove(key);
         if (removed != null && !removed.getHeader().isInitSegment()) {
             cacheOrder.remove(key);
@@ -1008,6 +1105,14 @@ public final class YoutubeSabrSession {
     public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
                                                   @Nonnull final Localization localization)
             throws IOException {
+        return fetchInitializationDataFallback(format, localization, 0);
+    }
+
+    @Nonnull
+    public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
+                                                  @Nonnull final Localization localization,
+                                                  final long timeoutMs)
+            throws IOException {
         final String url = format.getInitializationUrl();
         final long start = format.getInitRangeStart();
         final long end = format.getInitRangeEnd();
@@ -1019,8 +1124,9 @@ public final class YoutubeSabrSession {
         final int length = (int) (end - start + 1);
         final Map<String, List<String>> headers = Collections.singletonMap(
                 "Range", Collections.singletonList("bytes=" + start + '-' + end));
-        try (StreamingResponse response = NewPipe.getDownloader().getStreaming(
-                url, headers, localization)) {
+        try (StreamingResponse response = timeoutMs > 0
+                ? NewPipe.getDownloader().getStreaming(url, headers, localization, timeoutMs)
+                : NewPipe.getDownloader().getStreaming(url, headers, localization)) {
             if (response.responseCode() != 206
                     && !(response.responseCode() == 200 && start == 0)) {
                 throw new IOException("SABR initialization fallback failed: itag="
