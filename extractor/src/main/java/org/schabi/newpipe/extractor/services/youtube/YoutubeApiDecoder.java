@@ -20,11 +20,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Decoder for YouTube signature and throttling parameters using the PipePipe API.
+ * Decoder for YouTube signature and throttling parameters using the PipePipe API, with an
+ * injectable local decoder as fallback.
  *
  * <p>
- * This class replaces the local JavaScript-based decoding with API calls to
- * https://api.pipepipe.dev/decoder/decode
+ * API results are preferred because they are faster than local JavaScript-based decoding.
  * </p>
  */
 public final class YoutubeApiDecoder {
@@ -47,7 +47,7 @@ public final class YoutubeApiDecoder {
      * @param playerId  the YouTube player ID (8-character hash)
      * @param signature the obfuscated signature to decode
      * @return the deobfuscated signature
-     * @throws ParsingException if the API call fails or returns invalid data
+     * @throws ParsingException if both the API and local decoder fail
      */
     @Nonnull
     static String decodeSignature(@Nonnull final String playerId,
@@ -61,7 +61,7 @@ public final class YoutubeApiDecoder {
      * @param playerId          the YouTube player ID (8-character hash)
      * @param nParameter        the obfuscated n parameter to decode
      * @return the deobfuscated n parameter
-     * @throws ParsingException if the API call fails or returns invalid data
+     * @throws ParsingException if both the API and local decoder fail
      */
     @Nonnull
     static String decodeThrottlingParameter(@Nonnull final String playerId,
@@ -77,7 +77,7 @@ public final class YoutubeApiDecoder {
      * @param paramType  the parameter type ("sig" or "n")
      * @param value      the obfuscated value to decode
      * @return the deobfuscated value
-     * @throws ParsingException if the API call fails or returns invalid data
+     * @throws ParsingException if both the API and local decoder fail
      */
     @Nonnull
     private static String decode(@Nonnull final String playerId,
@@ -89,24 +89,18 @@ public final class YoutubeApiDecoder {
             return cachedResult;
         }
 
-        final YoutubeJavaScriptDecoder decoder = localDecoder;
-        if (decoder != null) {
-            try {
-                final BatchDecodeResult result = decoder.decodeBatch(playerId,
-                        "sig".equals(paramType) ? Collections.singletonList(value) : null,
-                        "n".equals(paramType) ? Collections.singletonList(value) : null);
-                final String decodedValue = "sig".equals(paramType)
-                        ? result.getSignatures().get(value) : result.getNParameters().get(value);
-                if (decodedValue == null || decodedValue.isEmpty()) {
-                    throw new ParsingException("Local decoder returned empty value for: " + value);
-                }
-                DECODE_CACHE.put(cacheKey, decodedValue);
-                return decodedValue;
-            } catch (final Exception localFailure) {
-                disableLocalDecoder(decoder);
-            }
+        try {
+            return decodeWithApi(playerId, paramType, value, cacheKey);
+        } catch (final ParsingException apiFailure) {
+            return decodeLocally(playerId, paramType, value, cacheKey, apiFailure);
         }
+    }
 
+    @Nonnull
+    private static String decodeWithApi(@Nonnull final String playerId,
+                                        @Nonnull final String paramType,
+                                        @Nonnull final String value,
+                                        @Nonnull final String cacheKey) throws ParsingException {
         try {
             final String encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8.name());
             final String url = API_BASE_URL + "?player=" + playerId + "&" + paramType + "=" + encodedValue;
@@ -145,15 +139,37 @@ public final class YoutubeApiDecoder {
         }
     }
 
-    static void clearCache() {
-        DECODE_CACHE.clear();
+    @Nonnull
+    private static String decodeLocally(@Nonnull final String playerId,
+                                        @Nonnull final String paramType,
+                                        @Nonnull final String value,
+                                        @Nonnull final String cacheKey,
+                                        @Nonnull final ParsingException apiFailure)
+            throws ParsingException {
+        final YoutubeJavaScriptDecoder decoder = localDecoder;
+        if (decoder == null) {
+            throw apiFailure;
+        }
+
+        try {
+            final BatchDecodeResult result = decoder.decodeBatch(playerId,
+                    "sig".equals(paramType) ? Collections.singletonList(value) : null,
+                    "n".equals(paramType) ? Collections.singletonList(value) : null);
+            final String decodedValue = "sig".equals(paramType)
+                    ? result.getSignatures().get(value) : result.getNParameters().get(value);
+            if (decodedValue == null || decodedValue.isEmpty()) {
+                throw new ParsingException("Local decoder returned empty value for: " + value);
+            }
+            DECODE_CACHE.put(cacheKey, decodedValue);
+            return decodedValue;
+        } catch (final Exception localFailure) {
+            apiFailure.addSuppressed(localFailure);
+            throw apiFailure;
+        }
     }
 
-    private static void disableLocalDecoder(@Nonnull final YoutubeJavaScriptDecoder decoder) {
-        if (localDecoder == decoder) {
-            localDecoder = null;
-            clearCache();
-        }
+    static void clearCache() {
+        DECODE_CACHE.clear();
     }
 
     public static void setLocalDecoder(@Nullable final YoutubeJavaScriptDecoder decoder) {
@@ -177,21 +193,13 @@ public final class YoutubeApiDecoder {
      * @param signatureParams list of obfuscated signatures to decode (can be null or empty)
      * @param nParams         list of obfuscated n parameters to decode (can be null or empty)
      * @return a BatchDecodeResult containing the decoded values
-     * @throws ParsingException if the API call fails or returns invalid data
+     * @throws ParsingException if both the API and local decoder fail
      */
     @Nonnull
     static BatchDecodeResult decodeBatch(@Nonnull final String playerId,
                                          @Nullable final List<String> signatureParams,
                                          @Nullable final List<String> nParams)
             throws ParsingException {
-        final YoutubeJavaScriptDecoder decoder = localDecoder;
-        if (decoder != null) {
-            try {
-                return decoder.decodeBatch(playerId, signatureParams, nParams);
-            } catch (final Exception localFailure) {
-                disableLocalDecoder(decoder);
-            }
-        }
         // Validate input
         final boolean hasSigs = signatureParams != null && !signatureParams.isEmpty();
         final boolean hasNs = nParams != null && !nParams.isEmpty();
@@ -231,6 +239,21 @@ public final class YoutubeApiDecoder {
             return new BatchDecodeResult(sigResults, nResults);
         }
 
+        try {
+            return decodeBatchWithApi(playerId, uncachedSigs, uncachedNs,
+                    sigResults, nResults);
+        } catch (final ParsingException apiFailure) {
+            return decodeBatchLocally(playerId, signatureParams, nParams, apiFailure);
+        }
+    }
+
+    @Nonnull
+    private static BatchDecodeResult decodeBatchWithApi(
+            @Nonnull final String playerId,
+            @Nonnull final List<String> uncachedSigs,
+            @Nonnull final List<String> uncachedNs,
+            @Nonnull final Map<String, String> sigResults,
+            @Nonnull final Map<String, String> nResults) throws ParsingException {
         try {
             final StringBuilder urlBuilder = new StringBuilder(API_BASE_URL);
             urlBuilder.append("?player=").append(playerId);
@@ -310,6 +333,25 @@ public final class YoutubeApiDecoder {
             throw new ParsingException("Failed to parse batch API response", e);
         } catch (final Exception e) {
             throw new ParsingException("Unexpected error during batch decoding", e);
+        }
+    }
+
+    @Nonnull
+    private static BatchDecodeResult decodeBatchLocally(
+            @Nonnull final String playerId,
+            @Nullable final List<String> signatureParams,
+            @Nullable final List<String> nParams,
+            @Nonnull final ParsingException apiFailure) throws ParsingException {
+        final YoutubeJavaScriptDecoder decoder = localDecoder;
+        if (decoder == null) {
+            throw apiFailure;
+        }
+
+        try {
+            return decoder.decodeBatch(playerId, signatureParams, nParams);
+        } catch (final Exception localFailure) {
+            apiFailure.addSuppressed(localFailure);
+            throw apiFailure;
         }
     }
 

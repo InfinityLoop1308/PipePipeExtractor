@@ -59,7 +59,8 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * <p>
-     * The signature timestamp is loaded together with the player ID from the decoder API.
+     * The signature timestamp is loaded together with the player ID from the decoder API, or from
+     * the local decoder if the API is unavailable.
      * </p>
      *
      * <p>
@@ -145,7 +146,8 @@ public final class YoutubeJavaScriptPlayerManager {
      * Clear the cached player metadata.
      *
      * <p>
-     * The next access will fetch a fresh player ID and signature timestamp from the API.
+     * The next access will fetch a fresh player ID and signature timestamp from the API, with the
+     * local decoder as fallback.
      * </p>
      */
     public static void clearAllCaches() {
@@ -198,7 +200,7 @@ public final class YoutubeJavaScriptPlayerManager {
     /**
      * Load player metadata from memory or refresh it from the decoder API.
      *
-     * @param videoId unused, kept to avoid changing public call sites
+     * @param videoId the video ID used by the local decoder if the API is unavailable
      * @throws ParsingException if loading the player metadata failed
      */
     @Nonnull
@@ -209,16 +211,25 @@ public final class YoutubeJavaScriptPlayerManager {
             return currentMetadata;
         }
 
-        final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
-        if (decoder != null) {
-            final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
-            playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
-                    System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+        try {
+            playerMetadata = fetchLatestPlayerMetadata();
             return playerMetadata;
-        }
+        } catch (final ParsingException apiFailure) {
+            final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
+            if (decoder == null) {
+                throw apiFailure;
+            }
 
-        playerMetadata = fetchLatestPlayerMetadata();
-        return playerMetadata;
+            try {
+                final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
+                playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
+                        System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+                return playerMetadata;
+            } catch (final Exception localFailure) {
+                apiFailure.addSuppressed(localFailure);
+                throw apiFailure;
+            }
+        }
     }
 
     @Nonnull
