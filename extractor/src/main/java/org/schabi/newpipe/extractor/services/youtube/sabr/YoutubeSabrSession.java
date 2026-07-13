@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 public final class YoutubeSabrSession {
     private static final int MAX_REQUESTS_PER_SEGMENT = 16;
@@ -34,6 +35,9 @@ public final class YoutubeSabrSession {
     // expiry mid-playback). Bounded so a genuinely-rejected token can't loop forever.
     private static final int MAX_PO_TOKEN_REFRESHES = 2;
     private static final int MAX_BACKOFF_MS = 30_000;
+    // A Media3 loader is synchronously waiting for a demanded segment. Bound long server waits, but
+    // still preserve normal SABR pacing instead of retrying policy-only responses in a tight loop.
+    private static final int MAX_DEMAND_BACKOFF_MS = 2_000;
     // Cap the cached media bytes so a high-bitrate (4K VP9/AV1) stream can't fill the heap and OOM.
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
@@ -75,6 +79,8 @@ public final class YoutubeSabrSession {
     private volatile long maxMediaPartPayloadBytes;
     private volatile long maxSegmentBytes;
     private volatile int maxSegmentsPerResponse;
+    private volatile long demandBackoffUntilNs;
+    private volatile long mediaProgressVersion;
     private volatile boolean traceEnabled;
     private final Object traceLock = new Object();
     private long traceResponseBytes;
@@ -436,8 +442,29 @@ public final class YoutubeSabrSession {
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
             throws IOException, ExtractionException {
+        if (getCachedSegment(target) != null) {
+            return 0;
+        }
+        final long remainingBackoffMs = getDemandBackoffRemainingMs();
+        if (remainingBackoffMs > 0) {
+            return 0;
+        }
         final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
         return result == null ? 0 : result.getSegmentCount();
+    }
+
+    /** Remaining server pacing delay for a synchronously demanded segment. */
+    public long getDemandBackoffRemainingMs() {
+        final long remainingNs = demandBackoffUntilNs - System.nanoTime();
+        if (remainingNs <= 0) {
+            return 0;
+        }
+        return Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNs));
+    }
+
+    /** Monotonic counter advanced only when a new media or initialization segment is cached. */
+    public long getMediaProgressVersion() {
+        return mediaProgressVersion;
     }
 
     @Nullable
@@ -522,7 +549,14 @@ public final class YoutubeSabrSession {
         if (decoded.getBackoffTimeMs() > 0 && honorBackoff) {
             sleepBackoff(decoded.getBackoffTimeMs());
         } else if (decoded.getBackoffTimeMs() > 0) {
-            addDiagnosticEvent("skip_backoff waitTarget backoffMs=" + decoded.getBackoffTimeMs());
+            final int appliedBackoffMs = Math.min(decoded.getBackoffTimeMs(),
+                    MAX_DEMAND_BACKOFF_MS);
+            demandBackoffUntilNs = System.nanoTime()
+                    + TimeUnit.MILLISECONDS.toNanos(appliedBackoffMs);
+            addDiagnosticEvent("defer_backoff waitTarget requestedMs="
+                    + decoded.getBackoffTimeMs() + " appliedMs=" + appliedBackoffMs);
+        } else if (!honorBackoff) {
+            demandBackoffUntilNs = 0;
         }
         return result;
     }
@@ -543,6 +577,7 @@ public final class YoutubeSabrSession {
             peakCachedBytes = Math.max(peakCachedBytes, cachedBytes);
         }
         if (previous == null) {
+            mediaProgressVersion++;
             recordTraceSegment(segment);
         }
         // Streaming responses may contain many large completed segments. Evict between segments,
@@ -608,6 +643,7 @@ public final class YoutubeSabrSession {
      * refetch and keeping old period caches alive during rapid video switches can fill the app heap.
      */
     public void clearCache() {
+        demandBackoffUntilNs = 0;
         for (final SabrMediaSegment segment : segmentCache.values()) {
             segment.delete();
         }
@@ -949,6 +985,7 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
+        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
@@ -961,6 +998,7 @@ public final class YoutubeSabrSession {
     }
 
     public void prepareForInitialization(@Nonnull final YoutubeSabrFormat format) {
+        demandBackoffUntilNs = 0;
         discardCachedSegment(SabrSegmentRequest.initialization(format));
         streamState.resetInitialization(format);
         streamState.clearPlaybackCookie();
@@ -1024,6 +1062,7 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
+        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
@@ -1049,6 +1088,7 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
+        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
