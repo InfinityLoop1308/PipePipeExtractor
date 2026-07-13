@@ -59,8 +59,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * <p>
-     * The signature timestamp is loaded together with the player ID from the decoder API, or from
-     * the local decoder if the API is unavailable.
+     * The signature timestamp is loaded together with the player ID from the decoder API.
      * </p>
      *
      * <p>
@@ -149,8 +148,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * Clear the cached player metadata.
      *
      * <p>
-     * The next access will fetch a fresh player ID and signature timestamp from the API, with the
-     * local decoder as fallback.
+     * The next access will fetch a fresh player ID and signature timestamp from the API.
      * </p>
      */
     public static void clearAllCaches() {
@@ -207,7 +205,7 @@ public final class YoutubeJavaScriptPlayerManager {
     /**
      * Load player metadata from memory or refresh it from the decoder API.
      *
-     * @param videoId the video ID used by the local decoder if the API is unavailable
+     * @param videoId unused, kept to avoid changing public call sites
      * @throws ParsingException if loading the player metadata failed
      */
     @Nonnull
@@ -219,27 +217,18 @@ public final class YoutubeJavaScriptPlayerManager {
         }
 
         final long startedAtNanos = System.nanoTime();
-        try {
-            playerMetadata = fetchLatestPlayerMetadata();
-            logPerformance(videoId, "ejs.playerMetadata.remote", startedAtNanos);
+        final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
+        if (decoder != null) {
+            final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
+            playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
+                    System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+            logPerformance(videoId, "ejs.playerMetadata.local", startedAtNanos);
             return playerMetadata;
-        } catch (final ParsingException apiFailure) {
-            final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
-            if (decoder == null) {
-                throw apiFailure;
-            }
-
-            try {
-                final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
-                playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
-                        System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
-                logPerformance(videoId, "ejs.playerMetadata.fallback", startedAtNanos);
-                return playerMetadata;
-            } catch (final Exception localFailure) {
-                apiFailure.addSuppressed(localFailure);
-                throw apiFailure;
-            }
         }
+
+        playerMetadata = fetchLatestPlayerMetadata();
+        logPerformance(videoId, "ejs.playerMetadata.remoteFallback", startedAtNanos);
+        return playerMetadata;
     }
 
     private static void logPerformance(@Nonnull final String videoId,
