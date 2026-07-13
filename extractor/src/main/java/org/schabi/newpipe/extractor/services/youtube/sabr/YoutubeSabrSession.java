@@ -459,15 +459,49 @@ public final class YoutubeSabrSession {
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
             throws IOException, ExtractionException {
+        return pumpOnceStreamingForDemand(localization, target).getSegmentCount();
+    }
+
+    @Nonnull
+    public DemandResponseResult pumpOnceStreamingForDemand(
+            @Nonnull final Localization localization,
+            @Nonnull final SabrSegmentRequest target) throws IOException, ExtractionException {
         if (getCachedSegment(target) != null) {
-            return 0;
+            return DemandResponseResult.EMPTY;
         }
         final long remainingBackoffMs = getDemandBackoffRemainingMs();
         if (remainingBackoffMs > 0) {
-            return 0;
+            return DemandResponseResult.EMPTY;
         }
-        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
-        return result == null ? 0 : result.getSegmentCount();
+        final int[] targetTrackSegments = {0};
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, segment -> {
+            ingestAndCacheSegment(segment);
+            if (segment.getHeader().getItag() == target.getFormat().getItag()) {
+                targetTrackSegments[0]++;
+            }
+            return true;
+        }, false);
+        return result == null ? DemandResponseResult.EMPTY
+                : new DemandResponseResult(result.getSegmentCount(), targetTrackSegments[0]);
+    }
+
+    public static final class DemandResponseResult {
+        private static final DemandResponseResult EMPTY = new DemandResponseResult(0, 0);
+        private final int segmentCount;
+        private final int targetTrackSegmentCount;
+
+        private DemandResponseResult(final int segmentCount, final int targetTrackSegmentCount) {
+            this.segmentCount = segmentCount;
+            this.targetTrackSegmentCount = targetTrackSegmentCount;
+        }
+
+        public int getSegmentCount() {
+            return segmentCount;
+        }
+
+        public int getTargetTrackSegmentCount() {
+            return targetTrackSegmentCount;
+        }
     }
 
     /** Remaining server pacing delay for a synchronously demanded segment. */
@@ -652,6 +686,11 @@ public final class YoutubeSabrSession {
     /** Total cached media bytes. The pump throttles on this so high-bitrate (4K) can't OOM the heap. */
     public long getCachedBytes() {
         return cachedBytes;
+    }
+
+    /** Byte ceiling shared with the client-side pump so prefetch cannot stop below eviction. */
+    public static long getMaxCacheBytes() {
+        return MAX_CACHE_BYTES;
     }
 
     public long getPeakCachedBytes() {
@@ -1208,6 +1247,19 @@ public final class YoutubeSabrSession {
         // a track blocked on the uncached target keeps reader_tail stale, so play-head eviction never
         // runs and the heap fills -> stuck buffering / OOM at 4K). The pump fetches from the target.
         evictOutsideSeekWindow(targetStartMs);
+    }
+
+    /** Re-advertise only the missing near-edge track without discarding the companion timeline. */
+    public void prepareForMissingSegment(@Nonnull final SabrSegmentRequest request) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+        demandBackoffUntilNs = 0;
+        final long targetStartMs = streamState.getSegmentStartMs(request.getFormat(),
+                request.getSequenceNumber());
+        streamState.jumpBufferedTo(request.getFormat(), request.getSequenceNumber());
+        streamState.setPlayerTimeMs(targetStartMs);
+        streamState.clearPlaybackCookie();
     }
 
     private void failIfKnownOutOfBounds(@Nonnull final SabrSegmentRequest request)
