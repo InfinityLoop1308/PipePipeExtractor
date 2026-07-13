@@ -1674,6 +1674,55 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 localization, contentCountry, videoId, this);
         logPerformance(videoId, "schedule.webPlayer", stageStartedAt);
 
+        final byte[] body = JsonWriter.string(
+                prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
+                        .value(VIDEO_ID, videoId)
+                        .value(CONTENT_CHECK_OK, true)
+                        .value(RACY_CHECK_OK, true)
+                        .done())
+                .getBytes(StandardCharsets.UTF_8);
+        stageStartedAt = System.nanoTime();
+        final CancellableCall nextDataCall = getJsonPostResponseAsync(
+                NEXT, body, localization, new Downloader.AsyncCallback() {
+                    @Override
+                    public void onSuccess(final Response response) throws ExtractionException {
+                        try {
+                            nextResponse = JsonUtils.toJsonObject(
+                                    getValidJsonResponseBody(response));
+                        } catch (final Exception e) {
+                            e.printStackTrace();
+                            addError(e);
+                        }
+                    }
+
+                    @Override
+                    public void onError(final Exception error) {
+                        addError(error);
+                    }
+                }
+        );
+        logPerformance(videoId, "schedule.next", stageStartedAt);
+
+        CancellableCall dislikeCall = null;
+        if (ServiceList.YouTube.isFetchDislike()) {
+            stageStartedAt = System.nanoTime();
+            dislikeCall = downloader.getAsync(
+                    "https://returnyoutubedislikeapi.com/votes?videoId=" + videoId,
+                    new Downloader.AsyncCallback() {
+                        @Override
+                        public void onSuccess(final Response response)
+                                throws ExtractionException {
+                            try {
+                                dislikeData = new JSONObject(getValidJsonResponseBody(response));
+                            } catch (final JSONException | MalformedURLException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    }
+            );
+            logPerformance(videoId, "schedule.dislike", stageStartedAt);
+        }
+
         final CancellableCall jsonPlayerCall;
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
@@ -1695,87 +1744,45 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 break;
         }
         logPerformance(videoId, "schedule.jsonPlayer", stageStartedAt);
-        final byte[] body = JsonWriter.string(
-                prepareDesktopJsonBuilder(getExtractorLocalization(), contentCountry)
-                        .value(VIDEO_ID, videoId)
-                        .value(CONTENT_CHECK_OK, true)
-                        .value(RACY_CHECK_OK, true)
-                        .done())
-                .getBytes(StandardCharsets.UTF_8);
+
+        final CancellableCall[] requiredCalls = {
+                jsonPlayerCall, webPageCall, nextDataCall
+        };
         stageStartedAt = System.nanoTime();
-        final CancellableCall nextDataCall = getJsonPostResponseAsync(NEXT, body, localization, new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) throws ExtractionException {
-                try {
-                    nextResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addError(e);
-                }
-            }
+        awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
+        logPerformance(videoId, "await.required", stageStartedAt);
+        logCallPerformance(videoId, "request.jsonPlayer", jsonPlayerCall);
+        logCallPerformance(videoId, "request.webPlayer", webPageCall);
+        logCallPerformance(videoId, "request.next", nextDataCall);
+        if (dislikeCall != null) {
+            logCallPerformance(videoId, "request.dislike", dislikeCall);
+        }
 
-            @Override
-            public void onError(final Exception error) {
-                addError(error);
-            }
-        });
-        logPerformance(videoId, "schedule.next", stageStartedAt);
-
-        // fetch dislike
-
-            CancellableCall dislikeCall = null;
-            if (ServiceList.YouTube.isFetchDislike()) {
-                stageStartedAt = System.nanoTime();
-                dislikeCall = downloader.getAsync("https://returnyoutubedislikeapi.com/votes?" + "videoId=" + videoId, new Downloader.AsyncCallback() {
-                    @Override
-                    public void onSuccess(Response response) throws ExtractionException {
-                        try {
-                            dislikeData = new JSONObject(getValidJsonResponseBody(response));
-                        } catch (JSONException | MalformedURLException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-                logPerformance(videoId, "schedule.dislike", stageStartedAt);
-            }
-            final CancellableCall[] requiredCalls = {
-                    jsonPlayerCall, webPageCall, nextDataCall
-            };
-            stageStartedAt = System.nanoTime();
-            awaitRequiredCalls(requiredCalls, ServiceList.YouTube.getLoadingTimeout());
-            logPerformance(videoId, "await.required", stageStartedAt);
-            logCallPerformance(videoId, "request.jsonPlayer", jsonPlayerCall);
-            logCallPerformance(videoId, "request.webPlayer", webPageCall);
-            logCallPerformance(videoId, "request.next", nextDataCall);
-            if (dislikeCall != null) {
-                logCallPerformance(videoId, "request.dislike", dislikeCall);
-            }
-
+        throwIfErrors();
+        if (playerResponse == null) {
+            throw new ExtractionException("YouTube player response is missing");
+        }
+        checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
+        setStreamType();
+        final String selectedClient = NewPipe.getYoutubePlayerClient();
+        final boolean hasConfiguredHls = configuredStreamingData != null
+                && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
+        if (streamType == StreamType.LIVE_STREAM
+                && ("tv_downgraded".equals(selectedClient)
+                || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
+            final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
+                    contentCountry, localization, videoId);
+            awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
+                    ServiceList.YouTube.getLoadingTimeout());
             throwIfErrors();
-            if (playerResponse == null) {
-                throw new ExtractionException("YouTube player response is missing");
-            }
-            checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
-            setStreamType();
-            final String selectedClient = NewPipe.getYoutubePlayerClient();
-            final boolean hasConfiguredHls = configuredStreamingData != null
-                    && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
-            if (streamType == StreamType.LIVE_STREAM
-                    && ("tv_downgraded".equals(selectedClient)
-                    || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
-                final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
-                        contentCountry, localization, videoId);
-                awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
-                        ServiceList.YouTube.getLoadingTimeout());
-                throwIfErrors();
-            }
-            if (configuredStreamingData == null
-                    && webStreamingData == null && mwebStreamingData == null) {
-                throw new ExtractionException("YouTube streaming data is missing");
-            }
-            if (nextResponse == null) {
-                throw new ExtractionException("YouTube next response is missing");
-            }
+        }
+        if (configuredStreamingData == null
+                && webStreamingData == null && mwebStreamingData == null) {
+            throw new ExtractionException("YouTube streaming data is missing");
+        }
+        if (nextResponse == null) {
+            throw new ExtractionException("YouTube next response is missing");
+        }
         logPerformance(videoId, "fetchPage.total", fetchStartedAt);
 
         // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds

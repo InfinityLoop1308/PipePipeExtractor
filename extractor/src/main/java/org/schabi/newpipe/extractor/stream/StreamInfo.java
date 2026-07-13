@@ -20,9 +20,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 
 import javax.annotation.Nonnull;
 
@@ -92,25 +92,30 @@ public class StreamInfo extends Info {
             throws ExtractionException, IOException {
         final String performanceId = extractor.getId();
         final long totalStartedAt = System.nanoTime();
-        long stageStartedAt = System.nanoTime();
-        extractor.fetchPage();
-        logPerformance(performanceId, "streamInfo.fetchPage", stageStartedAt);
-        final StreamInfo streamInfo;
-        SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService().getSponsorBlockApiSettings();
-        AtomicReference<SponsorBlockSegment[]> sponsorBlockSegments = new AtomicReference<>();
+        final SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService()
+                .getSponsorBlockApiSettings();
+        final AtomicReference<SponsorBlockSegment[]> sponsorBlockSegments =
+                new AtomicReference<>();
+        final CountDownLatch sponsorBlockFinished = new CountDownLatch(1);
         if (sponsorBlockApiSettings != null) {
             new Thread(() -> {
                 final long sponsorBlockStartedAt = System.nanoTime();
                 try {
-                    sponsorBlockSegments.set(SponsorBlockExtractorHelper.getSegments(extractor, sponsorBlockApiSettings));
+                    sponsorBlockSegments.set(SponsorBlockExtractorHelper.getSegments(
+                            extractor, sponsorBlockApiSettings));
                 } catch (UnsupportedEncodingException | ParsingException e) {
                     e.printStackTrace();
                 } finally {
                     logPerformance(performanceId, "sponsorBlock.request", sponsorBlockStartedAt);
+                    sponsorBlockFinished.countDown();
                 }
-            }).start();
-
+            }, "SponsorBlock-" + performanceId).start();
         }
+
+        long stageStartedAt = System.nanoTime();
+        extractor.fetchPage();
+        logPerformance(performanceId, "streamInfo.fetchPage", stageStartedAt);
+        final StreamInfo streamInfo;
         try {
             stageStartedAt = System.nanoTime();
             streamInfo = extractImportantData(extractor);
@@ -123,12 +128,15 @@ public class StreamInfo extends Info {
             logPerformance(performanceId, "streamInfo.optional", stageStartedAt);
             if (sponsorBlockApiSettings != null) {
                 final long startTime = System.nanoTime();
-                do {
-                    if (sponsorBlockSegments.get() != null) {
-                        streamInfo.setSponsorBlockSegments(sponsorBlockSegments.get());
-                        break;
-                    }
-                } while (TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startTime) <= 3);
+                try {
+                    sponsorBlockFinished.await(3, TimeUnit.SECONDS);
+                } catch (final InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                final SponsorBlockSegment[] segments = sponsorBlockSegments.get();
+                if (segments != null) {
+                    streamInfo.setSponsorBlockSegments(segments);
+                }
                 logPerformance(performanceId, "sponsorBlock.wait", startTime);
             }
             logPerformance(performanceId, "streamInfo.total", totalStartedAt);
