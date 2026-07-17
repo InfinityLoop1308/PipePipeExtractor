@@ -343,11 +343,14 @@ public final class YoutubeSabrSession {
                 traceCurrentSegmentElapsedMs = -1;
             }
         };
+        final SabrStreamingResponseReader.LiveMetadataConsumer liveMetadataConsumer = metadata -> {
+            streamState.ingestLiveMetadata(metadata);
+        };
         final YoutubeSabrProbeResult result;
         try {
             result = YoutubeSabrProbe.postMediaRequest(info, requestBody, requestNumber,
-                    serverAbrStreamingUrl, timedConsumer, startedConsumer, segmentSpoolDirectory,
-                    localization, sessionPolicyHost.getMediaProtocol());
+                    serverAbrStreamingUrl, timedConsumer, startedConsumer, liveMetadataConsumer,
+                    segmentSpoolDirectory, localization, sessionPolicyHost.getMediaProtocol());
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
                     + " type=" + e.getClass().getSimpleName()
@@ -370,7 +373,9 @@ public final class YoutubeSabrSession {
         totalResponseBytes += result.getResponseBytes();
         recordMemoryStats(result);
         recordTraceResponse(result);
-        updateBandwidthEstimate(result.getResponseBytes(), System.nanoTime() - requestStartNs);
+        if (result.getSegmentCount() > 0) {
+            updateBandwidthEstimate(result.getResponseBytes(), System.nanoTime() - requestStartNs);
+        }
         requestNumber++;
         sessionPolicyHost.commitAppliedState(requestPolicyResult, sessionPolicyState());
         return result;
@@ -798,13 +803,19 @@ public final class YoutubeSabrSession {
         }
     }
 
-    private void ingestAndCacheSegment(@Nonnull final SabrMediaSegment segment) {
-        final String key = cacheKey(segment);
-        if (cacheClosed || !segment.isComplete() || segment.hasFailed()) {
-            inFlightSegments.remove(key, segment);
-            segment.delete();
+    private void ingestAndCacheSegment(@Nonnull final SabrMediaSegment sourceSegment) {
+        final String sourceKey = cacheKey(sourceSegment);
+        if (cacheClosed || !sourceSegment.isComplete() || sourceSegment.hasFailed()) {
+            inFlightSegments.remove(sourceKey, sourceSegment);
+            sourceSegment.delete();
             return;
         }
+        final SabrMediaSegment segment = normalizeMediaSegment(sourceSegment);
+        inFlightSegments.remove(sourceKey, sourceSegment);
+        if (segment == null) {
+            return;
+        }
+        final String key = cacheKey(segment);
         streamState.ingest(segment);
         inFlightSegments.remove(key, segment);
         final SabrMediaSegment previous = segmentCache.putIfAbsent(key, segment);
@@ -835,8 +846,53 @@ public final class YoutubeSabrSession {
         evictCacheIfNeeded();
     }
 
+    @Nullable
+    private SabrMediaSegment normalizeMediaSegment(@Nonnull final SabrMediaSegment segment) {
+        final SabrMediaHeader header = segment.getHeader();
+        if (header.isInitSegment()) {
+            return segment;
+        }
+        if (!streamState.isLive()) {
+            return segment;
+        }
+        final YoutubeSabrFormat format = formatForItag(header.getItag());
+        if (format == null) {
+            return segment;
+        }
+        final SabrMediaDataParts parts = SabrMediaDataNormalizer.split(
+                format.getMimeType(), segment.getData());
+        if (parts == null) {
+            return segment;
+        }
+        if (!streamState.isInitialized(format)) {
+            final byte[] initializationData = parts.getInitializationData();
+            ingestAndCacheSegment(new SabrMediaSegment(
+                    SabrMediaHeader.initializationFrom(header, initializationData.length),
+                    initializationData));
+        }
+        segment.delete();
+        final byte[] mediaData = parts.getMediaData();
+        return new SabrMediaSegment(
+                SabrMediaHeader.mediaFrom(header, mediaData.length), mediaData);
+    }
+
+    @Nullable
+    private YoutubeSabrFormat formatForItag(final int itag) {
+        if (audioFormat.getItag() == itag) {
+            return audioFormat;
+        }
+        return videoFormat.getItag() == itag ? videoFormat : null;
+    }
+
     private void publishInFlightSegment(@Nonnull final SabrMediaSegment segment) {
         if (segment.isComplete() || segment.getHeader().isInitSegment()) {
+            return;
+        }
+        if (streamState.isLive()) {
+            return;
+        }
+        final YoutubeSabrFormat format = formatForItag(segment.getHeader().getItag());
+        if (format != null && !streamState.isInitialized(format)) {
             return;
         }
         if (cacheClosed) {
@@ -1273,7 +1329,7 @@ public final class YoutubeSabrSession {
 
     /** True once the requested media segment is known to be past the last segment of the stream. */
     public boolean isBeyondEnd(@Nonnull final SabrSegmentRequest request) {
-        if (request.isInitializationSegment()) {
+        if (request.isInitializationSegment() || streamState.isActiveLive()) {
             return false;
         }
         final long endSegment = streamState.getEndSegment(request.getFormat());
@@ -1284,14 +1340,29 @@ public final class YoutubeSabrSession {
         return streamState.isComplete();
     }
 
-    /** True once the server has reported this is a live stream (foundation for live support). */
     public boolean isLive() {
         return streamState.isLive();
     }
 
-    /** Latest segment the live edge has reached, or -1 if unknown / not live. */
+    public boolean isActiveLive() {
+        return streamState.isActiveLive();
+    }
+
+    /** Absolute broadcast head reported by live metadata, or -1 if unknown / not live. */
     public long getLiveHeadSequenceNumber() {
         return streamState.getLiveHeadSequenceNumber();
+    }
+
+    public long getLiveHeadTimeMs() {
+        return streamState.getLiveHeadTimeMs();
+    }
+
+    public long getLiveSeekableStartTimeMs() {
+        return streamState.getLiveSeekableStartTimeMs();
+    }
+
+    public long getLiveSeekableEndTimeMs() {
+        return streamState.getLiveSeekableEndTimeMs();
     }
 
     /**
@@ -1482,7 +1553,7 @@ public final class YoutubeSabrSession {
 
     private void failIfKnownOutOfBounds(@Nonnull final SabrSegmentRequest request)
             throws SabrProtocolException {
-        if (request.isInitializationSegment()) {
+        if (request.isInitializationSegment() || streamState.isActiveLive()) {
             return;
         }
         final long endSegment = streamState.getEndSegment(request.getFormat());
@@ -1498,7 +1569,7 @@ public final class YoutubeSabrSession {
             return false;
         }
         final YoutubeSabrFormat format = request.getFormat();
-        if (streamState.getEndSegment(format) <= 0) {
+        if (streamState.isActiveLive() || streamState.getEndSegment(format) <= 0) {
             return false;
         }
         if (request.getSequenceNumber() <= streamState.getMaxSegment(format) + 1) {
