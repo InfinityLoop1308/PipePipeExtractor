@@ -182,6 +182,23 @@ public final class YoutubeSabrSession {
         if (cachedSegment != null) {
             return cachedSegment;
         }
+        final boolean initializationSegment = request.isInitializationSegment();
+        if (initializationSegment) {
+            prepareInitializationRequest(request.getFormat());
+        }
+        try {
+            return fetchUncachedSegment(request, localization);
+        } finally {
+            if (initializationSegment) {
+                clearInitializationRequest();
+            }
+        }
+    }
+
+    @Nonnull
+    private SabrMediaSegment fetchUncachedSegment(@Nonnull final SabrSegmentRequest request,
+                                                   @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
         failIfKnownOutOfBounds(request);
 
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
@@ -242,6 +259,28 @@ public final class YoutubeSabrSession {
                 + (request.isInitializationSegment()
                 ? ":init"
                 : ":seq=" + request.getSequenceNumber()));
+    }
+
+    private void prepareInitializationRequest(@Nonnull final YoutubeSabrFormat format) {
+        streamState.setWriteFirstRequestPlaybackState(true);
+        streamState.setWriteTopLevelPlayerTimeMs(false);
+        streamState.setWriteLastManualSelectedResolution(format.isVideo());
+        streamState.setBufferedRangesOverride(Collections.emptyList());
+        streamState.setRequestTrackMode(format.isVideo()
+                        ? YoutubeSabrStreamState.TRACK_MODE_VIDEO_ONLY
+                        : YoutubeSabrStreamState.TRACK_MODE_AUDIO_ONLY,
+                false, false);
+        streamState.setPreferredTrackTypes(true, true);
+        streamState.setPlayerTimeMs(streamState.getPlayerTimeMs());
+    }
+
+    private void clearInitializationRequest() {
+        streamState.setWriteFirstRequestPlaybackState(false);
+        streamState.setWriteTopLevelPlayerTimeMs(true);
+        streamState.setWriteLastManualSelectedResolution(false);
+        streamState.setBufferedRangesOverride(null);
+        streamState.clearPlayerTimeMsOverride();
+        streamState.setActiveTrackTypes(true, true);
     }
 
     @Nonnull

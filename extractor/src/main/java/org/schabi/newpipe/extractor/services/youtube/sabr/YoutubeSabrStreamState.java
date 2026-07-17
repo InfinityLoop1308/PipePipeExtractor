@@ -37,6 +37,9 @@ public final class YoutubeSabrStreamState {
     private volatile int enabledTrackTypesBitfield = YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
     private volatile boolean selectAudioFormat = true;
     private volatile boolean selectVideoFormat = true;
+    private volatile boolean preferAudioFormat = true;
+    private volatile boolean preferVideoFormat = true;
+    private boolean writeFirstRequestPlaybackState;
     private boolean writeTopLevelPlayerTimeMs = true;
     private int clientViewportWidth = -1;
     private int clientViewportHeight = -1;
@@ -409,6 +412,14 @@ public final class YoutubeSabrStreamState {
         this.enabledTrackTypesBitfield = enabledTrackTypesBitfield;
         this.selectAudioFormat = selectAudioFormat;
         this.selectVideoFormat = selectVideoFormat;
+        this.preferAudioFormat = selectAudioFormat;
+        this.preferVideoFormat = selectVideoFormat;
+    }
+
+    synchronized void setPreferredTrackTypes(final boolean videoActive,
+                                             final boolean audioActive) {
+        preferAudioFormat = audioActive;
+        preferVideoFormat = videoActive;
     }
 
     public void setActiveTrackTypes(final boolean videoActive, final boolean audioActive) {
@@ -493,6 +504,22 @@ public final class YoutubeSabrStreamState {
 
     boolean shouldSelectVideoFormat() {
         return selectVideoFormat;
+    }
+
+    boolean shouldPreferAudioFormat() {
+        return preferAudioFormat;
+    }
+
+    boolean shouldPreferVideoFormat() {
+        return preferVideoFormat;
+    }
+
+    void setWriteFirstRequestPlaybackState(final boolean writeFirstRequestPlaybackState) {
+        this.writeFirstRequestPlaybackState = writeFirstRequestPlaybackState;
+    }
+
+    boolean shouldWriteFirstRequestPlaybackState() {
+        return writeFirstRequestPlaybackState;
     }
 
     public void setWriteTopLevelPlayerTimeMs(final boolean writeTopLevelPlayerTimeMs) {
