@@ -182,6 +182,26 @@ public final class SabrMediaHeader {
     }
 
     @Nonnull
+    static SabrMediaHeader initializationFrom(@Nonnull final SabrMediaHeader source,
+                                              final int contentLength) {
+        return new SabrMediaHeader(source.headerId, source.videoId, source.itag,
+                source.lastModified, source.xtags, source.startRange,
+                source.compressionAlgorithm, true, -1, source.bitrateBps, 0, 0,
+                contentLength, 0, 0, source.timeRangeTimescale, source.sequenceLastModified);
+    }
+
+    @Nonnull
+    static SabrMediaHeader mediaFrom(@Nonnull final SabrMediaHeader source,
+                                     final int contentLength) {
+        return new SabrMediaHeader(source.headerId, source.videoId, source.itag,
+                source.lastModified, source.xtags, source.startRange,
+                source.compressionAlgorithm, false, source.sequenceNumber, source.bitrateBps,
+                source.startMs, source.durationMs, contentLength, source.timeRangeStartTicks,
+                source.timeRangeDurationTicks, source.timeRangeTimescale,
+                source.sequenceLastModified);
+    }
+
+    @Nonnull
     private static FormatId decodeFormatId(@Nonnull final byte[] data) throws SabrProtocolException {
         int itag = -1;
         long lastModified = -1;
