@@ -145,6 +145,10 @@ public final class SabrMediaSegmentCollector {
             return null;
         }
 
+        public boolean hasOpenSegments() {
+            return !openSegments.isEmpty();
+        }
+
         public void abort() {
             for (final OpenSegment segment : openSegments.values()) {
                 segment.abort();

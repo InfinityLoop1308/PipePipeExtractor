@@ -552,11 +552,11 @@ public final class YoutubeSabrSession {
 
     /**
      * Like {@link #pumpOnceStreaming(Localization)}, but used by callers that are waiting on a
-     * concrete segment. Keep consuming the whole response: SABR/UMP response boundaries are part of
-     * the protocol state, and closing after the target segment can cut off a following media header
-     * whose body/end is still in the same response. Do not sleep in this call when the server sends
-     * a backoff: preserve the full next-request deadline and let the client wait interruptibly so a
-     * synchronously waiting loader can still react to cancellation and reader replacement.
+     * concrete segment. Stop once the target and every media segment already open in the response
+     * are complete, so a live response cannot hold the pump indefinitely. Do not sleep in this call
+     * when the server sends a backoff: preserve the full next-request deadline and let the client
+     * wait interruptibly so a synchronously waiting loader can still react to cancellation and
+     * reader replacement.
      */
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
@@ -594,7 +594,7 @@ public final class YoutubeSabrSession {
             } else if (!header.isInitSegment()) {
                 returnedSegmentsTruncated[0] = true;
             }
-            return true;
+            return !target.matches(header);
         }, false);
         return new DemandResponseResult(result == null ? returnedSegments.size()
                 : result.getSegmentCount(), targetTrackSegments[0], returnedSegments,
