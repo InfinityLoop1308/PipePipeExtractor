@@ -25,7 +25,7 @@ public final class YoutubeSabrStreamState {
     @Nullable
     private byte[] playbackCookie;
     @Nullable
-    private byte[] poToken;
+    private byte[] contentPoToken;
     @Nullable
     private volatile SabrNextRequestPolicy nextRequestPolicy;
     private long playerTimeMsOverride = -1;
@@ -234,13 +234,30 @@ public final class YoutubeSabrStreamState {
         return playbackCookie == null ? null : playbackCookie.clone();
     }
 
-    public void setPoToken(@Nullable final byte[] poToken) {
-        this.poToken = poToken == null ? null : poToken.clone();
+    public void setContentPoToken(@Nullable final byte[] contentPoToken) {
+        this.contentPoToken = contentPoToken == null ? null : contentPoToken.clone();
     }
 
     @Nullable
+    public byte[] getContentPoToken() {
+        return contentPoToken == null ? null : contentPoToken.clone();
+    }
+
+    /**
+     * @deprecated use {@link #setContentPoToken(byte[])}
+     */
+    @Deprecated
+    public void setPoToken(@Nullable final byte[] poToken) {
+        setContentPoToken(poToken);
+    }
+
+    /**
+     * @deprecated use {@link #getContentPoToken()}
+     */
+    @Nullable
+    @Deprecated
     public byte[] getPoToken() {
-        return poToken == null ? null : poToken.clone();
+        return getContentPoToken();
     }
 
     @Nullable
@@ -249,8 +266,8 @@ public final class YoutubeSabrStreamState {
     }
 
     @Nullable
-    byte[] getRawPoToken() {
-        return poToken;
+    byte[] getRawContentPoToken() {
+        return contentPoToken;
     }
 
     @Nonnull

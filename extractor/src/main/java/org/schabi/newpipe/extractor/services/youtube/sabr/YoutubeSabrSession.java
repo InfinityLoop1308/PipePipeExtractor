@@ -266,8 +266,8 @@ public final class YoutubeSabrSession {
         addDiagnosticEvent("request n=" + requestNumber
                 + " playerMs=" + streamState.getRequestPlayerTimeMs()
                 + " edgeMs=" + streamState.getMinBufferedEndMs()
-                + " poTokenBytes=" + (streamState.getRawPoToken() == null
-                ? -1 : streamState.getRawPoToken().length)
+                + " contentPoTokenBytes=" + (streamState.getRawContentPoToken() == null
+                ? -1 : streamState.getRawContentPoToken().length)
                 + " ranges=" + streamState.summarizeBufferedRanges());
         final long requestStartNs = System.nanoTime();
         final SabrStreamingResponseReader.StoppableSegmentConsumer timedConsumer =
@@ -415,8 +415,19 @@ public final class YoutubeSabrSession {
         final ContentCountry contentCountry = localization.getCountryCode().isEmpty()
                 ? ContentCountry.DEFAULT
                 : new ContentCountry(localization.getCountryCode());
-        final YoutubeSabrInfo fresh = YoutubeSabrProbe.fetchSabrInfo(
-                info.getVideoId(), info.getProfile(), localization, contentCountry);
+        final YoutubeSabrPlayerContextProvider playerContextProvider =
+                info.getPlayerContextProvider();
+        final YoutubeSabrInfo fresh;
+        if (playerContextProvider != null) {
+            fresh = YoutubeSabrProbe.fetchSabrInfo(info.getVideoId(), info.getProfile(),
+                    localization, contentCountry, playerContextProvider);
+        } else if (info.getPlayerPoToken() != null || info.getVisitorData() != null) {
+            fresh = YoutubeSabrProbe.fetchSabrInfo(info.getVideoId(), info.getProfile(),
+                    localization, contentCountry, info.getPlayerPoToken(), info.getVisitorData());
+        } else {
+            fresh = YoutubeSabrProbe.fetchSabrInfo(info.getVideoId(), info.getProfile(),
+                    localization, contentCountry);
+        }
         if (fresh.getServerAbrStreamingUrl() == null || fresh.getServerAbrStreamingUrl().isEmpty()) {
             return false;
         }
@@ -1363,13 +1374,13 @@ public final class YoutubeSabrSession {
         if (poTokenProvider == null) {
             return false;
         }
-        final byte[] current = streamState.getRawPoToken();
+        final byte[] current = streamState.getRawContentPoToken();
         if (current != null && current.length > 0 && !forceRefresh) {
             return false;
         }
         final byte[] poToken = poTokenProvider.getPoToken(info, streamState, forceRefresh);
         if (poToken != null && poToken.length > 0 && !Arrays.equals(poToken, current)) {
-            streamState.setPoToken(poToken);
+            streamState.setContentPoToken(poToken);
             return true;
         }
         return false;

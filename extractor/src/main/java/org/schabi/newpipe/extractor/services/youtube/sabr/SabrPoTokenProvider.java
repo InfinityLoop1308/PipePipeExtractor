@@ -7,12 +7,14 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 
 /**
- * Supplies raw WEB PO token bytes for experimental SABR requests.
+ * Supplies raw video ID-bound PO token bytes for SABR media requests.
+ * This token belongs in {@code StreamerContext}; it must not be used as the
+ * visitor/session-bound PO token on the Innertube player request.
  */
 @FunctionalInterface
 public interface SabrPoTokenProvider {
     /**
-     * Returns raw PO token bytes for the current SABR session, or {@code null} if unavailable.
+     * Returns raw content PO token bytes for the current video, or {@code null} if unavailable.
      */
     @Nullable
     byte[] getPoToken(@Nonnull YoutubeSabrInfo info,

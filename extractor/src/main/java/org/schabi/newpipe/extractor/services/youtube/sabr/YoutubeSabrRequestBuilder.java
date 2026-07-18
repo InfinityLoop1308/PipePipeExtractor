@@ -393,9 +393,10 @@ final class YoutubeSabrRequestBuilder {
                                                @Nullable final YoutubeSabrStreamState streamState) {
         final SabrProto.Writer context = new SabrProto.Writer();
         context.writeMessage(1, buildClientInfo(info, streamState));
-        final byte[] poToken = streamState == null ? null : streamState.getRawPoToken();
-        if (poToken != null && poToken.length > 0) {
-            context.writeBytes(2, poToken);
+        final byte[] contentPoToken = streamState == null
+                ? null : streamState.getRawContentPoToken();
+        if (contentPoToken != null && contentPoToken.length > 0) {
+            context.writeBytes(2, contentPoToken);
         }
         if (playbackCookie != null && playbackCookie.length > 0) {
             context.writeBytes(3, playbackCookie);

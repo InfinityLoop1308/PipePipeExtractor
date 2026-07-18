@@ -25,6 +25,10 @@ public final class YoutubeSabrInfo implements Serializable {
     private final String videoPlaybackUstreamerConfig;
     @Nonnull
     private final List<YoutubeSabrFormat> formats;
+    @Nullable
+    private final transient YoutubeSabrPlayerContextProvider playerContextProvider;
+    @Nullable
+    private final transient String playerPoToken;
 
     YoutubeSabrInfo(@Nonnull final YoutubeSabrClientProfile profile,
                     @Nonnull final String videoId,
@@ -33,7 +37,9 @@ public final class YoutubeSabrInfo implements Serializable {
                     @Nullable final String visitorData,
                     @Nullable final String serverAbrStreamingUrl,
                     @Nullable final String videoPlaybackUstreamerConfig,
-                    @Nonnull final List<YoutubeSabrFormat> formats) {
+                    @Nonnull final List<YoutubeSabrFormat> formats,
+                    @Nullable final YoutubeSabrPlayerContextProvider playerContextProvider,
+                    @Nullable final String playerPoToken) {
         this.profile = profile;
         this.videoId = videoId;
         this.cpn = cpn;
@@ -42,6 +48,8 @@ public final class YoutubeSabrInfo implements Serializable {
         this.serverAbrStreamingUrl = serverAbrStreamingUrl;
         this.videoPlaybackUstreamerConfig = videoPlaybackUstreamerConfig;
         this.formats = formats;
+        this.playerContextProvider = playerContextProvider;
+        this.playerPoToken = playerPoToken;
     }
 
     @Nonnull
@@ -82,6 +90,16 @@ public final class YoutubeSabrInfo implements Serializable {
     @Nonnull
     public List<YoutubeSabrFormat> getFormats() {
         return Collections.unmodifiableList(formats);
+    }
+
+    @Nullable
+    YoutubeSabrPlayerContextProvider getPlayerContextProvider() {
+        return playerContextProvider;
+    }
+
+    @Nullable
+    String getPlayerPoToken() {
+        return playerPoToken;
     }
 
     @Nullable

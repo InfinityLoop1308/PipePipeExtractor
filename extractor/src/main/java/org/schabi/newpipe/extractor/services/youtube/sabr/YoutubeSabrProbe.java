@@ -8,11 +8,13 @@ import com.grack.nanojson.JsonWriter;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.downloader.StreamingResponse;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
+import org.schabi.newpipe.extractor.services.youtube.YoutubePlayerResponseValidator;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
@@ -54,10 +56,57 @@ public final class YoutubeSabrProbe {
                                                 @Nullable final String playerPoToken,
                                                 @Nullable final String visitorDataOverride)
             throws IOException, ExtractionException {
+        return fetchSabrInfo(videoId, profile, localization, contentCountry, playerPoToken,
+                visitorDataOverride, null, false);
+    }
+
+    /**
+     * Fetches SABR metadata with one bounded player-context refresh when YouTube rejects the
+     * initial player admission request.
+     */
+    @Nonnull
+    public static YoutubeSabrInfo fetchSabrInfo(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final YoutubeSabrPlayerContextProvider playerContextProvider)
+            throws IOException, ExtractionException {
+        YoutubeSabrPlayerContext playerContext = playerContextProvider.getPlayerContext(
+                videoId, profile, false);
+        try {
+            return fetchSabrInfo(videoId, profile, localization, contentCountry,
+                    playerContext.getPlayerPoToken(), playerContext.getVisitorData(),
+                    playerContextProvider, false);
+        } catch (final YoutubePlayerAdmissionException firstFailure) {
+            try {
+                playerContext = playerContextProvider.getPlayerContext(videoId, profile, true);
+                return fetchSabrInfo(videoId, profile, localization, contentCountry,
+                        playerContext.getPlayerPoToken(), playerContext.getVisitorData(),
+                        playerContextProvider, true);
+            } catch (final IOException | ExtractionException refreshedFailure) {
+                refreshedFailure.addSuppressed(firstFailure);
+                throw refreshedFailure;
+            }
+        }
+    }
+
+    @Nonnull
+    private static YoutubeSabrInfo fetchSabrInfo(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nullable final String playerPoToken,
+            @Nullable final String visitorDataOverride,
+            @Nullable final YoutubeSabrPlayerContextProvider playerContextProvider,
+            final boolean playerContextRefreshed)
+            throws IOException, ExtractionException {
         final String cpn = YoutubeParsingHelper.generateContentPlaybackNonce();
         final JsonObject playerResponse = fetchPlayerResponse(videoId, profile, localization,
                 contentCountry, cpn, playerPoToken, visitorDataOverride);
-        return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride);
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride,
+                playerPoToken, playerContextProvider, playerContextRefreshed);
     }
 
     @Nonnull
@@ -66,7 +115,8 @@ public final class YoutubeSabrProbe {
                                                      @Nonnull final String cpn,
                                                      @Nonnull final JsonObject playerResponse)
             throws ExtractionException {
-        return fromPlayerResponse(videoId, profile, cpn, playerResponse, null);
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse, null, null, null,
+                false);
     }
 
     @Nonnull
@@ -74,8 +124,25 @@ public final class YoutubeSabrProbe {
                                                       @Nonnull final YoutubeSabrClientProfile profile,
                                                       @Nonnull final String cpn,
                                                       @Nonnull final JsonObject playerResponse,
-                                                      @Nullable final String visitorDataOverride)
+                                                      @Nullable final String visitorDataOverride,
+                                                      @Nullable final String playerPoToken,
+                                                      @Nullable final YoutubeSabrPlayerContextProvider
+                                                              playerContextProvider,
+                                                      final boolean playerContextRefreshed)
             throws ExtractionException {
+        final JsonObject playabilityStatus = playerResponse.getObject("playabilityStatus");
+        if (playabilityStatus != null) {
+            try {
+                YoutubePlayerResponseValidator.checkPlayabilityStatus(playabilityStatus);
+            } catch (final AntiBotException e) {
+                final String status = playabilityStatus.getString("status", "UNKNOWN");
+                final String reason = playabilityStatus.getString("reason", e.getMessage());
+                throw new YoutubePlayerAdmissionException(videoId, profile, status, reason,
+                        playerPoToken != null && !playerPoToken.isEmpty(),
+                        visitorDataOverride != null && !visitorDataOverride.isEmpty(),
+                        playerContextRefreshed, e);
+            }
+        }
         final JsonObject streamingData = playerResponse.getObject(STREAMING_DATA);
         if (streamingData == null) {
             throw new SabrProtocolException("Player response has no streamingData for " + profile);
@@ -91,7 +158,8 @@ public final class YoutubeSabrProbe {
 
         return new YoutubeSabrInfo(profile, videoId, cpn, resolveClientVersion(profile),
                 visitorData, serverAbrStreamingUrl, ustreamerConfig,
-                YoutubeSabrFormat.fromAdaptiveFormats(videoId, adaptiveFormats));
+                YoutubeSabrFormat.fromAdaptiveFormats(videoId, adaptiveFormats),
+                playerContextProvider, playerPoToken);
     }
 
     @Nonnull
