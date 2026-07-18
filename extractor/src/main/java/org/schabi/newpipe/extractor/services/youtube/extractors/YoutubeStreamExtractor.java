@@ -1860,71 +1860,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
 
-    public static JsonObject checkPlayabilityStatus(@Nonnull JsonObject playabilityStatus, String videoId)
+    public static JsonObject checkPlayabilityStatus(@Nonnull final JsonObject playabilityStatus,
+                                                    final String videoId)
             throws ParsingException {
-        String status = playabilityStatus.getString("status");
-        if (status == null || status.equalsIgnoreCase("ok")) {
-            return null;
-        }
-
-        final String reason = playabilityStatus.getString("reason");
-
-        if (status.equalsIgnoreCase("login_required")) {
-            if (reason == null) {
-                final String message = playabilityStatus.getArray("messages").getString(0);
-                if (message != null && message.contains("private")) {
-                    throw new PrivateContentException("This video is private");
-                }
-            } else if (reason.contains("age")) {
-                throw new AgeRestrictedContentException(
-                        "This age-restricted video cannot be watched anonymously");
-            }
-        }
-
-        if ((status.equalsIgnoreCase("unplayable") || status.equalsIgnoreCase("error"))
-                && reason != null) {
-            if (reason.contains("Music Premium")) {
-                throw new YoutubeMusicPremiumContentException();
-            }
-
-            if (reason.contains("payment")) {
-                throw new PaidContentException("This video is a paid video");
-            }
-
-            if (reason.contains("members-only")) {
-                throw new PaidContentException("This video is only available"
-                        + " for members of the channel of this video");
-            }
-
-            if (reason.contains("unavailable")) {
-                final String detailedErrorMessage = getTextFromObject(playabilityStatus
-                        .getObject("errorScreen")
-                        .getObject("playerErrorMessageRenderer")
-                        .getObject("subreason"));
-                if (detailedErrorMessage != null && detailedErrorMessage.contains("country")) {
-                    throw new GeographicRestrictionException(
-                            "This video is not available in client's country.");
-                } else {
-                    if(detailedErrorMessage != null) {
-                        throw new ContentNotAvailableException(detailedErrorMessage);
-                    }
-                    throw new ContentNotAvailableException(reason);
-                }
-            }
-        }
-        if (reason != null && reason.contains("Sign in to confirm")) {
-            throw new AntiBotException(reason);
-        }
-
-        if (reason != null && reason.contains("This live event will begin in")) {
-            throw new LiveNotStartException(reason);
-        }
-
-        if (reason != null && reason.contains("Premieres in")) {
-            throw new VideoNotReleaseException(reason);
-        }
-
-        throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
+        YoutubePlayerResponseValidator.checkPlayabilityStatus(playabilityStatus);
+        return null;
     }
 
     private CancellableCall fetchWebJsonPlayer(@Nonnull final ContentCountry contentCountry,
