@@ -20,6 +20,9 @@ import java.util.Map;
  * whole response body (50-150MB) to a single in-flight segment.
  */
 public final class SabrStreamingResponseReader {
+    private static final int MAX_CONTROL_PARTS = 512;
+    private static final long MAX_CONTROL_PAYLOAD_BYTES = 512 * 1024L;
+
     private SabrStreamingResponseReader() {
     }
 
@@ -75,6 +78,17 @@ public final class SabrStreamingResponseReader {
                                    @Nullable final SegmentConsumer segmentStartConsumer,
                                    @Nullable final File spoolDirectory)
             throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer, segmentStartConsumer, spoolDirectory,
+                SabrMediaProtocol.builtin());
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer,
+                                   @Nullable final SegmentConsumer segmentStartConsumer,
+                                   @Nullable final File spoolDirectory,
+                                   @Nonnull final SabrMediaProtocol mediaProtocol)
+            throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
         final List<SabrMediaSegment> segments = new ArrayList<>();
@@ -90,14 +104,18 @@ public final class SabrStreamingResponseReader {
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
         final SabrMediaSegmentCollector.Incremental collector =
-                new SabrMediaSegmentCollector.Incremental(spoolDirectory);
+                new SabrMediaSegmentCollector.Incremental(spoolDirectory, mediaProtocol);
         try {
             UmpReader.readPayloadsUntil(in, (type, size, payloadStream) -> {
                 SabrDecodedResponse.addPartSummary(partSummaries, type, size);
                 maxPartBytes[0] = Math.max(maxPartBytes[0], size);
                 totalPayloadBytes[0] += size;
-                switch (type) {
-                case SabrResponseDecoder.MEDIA_HEADER: {
+                if (type != mediaProtocol.getMediaPartType()
+                        && (controlParts.size() >= MAX_CONTROL_PARTS
+                        || controlPayloadBytes[0] + size > MAX_CONTROL_PAYLOAD_BYTES)) {
+                    throw new SabrProtocolException("SABR control response exceeded Host limit");
+                }
+                if (type == mediaProtocol.getHeaderPartType()) {
                     final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     // small (just the header) -> keep so the decoder records it (observeHeader).
@@ -108,15 +126,13 @@ public final class SabrStreamingResponseReader {
                             segmentStartConsumer.accept(started);
                         }
                     } catch (final SabrProtocolException ignored) {
-                        if (!isMalformedMediaHeader(payload)) {
+                        if (!isMalformedMediaHeader(payload, mediaProtocol)) {
                             throw ignored;
                         }
                         // decodeParts records the malformed header. Following MEDIA is deliberately
                         // left without an open header so integrity recovery requests a clean batch.
                     }
-                    break;
-                }
-                case SabrResponseDecoder.MEDIA:
+                } else if (type == mediaProtocol.getMediaPartType()) {
                     mediaPartPayloadBytes[0] += size;
                     if (size > 0) {
                         final int headerId = payloadStream.read();
@@ -134,8 +150,7 @@ public final class SabrStreamingResponseReader {
                                 mediaBytesByHeaderId.getOrDefault(headerId, 0L)
                                         + mediaBytes);
                     }
-                    break;
-                case SabrResponseDecoder.MEDIA_END: {
+                } else if (type == mediaProtocol.getEndPartType()) {
                     final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     final SabrMediaSegment segment = collector.onMediaEnd(payload);
@@ -149,14 +164,10 @@ public final class SabrStreamingResponseReader {
                             return segmentConsumer.accept(segment);
                         }
                     }
-                    break;
-                }
-                default: {
+                } else {
                     final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     controlParts.add(new UmpPart(type, payload.length, payload));
-                    break;
-                }
                 }
                 return true;
             });
@@ -165,7 +176,8 @@ public final class SabrStreamingResponseReader {
             // reader. Completed segments have already been removed from the collector.
             collector.abort();
         }
-        final SabrDecodedResponse decoded = SabrResponseDecoder.decodeParts(controlParts);
+        final SabrDecodedResponse decoded = SabrResponseDecoder.decodeParts(
+                controlParts, mediaProtocol);
         decoded.setPartSummaries(partSummaries);
         for (final Map.Entry<Integer, Long> entry : mediaBytesByHeaderId.entrySet()) {
             decoded.addMediaBytes(entry.getKey(), entry.getValue());
@@ -192,9 +204,10 @@ public final class SabrStreamingResponseReader {
         return output.toByteArray();
     }
 
-    private static boolean isMalformedMediaHeader(@Nonnull final byte[] payload) {
+    private static boolean isMalformedMediaHeader(@Nonnull final byte[] payload,
+                                                  @Nonnull final SabrMediaProtocol mediaProtocol) {
         try {
-            SabrMediaHeader.decode(payload);
+            mediaProtocol.decodeHeader(payload);
             return false;
         } catch (final SabrProtocolException e) {
             return true;

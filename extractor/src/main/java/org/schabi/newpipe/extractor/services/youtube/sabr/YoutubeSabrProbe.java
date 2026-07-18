@@ -400,6 +400,23 @@ public final class YoutubeSabrProbe {
             @Nullable final File segmentSpoolDirectory,
             @Nonnull final Localization localization)
             throws IOException, ExtractionException {
+        return postMediaRequest(info, requestBody, requestNumber, serverAbrStreamingUrlOverride,
+                segmentConsumer, segmentStartConsumer, segmentSpoolDirectory, localization,
+                SabrMediaProtocol.builtin());
+    }
+
+    @Nonnull
+    static YoutubeSabrProbeResult postMediaRequest(
+            @Nonnull final YoutubeSabrInfo info,
+            @Nonnull final byte[] requestBody,
+            final int requestNumber,
+            @Nullable final String serverAbrStreamingUrlOverride,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentStartConsumer,
+            @Nullable final File segmentSpoolDirectory,
+            @Nonnull final Localization localization,
+            @Nonnull final SabrMediaProtocol mediaProtocol)
+            throws IOException, ExtractionException {
         final String serverAbrStreamingUrl = serverAbrStreamingUrlOverride == null
                 || serverAbrStreamingUrlOverride.isEmpty()
                 ? info.getServerAbrStreamingUrl()
@@ -439,9 +456,10 @@ public final class YoutubeSabrProbe {
             final CountingInputStream body = new CountingInputStream(response.body());
             final SabrStreamingResponseReader.Result streamed =
                     timedConsumer == null && timedStartConsumer == null
-                            ? SabrStreamingResponseReader.read(body)
+                            ? SabrStreamingResponseReader.readUntil(body, null, null, null,
+                            mediaProtocol)
                             : SabrStreamingResponseReader.readUntil(body, timedConsumer,
-                                    timedStartConsumer, segmentSpoolDirectory);
+                                    timedStartConsumer, segmentSpoolDirectory, mediaProtocol);
             final long requestElapsedMs = elapsedMs(requestStartNs);
             return new YoutubeSabrProbeResult(info, streamed.getDecodedResponse(),
                     streamed.getSegments(), streamed.getSegmentCount(), response.responseCode(),

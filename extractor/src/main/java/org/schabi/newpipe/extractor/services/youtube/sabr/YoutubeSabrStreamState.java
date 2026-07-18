@@ -86,15 +86,19 @@ public final class YoutubeSabrStreamState {
     }
 
     public boolean ingest(@Nonnull final SabrDecodedResponse response) {
+        return ingest(SabrResponseStatePatch.builtin(response));
+    }
+
+    public boolean ingest(@Nonnull final SabrResponseStatePatch patch) {
         boolean progressed = false;
-        final SabrNextRequestPolicy nextRequestPolicy = response.getNextRequestPolicy();
+        final SabrNextRequestPolicy nextRequestPolicy = patch.getNextRequestPolicy();
         if (nextRequestPolicy != null) {
             this.nextRequestPolicy = nextRequestPolicy;
         }
         if (nextRequestPolicy != null && nextRequestPolicy.getRawPlaybackCookie() != null) {
             playbackCookie = nextRequestPolicy.getRawPlaybackCookie().clone();
         }
-        for (final SabrLiveMetadata meta : response.getLiveMetadata()) {
+        for (final SabrLiveMetadata meta : patch.getLiveMetadata()) {
             live = true;
             postLiveDvr = meta.isPostLiveDvr();
             if (meta.getHeadSequenceNumber() >= 0) {
@@ -105,23 +109,23 @@ public final class YoutubeSabrStreamState {
             }
         }
         for (final SabrFormatInitializationMetadata metadata
-                : response.getFormatInitializationMetadata()) {
+                : patch.getFormatMetadata()) {
             final FormatProgress progress = findProgressForItag(metadata.getItag());
             if (progress != null) {
                 progressed |= progress.observeMetadata(metadata);
             }
         }
-        for (final SabrMediaHeader header : response.getMediaHeaders()) {
+        for (final SabrMediaHeader header : patch.getMediaHeaders()) {
             final FormatProgress progress = findProgressForItag(header.getItag());
             if (progress != null) {
                 progressed |= progress.observeHeader(header);
             }
         }
-        for (final SabrContextUpdate contextUpdate : response.getSabrContextUpdates()) {
+        for (final SabrContextUpdate contextUpdate : patch.getContextUpdates()) {
             ingestContextUpdate(contextUpdate);
         }
-        if (response.getSabrContextSendingPolicy() != null) {
-            ingestContextSendingPolicy(response.getSabrContextSendingPolicy());
+        if (patch.getContextSendingPolicy() != null) {
+            ingestContextSendingPolicy(patch.getContextSendingPolicy());
         }
         return progressed;
     }

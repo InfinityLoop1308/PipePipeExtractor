@@ -79,19 +79,27 @@ public final class SabrMediaSegmentCollector {
         private final Map<Integer, OpenSegment> openSegments = new HashMap<>();
         @Nullable
         private final File spoolDirectory;
+        @Nonnull
+        private final SabrMediaProtocol mediaProtocol;
 
         public Incremental() {
-            this(null);
+            this(null, SabrMediaProtocol.builtin());
         }
 
         public Incremental(@Nullable final File spoolDirectory) {
+            this(spoolDirectory, SabrMediaProtocol.builtin());
+        }
+
+        public Incremental(@Nullable final File spoolDirectory,
+                           @Nonnull final SabrMediaProtocol mediaProtocol) {
             this.spoolDirectory = spoolDirectory;
+            this.mediaProtocol = mediaProtocol;
         }
 
         @Nullable
         public SabrMediaSegment onMediaHeader(@Nonnull final byte[] partData)
                 throws SabrProtocolException {
-            final SabrMediaHeader header = SabrMediaHeader.decode(partData);
+            final SabrMediaHeader header = mediaProtocol.decodeHeader(partData);
             final OpenSegment current = new OpenSegment(header, spoolDirectory);
             final OpenSegment previous = openSegments.put(header.getHeaderId(), current);
             if (previous != null) {
