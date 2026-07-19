@@ -4,11 +4,10 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
-import org.apache.commons.codec.binary.Base64;
-
 import javax.annotation.Nonnull;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 /**
  * Human-readable delivery document for a signed SABR JavaScript policy.
@@ -36,7 +35,7 @@ public final class SabrScriptPolicyDocument {
         document.put("validFromMs", policy.getValidFromMs());
         document.put("validUntilMs", policy.getValidUntilMs());
         document.put("source", policy.getSource());
-        document.put("signature", Base64.encodeBase64String(signature));
+        document.put("signature", Base64.getEncoder().encodeToString(signature));
         final byte[] encoded = JsonWriter.string(document).getBytes(StandardCharsets.UTF_8);
         if (encoded.length > MAX_DOCUMENT_BYTES) {
             throw new IllegalArgumentException("SABR policy document exceeded size limit");
@@ -64,11 +63,10 @@ public final class SabrScriptPolicyDocument {
             }
             final String source = document.getString("source");
             final String encodedSignature = document.getString("signature");
-            if (source == null || encodedSignature == null
-                    || !Base64.isBase64(encodedSignature)) {
+            if (source == null || encodedSignature == null) {
                 throw new IllegalArgumentException("Invalid SABR policy document fields");
             }
-            final byte[] signature = Base64.decodeBase64(encodedSignature);
+            final byte[] signature = Base64.getDecoder().decode(encodedSignature);
             validateSignature(signature);
             final SabrScriptPolicy policy = new SabrScriptPolicy(
                     requireLong(document, "revision"),
