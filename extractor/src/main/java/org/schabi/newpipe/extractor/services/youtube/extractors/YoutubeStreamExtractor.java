@@ -77,6 +77,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     /*////////////////////////////////////////////////////////////////////////*/
     public JsonObject playerResponse;
+    @Nullable
+    private String playerResponseVisitorData;
     private JsonObject nextResponse;
 
     private JsonObject webStreamingData;
@@ -1055,12 +1057,24 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return null;
         }
         try {
-            return YoutubeSabrProbe.fromPlayerResponse(videoId, getSabrClientProfile(),
-                    getSabrCpn(), playerResponse);
+            final YoutubeSabrClientProfile profile = getSabrClientProfile();
+            return buildSabrInfoFromPlayerResponse(videoId, profile,
+                    getSabrCpn(), playerResponse, playerResponseVisitorData);
         } catch (final Exception e) {
             addError(e);
             return null;
         }
+    }
+
+    @Nonnull
+    static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final String cpn,
+            @Nonnull final JsonObject response,
+            @Nullable final String requestVisitorData) throws ExtractionException {
+        return YoutubeSabrProbe.fromPlayerResponse(videoId, profile, cpn, response,
+                requestVisitorData);
     }
 
     @Nonnull
@@ -1668,6 +1682,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         synchronized (errors) {
             errors.clear();
         }
+        playerResponseVisitorData = null;
 
         long stageStartedAt = System.nanoTime();
         final CancellableCall webPageCall = YoutubeParsingHelper.getWebPlayerResponse(
@@ -1932,6 +1947,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                              @Nonnull final String videoId)
             throws IOException, ExtractionException {
         webCpn = generateContentPlaybackNonce();
+        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
+                createJsonPlayerBody(localization,
+                        contentCountry,
+                        videoId,
+                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
+                        webCpn,
+                        "WEB", WEB_USER_AGENT),
+                localization, contentCountry);
 
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
@@ -1946,6 +1969,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("Web player response is not valid");
                     }
 
+                    playerResponseVisitorData = playerRequest.getVisitorData();
                     YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
                     updateAvailableAt(webPlayerResponse);
 
@@ -1969,12 +1993,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         };
 
         return getJsonPlayerResponseAsync(PLAYER,
-                createJsonPlayerBody(localization,
-                        contentCountry,
-                        videoId,
-                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                        webCpn,
-                        "WEB", WEB_USER_AGENT), localization, "1", WEB_USER_AGENT, callback);
+                playerRequest, localization, "1", WEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebJsonPlayer(@Nonnull final ContentCountry contentCountry,
@@ -1982,6 +2001,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                                   @Nonnull final String videoId)
             throws IOException, ExtractionException {
         mwebCpn = generateContentPlaybackNonce();
+        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
+                createJsonPlayerBody(localization,
+                        contentCountry,
+                        videoId,
+                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
+                        mwebCpn,
+                        "MWEB",
+                        MWEB_USER_AGENT),
+                localization, contentCountry);
 
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
@@ -1995,6 +2023,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("MWEB player response is not valid");
                     }
 
+                    playerResponseVisitorData = playerRequest.getVisitorData();
                     YoutubeStreamExtractor.this.playerResponse = mwebPlayerResponse;
                     updateAvailableAt(mwebPlayerResponse);
 
@@ -2020,13 +2049,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         };
 
         return getJsonPlayerResponseAsync(PLAYER,
-                createJsonPlayerBody(localization,
-                        contentCountry,
-                        videoId,
-                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                        mwebCpn,
-                        "MWEB",
-                        MWEB_USER_AGENT), localization, "2", MWEB_USER_AGENT, callback);
+                playerRequest, localization, "2", MWEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebHlsManifest(
@@ -2100,6 +2123,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value(CONTENT_CHECK_OK, true)
                 .value(RACY_CHECK_OK, true)
                 .done()).getBytes(StandardCharsets.UTF_8);
+        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
+                body, localization, contentCountry);
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
             public void onSuccess(final Response response) {
@@ -2111,6 +2136,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     if (isPlayerResponseNotValid(configuredResponse, videoId)) {
                         throw new ExtractionException(selectedClient + " player response is not valid");
                     }
+                    playerResponseVisitorData = playerRequest.getVisitorData();
                     playerResponse = configuredResponse;
                     updateAvailableAt(configuredResponse);
                     final JsonObject streamingData = configuredResponse.getObject(STREAMING_DATA);
@@ -2129,7 +2155,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 addError(error);
             }
         };
-        return getJsonPlayerResponseAsync(PLAYER, body, localization, client.clientId,
+        return getJsonPlayerResponseAsync(PLAYER, playerRequest, localization,
+                client.clientId,
                 client.clientVersion, client.userAgent, callback);
     }
 

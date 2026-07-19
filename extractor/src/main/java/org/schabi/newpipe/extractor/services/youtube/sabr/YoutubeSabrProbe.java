@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import javax.annotation.Nonnull;
@@ -54,10 +55,52 @@ public final class YoutubeSabrProbe {
                                                 @Nullable final String playerPoToken,
                                                 @Nullable final String visitorDataOverride)
             throws IOException, ExtractionException {
+        final PlayerIdentityPair playerIdentity = resolvePlayerIdentity(profile, localization,
+                contentCountry, playerPoToken, visitorDataOverride);
         final String cpn = YoutubeParsingHelper.generateContentPlaybackNonce();
         final JsonObject playerResponse = fetchPlayerResponse(videoId, profile, localization,
-                contentCountry, cpn, playerPoToken, visitorDataOverride);
-        return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride);
+                contentCountry, cpn, playerIdentity.playerPoToken, playerIdentity.visitorData);
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse,
+                playerIdentity.visitorData);
+    }
+
+    @Nonnull
+    static PlayerIdentityPair resolvePlayerIdentity(
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nullable final String playerPoToken,
+            @Nullable final String visitorDataOverride) {
+        final boolean hasExplicitPoToken = playerPoToken != null && !playerPoToken.isEmpty();
+        final boolean hasExplicitVisitorData = visitorDataOverride != null
+                && !visitorDataOverride.isEmpty();
+        if (hasExplicitPoToken != hasExplicitVisitorData) {
+            throw new IllegalArgumentException(
+                    "playerPoToken and visitorDataOverride must be provided together");
+        }
+        if (hasExplicitPoToken) {
+            return new PlayerIdentityPair(playerPoToken, visitorDataOverride);
+        }
+
+        final YoutubeSessionPoToken automaticToken = YoutubeParsingHelper.getSessionPoToken(
+                profile.getClientName(), localization, contentCountry);
+        return automaticToken == null
+                ? new PlayerIdentityPair(playerPoToken, visitorDataOverride)
+                : new PlayerIdentityPair(automaticToken.getPoToken(),
+                        automaticToken.getVisitorData());
+    }
+
+    static final class PlayerIdentityPair {
+        @Nullable
+        final String playerPoToken;
+        @Nullable
+        final String visitorData;
+
+        private PlayerIdentityPair(@Nullable final String playerPoToken,
+                                   @Nullable final String visitorData) {
+            this.playerPoToken = playerPoToken;
+            this.visitorData = visitorData;
+        }
     }
 
     @Nonnull
@@ -70,11 +113,11 @@ public final class YoutubeSabrProbe {
     }
 
     @Nonnull
-    private static YoutubeSabrInfo fromPlayerResponse(@Nonnull final String videoId,
-                                                      @Nonnull final YoutubeSabrClientProfile profile,
-                                                      @Nonnull final String cpn,
-                                                      @Nonnull final JsonObject playerResponse,
-                                                      @Nullable final String visitorDataOverride)
+    public static YoutubeSabrInfo fromPlayerResponse(@Nonnull final String videoId,
+                                                     @Nonnull final YoutubeSabrClientProfile profile,
+                                                     @Nonnull final String cpn,
+                                                     @Nonnull final JsonObject playerResponse,
+                                                     @Nullable final String visitorDataOverride)
             throws ExtractionException {
         final JsonObject streamingData = playerResponse.getObject(STREAMING_DATA);
         if (streamingData == null) {

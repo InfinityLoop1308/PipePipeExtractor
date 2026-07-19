@@ -30,6 +30,7 @@ import com.grack.nanojson.JsonWriter;
 import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MetaInfo;
+import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.CancellableCall;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -1557,12 +1558,118 @@ YoutubeParsingHelper {
                 .getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Add a visitor-bound proof-of-origin token to a player request body when a provider is
+     * installed. Provider failures deliberately fall back to the original request so devices
+     * without a working WebView/BotGuard runtime keep the previous extraction behavior.
+     */
+    @Nonnull
+    public static byte[] addSessionPoTokenToPlayerBody(
+            @Nonnull final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry) {
+        return prepareSessionPoTokenPlayerRequest(body, localization, contentCountry).getBody();
+    }
+
+    /**
+     * Decorate a player request and retain the exact visitor identity sent with that request.
+     * Callers which consume the player response later must carry this value forward instead of
+     * asking the provider for a potentially different current identity.
+     */
+    @Nonnull
+    public static YoutubePlayerRequest prepareSessionPoTokenPlayerRequest(
+            @Nonnull final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry) {
+        try {
+            final JsonObject request = JsonUtils.toJsonObject(new String(body,
+                    StandardCharsets.UTF_8));
+            final JsonObject context = request.getObject("context");
+            final JsonObject client = context == null ? null : context.getObject("client");
+            if (client == null) {
+                return new YoutubePlayerRequest(body, null);
+            }
+            final String originalVisitorData = client.getString("visitorData");
+            final JsonObject existingIntegrity = request.getObject("serviceIntegrityDimensions");
+            if (existingIntegrity != null
+                    && !isNullOrEmpty(existingIntegrity.getString("poToken"))) {
+                return new YoutubePlayerRequest(body, originalVisitorData);
+            }
+
+            final String clientName = client.getString("clientName", "");
+            final YoutubeSessionPoToken result = getSessionPoToken(clientName, localization,
+                    contentCountry);
+            if (result == null || isNullOrEmpty(result.getVisitorData())
+                    || isNullOrEmpty(result.getPoToken())) {
+                return new YoutubePlayerRequest(body, originalVisitorData);
+            }
+
+            client.put("visitorData", result.getVisitorData());
+            final JsonObject integrity = existingIntegrity == null
+                    ? new JsonObject() : existingIntegrity;
+            integrity.put("poToken", result.getPoToken());
+            request.put("serviceIntegrityDimensions", integrity);
+            return new YoutubePlayerRequest(
+                    JsonWriter.string(request).getBytes(StandardCharsets.UTF_8),
+                    result.getVisitorData());
+        } catch (final Exception error) {
+            System.err.println("Could not add session-bound YouTube PO token: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+            return new YoutubePlayerRequest(body, null);
+        }
+    }
+
+    @Nullable
+    public static YoutubeSessionPoToken getSessionPoToken(
+            @Nonnull final String clientName,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry) {
+        final YoutubeSessionPoTokenProvider provider =
+                NewPipe.getYoutubeSessionPoTokenProvider();
+        if (provider == null) {
+            return null;
+        }
+        try {
+            return provider.getSessionPoToken(clientName, localization, contentCountry,
+                    ServiceList.YouTube.hasTokens());
+        } catch (final Exception error) {
+            System.err.println("Could not obtain session-bound YouTube PO token: "
+                    + error.getClass().getSimpleName() + ": " + error.getMessage());
+            return null;
+        }
+    }
+
     public static CancellableCall getJsonPlayerResponseAsync(final String endpoint,
                                                              final byte[] body,
                                                              final Localization localization,
                                                              final String clientId,
                                                              final String userAgent,
                                                              final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        return getJsonPlayerResponseAsyncInternal(endpoint, body, localization, clientId, userAgent,
+                callback, false);
+    }
+
+    public static CancellableCall getJsonPlayerResponseAsync(
+            final String endpoint,
+            @Nonnull final YoutubePlayerRequest request,
+            final Localization localization,
+            final String clientId,
+            final String userAgent,
+            final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        return getJsonPlayerResponseAsyncInternal(endpoint, request.getBody(), localization,
+                clientId, userAgent, callback, true);
+    }
+
+    private static CancellableCall getJsonPlayerResponseAsyncInternal(
+            final String endpoint,
+            final byte[] body,
+            final Localization localization,
+            final String clientId,
+            final String userAgent,
+            final Downloader.AsyncCallback callback,
+            final boolean playerRequestPrepared)
             throws IOException, ExtractionException {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Content-Type", singletonList("application/json"));
@@ -1572,7 +1679,11 @@ YoutubeParsingHelper {
 
         addLoggedInHeaders(headers);
 
-        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
+        final byte[] requestBody = "player".equals(endpoint) && !playerRequestPrepared
+                ? addSessionPoTokenToPlayerBody(body, localization,
+                        NewPipe.getPreferredContentCountry())
+                : body;
+        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER, headers, requestBody, localization, callback);
     }
 
     public static CancellableCall getJsonPlayerResponseAsync(final String endpoint,
@@ -1583,14 +1694,45 @@ YoutubeParsingHelper {
                                                              final String userAgent,
                                                              final Downloader.AsyncCallback callback)
             throws IOException, ExtractionException {
+        return getJsonPlayerResponseAsyncInternal(endpoint, body, localization, clientId,
+                clientVersion, userAgent, callback, false);
+    }
+
+    public static CancellableCall getJsonPlayerResponseAsync(
+            final String endpoint,
+            @Nonnull final YoutubePlayerRequest request,
+            final Localization localization,
+            final String clientId,
+            final String clientVersion,
+            final String userAgent,
+            final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
+        return getJsonPlayerResponseAsyncInternal(endpoint, request.getBody(), localization,
+                clientId, clientVersion, userAgent, callback, true);
+    }
+
+    private static CancellableCall getJsonPlayerResponseAsyncInternal(
+            final String endpoint,
+            final byte[] body,
+            final Localization localization,
+            final String clientId,
+            final String clientVersion,
+            final String userAgent,
+            final Downloader.AsyncCallback callback,
+            final boolean playerRequestPrepared)
+            throws IOException, ExtractionException {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("Content-Type", singletonList("application/json"));
         headers.put("User-Agent", singletonList(userAgent));
         headers.put("X-YouTube-Client-Name", singletonList(clientId));
         headers.put("X-Youtube-Client-Version", singletonList(clientVersion));
         addLoggedInHeaders(headers);
+        final byte[] requestBody = "player".equals(endpoint) && !playerRequestPrepared
+                ? addSessionPoTokenToPlayerBody(body, localization,
+                        NewPipe.getPreferredContentCountry())
+                : body;
         return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?"
-                + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
+                + DISABLE_PRETTY_PRINT_PARAMETER, headers, requestBody, localization, callback);
     }
 
     public static Response getWebPlayerResponseSync(@Nonnull final String videoId)
@@ -1610,7 +1752,9 @@ YoutubeParsingHelper {
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
         addLoggedInHeaders(headers);
-        return getDownloader().post(url, headers, body, localization);
+        return getDownloader().post(url, headers,
+                addSessionPoTokenToPlayerBody(body, localization, ContentCountry.DEFAULT),
+                localization);
     }
 
     public static CancellableCall getWebPlayerResponse(
@@ -1637,8 +1781,10 @@ YoutubeParsingHelper {
         addLoggedInHeaders(headers);
         logPerformance(videoId, "webPlayer.prepareHeaders", stageStartedAt);
         stageStartedAt = System.nanoTime();
+        final byte[] requestBody = addSessionPoTokenToPlayerBody(body, localization,
+                contentCountry);
         final CancellableCall call = getDownloader().postAsync(
-                url, headers, body, localization, new Downloader.AsyncCallback() {
+                url, headers, requestBody, localization, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(Response response) throws ExtractionException {
                         JsonObject webPlayerResponse;
