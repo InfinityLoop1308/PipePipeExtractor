@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nonnull;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
@@ -34,6 +35,66 @@ class SabrJavaScriptPolicyTest {
         assertEquals(7, verified.getRevision());
         assertEquals(SCRIPT, verified.getSource());
         assertArrayEquals(payload, verified.serialize());
+    }
+
+    @Test
+    void signedJavaScriptPolicyDocumentRoundTripsAndRejectsTampering() throws Exception {
+        final KeyPair keys = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        final SabrScriptPolicy policy = new SabrScriptPolicy(7, NOW - 1, NOW + 1, SCRIPT);
+        final byte[] payload = policy.serialize();
+        final byte[] document = SabrScriptPolicyDocument.encode(policy, sign(payload, keys));
+
+        final SabrScriptPolicyDocument.Parsed parsed = SabrScriptPolicyDocument.decode(document);
+        final SabrScriptPolicy verified = SabrScriptPolicy.parseVerified(parsed.getPayload(),
+                parsed.getSignature(), keys.getPublic(), NOW, 7);
+
+        assertEquals(SCRIPT, verified.getSource());
+        assertArrayEquals(payload, verified.serialize());
+
+        final String tampered = new String(document, StandardCharsets.UTF_8)
+                .replace("initialRequest", "tamperedRequest");
+        final SabrScriptPolicyDocument.Parsed changed = SabrScriptPolicyDocument.decode(
+                tampered.getBytes(StandardCharsets.UTF_8));
+        assertThrows(IllegalArgumentException.class, () -> SabrScriptPolicy.parseVerified(
+                changed.getPayload(), changed.getSignature(), keys.getPublic(), NOW, 0));
+    }
+
+    @Test
+    void policyDocumentRejectsNonIntegralAndOutOfRangeMetadata() throws Exception {
+        final KeyPair keys = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        final SabrScriptPolicy policy = new SabrScriptPolicy(7, NOW - 1, NOW + 1, SCRIPT);
+        final byte[] payload = policy.serialize();
+        final String document = new String(SabrScriptPolicyDocument.encode(
+                policy, sign(payload, keys)), StandardCharsets.UTF_8);
+
+        assertInvalidDocument(document.replace("\"format\":1", "\"format\":1.9"));
+        assertInvalidDocument(document.replace("\"format\":1", "\"format\":1e0"));
+        assertInvalidDocument(document.replace("\"revision\":7", "\"revision\":7.9"));
+        assertInvalidDocument(document.replace("\"revision\":7", "\"revision\":7e0"));
+        assertInvalidDocument(document.replace("\"validFromMs\":1999999",
+                "\"validFromMs\":1999999.0"));
+        assertInvalidDocument(document.replace("\"validUntilMs\":2000001",
+                "\"validUntilMs\":2000001e0"));
+        assertInvalidDocument(document.replace("\"revision\":7",
+                "\"revision\":9223372036854775808"));
+        assertInvalidDocument(document.replace("\"validFromMs\":1999999",
+                "\"validFromMs\":-9223372036854775809"));
+        assertInvalidDocument(document.replace("\"format\":1", "\"format\":\"1\""));
+        assertInvalidDocument(document.replace("\"revision\":7", "\"revision\":true"));
+        assertInvalidDocument(document.replace("\"validFromMs\":1999999",
+                "\"validFromMs\":null"));
+        assertInvalidDocument(document.replace("\"validUntilMs\":2000001",
+                "\"validUntilMs\":\"2000001\""));
+
+        SabrScriptPolicyDocument.decode(document.replace("\"revision\":7",
+                "\"revision\":9223372036854775807").getBytes(StandardCharsets.UTF_8));
+        SabrScriptPolicyDocument.decode(document.replace("\"validUntilMs\":2000001",
+                "\"validUntilMs\":9223372036854775807").getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void assertInvalidDocument(@Nonnull final String document) {
+        assertThrows(IllegalArgumentException.class, () -> SabrScriptPolicyDocument.decode(
+                document.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test

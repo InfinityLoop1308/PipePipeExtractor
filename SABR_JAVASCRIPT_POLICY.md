@@ -101,6 +101,24 @@ was sent are not counted as omissions.
 Both demand methods execute in the same policy object as request/response handling, so policy
 session state, protocol revision, failover, signature validation, and diagnostics remain atomic.
 
-The signed container is produced with `new SabrScriptPolicy(revision, validFromMs, validUntilMs,
-source).serialize()`. Sign those exact bytes with Ed25519. Container versioning only describes the
-source envelope; protocol behavior remains JavaScript rather than a second serialized DSL.
+The canonical signed payload is produced with `new SabrScriptPolicy(revision, validFromMs,
+validUntilMs, source).serialize()`. Sign those exact bytes with Ed25519, then publish a single UTF-8
+JSON document using `SabrScriptPolicyDocument.encode(policy, signature)`:
+
+```json
+{
+  "format": 1,
+  "revision": 1001,
+  "validFromMs": 1784390400000,
+  "validUntilMs": 1792166400000,
+  "source": "function createSabrPolicy(sabr) { /* ... */ }",
+  "signature": "base64-encoded Ed25519 signature"
+}
+```
+
+The client reconstructs the canonical payload from the JSON fields before signature verification,
+so whitespace and object-key order in the delivery document are not security-sensitive. `format`,
+`revision`, `validFromMs`, and `validUntilMs` must be exact JSON integers: fractional values,
+scientific notation, strings, and values outside the signed 64-bit range are rejected rather than
+coerced. Document versioning only describes the source envelope; protocol behavior remains
+JavaScript rather than a second serialized DSL.
