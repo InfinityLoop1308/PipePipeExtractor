@@ -327,6 +327,11 @@ public final class YoutubeSabrStreamState {
         return progressForItag(format.getItag()).endSegment;
     }
 
+    /** True only after initialization bytes yielded an exact per-segment time index. */
+    public boolean hasSegmentIndex(@Nonnull final YoutubeSabrFormat format) {
+        return progressForItag(format.getItag()).segmentIndex != null;
+    }
+
     public boolean isComplete(@Nonnull final YoutubeSabrFormat format) {
         return progressForItag(format.getItag()).isComplete();
     }

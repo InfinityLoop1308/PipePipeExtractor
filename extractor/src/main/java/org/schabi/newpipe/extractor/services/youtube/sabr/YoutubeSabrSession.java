@@ -1,7 +1,5 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
@@ -10,7 +8,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
@@ -45,7 +42,7 @@ public final class YoutubeSabrSession {
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
-    private static final int MAX_INITIALIZATION_BYTES = 16 * 1024 * 1024;
+    private static final int MAX_BOOTSTRAP_RESPONSES = 8;
     private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
     private static final int MAX_TRACE_EVENTS = 1024;
     @Nonnull
@@ -771,9 +768,16 @@ public final class YoutubeSabrSession {
         }
         streamState.ingest(segment);
         inFlightSegments.remove(key, segment);
-        final SabrMediaSegment previous = segmentCache.put(key, segment);
+        final SabrMediaSegment previous = segmentCache.putIfAbsent(key, segment);
         if (previous != null && previous != segment) {
-            previous.delete();
+            // A loader may already hold the cached segment and be about to open its spool file.
+            // Replacing it and deleting the old file creates an ENOENT race. The duplicate carries
+            // the same immutable sequence, so retain the published instance and discard the new one.
+            segment.delete();
+            synchronized (segmentAvailable) {
+                segmentAvailable.notifyAll();
+            }
+            return;
         }
         synchronized (segmentAvailable) {
             segmentAvailable.notifyAll();
@@ -1297,62 +1301,60 @@ public final class YoutubeSabrSession {
         streamState.clearPlaybackCookie();
     }
 
-    @Nonnull
-    public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
-                                                  @Nonnull final Localization localization)
-            throws IOException {
-        return fetchInitializationDataFallback(format, localization, 0);
+    /**
+     * Bootstrap an exact audio/video timeline exclusively through SABR. A response streams media
+     * before its control metadata is applied, so cached initialization bytes are deliberately
+     * re-ingested after every complete response. This is the point where format metadata and init
+     * bytes can be combined into an exact MP4/WebM segment index.
+     */
+    public void bootstrapInitialization(@Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        for (int response = 0; response < MAX_BOOTSTRAP_RESPONSES; response++) {
+            reindexCachedInitialization();
+            if (hasExactBootstrapTimeline()) {
+                addDiagnosticEvent("bootstrap_ready responses=" + response);
+                return;
+            }
+            pumpOnceInternal(localization, segment -> {
+                ingestAndCacheSegment(segment);
+                return !hasCachedBootstrapInitialization();
+            }, false);
+        }
+        reindexCachedInitialization();
+        if (hasExactBootstrapTimeline()) {
+            addDiagnosticEvent("bootstrap_ready responses=" + MAX_BOOTSTRAP_RESPONSES);
+            return;
+        }
+        throw new SabrProtocolException("SABR bootstrap did not provide exact audio/video indexes"
+                + ": audioInit=" + (getCachedSegment(
+                SabrSegmentRequest.initialization(audioFormat)) != null)
+                + ", videoInit=" + (getCachedSegment(
+                SabrSegmentRequest.initialization(videoFormat)) != null)
+                + ", audioEnd=" + streamState.getEndSegment(audioFormat)
+                + ", videoEnd=" + streamState.getEndSegment(videoFormat));
     }
 
-    @Nonnull
-    public byte[] fetchInitializationDataFallback(@Nonnull final YoutubeSabrFormat format,
-                                                  @Nonnull final Localization localization,
-                                                  final long timeoutMs)
-            throws IOException {
-        final String url = format.getInitializationUrl();
-        final long start = format.getInitRangeStart();
-        final long end = format.getInitRangeEnd();
-        if (url == null || url.isEmpty() || start < 0 || end < start
-                || end - start >= MAX_INITIALIZATION_BYTES) {
-            throw new IOException("Invalid SABR initialization fallback: itag="
-                    + format.getItag() + ", start=" + start + ", end=" + end);
-        }
-        final int length = (int) (end - start + 1);
-        final Map<String, List<String>> headers = Collections.singletonMap(
-                "Range", Collections.singletonList("bytes=" + start + '-' + end));
-        try (StreamingResponse response = timeoutMs > 0
-                ? NewPipe.getDownloader().getStreaming(url, headers, localization, timeoutMs)
-                : NewPipe.getDownloader().getStreaming(url, headers, localization)) {
-            if (response.responseCode() != 206
-                    && !(response.responseCode() == 200 && start == 0)) {
-                throw new IOException("SABR initialization fallback failed: itag="
-                        + format.getItag() + ", status=" + response.responseCode());
-            }
-            final byte[] data = readExactly(response.body(), length);
-            streamState.ingestInitializationData(format, data);
-            addDiagnosticEvent("initialization_fallback itag=" + format.getItag()
-                    + " status=" + response.responseCode() + " bytes=" + data.length);
-            return data;
-        } catch (final ExtractionException e) {
-            throw new IOException("SABR initialization fallback failed: itag="
-                    + format.getItag(), e);
+    private void reindexCachedInitialization() {
+        reindexCachedInitialization(audioFormat);
+        reindexCachedInitialization(videoFormat);
+    }
+
+    private void reindexCachedInitialization(@Nonnull final YoutubeSabrFormat format) {
+        final SabrMediaSegment segment = getCachedSegment(
+                SabrSegmentRequest.initialization(format));
+        if (segment != null) {
+            streamState.ingestInitializationData(format, segment.getData());
         }
     }
 
-    @Nonnull
-    private static byte[] readExactly(@Nonnull final InputStream input, final int length)
-            throws IOException {
-        final byte[] data = new byte[length];
-        int offset = 0;
-        while (offset < length) {
-            final int read = input.read(data, offset, length - offset);
-            if (read < 0) {
-                throw new IOException("Truncated SABR initialization fallback: expected="
-                        + length + ", actual=" + offset);
-            }
-            offset += read;
-        }
-        return data;
+    private boolean hasExactBootstrapTimeline() {
+        return streamState.hasSegmentIndex(audioFormat)
+                && streamState.hasSegmentIndex(videoFormat);
+    }
+
+    private boolean hasCachedBootstrapInitialization() {
+        return getCachedSegment(SabrSegmentRequest.initialization(audioFormat)) != null
+                && getCachedSegment(SabrSegmentRequest.initialization(videoFormat)) != null;
     }
 
     /**
@@ -1361,6 +1363,12 @@ public final class YoutubeSabrSession {
      * only extends, so prepareForMediaSegment can't rewind (the request comes back empty).
      */
     public void prepareForRewind(@Nonnull final SabrSegmentRequest request) {
+        prepareForRewind(request, -1);
+    }
+
+    /** Backward seek counterpart of {@link #prepareForForwardJump(SabrSegmentRequest, long)}. */
+    public void prepareForRewind(@Nonnull final SabrSegmentRequest request,
+                                 final long seekPositionMs) {
         if (request.isInitializationSegment()) {
             return;
         }
@@ -1369,14 +1377,15 @@ public final class YoutubeSabrSession {
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
                 request.getSequenceNumber());
+        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
         streamState.rewindBufferedTo(targetFormat, request.getSequenceNumber());
         streamState.rewindBufferedTo(companionFormat,
-                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
-        streamState.setPlayerTimeMs(targetStartMs);
+                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, playbackPositionMs));
+        streamState.setPlayerTimeMs(playbackPositionMs);
         streamState.clearPlaybackCookie();
         // Discard the now-disconnected forward span (old play position) so the cache doesn't hold two
         // disjoint spans over the byte cap -> OOM at 4K. The pump re-fetches forward from the target.
-        evictOutsideSeekWindow(targetStartMs);
+        evictOutsideSeekWindow(playbackPositionMs);
     }
 
     /**
@@ -1387,6 +1396,18 @@ public final class YoutubeSabrSession {
      * so the server streams from there and the edge-driven pacing follows naturally.
      */
     public void prepareForForwardJump(@Nonnull final SabrSegmentRequest request) {
+        prepareForForwardJump(request, -1);
+    }
+
+    /**
+     * Forward jump anchored at the exact player seek position. The requested video segment can
+     * start several seconds before that position; using its start for the companion track makes
+     * the server send an audio segment which already ends before the player target. Keep the
+     * requested track on its exact segment, but align the companion track and player time to the
+     * actual seek position when it is known.
+     */
+    public void prepareForForwardJump(@Nonnull final SabrSegmentRequest request,
+                                      final long seekPositionMs) {
         if (request.isInitializationSegment()) {
             return;
         }
@@ -1395,15 +1416,16 @@ public final class YoutubeSabrSession {
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
                 request.getSequenceNumber());
+        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
         streamState.jumpBufferedTo(targetFormat, request.getSequenceNumber());
         streamState.jumpBufferedTo(companionFormat,
-                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
-        streamState.setPlayerTimeMs(targetStartMs);
+                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, playbackPositionMs));
+        streamState.setPlayerTimeMs(playbackPositionMs);
         streamState.clearPlaybackCookie();
         // Drop the old span behind the jump target right away (don't wait for the reader to advance:
         // a track blocked on the uncached target keeps reader_tail stale, so play-head eviction never
         // runs and the heap fills -> stuck buffering / OOM at 4K). The pump fetches from the target.
-        evictOutsideSeekWindow(targetStartMs);
+        evictOutsideSeekWindow(playbackPositionMs);
     }
 
     /** Re-advertise only the missing near-edge track without discarding the companion timeline. */
