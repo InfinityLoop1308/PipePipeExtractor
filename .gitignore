@@ -24,3 +24,4 @@ gradle-app.setting
 **/bin
 **.vscode
 *.code-workspace
+/local-pr-desc/

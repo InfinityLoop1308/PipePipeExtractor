@@ -23,6 +23,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 public final class YoutubeSabrSession {
+    public interface BackoffListener {
+        void onBackoffStarted(int durationMs);
+
+        void onBackoffFinished();
+    }
+
     private static final int MAX_REQUESTS_PER_SEGMENT = 16;
     private static final int MAX_POLICY_ONLY_RESPONSES_PER_SEGMENT = 3;
     private static final int MAX_REDIRECTS_PER_SESSION = 3;
@@ -83,6 +89,8 @@ public final class YoutubeSabrSession {
     private volatile long maxSegmentBytes;
     private volatile int maxSegmentsPerResponse;
     private volatile long demandBackoffUntilNs;
+    @Nullable
+    private volatile BackoffListener backoffListener;
     private volatile long mediaProgressVersion;
     private volatile boolean cacheClosed;
     private volatile boolean traceEnabled;
@@ -371,6 +379,10 @@ public final class YoutubeSabrSession {
             trace.append(event);
         }
         return trace.toString();
+    }
+
+    public void setBackoffListener(@Nullable final BackoffListener listener) {
+        backoffListener = listener;
     }
 
     @Nonnull
@@ -733,7 +745,7 @@ public final class YoutubeSabrSession {
                         final boolean bootstrapReady = skipBackoffWhenBootstrapReady
                                 && isBootstrapReadyForBackoff();
                         if (!skipBackoffWhenBootstrapReady || !bootstrapReady) {
-                            sleepBackoff(decision.getBackoffTimeMs());
+                            sleepBackoff(decision.getBackoffTimeMs(), true);
                         }
                         break;
                     case DEFER_BACKOFF:
@@ -1528,7 +1540,7 @@ public final class YoutubeSabrSession {
         final int backoffMs = responseBackoffMs > 0
                 ? responseBackoffMs
                 : 500 * consecutiveIntegrityFailures;
-        sleepBackoff(backoffMs);
+        sleepBackoff(backoffMs, responseBackoffMs > 0);
         return true;
     }
 
@@ -1549,18 +1561,48 @@ public final class YoutubeSabrSession {
         return true;
     }
 
-    private static void sleepBackoff(final int backoffTimeMs) throws InterruptedIOException {
+    private void sleepBackoff(final int backoffTimeMs, final boolean notifyListener)
+            throws InterruptedIOException {
         // Clamp to [0, MAX_BACKOFF_MS]: a negative (overflowed varint) must not skip the wait, and
         // a huge server backoff must not be honoured verbatim (would stall playback for minutes).
-        final long ms = Math.min(Math.max(0, backoffTimeMs), MAX_BACKOFF_MS);
+        final int ms = Math.min(Math.max(0, backoffTimeMs), MAX_BACKOFF_MS);
         if (ms == 0) {
             return;
         }
+        final BackoffListener listener = notifyListener ? backoffListener : null;
+        notifyBackoffStarted(listener, ms);
         try {
             Thread.sleep(ms);
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new InterruptedIOException("Interrupted during SABR backoff");
+        } finally {
+            notifyBackoffFinished(listener);
+        }
+    }
+
+    private void notifyBackoffStarted(@Nullable final BackoffListener listener,
+                                      final int durationMs) {
+        if (listener == null) {
+            return;
+        }
+        try {
+            listener.onBackoffStarted(durationMs);
+        } catch (final RuntimeException e) {
+            addDiagnosticEvent("backoff_listener_start_failed type="
+                    + e.getClass().getSimpleName() + " message=" + e.getMessage());
+        }
+    }
+
+    private void notifyBackoffFinished(@Nullable final BackoffListener listener) {
+        if (listener == null) {
+            return;
+        }
+        try {
+            listener.onBackoffFinished();
+        } catch (final RuntimeException e) {
+            addDiagnosticEvent("backoff_listener_finish_failed type="
+                    + e.getClass().getSimpleName() + " message=" + e.getMessage());
         }
     }
 
