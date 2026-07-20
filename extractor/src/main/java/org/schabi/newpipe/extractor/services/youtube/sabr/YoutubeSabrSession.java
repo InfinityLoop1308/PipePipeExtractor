@@ -582,7 +582,7 @@ public final class YoutubeSabrSession {
         return pumpOnceInternal(localization, streaming ? segment -> {
             ingestAndCacheSegment(segment);
             return true;
-        } : null, honorBackoff);
+        } : null, honorBackoff, false);
     }
 
     @Nullable
@@ -590,6 +590,16 @@ public final class YoutubeSabrSession {
             @Nonnull final Localization localization,
             @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
             final boolean honorBackoff)
+            throws IOException, ExtractionException {
+        return pumpOnceInternal(localization, segmentConsumer, honorBackoff, false);
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(
+            @Nonnull final Localization localization,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            final boolean honorBackoff,
+            final boolean skipBackoffWhenBootstrapReady)
             throws IOException, ExtractionException {
         final YoutubeSabrProbeResult result;
         try {
@@ -622,7 +632,8 @@ public final class YoutubeSabrSession {
         }
         evictCacheIfNeeded();
         if (applyControlPolicy(localization, result, honorBackoff,
-                SabrSessionPolicy.ControlMode.PUMP, null) == PolicyControlOutcome.RETRY) {
+                SabrSessionPolicy.ControlMode.PUMP, null, skipBackoffWhenBootstrapReady)
+                == PolicyControlOutcome.RETRY) {
             return null;
         }
         return result;
@@ -640,6 +651,17 @@ public final class YoutubeSabrSession {
             final boolean honorBackoff,
             @Nonnull final SabrSessionPolicy.ControlMode mode,
             @Nullable final SabrSegmentRequest request) throws IOException, ExtractionException {
+        return applyControlPolicy(localization, result, honorBackoff, mode, request, false);
+    }
+
+    @Nonnull
+    private PolicyControlOutcome applyControlPolicy(
+            @Nonnull final Localization localization,
+            @Nonnull final YoutubeSabrProbeResult result,
+            final boolean honorBackoff,
+            @Nonnull final SabrSessionPolicy.ControlMode mode,
+            @Nullable final SabrSegmentRequest request,
+            final boolean skipBackoffWhenBootstrapReady) throws IOException, ExtractionException {
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final SabrSessionPolicy.Result policyResult = sessionPolicyHost.evaluate(
                 sessionPolicyState(), new SabrSessionPolicy.ControlResponseEvent(
@@ -708,7 +730,11 @@ public final class YoutubeSabrSession {
                     case RESET_RECOVERY_BUDGETS:
                         break;
                     case SLEEP_BACKOFF:
-                        sleepBackoff(decision.getBackoffTimeMs());
+                        final boolean bootstrapReady = skipBackoffWhenBootstrapReady
+                                && isBootstrapReadyForBackoff();
+                        if (!skipBackoffWhenBootstrapReady || !bootstrapReady) {
+                            sleepBackoff(decision.getBackoffTimeMs());
+                        }
                         break;
                     case DEFER_BACKOFF:
                         final int appliedBackoffMs = Math.min(decision.getBackoffTimeMs(),
@@ -1318,7 +1344,7 @@ public final class YoutubeSabrSession {
             pumpOnceInternal(localization, segment -> {
                 ingestAndCacheSegment(segment);
                 return !hasCachedBootstrapInitialization();
-            }, false);
+            }, true, true);
         }
         reindexCachedInitialization();
         if (hasExactBootstrapTimeline()) {
@@ -1350,6 +1376,11 @@ public final class YoutubeSabrSession {
     private boolean hasExactBootstrapTimeline() {
         return streamState.hasSegmentIndex(audioFormat)
                 && streamState.hasSegmentIndex(videoFormat);
+    }
+
+    private boolean isBootstrapReadyForBackoff() {
+        reindexCachedInitialization();
+        return hasExactBootstrapTimeline();
     }
 
     private boolean hasCachedBootstrapInitialization() {
