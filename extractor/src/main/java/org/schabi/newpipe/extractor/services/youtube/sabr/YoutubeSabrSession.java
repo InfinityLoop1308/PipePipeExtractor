@@ -1,5 +1,7 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
+import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
@@ -13,6 +15,7 @@ import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
@@ -49,6 +52,7 @@ public final class YoutubeSabrSession {
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
     private static final int MIN_CACHED_SEGMENTS = 6;
     private static final int MAX_BOOTSTRAP_RESPONSES = 8;
+    private static final int MAX_INITIALIZATION_BYTES = 4 * 1024 * 1024;
     private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
     private static final int MAX_TRACE_EVENTS = 1024;
     @Nonnull
@@ -454,6 +458,12 @@ public final class YoutubeSabrSession {
     public int pumpOnceStreaming(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
         final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true);
+        return result == null ? 0 : result.getSegmentCount();
+    }
+
+    public int pumpOnceStreamingForStartup(@Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
         return result == null ? 0 : result.getSegmentCount();
     }
 
@@ -1370,6 +1380,78 @@ public final class YoutubeSabrSession {
                 SabrSegmentRequest.initialization(videoFormat)) != null)
                 + ", audioEnd=" + streamState.getEndSegment(audioFormat)
                 + ", videoEnd=" + streamState.getEndSegment(videoFormat));
+    }
+
+    @Nonnull
+    public byte[] fetchInitializationData(@Nonnull final YoutubeSabrFormat format,
+                                          @Nonnull final Localization localization,
+                                          final long timeoutMs,
+                                          @Nonnull final byte[] poToken)
+            throws IOException {
+        final String initializationUrl = format.getInitializationUrl();
+        final long start = format.getInitRangeStart();
+        final long end = format.getInitRangeEnd();
+        if (initializationUrl == null || initializationUrl.isEmpty() || start < 0 || end < start
+                || end - start >= MAX_INITIALIZATION_BYTES) {
+            throw new IOException("Invalid SABR initialization range: itag="
+                    + format.getItag() + ", start=" + start + ", end=" + end);
+        }
+        if (poToken.length == 0) {
+            throw new IOException("Missing PO token for SABR initialization range: itag="
+                    + format.getItag());
+        }
+        final String url = appendQueryParameterIfMissing(initializationUrl, "pot",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(poToken));
+        final int length = (int) (end - start + 1);
+        final Map<String, List<String>> headers = Collections.singletonMap(
+                "Range", Collections.singletonList("bytes=" + start + '-' + end));
+        try (StreamingResponse response = timeoutMs > 0
+                ? NewPipe.getDownloader().getStreaming(url, headers, localization, timeoutMs)
+                : NewPipe.getDownloader().getStreaming(url, headers, localization)) {
+            if (response.responseCode() != 206
+                    && !(response.responseCode() == 200 && start == 0)) {
+                throw new IOException("SABR initialization range failed: itag="
+                        + format.getItag() + ", status=" + response.responseCode());
+            }
+            final byte[] data = readExactly(response.body(), length);
+            if (!streamState.ingestInitializationData(format, data)
+                    || !streamState.hasSegmentIndex(format)) {
+                throw new IOException("SABR initialization range has no exact index: itag="
+                        + format.getItag());
+            }
+            addDiagnosticEvent("initialization_range itag=" + format.getItag()
+                    + " status=" + response.responseCode() + " bytes=" + data.length);
+            return data;
+        } catch (final ExtractionException e) {
+            throw new IOException("SABR initialization range failed: itag="
+                    + format.getItag(), e);
+        }
+    }
+
+    @Nonnull
+    private static String appendQueryParameterIfMissing(@Nonnull final String url,
+                                                        @Nonnull final String name,
+                                                        @Nonnull final String value) {
+        if (url.matches(".*(?:[?&])" + name + "=[^&]*.*")) {
+            return url;
+        }
+        return url + (url.contains("?") ? '&' : '?') + name + '=' + value;
+    }
+
+    @Nonnull
+    private static byte[] readExactly(@Nonnull final java.io.InputStream input,
+                                      final int length) throws IOException {
+        final byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            final int read = input.read(data, offset, length - offset);
+            if (read < 0) {
+                throw new IOException("Truncated SABR initialization range: expected="
+                        + length + ", actual=" + offset);
+            }
+            offset += read;
+        }
+        return data;
     }
 
     private void reindexCachedInitialization() {

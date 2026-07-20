@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken;
@@ -23,12 +24,14 @@ import java.io.FilterInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class YoutubeSabrProbe {
     private static final String PLAYER = "player";
@@ -124,17 +127,36 @@ public final class YoutubeSabrProbe {
             throw new SabrProtocolException("Player response has no streamingData for " + profile);
         }
 
-        final String serverAbrStreamingUrl = maybeDeobfuscateNParameter(videoId,
-                streamingData.getString("serverAbrStreamingUrl"));
+        final String unresolvedServerAbrStreamingUrl =
+                streamingData.getString("serverAbrStreamingUrl");
         final String ustreamerConfig = extractVideoPlaybackUstreamerConfig(playerResponse);
         final String visitorData = visitorDataOverride == null || visitorDataOverride.isEmpty()
                 ? extractVisitorData(playerResponse)
                 : visitorDataOverride;
         final JsonArray adaptiveFormats = streamingData.getArray(ADAPTIVE_FORMATS);
+        final List<YoutubeSabrFormat> formats =
+                YoutubeSabrFormat.parseAdaptiveFormats(adaptiveFormats);
+        final Set<String> signatures = new LinkedHashSet<>();
+        final Set<String> nParameters = new LinkedHashSet<>();
+        YoutubeSabrFormat.collectDecodeParameters(formats, signatures, nParameters);
+        final String serverAbrN = YoutubeSabrFormat.extractNParameter(
+                unresolvedServerAbrStreamingUrl);
+        if (serverAbrN != null) {
+            nParameters.add(serverAbrN);
+        }
+        String serverAbrStreamingUrl = unresolvedServerAbrStreamingUrl;
+        if (!signatures.isEmpty() || !nParameters.isEmpty()) {
+            final YoutubeApiDecoder.BatchDecodeResult decoded =
+                    YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId,
+                            new ArrayList<>(signatures), new ArrayList<>(nParameters));
+            YoutubeSabrFormat.resolveInitializationUrls(formats, decoded);
+            serverAbrStreamingUrl = YoutubeSabrFormat.resolveNParameter(
+                    unresolvedServerAbrStreamingUrl, decoded);
+        }
 
         return new YoutubeSabrInfo(profile, videoId, cpn, resolveClientVersion(profile),
                 visitorData, serverAbrStreamingUrl, ustreamerConfig,
-                YoutubeSabrFormat.fromAdaptiveFormats(videoId, adaptiveFormats));
+                formats);
     }
 
     @Nonnull
@@ -841,55 +863,4 @@ public final class YoutubeSabrProbe {
         return current.getString("videoPlaybackUstreamerConfig");
     }
 
-    @Nullable
-    static String maybeDeobfuscateNParameter(@Nonnull final String videoId,
-                                             @Nullable final String url)
-            throws ParsingException {
-        if (url == null || url.isEmpty()) {
-            return url;
-        }
-        final java.util.regex.Matcher queryMatcher = java.util.regex.Pattern.compile("([?&])n=([^&]+)")
-                .matcher(url);
-        if (queryMatcher.find()) {
-            final String encryptedN = urlDecode(queryMatcher.group(2));
-            final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
-                    YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
-                            Collections.singletonList(encryptedN));
-            final String decryptedN = result.getNParameters().get(encryptedN);
-            if (decryptedN != null) {
-                return url.substring(0, queryMatcher.start(2)) + urlEncode(decryptedN)
-                        + url.substring(queryMatcher.end(2));
-            }
-        }
-
-        final java.util.regex.Matcher pathMatcher = java.util.regex.Pattern.compile("/n/([^/]+)")
-                .matcher(url);
-        if (!pathMatcher.find()) {
-            return url;
-        }
-        final String encryptedN = pathMatcher.group(1);
-        final org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder.BatchDecodeResult result =
-                YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId, null,
-                        Collections.singletonList(encryptedN));
-        final String decryptedN = result.getNParameters().get(encryptedN);
-        return decryptedN == null ? url : url.replace("/n/" + encryptedN, "/n/" + decryptedN);
-    }
-
-    @Nonnull
-    private static String urlEncode(@Nonnull final String value) throws ParsingException {
-        try {
-            return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8.name());
-        } catch (final UnsupportedEncodingException e) {
-            throw new ParsingException("Could not encode SABR URL parameter", e);
-        }
-    }
-
-    @Nonnull
-    private static String urlDecode(@Nonnull final String value) throws ParsingException {
-        try {
-            return java.net.URLDecoder.decode(value, StandardCharsets.UTF_8.name());
-        } catch (final UnsupportedEncodingException e) {
-            throw new ParsingException("Could not decode SABR URL parameter", e);
-        }
-    }
 }
