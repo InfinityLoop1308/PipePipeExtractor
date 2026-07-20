@@ -822,19 +822,18 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
             final String selectedClient = NewPipe.getYoutubePlayerClient();
-            if (("mweb".equals(selectedClient) || "web".equals(selectedClient))
-                    && streamType != StreamType.LIVE_STREAM
-                    && streamType != StreamType.POST_LIVE_STREAM
-                    && hasSabrStreamingUrl()) {
+            final boolean useSabr = ("mweb".equals(selectedClient)
+                    || "web".equals(selectedClient)) && hasSabrStreamingUrl();
+            if (useSabr) {
                 buildSabrStreams(videoId);
             } else if (!("tv_downgraded".equals(selectedClient)
                     && streamType == StreamType.LIVE_STREAM)) {
                 extractAdaptiveFormats(videoId);
             }
-            if (streamType == StreamType.POST_LIVE_STREAM
+            if (!useSabr && (streamType == StreamType.POST_LIVE_STREAM
                     || (streamType == StreamType.LIVE_STREAM
                         && "tv_downgraded".equals(selectedClient))
-                    || "web_safari".equals(selectedClient)) {
+                    || "web_safari".equals(selectedClient))) {
                 tryExtractHlsStreams(videoId);
             }
             streamsCached = true;

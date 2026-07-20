@@ -28,7 +28,7 @@ public final class YoutubeSabrStreamState {
     private byte[] poToken;
     @Nullable
     private volatile SabrNextRequestPolicy nextRequestPolicy;
-    private long playerTimeMsOverride = -1;
+    private volatile long playerTimeMsOverride = -1;
     private boolean audioFullyBuffered;
     private boolean videoFullyBuffered;
     private boolean audioLastOnlyRange;
@@ -37,6 +37,9 @@ public final class YoutubeSabrStreamState {
     private volatile int enabledTrackTypesBitfield = YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
     private volatile boolean selectAudioFormat = true;
     private volatile boolean selectVideoFormat = true;
+    private volatile boolean preferAudioFormat = true;
+    private volatile boolean preferVideoFormat = true;
+    private boolean writeFirstRequestPlaybackState;
     private boolean writeTopLevelPlayerTimeMs = true;
     private int clientViewportWidth = -1;
     private int clientViewportHeight = -1;
@@ -70,14 +73,13 @@ public final class YoutubeSabrStreamState {
     @Nullable
     private List<SabrBufferedRange> bufferedRangesOverride;
 
-    // how close to the head counts as "at the live edge" (segments of slack before we wait)
     private static final long LIVE_EDGE_MARGIN_SEGMENTS = 2;
-    // live: foundation only. we record what the server tells us about the live edge (via
-    // LIVE_METADATA) so a future live-aware pump can follow the head. VOD never sets these.
-    private boolean live;
-    private boolean postLiveDvr;
-    private long liveHeadSequenceNumber = -1;
-    private long liveHeadTimeMs = -1;
+    private volatile boolean live;
+    private volatile boolean postLiveDvr;
+    private volatile long liveHeadSequenceNumber = -1;
+    private volatile long liveHeadTimeMs = -1;
+    private volatile long liveSeekableStartTimeMs = -1;
+    private volatile long liveSeekableEndTimeMs = -1;
 
     public YoutubeSabrStreamState(@Nonnull final YoutubeSabrFormat audioFormat,
                                   @Nonnull final YoutubeSabrFormat videoFormat) {
@@ -99,14 +101,7 @@ public final class YoutubeSabrStreamState {
             playbackCookie = nextRequestPolicy.getRawPlaybackCookie().clone();
         }
         for (final SabrLiveMetadata meta : patch.getLiveMetadata()) {
-            live = true;
-            postLiveDvr = meta.isPostLiveDvr();
-            if (meta.getHeadSequenceNumber() >= 0) {
-                liveHeadSequenceNumber = meta.getHeadSequenceNumber();
-            }
-            if (meta.getHeadTimeMs() >= 0) {
-                liveHeadTimeMs = meta.getHeadTimeMs();
-            }
+            progressed |= ingestLiveMetadata(meta);
         }
         for (final SabrFormatInitializationMetadata metadata
                 : patch.getFormatMetadata()) {
@@ -128,6 +123,47 @@ public final class YoutubeSabrStreamState {
             ingestContextSendingPolicy(patch.getContextSendingPolicy());
         }
         return progressed;
+    }
+
+    boolean ingestLiveMetadata(@Nonnull final SabrLiveMetadata metadata) {
+        final boolean wasLive = live;
+        final boolean wasPostLiveDvr = postLiveDvr;
+        final long previousHeadSequenceNumber = liveHeadSequenceNumber;
+        final long previousHeadTimeMs = liveHeadTimeMs;
+        final long previousSeekableStartTimeMs = liveSeekableStartTimeMs;
+        final long previousSeekableEndTimeMs = liveSeekableEndTimeMs;
+        live = true;
+        postLiveDvr |= metadata.isPostLiveDvr();
+        liveHeadSequenceNumber = advance(liveHeadSequenceNumber,
+                metadata.getHeadSequenceNumber());
+        liveHeadTimeMs = advance(liveHeadTimeMs, metadata.getHeadTimeMs());
+        liveSeekableStartTimeMs = advance(liveSeekableStartTimeMs,
+                scaleToMilliseconds(metadata.getMinSeekableTimeTicks(),
+                        metadata.getMinSeekableTimescale()));
+        liveSeekableEndTimeMs = advance(liveSeekableEndTimeMs,
+                scaleToMilliseconds(metadata.getMaxSeekableTimeTicks(),
+                        metadata.getMaxSeekableTimescale()));
+        return wasLive != live
+                || wasPostLiveDvr != postLiveDvr
+                || previousHeadSequenceNumber != liveHeadSequenceNumber
+                || previousHeadTimeMs != liveHeadTimeMs
+                || previousSeekableStartTimeMs != liveSeekableStartTimeMs
+                || previousSeekableEndTimeMs != liveSeekableEndTimeMs;
+    }
+
+    private static long advance(final long current, final long candidate) {
+        return candidate < 0 ? current : Math.max(current, candidate);
+    }
+
+    private static long scaleToMilliseconds(final long ticks, final int timescale) {
+        if (ticks < 0 || timescale <= 0) {
+            return -1;
+        }
+        final long seconds = ticks / timescale;
+        if (seconds > Long.MAX_VALUE / 1000L) {
+            return Long.MAX_VALUE;
+        }
+        return seconds * 1000L + ticks % timescale * 1000L / timescale;
     }
 
     public boolean ingest(@Nonnull final SabrMediaSegment segment) {
@@ -183,6 +219,9 @@ public final class YoutubeSabrStreamState {
     public long getPlayerTimeMs() {
         if (playerTimeMsOverride >= 0) {
             return playerTimeMsOverride;
+        }
+        if (isActiveLive()) {
+            return 0;
         }
         return Math.max(audio.getBufferedEndMs(), video.getBufferedEndMs());
     }
@@ -281,13 +320,17 @@ public final class YoutubeSabrStreamState {
     }
 
     public boolean isComplete() {
-        return (!isAudioEnabled() || audio.isComplete())
+        return !isActiveLive()
+                && (!isAudioEnabled() || audio.isComplete())
                 && (!isVideoEnabled() || video.isComplete());
     }
 
-    /** True once the server has sent live metadata for this stream (foundation for live support). */
     public boolean isLive() {
         return live;
+    }
+
+    public boolean isActiveLive() {
+        return live && !postLiveDvr;
     }
 
     /** True for an ended live stream still seekable as DVR. */
@@ -295,7 +338,7 @@ public final class YoutubeSabrStreamState {
         return postLiveDvr;
     }
 
-    /** Latest segment the live edge has reached, or -1 if unknown / not live. */
+    /** Absolute broadcast head reported by live metadata, or -1 if unknown / not live. */
     public long getLiveHeadSequenceNumber() {
         return liveHeadSequenceNumber;
     }
@@ -305,6 +348,14 @@ public final class YoutubeSabrStreamState {
         return liveHeadTimeMs;
     }
 
+    public long getLiveSeekableStartTimeMs() {
+        return liveSeekableStartTimeMs;
+    }
+
+    public long getLiveSeekableEndTimeMs() {
+        return liveSeekableEndTimeMs;
+    }
+
     /**
      * True when we have fetched up to (within a small margin of) the live head: the slower track has
      * reached the edge, so a live-aware pump should wait for the head to advance instead of treating
@@ -312,7 +363,7 @@ public final class YoutubeSabrStreamState {
      */
     public boolean isAtLiveEdge(@Nonnull final YoutubeSabrFormat audioFormat,
                                 @Nonnull final YoutubeSabrFormat videoFormat) {
-        if (!live || liveHeadSequenceNumber < 0) {
+        if (!isActiveLive() || liveHeadSequenceNumber < 0) {
             return false;
         }
         final long slowerTrack = Math.min(getMaxSegment(audioFormat), getMaxSegment(videoFormat));
@@ -333,7 +384,7 @@ public final class YoutubeSabrStreamState {
     }
 
     public boolean isComplete(@Nonnull final YoutubeSabrFormat format) {
-        return progressForItag(format.getItag()).isComplete();
+        return !isActiveLive() && progressForItag(format.getItag()).isComplete();
     }
 
     public void assumeBufferedUntil(@Nonnull final YoutubeSabrFormat format,
@@ -409,6 +460,14 @@ public final class YoutubeSabrStreamState {
         this.enabledTrackTypesBitfield = enabledTrackTypesBitfield;
         this.selectAudioFormat = selectAudioFormat;
         this.selectVideoFormat = selectVideoFormat;
+        this.preferAudioFormat = selectAudioFormat;
+        this.preferVideoFormat = selectVideoFormat;
+    }
+
+    synchronized void setPreferredTrackTypes(final boolean videoActive,
+                                             final boolean audioActive) {
+        preferAudioFormat = audioActive;
+        preferVideoFormat = videoActive;
     }
 
     public void setActiveTrackTypes(final boolean videoActive, final boolean audioActive) {
@@ -493,6 +552,22 @@ public final class YoutubeSabrStreamState {
 
     boolean shouldSelectVideoFormat() {
         return selectVideoFormat;
+    }
+
+    boolean shouldPreferAudioFormat() {
+        return preferAudioFormat;
+    }
+
+    boolean shouldPreferVideoFormat() {
+        return preferVideoFormat;
+    }
+
+    void setWriteFirstRequestPlaybackState(final boolean writeFirstRequestPlaybackState) {
+        this.writeFirstRequestPlaybackState = writeFirstRequestPlaybackState;
+    }
+
+    boolean shouldWriteFirstRequestPlaybackState() {
+        return writeFirstRequestPlaybackState;
     }
 
     public void setWriteTopLevelPlayerTimeMs(final boolean writeTopLevelPlayerTimeMs) {
@@ -753,10 +828,15 @@ public final class YoutubeSabrStreamState {
         }
 
         private boolean observeSegment(@Nonnull final SabrMediaSegment segment) {
-            if (!segment.getHeader().isInitSegment() || metadata == null || segmentIndex != null) {
-                return false;
+            if (!segment.getHeader().isInitSegment()) {
+                return observeHeader(segment.getHeader());
             }
-            return observeInitializationData(segment.getData());
+            final boolean changed = !initReceived;
+            initReceived = true;
+            if (segmentIndex != null) {
+                return changed;
+            }
+            return observeInitializationData(segment.getData()) || changed;
         }
 
         private boolean observeInitializationData(@Nonnull final byte[] data) {

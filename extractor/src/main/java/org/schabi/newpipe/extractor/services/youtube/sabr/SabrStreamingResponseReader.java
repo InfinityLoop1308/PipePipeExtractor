@@ -42,6 +42,11 @@ public final class SabrStreamingResponseReader {
         boolean accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
     }
 
+    @FunctionalInterface
+    public interface LiveMetadataConsumer {
+        void accept(@Nonnull SabrLiveMetadata metadata) throws SabrProtocolException;
+    }
+
     /**
      * Streams completed segments directly to {@code segmentConsumer}. When a consumer is supplied,
      * completed segments are not retained by the result, bounding the response reader to one open
@@ -78,7 +83,7 @@ public final class SabrStreamingResponseReader {
                                    @Nullable final SegmentConsumer segmentStartConsumer,
                                    @Nullable final File spoolDirectory)
             throws SabrProtocolException, IOException {
-        return readUntil(in, segmentConsumer, segmentStartConsumer, spoolDirectory,
+        return readUntil(in, segmentConsumer, segmentStartConsumer, null, spoolDirectory,
                 SabrMediaProtocol.builtin());
     }
 
@@ -86,6 +91,29 @@ public final class SabrStreamingResponseReader {
     public static Result readUntil(@Nonnull final InputStream in,
                                    final StoppableSegmentConsumer segmentConsumer,
                                    @Nullable final SegmentConsumer segmentStartConsumer,
+                                   @Nullable final File spoolDirectory,
+                                   @Nonnull final SabrMediaProtocol mediaProtocol)
+            throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer, segmentStartConsumer, null, spoolDirectory,
+                mediaProtocol);
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer,
+                                   @Nullable final SegmentConsumer segmentStartConsumer,
+                                   @Nullable final LiveMetadataConsumer liveMetadataConsumer,
+                                   @Nullable final File spoolDirectory)
+            throws SabrProtocolException, IOException {
+        return readUntil(in, segmentConsumer, segmentStartConsumer, liveMetadataConsumer,
+                spoolDirectory, SabrMediaProtocol.builtin());
+    }
+
+    @Nonnull
+    public static Result readUntil(@Nonnull final InputStream in,
+                                   final StoppableSegmentConsumer segmentConsumer,
+                                   @Nullable final SegmentConsumer segmentStartConsumer,
+                                   @Nullable final LiveMetadataConsumer liveMetadataConsumer,
                                    @Nullable final File spoolDirectory,
                                    @Nonnull final SabrMediaProtocol mediaProtocol)
             throws SabrProtocolException, IOException {
@@ -100,6 +128,7 @@ public final class SabrStreamingResponseReader {
         final long[] maxPartBytes = {0};
         final long[] maxMediaPartPayloadBytes = {0};
         final long[] maxSegmentBytes = {0};
+        final boolean[] stopAfterOpenSegments = {false};
         // headerId -> total media bytes seen, so the decoded response passes the same integrity check
         // (getIntegrityIssues -> "missing-media") as the buffered path WITHOUT retaining the bytes.
         final Map<Integer, Long> mediaBytesByHeaderId = new HashMap<>();
@@ -160,16 +189,23 @@ public final class SabrStreamingResponseReader {
                         maxSegmentBytes[0] = Math.max(maxSegmentBytes[0], segment.getLength());
                         if (segmentConsumer == null) {
                             segments.add(segment);
-                        } else {
-                            return segmentConsumer.accept(segment);
+                        } else if (!segmentConsumer.accept(segment)) {
+                            stopAfterOpenSegments[0] = true;
                         }
+                    }
+                } else if (type == SabrResponseDecoder.LIVE_METADATA) {
+                    final byte[] payload = readPayloadBytes(payloadStream, size);
+                    controlPayloadBytes[0] += payload.length;
+                    controlParts.add(new UmpPart(type, payload.length, payload));
+                    if (liveMetadataConsumer != null) {
+                        liveMetadataConsumer.accept(SabrLiveMetadata.decode(payload));
                     }
                 } else {
                     final byte[] payload = readPayloadBytes(payloadStream, size);
                     controlPayloadBytes[0] += payload.length;
                     controlParts.add(new UmpPart(type, payload.length, payload));
                 }
-                return true;
+                return !stopAfterOpenSegments[0] || collector.hasOpenSegments();
             });
         } finally {
             // Any header left open after EOF, cancellation or failure must wake a growing-file
