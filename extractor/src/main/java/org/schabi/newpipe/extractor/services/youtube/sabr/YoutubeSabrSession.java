@@ -44,9 +44,9 @@ public final class YoutubeSabrSession {
     // expiry mid-playback). Bounded so a genuinely-rejected token can't loop forever.
     private static final int MAX_PO_TOKEN_REFRESHES = 2;
     private static final int MAX_BACKOFF_MS = 30_000;
-    // A Media3 loader is synchronously waiting for a demanded segment. Bound long server waits, but
-    // still preserve normal SABR pacing instead of retrying policy-only responses in a tight loop.
-    private static final int MAX_DEMAND_BACKOFF_MS = 2_000;
+    // Startup prewarm has a separate local responsiveness budget; synchronous segment demand must
+    // retain the complete server deadline instead.
+    private static final int MAX_STARTUP_BACKOFF_MS = 2_000;
     // Cap the cached media bytes so a high-bitrate (4K VP9/AV1) stream can't fill the heap and OOM.
     // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
     private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
@@ -278,6 +278,12 @@ public final class YoutubeSabrSession {
             @Nonnull final Localization localization,
             @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
+        // Public synchronous fetch APIs do not have the client's interruptible pump loop. If they
+        // follow a deferred demand response, wait here as a final guard against an early request.
+        long remainingBackoffMs;
+        while ((remainingBackoffMs = getDemandBackoffRemainingMs()) > 0) {
+            sleepBackoff((int) remainingBackoffMs, false);
+        }
         final byte[] proposedBody = requestNumber == 0
                 ? YoutubeSabrRequestBuilder.buildFirstMediaRequest(
                         info, audioFormat, videoFormat, streamState)
@@ -463,7 +469,8 @@ public final class YoutubeSabrSession {
 
     public int pumpOnceStreamingForStartup(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
-        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false);
+        final YoutubeSabrProbeResult result = pumpOnceInternal(localization, true, false,
+                MAX_STARTUP_BACKOFF_MS);
         return result == null ? 0 : result.getSegmentCount();
     }
 
@@ -471,9 +478,9 @@ public final class YoutubeSabrSession {
      * Like {@link #pumpOnceStreaming(Localization)}, but used by callers that are waiting on a
      * concrete segment. Keep consuming the whole response: SABR/UMP response boundaries are part of
      * the protocol state, and closing after the target segment can cut off a following media header
-     * whose body/end is still in the same response. Do not honor long server backoff here: the
-     * player loader is synchronously waiting for {@code target}, and the client data-source recovery
-     * loop needs short retries instead of a minutes-long buffering sleep.
+     * whose body/end is still in the same response. Do not sleep in this call when the server sends
+     * a backoff: preserve the full next-request deadline and let the client wait interruptibly so a
+     * synchronously waiting loader can still react to cancellation and reader replacement.
      */
     public int pumpOnceStreamingUntilCached(@Nonnull final Localization localization,
                                             @Nonnull final SabrSegmentRequest target)
@@ -575,7 +582,7 @@ public final class YoutubeSabrSession {
         return sessionPolicyHost.evaluateDemandResponse(event);
     }
 
-    /** Remaining server pacing delay for a synchronously demanded segment. */
+    /** Remaining server next-request delay deferred by the non-blocking demand path. */
     public long getDemandBackoffRemainingMs() {
         final long remainingNs = demandBackoffUntilNs - System.nanoTime();
         if (remainingNs <= 0) {
@@ -608,6 +615,18 @@ public final class YoutubeSabrSession {
     }
 
     @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(@Nonnull final Localization localization,
+                                                     final boolean streaming,
+                                                     final boolean honorBackoff,
+                                                     final int deferredBackoffLimitMs)
+            throws IOException, ExtractionException {
+        return pumpOnceInternal(localization, streaming ? segment -> {
+            ingestAndCacheSegment(segment);
+            return true;
+        } : null, honorBackoff, false, deferredBackoffLimitMs);
+    }
+
+    @Nullable
     private YoutubeSabrProbeResult pumpOnceInternal(
             @Nonnull final Localization localization,
             @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
@@ -623,6 +642,24 @@ public final class YoutubeSabrSession {
             final boolean honorBackoff,
             final boolean skipBackoffWhenBootstrapReady)
             throws IOException, ExtractionException {
+        return pumpOnceInternal(localization, segmentConsumer, honorBackoff,
+                skipBackoffWhenBootstrapReady, MAX_BACKOFF_MS);
+    }
+
+    @Nullable
+    private YoutubeSabrProbeResult pumpOnceInternal(
+            @Nonnull final Localization localization,
+            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer,
+            final boolean honorBackoff,
+            final boolean skipBackoffWhenBootstrapReady,
+            final int deferredBackoffLimitMs)
+            throws IOException, ExtractionException {
+        // A previous non-blocking demand response may have deferred the server's next-request
+        // deadline. Gate every pump path here so a seek, recovery, or background pump cannot bypass
+        // that deadline while the waiting loader remains interruptible in the client.
+        if (getDemandBackoffRemainingMs() > 0) {
+            return null;
+        }
         final YoutubeSabrProbeResult result;
         try {
             result = segmentConsumer == null
@@ -654,7 +691,8 @@ public final class YoutubeSabrSession {
         }
         evictCacheIfNeeded();
         if (applyControlPolicy(localization, result, honorBackoff,
-                SabrSessionPolicy.ControlMode.PUMP, null, skipBackoffWhenBootstrapReady)
+                SabrSessionPolicy.ControlMode.PUMP, null, skipBackoffWhenBootstrapReady,
+                deferredBackoffLimitMs)
                 == PolicyControlOutcome.RETRY) {
             return null;
         }
@@ -673,7 +711,8 @@ public final class YoutubeSabrSession {
             final boolean honorBackoff,
             @Nonnull final SabrSessionPolicy.ControlMode mode,
             @Nullable final SabrSegmentRequest request) throws IOException, ExtractionException {
-        return applyControlPolicy(localization, result, honorBackoff, mode, request, false);
+        return applyControlPolicy(localization, result, honorBackoff, mode, request, false,
+                MAX_BACKOFF_MS);
     }
 
     @Nonnull
@@ -684,6 +723,19 @@ public final class YoutubeSabrSession {
             @Nonnull final SabrSessionPolicy.ControlMode mode,
             @Nullable final SabrSegmentRequest request,
             final boolean skipBackoffWhenBootstrapReady) throws IOException, ExtractionException {
+        return applyControlPolicy(localization, result, honorBackoff, mode, request,
+                skipBackoffWhenBootstrapReady, MAX_BACKOFF_MS);
+    }
+
+    @Nonnull
+    private PolicyControlOutcome applyControlPolicy(
+            @Nonnull final Localization localization,
+            @Nonnull final YoutubeSabrProbeResult result,
+            final boolean honorBackoff,
+            @Nonnull final SabrSessionPolicy.ControlMode mode,
+            @Nullable final SabrSegmentRequest request,
+            final boolean skipBackoffWhenBootstrapReady,
+            final int deferredBackoffLimitMs) throws IOException, ExtractionException {
         final SabrDecodedResponse decoded = result.getDecodedResponse();
         final SabrSessionPolicy.Result policyResult = sessionPolicyHost.evaluate(
                 sessionPolicyState(), new SabrSessionPolicy.ControlResponseEvent(
@@ -760,7 +812,7 @@ public final class YoutubeSabrSession {
                         break;
                     case DEFER_BACKOFF:
                         final int appliedBackoffMs = Math.min(decision.getBackoffTimeMs(),
-                                MAX_DEMAND_BACKOFF_MS);
+                                deferredBackoffLimitMs);
                         demandBackoffUntilNs = System.nanoTime()
                                 + TimeUnit.MILLISECONDS.toNanos(appliedBackoffMs);
                         addDiagnosticEvent("defer_backoff waitTarget requestedMs="
@@ -1330,7 +1382,6 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
-        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
@@ -1343,7 +1394,6 @@ public final class YoutubeSabrSession {
     }
 
     public void prepareForInitialization(@Nonnull final YoutubeSabrFormat format) {
-        demandBackoffUntilNs = 0;
         discardCachedSegment(SabrSegmentRequest.initialization(format));
         streamState.resetInitialization(format);
         streamState.clearPlaybackCookie();
@@ -1497,7 +1547,6 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
-        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
@@ -1536,7 +1585,6 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
-        demandBackoffUntilNs = 0;
         final YoutubeSabrFormat targetFormat = request.getFormat();
         final YoutubeSabrFormat companionFormat = getCompanionFormat(targetFormat);
         final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
@@ -1558,7 +1606,6 @@ public final class YoutubeSabrSession {
         if (request.isInitializationSegment()) {
             return;
         }
-        demandBackoffUntilNs = 0;
         final long targetStartMs = streamState.getSegmentStartMs(request.getFormat(),
                 request.getSequenceNumber());
         streamState.jumpBufferedTo(request.getFormat(), request.getSequenceNumber());
