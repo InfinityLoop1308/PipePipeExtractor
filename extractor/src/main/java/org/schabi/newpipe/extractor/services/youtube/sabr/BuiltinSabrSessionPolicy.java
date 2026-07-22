@@ -4,7 +4,7 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Bundled protocol behavior used when no verified JavaScript policy is active. */
+/** Bundled protocol behavior used when no verified compatibility profile is active. */
 public final class BuiltinSabrSessionPolicy implements SabrSessionPolicy {
     @Nonnull
     @Override

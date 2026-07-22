@@ -125,6 +125,8 @@ public final class SabrStreamingResponseReader {
                         if (started != null && segmentStartConsumer != null) {
                             segmentStartConsumer.accept(started);
                         }
+                    } catch (final SabrRecoverableException failure) {
+                        throw failure;
                     } catch (final SabrProtocolException ignored) {
                         if (!isMalformedMediaHeader(payload, mediaProtocol)) {
                             throw ignored;

@@ -297,7 +297,8 @@ public final class YoutubeSabrSession {
         final SabrSessionPolicy.Result requestPolicyResult = sessionPolicyHost.evaluate(
                 sessionPolicyState(), new SabrSessionPolicy.RequestEvent(
                         playerTimeMs, bufferedEdgeMs, poTokenBytes, bufferedRangeCount,
-                        proposedBody));
+                        proposedBody, new SabrProfileRequestData(info, audioFormat, videoFormat,
+                        streamState, requestNumber == 0)));
         final byte[] requestBody = Objects.requireNonNull(requestPolicyResult.getRequestBody());
         addDiagnosticEvent("request n=" + requestNumber
                 + " playerMs=" + playerTimeMs

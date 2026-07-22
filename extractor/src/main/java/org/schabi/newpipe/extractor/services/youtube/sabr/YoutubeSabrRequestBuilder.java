@@ -166,12 +166,12 @@ final class YoutubeSabrRequestBuilder {
     }
 
     @Nonnull
-    private static byte[] buildClientAbrState(@Nonnull final YoutubeSabrFormat audioFormat,
-                                                 @Nonnull final YoutubeSabrFormat videoFormat,
-                                                  final long playerTimeMs,
-                                                  final boolean includeFollowUpState,
-                                                  final int enabledTrackTypesBitfield,
-                                                  @Nullable final YoutubeSabrStreamState streamState) {
+    static byte[] buildClientAbrState(@Nonnull final YoutubeSabrFormat audioFormat,
+                                      @Nonnull final YoutubeSabrFormat videoFormat,
+                                      final long playerTimeMs,
+                                      final boolean includeFollowUpState,
+                                      final int enabledTrackTypesBitfield,
+                                      @Nullable final YoutubeSabrStreamState streamState) {
         final SabrProto.Writer state = new SabrProto.Writer();
         final boolean officialWebClientAbrFields = streamState != null
                 && streamState.shouldWriteOfficialWebClientAbrFields();
@@ -376,7 +376,7 @@ final class YoutubeSabrRequestBuilder {
     }
 
     @Nonnull
-    private static byte[] buildStreamerContext(@Nonnull final YoutubeSabrInfo info,
+    static byte[] buildStreamerContext(@Nonnull final YoutubeSabrInfo info,
                                                @Nonnull final YoutubeSabrStreamState streamState) {
         return buildStreamerContext(info, streamState.getRawPlaybackCookie(), streamState);
     }
@@ -437,7 +437,7 @@ final class YoutubeSabrRequestBuilder {
     }
 
     @Nonnull
-    private static byte[] decodeBase64(@Nonnull final String value) throws SabrProtocolException {
+    static byte[] decodeBase64(@Nonnull final String value) throws SabrProtocolException {
         try {
             return Base64.getDecoder().decode(padBase64(value));
         } catch (final IllegalArgumentException first) {
