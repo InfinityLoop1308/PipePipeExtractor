@@ -81,6 +81,19 @@ public final class SabrMediaHeader {
 
     @Nonnull
     static SabrMediaHeader decode(@Nonnull final byte[] data) throws SabrProtocolException {
+        return decode(data, false);
+    }
+
+    @Nonnull
+    static SabrMediaHeader decodeLenient(@Nonnull final byte[] data)
+            throws SabrProtocolException {
+        return decode(data, true);
+    }
+
+    @Nonnull
+    private static SabrMediaHeader decode(@Nonnull final byte[] data,
+                                          final boolean ignoreWireTypeChanges)
+            throws SabrProtocolException {
         int headerId = -1;
         String videoId = null;
         int itag = -1;
@@ -100,6 +113,9 @@ public final class SabrMediaHeader {
         long sequenceLastModified = -1;
 
         for (final SabrProto.Field field : SabrProto.readFields(data)) {
+            if (ignoreWireTypeChanges && !hasBuiltinWireType(field)) {
+                continue;
+            }
             switch (field.getNumber()) {
                 case 1:
                     headerId = (int) field.getVarint();
@@ -179,6 +195,31 @@ public final class SabrMediaHeader {
                 compressionAlgorithm, initSegment, sequenceNumber, bitrateBps, startMs, durationMs,
                 contentLength, timeRangeStartTicks, timeRangeDurationTicks, timeRangeTimescale,
                 sequenceLastModified);
+    }
+
+    private static boolean hasBuiltinWireType(@Nonnull final SabrProto.Field field) {
+        switch (field.getNumber()) {
+            case 2:
+            case 5:
+            case 13:
+            case 15:
+                return field.getWireType() == SabrProto.WIRE_LENGTH_DELIMITED;
+            case 1:
+            case 3:
+            case 4:
+            case 6:
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 14:
+            case 16:
+                return field.getWireType() == SabrProto.WIRE_VARINT;
+            default:
+                return true;
+        }
     }
 
     @Nonnull
