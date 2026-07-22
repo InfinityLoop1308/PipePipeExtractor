@@ -1905,6 +1905,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         final String reason = playabilityStatus.getString("reason");
+        final JsonObject errorScreen = playabilityStatus.getObject("errorScreen");
+
+        if (errorScreen != null && errorScreen.has("playerCaptchaViewModel")) {
+            throw new AntiBotException("YouTube requested CAPTCHA verification");
+        }
 
         if (status.equalsIgnoreCase("login_required")) {
             if (reason == null) {
