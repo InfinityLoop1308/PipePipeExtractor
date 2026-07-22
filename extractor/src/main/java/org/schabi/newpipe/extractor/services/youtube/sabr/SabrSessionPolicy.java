@@ -217,15 +217,25 @@ public interface SabrSessionPolicy extends AutoCloseable {
         private final int poTokenBytes;
         private final int bufferedRangeCount;
         @Nonnull private final byte[] proposedBody;
+        @Nullable private final SabrProfileRequestData profileRequestData;
 
         public RequestEvent(final long playerTimeMs, final long bufferedEdgeMs,
                             final int poTokenBytes, final int bufferedRangeCount,
                             @Nonnull final byte[] proposedBody) {
+            this(playerTimeMs, bufferedEdgeMs, poTokenBytes, bufferedRangeCount, proposedBody,
+                    null);
+        }
+
+        RequestEvent(final long playerTimeMs, final long bufferedEdgeMs,
+                     final int poTokenBytes, final int bufferedRangeCount,
+                     @Nonnull final byte[] proposedBody,
+                     @Nullable final SabrProfileRequestData profileRequestData) {
             this.playerTimeMs = playerTimeMs;
             this.bufferedEdgeMs = bufferedEdgeMs;
             this.poTokenBytes = poTokenBytes;
             this.bufferedRangeCount = bufferedRangeCount;
             this.proposedBody = proposedBody.clone();
+            this.profileRequestData = profileRequestData;
         }
 
         public long getPlayerTimeMs() { return playerTimeMs; }
@@ -233,6 +243,23 @@ public interface SabrSessionPolicy extends AutoCloseable {
         public int getPoTokenBytes() { return poTokenBytes; }
         public int getBufferedRangeCount() { return bufferedRangeCount; }
         @Nonnull public byte[] getProposedBody() { return proposedBody.clone(); }
+
+        @Nonnull
+        byte[] buildProfileRequest(@Nonnull final List<SabrProfileRequestField> template)
+                throws SabrProtocolException {
+            if (profileRequestData == null) {
+                throw new SabrProtocolException("SABR profile request data is unavailable");
+            }
+            return profileRequestData.build(template);
+        }
+
+        @Nonnull
+        SabrProfileRequestData getProfileRequestData() throws SabrProtocolException {
+            if (profileRequestData == null) {
+                throw new SabrProtocolException("SABR profile request data is unavailable");
+            }
+            return profileRequestData;
+        }
     }
 
     final class ControlResponseEvent extends Event {
@@ -332,14 +359,14 @@ public interface SabrSessionPolicy extends AutoCloseable {
         @Nullable public SabrResponseStatePatch getStatePatch() { return statePatch; }
     }
 
-    /** Media framing is queried by the streaming Host without exposing media bytes to control JS. */
+    /** Media framing is queried by the streaming Host outside policy evaluation. */
     @Nonnull
     default SabrMediaProtocol getMediaProtocol() { return SabrMediaProtocol.builtin(); }
 
     @Nonnull
     Result evaluate(@Nonnull State state, @Nonnull Event event) throws SabrProtocolException;
 
-    /** Bundled demand routing; cloud policies may override this without owning the pump. */
+    /** Bundled demand routing; compatibility profiles may tune this without owning the pump. */
     @Nonnull
     default DemandRoute evaluateDemandRoute(@Nonnull final DemandRouteEvent event)
             throws SabrProtocolException {

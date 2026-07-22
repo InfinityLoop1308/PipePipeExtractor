@@ -173,6 +173,7 @@ public final class NewPipe {
 
     public static void setYoutubePlayerClient(final String youtubePlayerClient) {
         if ("mweb".equals(youtubePlayerClient)
+                || "web".equals(youtubePlayerClient)
                 || "web_safari".equals(youtubePlayerClient)
                 || "android_vr".equals(youtubePlayerClient)
                 || "tv_downgraded".equals(youtubePlayerClient)) {
