@@ -194,6 +194,23 @@ public final class YoutubeSabrSession {
         if (cachedSegment != null) {
             return cachedSegment;
         }
+        final boolean initializationSegment = request.isInitializationSegment();
+        final YoutubeSabrStreamState.InitializationRequestSnapshot requestSnapshot =
+                initializationSegment
+                        ? streamState.prepareInitializationRequest(request.getFormat()) : null;
+        try {
+            return fetchUncachedSegment(request, localization);
+        } finally {
+            if (requestSnapshot != null) {
+                streamState.restoreInitializationRequest(requestSnapshot);
+            }
+        }
+    }
+
+    @Nonnull
+    private SabrMediaSegment fetchUncachedSegment(@Nonnull final SabrSegmentRequest request,
+                                                   @Nonnull final Localization localization)
+            throws IOException, ExtractionException {
         failIfKnownOutOfBounds(request);
 
         boolean targetPrepared = maybePrepareForDistantMediaSegment(request);
