@@ -93,6 +93,9 @@ public final class YoutubeSabrSession {
     private volatile long maxSegmentBytes;
     private volatile int maxSegmentsPerResponse;
     private volatile long demandBackoffUntilNs;
+    private volatile boolean protectedResponseReloadPending;
+    @Nullable
+    private volatile String protectedResponseReloadDetails;
     @Nullable
     private volatile BackoffListener backoffListener;
     private volatile long mediaProgressVersion;
@@ -456,9 +459,20 @@ public final class YoutubeSabrSession {
         if (fresh.getServerAbrStreamingUrl() == null || fresh.getServerAbrStreamingUrl().isEmpty()) {
             return false;
         }
+        final boolean visitorIdentityChanged =
+                !Objects.equals(info.getVisitorData(), fresh.getVisitorData());
+        final boolean hadPoToken = streamState.getRawPoToken() != null;
         info = fresh;
         serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
         redirectCount = 0;
+        poTokenRefreshes = 0;
+        if (visitorIdentityChanged) {
+            streamState.setPoToken(null);
+            if (hadPoToken && !maybeApplyPoToken(false)) {
+                throw new SabrProtocolException(
+                        "SABR player reload changed visitor identity without a fresh PO token");
+            }
+        }
         // keep requestNumber > 0 so the next request is a follow-up carrying the current player time
         // and buffered ranges: the new streaming URL resumes in place, not from the start.
         return true;
@@ -677,6 +691,12 @@ public final class YoutubeSabrSession {
         if (getDemandBackoffRemainingMs() > 0) {
             return null;
         }
+        if (protectedResponseReloadPending) {
+            final String details = protectedResponseReloadDetails;
+            protectedResponseReloadPending = false;
+            protectedResponseReloadDetails = null;
+            reloadAfterProtectedResponse(localization, details);
+        }
         final YoutubeSabrProbeResult result;
         try {
             result = segmentConsumer == null
@@ -764,6 +784,8 @@ public final class YoutubeSabrSession {
         poTokenRefreshes = policyResult.getNextState().getPoTokenRefreshes();
         final List<SabrSessionPolicy.ActionType> executedActions = new ArrayList<>();
         boolean completed = false;
+        boolean reloadAfterActions = false;
+        boolean deferredBackoffApplied = false;
         try {
             for (final SabrSessionPolicy.Action action : policyResult.getActions()) {
                 executedActions.add(action.getType());
@@ -808,7 +830,13 @@ public final class YoutubeSabrSession {
                                 + describeRequest(request) + " (reload budget spent): "
                                 + decoded.summarizeNoMediaResponse());
                     case REFRESH_PO_TOKEN:
-                        applyPoTokenForProtectedResponse();
+                        if (!applyPoTokenForProtectedResponse()
+                                && poTokenRefreshes >= MAX_PO_TOKEN_REFRESHES
+                                && decoded.getStreamProtectionStatus() == 2) {
+                            reloadAfterActions = true;
+                            addDiagnosticEvent("protected_no_media_reload refreshes="
+                                    + poTokenRefreshes + " reloads=" + reloads);
+                        }
                         break;
                     case REQUIRE_PO_TOKEN:
                         if (!applyPoTokenForProtectedResponse()) {
@@ -832,6 +860,7 @@ public final class YoutubeSabrSession {
                                 deferredBackoffLimitMs);
                         demandBackoffUntilNs = System.nanoTime()
                                 + TimeUnit.MILLISECONDS.toNanos(appliedBackoffMs);
+                        deferredBackoffApplied = true;
                         addDiagnosticEvent("defer_backoff waitTarget requestedMs="
                                 + decision.getBackoffTimeMs()
                                 + " appliedMs=" + appliedBackoffMs);
@@ -840,9 +869,19 @@ public final class YoutubeSabrSession {
                         demandBackoffUntilNs = 0;
                         break;
                     case RETRY:
+                        if (reloadAfterActions) {
+                            finishProtectedResponseActions(
+                                    localization, decoded, deferredBackoffApplied);
+                        }
                         completed = true;
                         return PolicyControlOutcome.RETRY;
                     case CONTINUE:
+                        if (reloadAfterActions) {
+                            finishProtectedResponseActions(
+                                    localization, decoded, deferredBackoffApplied);
+                            completed = true;
+                            return PolicyControlOutcome.RETRY;
+                        }
                         completed = true;
                         return PolicyControlOutcome.CONTINUE;
                     default:
@@ -1012,6 +1051,8 @@ public final class YoutubeSabrSession {
      */
     public void clearCache() {
         demandBackoffUntilNs = 0;
+        protectedResponseReloadPending = false;
+        protectedResponseReloadDetails = null;
         cacheClosed = true;
         sessionPolicyHost.close();
         abortInFlightSegments("SABR session cache was cleared", null);
@@ -1789,6 +1830,30 @@ public final class YoutubeSabrSession {
             return maybeApplyPoToken(true);
         }
         return false;
+    }
+
+    private void finishProtectedResponseActions(
+            @Nonnull final Localization localization,
+            @Nonnull final SabrDecodedResponse decoded,
+            final boolean deferredBackoffApplied) throws IOException, ExtractionException {
+        final String details = decoded.summarizeNoMediaResponse();
+        if (deferredBackoffApplied) {
+            protectedResponseReloadDetails = details;
+            protectedResponseReloadPending = true;
+            return;
+        }
+        reloadAfterProtectedResponse(localization, details);
+    }
+
+    private void reloadAfterProtectedResponse(
+            @Nonnull final Localization localization,
+            @Nullable final String details) throws IOException, ExtractionException {
+        if (!maybeReload(localization)) {
+            throw new SabrProtocolException(
+                    "SABR protected no-media response after token refresh"
+                            + " and player reload budgets were exhausted: "
+                            + (details == null ? "no response details" : details));
+        }
     }
 
     @Nonnull
