@@ -683,6 +683,12 @@ YoutubeParsingHelper {
                 .orElse(null);
     }
 
+    /** Returns the localization used by YouTube player requests. */
+    @Nonnull
+    public static Localization getPlayerRequestLocalization() {
+        return new Localization("en");
+    }
+
     /**
      * Get the client version used by YouTube website on InnerTube requests.
      */
