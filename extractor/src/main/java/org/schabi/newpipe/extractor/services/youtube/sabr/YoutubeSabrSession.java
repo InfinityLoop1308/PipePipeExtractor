@@ -14,7 +14,6 @@ import java.net.URI;
 import java.io.InterruptedIOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Deque;
@@ -38,11 +37,8 @@ public final class YoutubeSabrSession {
     // server can ask us to reload the player response (URLs/config expired on a long watch). re-probe
     // and resume in place instead of killing the session. bounded so a reload loop can't run forever.
     private static final int MAX_RELOADS_PER_SESSION = 2;
-    private static final int INTEGRITY_RELOAD_AFTER_FAILURES = 2;
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
-    // How many times a stale/rejected PO token may be force-re-minted before giving up (token
-    // expiry mid-playback). Bounded so a genuinely-rejected token can't loop forever.
-    private static final int MAX_PO_TOKEN_REFRESHES = 2;
+    private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
     private static final int MAX_BACKOFF_MS = 30_000;
     // Startup prewarm has a separate local responsiveness budget; synchronous segment demand must
     // retain the complete server deadline instead.
@@ -76,9 +72,9 @@ public final class YoutubeSabrSession {
     private String serverAbrStreamingUrl;
     private int requestNumber;
     private int redirectCount;
-    private int poTokenRefreshes;
     private int reloads;
     private int consecutiveIntegrityFailures;
+    private int consecutiveAttestationPendingResponses;
     // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
@@ -93,9 +89,6 @@ public final class YoutubeSabrSession {
     private volatile long maxSegmentBytes;
     private volatile int maxSegmentsPerResponse;
     private volatile long demandBackoffUntilNs;
-    private volatile boolean protectedResponseReloadPending;
-    @Nullable
-    private volatile String protectedResponseReloadDetails;
     @Nullable
     private volatile BackoffListener backoffListener;
     private volatile long mediaProgressVersion;
@@ -465,10 +458,9 @@ public final class YoutubeSabrSession {
         info = fresh;
         serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
         redirectCount = 0;
-        poTokenRefreshes = 0;
         if (visitorIdentityChanged) {
             streamState.setPoToken(null);
-            if (hadPoToken && !maybeApplyPoToken(false)) {
+            if (hadPoToken && !maybeApplyPoToken()) {
                 throw new SabrProtocolException(
                         "SABR player reload changed visitor identity without a fresh PO token");
             }
@@ -691,12 +683,6 @@ public final class YoutubeSabrSession {
         if (getDemandBackoffRemainingMs() > 0) {
             return null;
         }
-        if (protectedResponseReloadPending) {
-            final String details = protectedResponseReloadDetails;
-            protectedResponseReloadPending = false;
-            protectedResponseReloadDetails = null;
-            reloadAfterProtectedResponse(localization, details);
-        }
         final YoutubeSabrProbeResult result;
         try {
             result = segmentConsumer == null
@@ -774,6 +760,21 @@ public final class YoutubeSabrSession {
             final boolean skipBackoffWhenBootstrapReady,
             final int deferredBackoffLimitMs) throws IOException, ExtractionException {
         final SabrDecodedResponse decoded = result.getDecodedResponse();
+        if (decoded.isAttestationPending() && decoded.isNoMediaResponse()) {
+            consecutiveAttestationPendingResponses++;
+            addDiagnosticEvent("attestation_pending_no_media count="
+                    + consecutiveAttestationPendingResponses);
+            if (consecutiveAttestationPendingResponses
+                    >= MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES) {
+                throw new SabrProtocolException(
+                        "SABR attestation remained pending without media for "
+                                + consecutiveAttestationPendingResponses
+                                + " consecutive responses: "
+                                + decoded.summarizeNoMediaResponse());
+            }
+        } else {
+            consecutiveAttestationPendingResponses = 0;
+        }
         final SabrSessionPolicy.Result policyResult = sessionPolicyHost.evaluate(
                 sessionPolicyState(), new SabrSessionPolicy.ControlResponseEvent(
                         result.getSegmentCount(), honorBackoff, mode, decoded));
@@ -781,11 +782,8 @@ public final class YoutubeSabrSession {
                 policyResult.getControlDecision());
         final int redirectCountBeforePolicy = redirectCount;
         redirectCount = policyResult.getNextState().getRedirectCount();
-        poTokenRefreshes = policyResult.getNextState().getPoTokenRefreshes();
         final List<SabrSessionPolicy.ActionType> executedActions = new ArrayList<>();
         boolean completed = false;
-        boolean reloadAfterActions = false;
-        boolean deferredBackoffApplied = false;
         try {
             for (final SabrSessionPolicy.Action action : policyResult.getActions()) {
                 executedActions.add(action.getType());
@@ -829,23 +827,6 @@ public final class YoutubeSabrSession {
                                 : "SABR requested player reload while fetching "
                                 + describeRequest(request) + " (reload budget spent): "
                                 + decoded.summarizeNoMediaResponse());
-                    case REFRESH_PO_TOKEN:
-                        if (!applyPoTokenForProtectedResponse()
-                                && poTokenRefreshes >= MAX_PO_TOKEN_REFRESHES
-                                && decoded.getStreamProtectionStatus() == 2) {
-                            reloadAfterActions = true;
-                            addDiagnosticEvent("protected_no_media_reload refreshes="
-                                    + poTokenRefreshes + " reloads=" + reloads);
-                        }
-                        break;
-                    case REQUIRE_PO_TOKEN:
-                        if (!applyPoTokenForProtectedResponse()) {
-                            throw new SabrProtocolException("SABR protected no-media response"
-                                    + (request == null ? "" : " while fetching "
-                                    + describeRequest(request)) + ": "
-                                    + decoded.summarizeNoMediaResponse());
-                        }
-                        break;
                     case RESET_RECOVERY_BUDGETS:
                         break;
                     case SLEEP_BACKOFF:
@@ -860,7 +841,6 @@ public final class YoutubeSabrSession {
                                 deferredBackoffLimitMs);
                         demandBackoffUntilNs = System.nanoTime()
                                 + TimeUnit.MILLISECONDS.toNanos(appliedBackoffMs);
-                        deferredBackoffApplied = true;
                         addDiagnosticEvent("defer_backoff waitTarget requestedMs="
                                 + decision.getBackoffTimeMs()
                                 + " appliedMs=" + appliedBackoffMs);
@@ -869,19 +849,9 @@ public final class YoutubeSabrSession {
                         demandBackoffUntilNs = 0;
                         break;
                     case RETRY:
-                        if (reloadAfterActions) {
-                            finishProtectedResponseActions(
-                                    localization, decoded, deferredBackoffApplied);
-                        }
                         completed = true;
                         return PolicyControlOutcome.RETRY;
                     case CONTINUE:
-                        if (reloadAfterActions) {
-                            finishProtectedResponseActions(
-                                    localization, decoded, deferredBackoffApplied);
-                            completed = true;
-                            return PolicyControlOutcome.RETRY;
-                        }
                         completed = true;
                         return PolicyControlOutcome.CONTINUE;
                     default:
@@ -898,7 +868,7 @@ public final class YoutubeSabrSession {
 
     @Nonnull
     private SabrSessionPolicy.State sessionPolicyState() {
-        return new SabrSessionPolicy.State(requestNumber, redirectCount, poTokenRefreshes, reloads);
+        return new SabrSessionPolicy.State(requestNumber, redirectCount, reloads);
     }
 
     private static void validateRedirectUrl(@Nonnull final String redirectUrl)
@@ -1051,8 +1021,6 @@ public final class YoutubeSabrSession {
      */
     public void clearCache() {
         demandBackoffUntilNs = 0;
-        protectedResponseReloadPending = false;
-        protectedResponseReloadDetails = null;
         cacheClosed = true;
         sessionPolicyHost.close();
         abortInFlightSegments("SABR session cache was cleared", null);
@@ -1720,10 +1688,6 @@ public final class YoutubeSabrSession {
         if (consecutiveIntegrityFailures >= MAX_INCOMPLETE_MEDIA_RESPONSES) {
             return false;
         }
-        if (consecutiveIntegrityFailures >= INTEGRITY_RELOAD_AFTER_FAILURES
-                && maybeReload(localization)) {
-            return true;
-        }
         final int backoffMs = responseBackoffMs > 0
                 ? responseBackoffMs
                 : 500 * consecutiveIntegrityFailures;
@@ -1797,63 +1761,21 @@ public final class YoutubeSabrSession {
         return Math.max(0, (System.nanoTime() - startNs) / 1_000_000L);
     }
 
-    private boolean maybeApplyPoToken(final boolean forceRefresh)
+    private boolean maybeApplyPoToken()
             throws IOException, ExtractionException {
         if (poTokenProvider == null) {
             return false;
         }
         final byte[] current = streamState.getRawPoToken();
-        if (current != null && current.length > 0 && !forceRefresh) {
+        if (current != null && current.length > 0) {
             return false;
         }
-        final byte[] poToken = poTokenProvider.getPoToken(info, streamState, forceRefresh);
-        if (poToken != null && poToken.length > 0 && !Arrays.equals(poToken, current)) {
+        final byte[] poToken = poTokenProvider.getPoToken(info, streamState);
+        if (poToken != null && poToken.length > 0) {
             streamState.setPoToken(poToken);
             return true;
         }
         return false;
-    }
-
-    /**
-     * Handle a status=3 / no-media response: mint a token, or force a bounded re-mint if we already
-     * have one but the server still rejects it (expired mid-playback). Returns false if none could
-     * be applied (caller treats that as fatal).
-     */
-    private boolean applyPoTokenForProtectedResponse() throws IOException, ExtractionException {
-        if (maybeApplyPoToken(false)) {
-            return true;
-        }
-        if (poTokenRefreshes < MAX_PO_TOKEN_REFRESHES) {
-            // Count the attempt regardless of outcome: a force-refresh triggers a ~45s WebView
-            // mint, so we bound them even when the server keeps returning the same rejected token.
-            poTokenRefreshes++;
-            return maybeApplyPoToken(true);
-        }
-        return false;
-    }
-
-    private void finishProtectedResponseActions(
-            @Nonnull final Localization localization,
-            @Nonnull final SabrDecodedResponse decoded,
-            final boolean deferredBackoffApplied) throws IOException, ExtractionException {
-        final String details = decoded.summarizeNoMediaResponse();
-        if (deferredBackoffApplied) {
-            protectedResponseReloadDetails = details;
-            protectedResponseReloadPending = true;
-            return;
-        }
-        reloadAfterProtectedResponse(localization, details);
-    }
-
-    private void reloadAfterProtectedResponse(
-            @Nonnull final Localization localization,
-            @Nullable final String details) throws IOException, ExtractionException {
-        if (!maybeReload(localization)) {
-            throw new SabrProtocolException(
-                    "SABR protected no-media response after token refresh"
-                            + " and player reload budgets were exhausted: "
-                            + (details == null ? "no response details" : details));
-        }
     }
 
     @Nonnull
