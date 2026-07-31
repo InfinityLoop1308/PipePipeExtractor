@@ -48,6 +48,8 @@ class YoutubeSabrSessionStreamProtectionTest {
         assertEquals(0, result.getSegmentCount());
         assertEquals(0, tokenRequests.get());
         assertEquals(1, downloader.requestCount.get());
+        assertEquals(SabrStreamProtectionStatus.ATTESTATION_PENDING,
+                fixture.session.getMaxStreamProtectionStatus());
         assertTrue(fixture.session.getDemandBackoffRemainingMs() > 0);
         assertTrue(fixture.session.getDiagnosticTrace().contains("protection=2/20"));
     }
@@ -64,6 +66,8 @@ class YoutubeSabrSessionStreamProtectionTest {
 
         assertTrue(failure.getMessage().contains("attestation required"));
         assertEquals(1, downloader.requestCount.get());
+        assertEquals(SabrStreamProtectionStatus.ATTESTATION_REQUIRED,
+                fixture.session.getMaxStreamProtectionStatus());
         assertEquals(0, fixture.session.getDemandBackoffRemainingMs());
         assertTrue(fixture.session.getDiagnosticTrace().contains("protection=3/20"));
     }

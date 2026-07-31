@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class YoutubeSabrSession {
     public interface BackoffListener {
@@ -88,6 +89,7 @@ public final class YoutubeSabrSession {
     private volatile long maxMediaPartPayloadBytes;
     private volatile long maxSegmentBytes;
     private volatile int maxSegmentsPerResponse;
+    private final AtomicInteger maxStreamProtectionStatus = new AtomicInteger(-1);
     private volatile long demandBackoffUntilNs;
     @Nullable
     private volatile BackoffListener backoffListener;
@@ -359,6 +361,8 @@ public final class YoutubeSabrSession {
                 + " segments=" + (result.getSegments().isEmpty()
                 ? "count=" + result.getSegmentCount() : summarizeSegments(result.getSegments()))
                 + " decoded={" + result.getDecodedResponse().summarizeForDiagnostics() + '}');
+        maxStreamProtectionStatus.accumulateAndGet(
+                result.getDecodedResponse().getStreamProtectionStatus(), Math::max);
         totalResponseBytes += result.getResponseBytes();
         recordMemoryStats(result);
         recordTraceResponse(result);
@@ -1000,6 +1004,10 @@ public final class YoutubeSabrSession {
 
     public int getMaxSegmentsPerResponse() {
         return maxSegmentsPerResponse;
+    }
+
+    public int getMaxStreamProtectionStatus() {
+        return maxStreamProtectionStatus.get();
     }
 
     @Nonnull
