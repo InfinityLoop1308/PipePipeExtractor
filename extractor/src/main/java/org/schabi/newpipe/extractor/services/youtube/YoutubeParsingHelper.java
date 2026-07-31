@@ -692,7 +692,8 @@ YoutubeParsingHelper {
     /**
      * Get the client version used by YouTube website on InnerTube requests.
      */
-    public static String getClientVersion() throws IOException, ExtractionException {
+    public static synchronized String getClientVersion()
+            throws IOException, ExtractionException {
         if (!isNullOrEmpty(clientVersion)) {
             return clientVersion;
         }
@@ -734,7 +735,7 @@ YoutubeParsingHelper {
      * tests with mocks will fail, because the mock is missing.
      * </p>
      */
-    public static void resetClientVersion() {
+    public static synchronized void resetClientVersion() {
         clientVersion = null;
         clientVersionExtracted = false;
     }
