@@ -19,15 +19,4 @@ public interface SabrPoTokenProvider {
                       @Nonnull YoutubeSabrStreamState streamState)
             throws IOException, ExtractionException;
 
-    /**
-     * Like {@link #getPoToken}, but {@code forceRefresh} drops the cached token and mints a fresh
-     * one. For when the server rejects a token that died mid-playback. Default impl ignores the flag.
-     */
-    @Nullable
-    default byte[] getPoToken(@Nonnull final YoutubeSabrInfo info,
-                              @Nonnull final YoutubeSabrStreamState streamState,
-                              final boolean forceRefresh)
-            throws IOException, ExtractionException {
-        return getPoToken(info, streamState);
-    }
 }
