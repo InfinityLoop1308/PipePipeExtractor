@@ -835,8 +835,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             if (streamType == StreamType.POST_LIVE_STREAM
                     || (streamType == StreamType.LIVE_STREAM
-                        && "tv_downgraded".equals(selectedClient))
-                    || "web_safari".equals(selectedClient)) {
+                        && "tv_downgraded".equals(selectedClient))) {
                 tryExtractHlsStreams(videoId);
             }
             streamsCached = true;
@@ -1783,7 +1782,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final CancellableCall jsonPlayerCall;
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
-            case "web_safari":
             case "android_vr":
             case "tv_simply":
             case "tv_downgraded":
@@ -1822,11 +1820,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         checkPlayabilityStatus(playerResponse.getObject("playabilityStatus"), videoId);
         setStreamType();
         final String selectedClient = NewPipe.getYoutubePlayerClient();
-        final boolean hasConfiguredHls = configuredStreamingData != null
-                && !configuredStreamingData.getString("hlsManifestUrl", EMPTY_STRING).isEmpty();
         if (streamType == StreamType.LIVE_STREAM
-                && ("tv_downgraded".equals(selectedClient)
-                || ("web_safari".equals(selectedClient) && !hasConfiguredHls))) {
+                && "tv_downgraded".equals(selectedClient)) {
             final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
                     contentCountry, localization, videoId);
             awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
@@ -2235,8 +2230,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     return new PlayerClient("TVHTML5", "5.20260114", "7",
                             "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
                 default:
-                    return new PlayerClient("WEB", "2.20260114.08.00", "1",
-                            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)");
+                    return new PlayerClient("ANDROID_VR", "1.65.10", "28",
+                            "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip");
             }
         }
     }
