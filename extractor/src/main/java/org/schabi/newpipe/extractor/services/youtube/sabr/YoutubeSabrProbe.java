@@ -6,6 +6,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -61,12 +62,40 @@ public final class YoutubeSabrProbe {
         final String clientVersion = resolveClientVersion(profile);
         final PlayerIdentityPair playerIdentity = resolvePlayerIdentity(profile, clientVersion,
                 localization, contentCountry, playerPoToken, visitorDataOverride);
+        return fetchSabrInfoWithIdentity(videoId, profile, localization, contentCountry,
+                clientVersion, playerIdentity);
+    }
+
+    @Nonnull
+    static YoutubeSabrInfo fetchSabrInfoRequiringSessionPoToken(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final SabrPoTokenProvider poTokenProvider)
+            throws IOException, ExtractionException {
+        final String clientVersion = resolveClientVersion(profile);
+        final PlayerIdentityPair playerIdentity = resolveRequiredPlayerIdentity(profile,
+                clientVersion, localization, contentCountry, poTokenProvider);
+        return fetchSabrInfoWithIdentity(videoId, profile, localization, contentCountry,
+                clientVersion, playerIdentity);
+    }
+
+    @Nonnull
+    private static YoutubeSabrInfo fetchSabrInfoWithIdentity(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String clientVersion,
+            @Nonnull final PlayerIdentityPair playerIdentity)
+            throws IOException, ExtractionException {
         final String cpn = YoutubeParsingHelper.generateContentPlaybackNonce();
         final JsonObject playerResponse = fetchPlayerResponse(videoId, profile, localization,
                 contentCountry, cpn, playerIdentity.playerPoToken, playerIdentity.visitorData,
                 clientVersion);
         return fromPlayerResponse(videoId, profile, cpn, playerResponse,
-                playerIdentity.visitorData, clientVersion);
+                playerIdentity.visitorData, clientVersion, playerIdentity.hasPoToken());
     }
 
     @Nonnull
@@ -97,6 +126,24 @@ public final class YoutubeSabrProbe {
                         automaticToken.getVisitorData());
     }
 
+    @Nonnull
+    static PlayerIdentityPair resolveRequiredPlayerIdentity(
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final String clientVersion,
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final SabrPoTokenProvider poTokenProvider)
+            throws IOException, ExtractionException {
+        final YoutubeSessionPoToken token = poTokenProvider.getSessionPoToken(
+                profile.getClientName(), clientVersion, profile.getUserAgent(), localization,
+                contentCountry, ServiceList.YouTube.hasTokens());
+        if (token == null || token.getPoToken().isEmpty() || token.getVisitorData().isEmpty()) {
+            throw new SabrProtocolException(
+                    "SABR attestation identity rotation returned no session PO token");
+        }
+        return new PlayerIdentityPair(token.getPoToken(), token.getVisitorData());
+    }
+
     static final class PlayerIdentityPair {
         @Nullable
         final String playerPoToken;
@@ -107,6 +154,10 @@ public final class YoutubeSabrProbe {
                                    @Nullable final String visitorData) {
             this.playerPoToken = playerPoToken;
             this.visitorData = visitorData;
+        }
+
+        private boolean hasPoToken() {
+            return playerPoToken != null && !playerPoToken.isEmpty();
         }
     }
 
@@ -139,6 +190,19 @@ public final class YoutubeSabrProbe {
             @Nonnull final JsonObject playerResponse,
             @Nullable final String visitorDataOverride,
             @Nonnull final String clientVersion) throws ExtractionException {
+        return fromPlayerResponse(videoId, profile, cpn, playerResponse, visitorDataOverride,
+                clientVersion, false);
+    }
+
+    @Nonnull
+    private static YoutubeSabrInfo fromPlayerResponse(
+            @Nonnull final String videoId,
+            @Nonnull final YoutubeSabrClientProfile profile,
+            @Nonnull final String cpn,
+            @Nonnull final JsonObject playerResponse,
+            @Nullable final String visitorDataOverride,
+            @Nonnull final String clientVersion,
+            final boolean playerPoTokenAttached) throws ExtractionException {
         final JsonObject streamingData = playerResponse.getObject(STREAMING_DATA);
         if (streamingData == null) {
             throw new SabrProtocolException("Player response has no streamingData for " + profile);
@@ -173,7 +237,7 @@ public final class YoutubeSabrProbe {
 
         return new YoutubeSabrInfo(profile, videoId, cpn, clientVersion,
                 visitorData, serverAbrStreamingUrl, ustreamerConfig,
-                formats);
+                formats, playerPoTokenAttached);
     }
 
     @Nonnull

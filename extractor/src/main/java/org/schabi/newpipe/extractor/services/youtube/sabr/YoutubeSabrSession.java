@@ -26,6 +26,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class YoutubeSabrSession {
+    @FunctionalInterface
+    interface PlayerInfoReloader {
+        @Nonnull
+        YoutubeSabrInfo reload(@Nonnull String videoId,
+                               @Nonnull YoutubeSabrClientProfile profile,
+                               @Nonnull Localization localization,
+                               @Nonnull ContentCountry contentCountry,
+                               @Nonnull SabrPoTokenProvider poTokenProvider)
+                throws IOException, ExtractionException;
+    }
+
     public interface BackoffListener {
         void onBackoffStarted(int durationMs);
 
@@ -40,6 +51,7 @@ public final class YoutubeSabrSession {
     private static final int MAX_RELOADS_PER_SESSION = 2;
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
+    private static final int MAX_ATTESTATION_IDENTITY_ROTATIONS = 3;
     private static final int MAX_BACKOFF_MS = 30_000;
     // Startup prewarm has a separate local responsiveness budget; synchronous segment demand must
     // retain the complete server deadline instead.
@@ -67,6 +79,8 @@ public final class YoutubeSabrSession {
     private final File segmentSpoolDirectory;
     @Nonnull
     private final SabrSessionPolicyHost sessionPolicyHost;
+    @Nonnull
+    private final PlayerInfoReloader playerInfoReloader;
     private final Map<String, SabrMediaSegment> segmentCache = new ConcurrentHashMap<>();
     private final Map<String, SabrMediaSegment> inFlightSegments = new ConcurrentHashMap<>();
     private final Object segmentAvailable = new Object();
@@ -76,6 +90,7 @@ public final class YoutubeSabrSession {
     private int reloads;
     private int consecutiveIntegrityFailures;
     private int consecutiveAttestationPendingResponses;
+    private int attestationIdentityRotations;
     // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
     // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
     private final Deque<String> cacheOrder = new ArrayDeque<>();
@@ -141,7 +156,19 @@ public final class YoutubeSabrSession {
                               @Nullable final File segmentSpoolDirectory) {
         this(info, audioFormat, videoFormat, poTokenProvider, segmentSpoolDirectory,
                 new SabrSessionPolicyHost(new BuiltinSabrSessionPolicy(),
-                        new SabrSessionPolicyTranscript(512)));
+                        new SabrSessionPolicyTranscript(512)),
+                YoutubeSabrProbe::fetchSabrInfoRequiringSessionPoToken);
+    }
+
+    YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
+                       @Nonnull final YoutubeSabrFormat audioFormat,
+                       @Nonnull final YoutubeSabrFormat videoFormat,
+                       @Nullable final SabrPoTokenProvider poTokenProvider,
+                       @Nullable final File segmentSpoolDirectory,
+                       @Nonnull final PlayerInfoReloader playerInfoReloader) {
+        this(info, audioFormat, videoFormat, poTokenProvider, segmentSpoolDirectory,
+                new SabrSessionPolicyHost(new BuiltinSabrSessionPolicy(),
+                        new SabrSessionPolicyTranscript(512)), playerInfoReloader);
     }
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
@@ -151,7 +178,8 @@ public final class YoutubeSabrSession {
                               @Nullable final File segmentSpoolDirectory,
                               @Nonnull final SabrSessionPolicy policy) {
         this(info, audioFormat, videoFormat, poTokenProvider, segmentSpoolDirectory,
-                new SabrSessionPolicyHost(policy, new SabrSessionPolicyTranscript(512)));
+                new SabrSessionPolicyHost(policy, new SabrSessionPolicyTranscript(512)),
+                YoutubeSabrProbe::fetchSabrInfoRequiringSessionPoToken);
     }
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
@@ -160,6 +188,17 @@ public final class YoutubeSabrSession {
                               @Nullable final SabrPoTokenProvider poTokenProvider,
                               @Nullable final File segmentSpoolDirectory,
                               @Nonnull final SabrSessionPolicyHost sessionPolicyHost) {
+        this(info, audioFormat, videoFormat, poTokenProvider, segmentSpoolDirectory,
+                sessionPolicyHost, YoutubeSabrProbe::fetchSabrInfoRequiringSessionPoToken);
+    }
+
+    private YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
+                               @Nonnull final YoutubeSabrFormat audioFormat,
+                               @Nonnull final YoutubeSabrFormat videoFormat,
+                               @Nullable final SabrPoTokenProvider poTokenProvider,
+                               @Nullable final File segmentSpoolDirectory,
+                               @Nonnull final SabrSessionPolicyHost sessionPolicyHost,
+                               @Nonnull final PlayerInfoReloader playerInfoReloader) {
         if (!audioFormat.isAudio()) {
             throw new IllegalArgumentException("SABR audio format must be audio: itag="
                     + audioFormat.getItag());
@@ -181,6 +220,7 @@ public final class YoutubeSabrSession {
         this.poTokenProvider = poTokenProvider;
         this.segmentSpoolDirectory = segmentSpoolDirectory;
         this.sessionPolicyHost = sessionPolicyHost;
+        this.playerInfoReloader = playerInfoReloader;
         this.serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
     }
 
@@ -237,19 +277,23 @@ public final class YoutubeSabrSession {
                         + describeRequest(request) + ": " + integrityIssues);
             }
             consecutiveIntegrityFailures = 0;
-            final List<SabrMediaSegment> segments = result.getSegments();
             final SabrMediaSegment segment = segmentCache.get(cacheKey(request));
+            // A response can carry the demanded segment and a protection failure together. Process
+            // control state before exposing that segment, otherwise fetchSegment() bypasses
+            // attestation rotation/status-3 failure for every media-bearing response. When the
+            // target is already available, defer an ordinary backoff until the next network request
+            // so current media delivery is not blocked.
+            if (applyControlPolicy(localization, result, segment == null,
+                    SabrSessionPolicy.ControlMode.FETCH_SEGMENT, request)
+                    == PolicyControlOutcome.RETRY) {
+                continue;
+            }
             if (segment != null) {
                 return segment;
             }
             failIfKnownOutOfBounds(request);
             if (!targetPrepared) {
                 targetPrepared = maybePrepareForDistantMediaSegment(request);
-            }
-            if (applyControlPolicy(localization, result, true,
-                    SabrSessionPolicy.ControlMode.FETCH_SEGMENT, request)
-                    == PolicyControlOutcome.RETRY) {
-                continue;
             }
             if (decoded.isPolicyOnlyResponse()) {
                 policyOnlyResponses++;
@@ -764,6 +808,16 @@ public final class YoutubeSabrSession {
             final boolean skipBackoffWhenBootstrapReady,
             final int deferredBackoffLimitMs) throws IOException, ExtractionException {
         final SabrDecodedResponse decoded = result.getDecodedResponse();
+        if (decoded.isAttestationPending()
+                && attestationIdentityRotations < MAX_ATTESTATION_IDENTITY_ROTATIONS
+                && rotatePendingAttestationIdentity(localization)) {
+            // The rejected response belongs to the old server session, but completed media and its
+            // headers are local playback progress retained across the rotation. Apply only that
+            // local subset so the fresh request advertises the cached contiguous range without
+            // carrying the old cookie, next-request policy, or SABR contexts into the new epoch.
+            streamState.ingestLocalProgress(SabrResponseStatePatch.builtin(decoded));
+            return PolicyControlOutcome.RETRY;
+        }
         if (decoded.isAttestationPending() && decoded.isNoMediaResponse()) {
             consecutiveAttestationPendingResponses++;
             addDiagnosticEvent("attestation_pending_no_media count="
@@ -1784,6 +1838,57 @@ public final class YoutubeSabrSession {
             return true;
         }
         return false;
+    }
+
+    private boolean rotatePendingAttestationIdentity(@Nonnull final Localization localization)
+            throws IOException, ExtractionException {
+        final SabrPoTokenProvider rotationPoTokenProvider = poTokenProvider;
+        if (rotationPoTokenProvider == null) {
+            return false;
+        }
+        attestationIdentityRotations++;
+        if (!rotationPoTokenProvider.invalidatePoTokenIdentity(info)) {
+            addDiagnosticEvent("attestation_identity_rotation_unavailable attempt="
+                    + attestationIdentityRotations);
+            return false;
+        }
+        final String previousVisitorData = info.getVisitorData();
+        final ContentCountry contentCountry = localization.getCountryCode().isEmpty()
+                ? ContentCountry.DEFAULT
+                : new ContentCountry(localization.getCountryCode());
+        final YoutubeSabrInfo fresh = playerInfoReloader.reload(
+                info.getVideoId(), info.getProfile(), localization, contentCountry,
+                rotationPoTokenProvider);
+        if (fresh.getServerAbrStreamingUrl() == null
+                || fresh.getServerAbrStreamingUrl().isEmpty()) {
+            throw new SabrProtocolException(
+                    "SABR attestation identity rotation returned no streaming URL");
+        }
+        if (!fresh.isPlayerPoTokenAttached()) {
+            throw new SabrProtocolException(
+                    "SABR attestation identity rotation player request had no session PO token");
+        }
+        if (Objects.equals(previousVisitorData, fresh.getVisitorData())) {
+            addDiagnosticEvent("attestation_identity_rotation_rejected attempt="
+                    + attestationIdentityRotations + " reason=visitor_unchanged");
+            return false;
+        }
+        streamState.setPoToken(null);
+        info = fresh;
+        serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
+        requestNumber = 0;
+        redirectCount = 0;
+        demandBackoffUntilNs = 0;
+        streamState.resetServerSessionState();
+        if (!maybeApplyPoToken()) {
+            throw new SabrProtocolException(
+                    "SABR attestation identity rotation returned no PO token");
+        }
+        consecutiveAttestationPendingResponses = 0;
+        addDiagnosticEvent("attestation_identity_rotation attempt="
+                + attestationIdentityRotations + " visitorChanged=true bytes="
+                + streamState.getRawPoToken().length);
+        return true;
     }
 
     @Nonnull

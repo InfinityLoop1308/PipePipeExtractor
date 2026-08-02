@@ -3,10 +3,15 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoTokenProvider;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class YoutubeSabrProbeSessionPoTokenTest {
     private static final Localization LOCALIZATION = new Localization("en", "US");
@@ -77,6 +83,55 @@ class YoutubeSabrProbeSessionPoTokenTest {
     }
 
     @Test
+    void requiredPlayerIdentityUsesInjectedProviderInsteadOfGlobalProvider() throws Exception {
+        final AtomicInteger globalProviderCalls = installAutomaticPair();
+        final AtomicInteger injectedProviderCalls = new AtomicInteger();
+        final SabrPoTokenProvider injectedProvider = sabrProvider(
+                (clientName, clientVersion, userAgent, localization, contentCountry, loggedIn) -> {
+                    injectedProviderCalls.incrementAndGet();
+                    return new YoutubeSessionPoToken("injected-visitor", "injected-token");
+                });
+
+        final YoutubeSabrProbe.PlayerIdentityPair resolved =
+                YoutubeSabrProbe.resolveRequiredPlayerIdentity(YoutubeSabrClientProfile.MWEB,
+                        "2.test", LOCALIZATION, CONTENT_COUNTRY, injectedProvider);
+
+        assertEquals("injected-token", resolved.playerPoToken);
+        assertEquals("injected-visitor", resolved.visitorData);
+        assertEquals(1, injectedProviderCalls.get());
+        assertEquals(0, globalProviderCalls.get());
+    }
+
+    @Test
+    void requiredPlayerIdentityPropagatesProviderFailure() {
+        final SabrPoTokenProvider provider = sabrProvider(
+                (clientName, clientVersion, userAgent, localization, contentCountry, loggedIn) -> {
+                    throw new IOException("session mint failed");
+                });
+
+        final IOException failure = assertThrows(IOException.class,
+                () -> YoutubeSabrProbe.resolveRequiredPlayerIdentity(
+                        YoutubeSabrClientProfile.MWEB, "2.test",
+                        LOCALIZATION, CONTENT_COUNTRY, provider));
+
+        assertEquals("session mint failed", failure.getMessage());
+    }
+
+    @Test
+    void requiredPlayerIdentityRejectsMissingTokenInsteadOfFallingBack() {
+        final SabrPoTokenProvider provider = sabrProvider(
+                (clientName, clientVersion, userAgent, localization, contentCountry,
+                 loggedIn) -> null);
+
+        final SabrProtocolException failure = assertThrows(SabrProtocolException.class,
+                () -> YoutubeSabrProbe.resolveRequiredPlayerIdentity(
+                        YoutubeSabrClientProfile.MWEB, "2.test",
+                        LOCALIZATION, CONTENT_COUNTRY, provider));
+
+        assertTrue(failure.getMessage().contains("returned no session PO token"));
+    }
+
+    @Test
     void sabrRequestNumberStartsAtZero() {
         assertEquals("https://example.com/sabr?alr=yes&cpn=cpn&rn=0",
                 YoutubeSabrProbe.withSabrSessionParameters(
@@ -114,5 +169,31 @@ class YoutubeSabrProbeSessionPoTokenTest {
             return new YoutubeSessionPoToken("automatic-visitor", "automatic-token");
         });
         return calls;
+    }
+
+    @Nonnull
+    private static SabrPoTokenProvider sabrProvider(
+            @Nonnull final YoutubeSessionPoTokenProvider sessionPoTokenProvider) {
+        return new SabrPoTokenProvider() {
+            @Nullable
+            @Override
+            public byte[] getPoToken(@Nonnull final YoutubeSabrInfo info,
+                                     @Nonnull final YoutubeSabrStreamState streamState) {
+                return null;
+            }
+
+            @Nullable
+            @Override
+            public YoutubeSessionPoToken getSessionPoToken(
+                    @Nonnull final String clientName,
+                    @Nonnull final String clientVersion,
+                    @Nullable final String userAgent,
+                    @Nonnull final Localization localization,
+                    @Nonnull final ContentCountry contentCountry,
+                    final boolean loggedIn) throws IOException, ExtractionException {
+                return sessionPoTokenProvider.getSessionPoToken(clientName, clientVersion,
+                        userAgent, localization, contentCountry, loggedIn);
+            }
+        };
     }
 }
