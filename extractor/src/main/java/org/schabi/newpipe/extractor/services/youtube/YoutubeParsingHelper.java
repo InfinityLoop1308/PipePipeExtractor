@@ -1600,6 +1600,9 @@ YoutubeParsingHelper {
             final String clientName = client.getString("clientName", "");
             final String clientVersion = client.getString("clientVersion", "");
             final String userAgent = client.getString("userAgent");
+            if ("TVHTML5".equals(clientName)) {
+                return new YoutubePlayerRequest(body, originalVisitorData, clientVersion);
+            }
             final JsonObject existingIntegrity = request.getObject("serviceIntegrityDimensions");
             final String existingPoToken = existingIntegrity == null
                     ? null : existingIntegrity.getString("poToken");
