@@ -2,7 +2,6 @@ package org.schabi.newpipe.extractor.services.youtube.sabr.media;
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
-import org.schabi.newpipe.extractor.services.youtube.sabr.SabrSegmentRequest;
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrResponse;
 import org.schabi.newpipe.extractor.services.youtube.sabr.generated.SabrMediaHeader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrResponseDecoder;
@@ -64,30 +63,6 @@ public final class SabrMediaSegmentCollector {
             }
         }
         return segments;
-    }
-
-    @Nullable
-    public static SabrMediaSegment find(@Nonnull final YoutubeSabrResponse response,
-                                        @Nonnull final SabrSegmentRequest request)
-            throws SabrProtocolException {
-        for (final SabrMediaSegment segment : collect(response)) {
-            if (matches(request, segment.getHeader())) {
-                return segment;
-            }
-        }
-        return null;
-    }
-
-    private static boolean matches(@Nonnull final SabrSegmentRequest request,
-                                   @Nonnull final SabrMediaHeader header) {
-        if (header.getItag() != request.getFormat().getItag()) {
-            return false;
-        }
-        if (request.isInitializationSegment()) {
-            return header.isInitSegment();
-        }
-        return !header.isInitSegment()
-                && header.getSequenceNumber() == request.getSequenceNumber();
     }
 
     /**

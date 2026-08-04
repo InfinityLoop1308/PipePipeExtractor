@@ -34,7 +34,18 @@ final class YoutubeSabrRequestHelper {
     static YoutubeSabrResponse post(@Nonnull final YoutubeSabrInfo info,
                                     @Nonnull final YoutubeSabrInfo.Format audioFormat,
                                     @Nonnull final YoutubeSabrInfo.Format videoFormat,
-                                    @Nonnull final YoutubeSabrStreamState streamState,
+                                    @Nonnull final YoutubeSabrSession session,
+                                    final long playerTimeMs,
+                                    @Nullable final YoutubeSabrFormatTimeline audioTimeline,
+                                    final int audioBufferedThrough,
+                                    @Nullable final YoutubeSabrFormatTimeline videoTimeline,
+                                    final int videoBufferedThrough,
+                                    final boolean audioActive,
+                                    final boolean videoActive,
+                                    final boolean videoFirst,
+                                    final long bandwidthEstimate,
+                                    final float playbackRate,
+                                    @Nullable final byte[] poToken,
                                     @Nonnull final String serverAbrStreamingUrl,
                                     final int requestNumber,
                                     @Nonnull final Localization localization,
@@ -45,7 +56,10 @@ final class YoutubeSabrRequestHelper {
                                     @Nullable final File segmentSpoolDirectory)
             throws IOException, ExtractionException {
         final byte[] requestBody = buildMediaRequest(
-                info, audioFormat, videoFormat, streamState, requestNumber > 0);
+                info, audioFormat, videoFormat, session, playerTimeMs,
+                audioTimeline, audioBufferedThrough, videoTimeline, videoBufferedThrough,
+                audioActive, videoActive, videoFirst, bandwidthEstimate, playbackRate, poToken,
+                requestNumber > 0);
         final long requestStartNs = System.nanoTime();
         final long[] firstSegmentElapsedMs = {-1};
         final SabrStreamingResponseReader.SegmentConsumer timedConsumer =
@@ -91,65 +105,53 @@ final class YoutubeSabrRequestHelper {
     private static byte[] buildMediaRequest(@Nonnull final YoutubeSabrInfo info,
                                             @Nonnull final YoutubeSabrInfo.Format audioFormat,
                                             @Nonnull final YoutubeSabrInfo.Format videoFormat,
-                                            @Nonnull final YoutubeSabrStreamState streamState,
+                                            @Nonnull final YoutubeSabrSession session,
+                                            final long playerTimeMs,
+                                            @Nullable final YoutubeSabrFormatTimeline audioTimeline,
+                                            final int audioBufferedThrough,
+                                            @Nullable final YoutubeSabrFormatTimeline videoTimeline,
+                                            final int videoBufferedThrough,
+                                            final boolean audioActive,
+                                            final boolean videoActive,
+                                            final boolean videoFirst,
+                                            final long bandwidthEstimate,
+                                            final float playbackRate,
+                                            @Nullable final byte[] poToken,
                                             final boolean followUp)
-            throws SabrProtocolException {
-        synchronized (streamState) {
-            return buildMediaRequestLocked(
-                    info, audioFormat, videoFormat, streamState, followUp);
-        }
-    }
-
-    @Nonnull
-    private static byte[] buildMediaRequestLocked(@Nonnull final YoutubeSabrInfo info,
-                                                  @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                                                  @Nonnull final YoutubeSabrInfo.Format videoFormat,
-                                                  @Nonnull final YoutubeSabrStreamState streamState,
-                                                  final boolean followUp)
             throws SabrProtocolException {
         final String ustreamerConfig = info.getVideoPlaybackUstreamerConfig();
         if (ustreamerConfig == null || ustreamerConfig.isEmpty()) {
             throw new SabrProtocolException("Missing video playback ustreamer config");
         }
 
-        final long playerTimeMs = streamState.getRequestPlayerTimeMs();
         final List<byte[]> bufferedRanges = new ArrayList<>();
-        streamState.forEachBufferedRange((itag, lastModified, xtags, startTimeMs, durationMs,
-                                          startSegmentIndex, endSegmentIndex, timescale) ->
-                bufferedRanges.add(buildBufferedRange(itag, lastModified, xtags, startTimeMs,
-                        durationMs, startSegmentIndex, endSegmentIndex, timescale)));
-        final boolean forcedInitialPlaybackState = !followUp
-                && streamState.shouldWriteFirstRequestPlaybackState();
-        final boolean includePlaybackState = followUp || forcedInitialPlaybackState
+        addBufferedRange(bufferedRanges, audioTimeline, audioBufferedThrough, audioActive);
+        addBufferedRange(bufferedRanges, videoTimeline, videoBufferedThrough, videoActive);
+        final boolean includePlaybackState = followUp
                 || playerTimeMs > 0 || !bufferedRanges.isEmpty();
+        final int trackMode = audioActive && !videoActive ? 1
+                : videoActive && !audioActive ? 2 : 0;
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
-                followUp || includePlaybackState && !forcedInitialPlaybackState,
-                streamState.getEnabledTrackTypesBitfield(), streamState));
+                followUp || includePlaybackState, trackMode, bandwidthEstimate, playbackRate));
         if (includePlaybackState) {
-            if (streamState.shouldSelectVideoFormatBeforeAudio()
-                    && streamState.shouldSelectVideoFormat()
-                    && streamState.isInitialized(videoFormat)) {
+            if (videoFirst && videoActive) {
                 request.writeMessage(2, SabrProto.formatId(videoFormat));
             }
-            if (streamState.shouldSelectAudioFormat() && streamState.isInitialized(audioFormat)) {
+            if (audioActive) {
                 request.writeMessage(2, SabrProto.formatId(audioFormat));
             }
-            if (!streamState.shouldSelectVideoFormatBeforeAudio()
-                    && streamState.shouldSelectVideoFormat()
-                    && streamState.isInitialized(videoFormat)) {
+            if (!videoFirst && videoActive) {
                 request.writeMessage(2, SabrProto.formatId(videoFormat));
             }
             for (final byte[] range : bufferedRanges) {
                 request.writeMessage(3, range);
             }
-            if (streamState.shouldWriteTopLevelPlayerTimeMs()) {
-                request.writeUInt64(4, playerTimeMs);
-            }
+            request.writeUInt64(4, playerTimeMs);
         }
         request.writeBytes(5, decodeBase64(ustreamerConfig));
-        writePreferredFormats(request, audioFormat, videoFormat, streamState);
-        request.writeMessage(19, buildStreamerContext(info, streamState));
+        writePreferredFormats(request, audioFormat, videoFormat, audioActive, videoActive);
+        request.writeMessage(19, buildStreamerContext(info, poToken, session));
         return request.toByteArray();
     }
 
@@ -159,19 +161,17 @@ final class YoutubeSabrRequestHelper {
                                                final long playerTimeMs,
                                                final boolean includeFollowUpState,
                                                final int enabledTrackTypesBitfield,
-                                               @Nonnull final YoutubeSabrStreamState streamState) {
+                                               final long requestedBandwidthEstimate,
+                                               final float playbackRate) {
         final SabrProto.Writer state = new SabrProto.Writer();
-        if (includeFollowUpState && streamState.shouldWriteLastManualSelectedResolution()) {
-            state.writeInt32(16, Math.max(videoFormat.getHeight(), 360));
-        }
         if (includeFollowUpState) {
             state.writeInt32(18, Math.max(videoFormat.getWidth(), 640));
             state.writeInt32(19, Math.max(videoFormat.getHeight(), 360));
         }
         state.writeInt32(21, Math.max(videoFormat.getHeight(), 360));
         if (includeFollowUpState) {
-            final long bandwidthEstimate = streamState.getBandwidthEstimate() > 0
-                    ? streamState.getBandwidthEstimate()
+            final long bandwidthEstimate = requestedBandwidthEstimate > 0
+                    ? requestedBandwidthEstimate
                     : audioFormat.getBitrate() > 0 && videoFormat.getBitrate() > 0
                     ? (audioFormat.getBitrate() + videoFormat.getBitrate()) * 2L
                     : -1;
@@ -180,8 +180,8 @@ final class YoutubeSabrRequestHelper {
             }
         }
         state.writeInt32(34, 1);
-        state.writeFloat(35, streamState.getPlaybackRate());
-        if (enabledTrackTypesBitfield != YoutubeSabrStreamState.TRACK_MODE_VIDEO_AND_AUDIO) {
+        state.writeFloat(35, playbackRate > 0 ? playbackRate : 1.0f);
+        if (enabledTrackTypesBitfield != 0) {
             state.writeInt32(40, enabledTrackTypesBitfield);
         }
         if (audioFormat.isDrc()) {
@@ -195,39 +195,57 @@ final class YoutubeSabrRequestHelper {
     private static void writePreferredFormats(@Nonnull final SabrProto.Writer request,
                                               @Nonnull final YoutubeSabrInfo.Format audioFormat,
                                               @Nonnull final YoutubeSabrInfo.Format videoFormat,
-                                              @Nonnull final YoutubeSabrStreamState streamState) {
-        if (streamState.shouldPreferAudioFormat()) {
+                                              final boolean audioActive,
+                                              final boolean videoActive) {
+        if (audioActive) {
             request.writeMessage(16, SabrProto.formatId(audioFormat));
         }
-        if (streamState.shouldPreferVideoFormat()) {
+        if (videoActive) {
             request.writeMessage(17, SabrProto.formatId(videoFormat));
         }
     }
 
     @Nonnull
     private static byte[] buildStreamerContext(@Nonnull final YoutubeSabrInfo info,
-                                               @Nonnull final YoutubeSabrStreamState streamState) {
+                                               @Nullable final byte[] poToken,
+                                               @Nonnull final YoutubeSabrSession session) {
         final SabrProto.Writer context = new SabrProto.Writer();
         context.writeMessage(1, buildClientInfo(info));
-        final byte[] poToken = streamState.getRawPoToken();
         if (poToken != null && poToken.length > 0) {
             context.writeBytes(2, poToken);
         }
-        final byte[] playbackCookie = streamState.getRawPlaybackCookie();
+        final byte[] playbackCookie = session.getRawPlaybackCookie();
         if (playbackCookie != null && playbackCookie.length > 0) {
             context.writeBytes(3, playbackCookie);
         }
         for (final Map.Entry<Integer, byte[]> entry
-                : streamState.getActiveSabrContexts().entrySet()) {
+                : session.getActiveSabrContexts().entrySet()) {
             final SabrProto.Writer sabrContext = new SabrProto.Writer();
             sabrContext.writeInt32(1, entry.getKey());
             sabrContext.writeBytes(2, entry.getValue());
             context.writeMessage(5, sabrContext.toByteArray());
         }
-        for (final Integer type : streamState.getUnsentSabrContextTypes()) {
+        for (final Integer type : session.getUnsentSabrContextTypes()) {
             context.writeInt32(6, type);
         }
         return context.toByteArray();
+    }
+
+    private static void addBufferedRange(@Nonnull final List<byte[]> ranges,
+                                         @Nullable final YoutubeSabrFormatTimeline timeline,
+                                         final int bufferedThrough,
+                                         final boolean active) {
+        if (!active || timeline == null || bufferedThrough <= 0) {
+            return;
+        }
+        final int endSequence = Math.min(bufferedThrough, timeline.getEndSequence());
+        if (endSequence <= 0) {
+            return;
+        }
+        final YoutubeSabrInfo.Format format = timeline.getFormat();
+        ranges.add(buildBufferedRange(format.getItag(), format.getLastModified(),
+                format.getXtags(), 0, Math.max(0, timeline.getEndMs(endSequence)),
+                1, endSequence, 1000));
     }
 
     @Nonnull
