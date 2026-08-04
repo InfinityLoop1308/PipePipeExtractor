@@ -39,7 +39,7 @@ final class YoutubeSabrRequestHelper {
                                     final int requestNumber,
                                     @Nonnull final Localization localization,
                                     @Nullable final SabrStreamingResponseReader
-                                            .StoppableSegmentConsumer segmentConsumer,
+                                            .SegmentConsumer segmentConsumer,
                                     @Nullable final SabrStreamingResponseReader
                                             .SegmentConsumer segmentStartConsumer,
                                     @Nullable final File segmentSpoolDirectory)
@@ -48,12 +48,12 @@ final class YoutubeSabrRequestHelper {
                 info, audioFormat, videoFormat, streamState, requestNumber > 0);
         final long requestStartNs = System.nanoTime();
         final long[] firstSegmentElapsedMs = {-1};
-        final SabrStreamingResponseReader.StoppableSegmentConsumer timedConsumer =
+        final SabrStreamingResponseReader.SegmentConsumer timedConsumer =
                 segmentConsumer == null ? null : segment -> {
                     if (firstSegmentElapsedMs[0] < 0) {
                         firstSegmentElapsedMs[0] = elapsedMs(requestStartNs);
                     }
-                    return segmentConsumer.accept(segment);
+                    segmentConsumer.accept(segment);
                 };
         final SabrStreamingResponseReader.SegmentConsumer timedStartConsumer =
                 segmentStartConsumer == null ? null : segment -> {
@@ -73,7 +73,7 @@ final class YoutubeSabrRequestHelper {
             }
             final CountingInputStream body = new CountingInputStream(response.body());
             final SabrStreamingResponseReader.Result streamed =
-                    SabrStreamingResponseReader.readUntil(body, timedConsumer,
+                    SabrStreamingResponseReader.read(body, timedConsumer,
                             timedStartConsumer, segmentSpoolDirectory);
             final YoutubeSabrResponse result = streamed.getProbeResult();
             result.complete(info, streamed.getSegments(), streamed.getSegmentCount(),

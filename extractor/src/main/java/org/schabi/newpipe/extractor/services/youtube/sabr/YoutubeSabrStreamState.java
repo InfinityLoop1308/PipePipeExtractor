@@ -242,6 +242,54 @@ public final class YoutubeSabrStreamState {
         progressForItag(format.getItag()).initReceived = false;
     }
 
+    public void rewindTo(@Nonnull final SabrSegmentRequest request) {
+        rewindTo(request, -1);
+    }
+
+    public void rewindTo(@Nonnull final SabrSegmentRequest request, final long seekPositionMs) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+        final YoutubeSabrInfo.Format target = request.getFormat();
+        final YoutubeSabrInfo.Format companion = companionFormat(target);
+        final long targetStartMs = getSegmentStartMs(target, request.getSequenceNumber());
+        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
+        rewindBufferedTo(target, request.getSequenceNumber());
+        rewindBufferedTo(companion, getSegmentNumberAtOrAfterTimeMs(companion, playbackPositionMs));
+        setPlayerTimeMs(playbackPositionMs);
+        clearPlaybackCookie();
+    }
+
+    public void jumpTo(@Nonnull final SabrSegmentRequest request) {
+        jumpTo(request, -1);
+    }
+
+    public void jumpTo(@Nonnull final SabrSegmentRequest request, final long seekPositionMs) {
+        if (request.isInitializationSegment()) {
+            return;
+        }
+        final YoutubeSabrInfo.Format target = request.getFormat();
+        final YoutubeSabrInfo.Format companion = companionFormat(target);
+        final long targetStartMs = getSegmentStartMs(target, request.getSequenceNumber());
+        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
+        jumpBufferedTo(target, request.getSequenceNumber());
+        jumpBufferedTo(companion, getSegmentNumberAtOrAfterTimeMs(companion, playbackPositionMs));
+        setPlayerTimeMs(playbackPositionMs);
+        clearPlaybackCookie();
+    }
+
+    @Nonnull
+    private YoutubeSabrInfo.Format companionFormat(
+            @Nonnull final YoutubeSabrInfo.Format target) {
+        if (target.getItag() == audio.format.getItag()) {
+            return video.format;
+        }
+        if (target.getItag() == video.format.getItag()) {
+            return audio.format;
+        }
+        throw new IllegalArgumentException("Unknown SABR itag: " + target.getItag());
+    }
+
     @Nullable
     public byte[] getPlaybackCookie() {
         return playbackCookie == null ? null : playbackCookie.clone();

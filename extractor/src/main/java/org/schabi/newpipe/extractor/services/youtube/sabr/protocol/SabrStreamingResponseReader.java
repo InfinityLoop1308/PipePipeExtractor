@@ -45,11 +45,6 @@ public final class SabrStreamingResponseReader {
         void accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
     }
 
-    @FunctionalInterface
-    public interface StoppableSegmentConsumer {
-        boolean accept(@Nonnull SabrMediaSegment segment) throws SabrProtocolException;
-    }
-
     /**
      * Streams completed segments directly to {@code segmentConsumer}. When a consumer is supplied,
      * completed segments are not retained by the result, bounding the response reader to one open
@@ -59,32 +54,14 @@ public final class SabrStreamingResponseReader {
     public static Result read(@Nonnull final InputStream in,
                               final SegmentConsumer segmentConsumer)
             throws SabrProtocolException, IOException {
-        return readUntil(in, segmentConsumer == null ? null : segment -> {
-            segmentConsumer.accept(segment);
-            return true;
-        });
+        return read(in, segmentConsumer, null, null);
     }
 
     @Nonnull
-    public static Result readUntil(@Nonnull final InputStream in,
-                                   final StoppableSegmentConsumer segmentConsumer)
-            throws SabrProtocolException, IOException {
-        return readUntil(in, segmentConsumer, null);
-    }
-
-    @Nonnull
-    public static Result readUntil(@Nonnull final InputStream in,
-                                   final StoppableSegmentConsumer segmentConsumer,
-                                   @Nullable final File spoolDirectory)
-            throws SabrProtocolException, IOException {
-        return readUntil(in, segmentConsumer, null, spoolDirectory);
-    }
-
-    @Nonnull
-    public static Result readUntil(@Nonnull final InputStream in,
-                                   final StoppableSegmentConsumer segmentConsumer,
-                                   @Nullable final SegmentConsumer segmentStartConsumer,
-                                   @Nullable final File spoolDirectory)
+    public static Result read(@Nonnull final InputStream in,
+                              final SegmentConsumer segmentConsumer,
+                              @Nullable final SegmentConsumer segmentStartConsumer,
+                              @Nullable final File spoolDirectory)
             throws SabrProtocolException, IOException {
         final List<UmpPart> controlParts = new ArrayList<>();
         final List<String> partSummaries = new ArrayList<>();
@@ -158,7 +135,7 @@ public final class SabrStreamingResponseReader {
                         if (segmentConsumer == null) {
                             segments.add(segment);
                         } else {
-                            return segmentConsumer.accept(segment);
+                            segmentConsumer.accept(segment);
                         }
                     }
                 } else {

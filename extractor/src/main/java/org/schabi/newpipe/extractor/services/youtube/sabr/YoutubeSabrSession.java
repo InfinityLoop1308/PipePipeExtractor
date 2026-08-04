@@ -2,7 +2,6 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
-import org.schabi.newpipe.extractor.services.youtube.sabr.generated.SabrMediaHeader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 
@@ -16,45 +15,21 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.io.InterruptedIOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
-import java.util.Deque;
-import java.util.Iterator;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public final class YoutubeSabrSession {
-    public interface BackoffListener {
-        void onBackoffStarted(int durationMs);
-
-        void onBackoffFinished();
-    }
-
-    private static final int MAX_DEMAND_RETURNED_SEGMENTS = 64;
     private static final int MAX_REDIRECTS_PER_SESSION = 3;
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
     private static final int MAX_BACKOFF_MS = 30_000;
-    // Startup prewarm has a separate local responsiveness budget; synchronous segment demand must
-    // retain the complete server deadline instead.
-    private static final int MAX_STARTUP_BACKOFF_MS = 2_000;
-    // Cap the cached media bytes so a high-bitrate (4K VP9/AV1) stream can't fill the heap and OOM.
-    // 32 MiB ≈ ~50s of 4K video, far more than the read-lag, so forward playback never starves.
-    private static final long MAX_CACHE_BYTES = 32L * 1024 * 1024;
-    private static final int MIN_CACHED_SEGMENTS = 6;
-    private static final int MAX_BOOTSTRAP_RESPONSES = 8;
     private static final int MAX_INITIALIZATION_BYTES = 4 * 1024 * 1024;
-    private static final int MAX_DIAGNOSTIC_CHARS = 32 * 1024;
-    private static final int MAX_TRACE_EVENTS = 1024;
     @Nonnull
-    // not final: a server-requested reload swaps in a freshly probed info (new URL + ustreamer config)
-    private YoutubeSabrInfo info;
+    private final YoutubeSabrInfo info;
     @Nonnull
     private final YoutubeSabrInfo.Format audioFormat;
     @Nonnull
@@ -64,58 +39,12 @@ public final class YoutubeSabrSession {
     @Nullable
     private final File segmentSpoolDirectory;
     @Nonnull
-    private final Map<String, SabrMediaSegment> segmentCache = new ConcurrentHashMap<>();
-    private final Map<String, SabrMediaSegment> inFlightSegments = new ConcurrentHashMap<>();
-    private final Object segmentAvailable = new Object();
     private String serverAbrStreamingUrl;
     private int requestNumber;
     private int redirectCount;
     private int consecutiveIntegrityFailures;
     private int consecutiveAttestationPendingResponses;
-    // Insertion order + total bytes of cached MEDIA segments (init segments are never evicted).
-    // Mutated only by the single pump thread in pumpOnce; readers only do concurrent-map gets.
-    private final Deque<String> cacheOrder = new ArrayDeque<>();
-    private final Deque<String> diagnosticEvents = new ArrayDeque<>();
-    private int diagnosticChars;
-    private long cachedBytes;
-    private long peakCachedBytes;
-    private volatile long totalResponseBytes;
-    private volatile long maxResponseBytes;
-    private volatile long maxUmpPartBytes;
-    private volatile long maxMediaPartPayloadBytes;
-    private volatile long maxSegmentBytes;
-    private volatile int maxSegmentsPerResponse;
-    private final AtomicInteger maxStreamProtectionStatus = new AtomicInteger(-1);
-    private volatile long nextRequestNotBeforeNs;
-    @Nullable
-    private volatile BackoffListener backoffListener;
-    private volatile long mediaProgressVersion;
-    private volatile boolean cacheClosed;
-    private volatile boolean traceEnabled;
-    private final Object traceLock = new Object();
-    private long traceResponseBytes;
-    private long traceMediaPayloadBytes;
-    private long traceControlPayloadBytes;
-    private long traceUmpOverheadBytes;
-    private long traceDiscardedBytes;
-    private long traceCurrentSegmentElapsedMs = -1;
-    @Nonnull
-    private final Deque<String> traceSegments = new ArrayDeque<>();
-    @Nonnull
-    private final Deque<String> traceDiscards = new ArrayDeque<>();
-    @Nonnull
-    private final Deque<String> traceResponses = new ArrayDeque<>();
-    // Real play head (ms) fed by the pump, so eviction never drops a segment the player still needs.
-    private volatile long playHeadMs;
-    // Keep this much already-played media before evicting: the two tracks read slightly apart and a
-    // segment ending right at the play head may still be in use (race that starved audio at the edge).
-    private static final long EVICT_BEHIND_MS = 10_000;
-    // After a seek, collapse the cache to a window of +-this around the target. A large seek leaves the
-    // old pre-fetched span disconnected from the new position by a gap; play-head eviction can't drop it
-    // (it depends on the reader position, which a seek leaves stale until both tracks read at the
-    // target), so the cache held two disjoint spans far over MAX_CACHE_BYTES -> OOM at 4K. The pump
-    // re-fetches contiguously from the target, so the out-of-window segments are pure waste.
-    private static final long SEEK_KEEP_WINDOW_MS = 8_000;
+
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
                                @Nonnull final YoutubeSabrInfo.Format audioFormat,
@@ -154,23 +83,6 @@ public final class YoutubeSabrSession {
             @Nonnull final Localization localization,
             @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
-        return fetchNextResponseUntil(localization, segmentConsumer == null ? null : segment -> {
-            segmentConsumer.accept(segment);
-            return true;
-        });
-    }
-
-    @Nonnull
-    private YoutubeSabrResponse fetchNextResponseUntil(
-            @Nonnull final Localization localization,
-            @Nullable final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
-            throws IOException, ExtractionException {
-        // Public synchronous fetch APIs do not have the client's interruptible pump loop. If they
-        // follow a deferred demand response, wait here as a final guard against an early request.
-        long remainingBackoffMs;
-        while ((remainingBackoffMs = getBackoffRemainingMs()) > 0) {
-            sleepBackoff((int) remainingBackoffMs, false);
-        }
         final long playerTimeMs = streamState.getRequestPlayerTimeMs();
         final long bufferedEdgeMs = streamState.getMinBufferedEndMs();
         final byte[] rawPoToken = streamState.getRawPoToken();
@@ -181,23 +93,8 @@ public final class YoutubeSabrSession {
                 + " poTokenBytes=" + poTokenBytes
                 + " ranges=" + streamState.summarizeBufferedRanges());
         final long requestStartNs = System.nanoTime();
-        final SabrStreamingResponseReader.StoppableSegmentConsumer timedConsumer =
-                segmentConsumer == null ? null : segment -> {
-                    traceCurrentSegmentElapsedMs = elapsedMs(requestStartNs);
-                    try {
-                        return segmentConsumer.accept(segment);
-                    } finally {
-                        traceCurrentSegmentElapsedMs = -1;
-                    }
-                };
-        final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> {
-            traceCurrentSegmentElapsedMs = elapsedMs(requestStartNs);
-            try {
-                publishInFlightSegment(segment);
-            } finally {
-                traceCurrentSegmentElapsedMs = -1;
-            }
-        };
+        final SabrStreamingResponseReader.SegmentConsumer timedConsumer = segmentConsumer;
+        final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> { };
         final YoutubeSabrResponse result;
         try {
             result = YoutubeSabrRequestHelper.post(info, audioFormat, videoFormat, streamState,
@@ -208,13 +105,6 @@ public final class YoutubeSabrSession {
                     + " type=" + e.getClass().getSimpleName()
                     + " message=" + String.valueOf(e.getMessage()));
             throw e;
-        } finally {
-            // A normal EOF can still leave an unmatched/duplicate MEDIA_HEADER. The response
-            // reader fails those growing files; remove their descriptors so a retry cannot see a
-            // stale in-flight segment.
-            if (!inFlightSegments.isEmpty()) {
-                abortInFlightSegments("SABR response ended before segment completion", null);
-            }
         }
         addDiagnosticEvent("response n=" + requestNumber
                 + " http=" + result.getResponseCode()
@@ -222,11 +112,11 @@ public final class YoutubeSabrSession {
                 + " segments=" + (result.getSegments().isEmpty()
                 ? "count=" + result.getSegmentCount() : summarizeSegments(result.getSegments()))
                 + " decoded={" + result.summarizeForDiagnostics() + '}');
-        maxStreamProtectionStatus.accumulateAndGet(
-                result.getStreamProtectionStatus(), Math::max);
-        totalResponseBytes += result.getResponseBytes();
-        recordMemoryStats(result);
-        recordTraceResponse(result);
+        if (result.getBackoffTimeMs() > MAX_BACKOFF_MS) {
+            throw new SabrProtocolException("SABR backoff exceeds limit: "
+                    + result.getBackoffTimeMs() + "ms");
+        }
+        diagnostics.recordResponse(result, requestNumber);
         updateBandwidthEstimate(result.getResponseBytes(), System.nanoTime() - requestStartNs);
         requestNumber++;
         return result;
@@ -245,222 +135,40 @@ public final class YoutubeSabrSession {
                 + " estimateBps=" + estimate);
     }
 
-    public synchronized void addDiagnosticEvent(@Nonnull final String event) {
-        final String bounded = event.length() > MAX_DIAGNOSTIC_CHARS
-                ? event.substring(0, MAX_DIAGNOSTIC_CHARS) : event;
-        while (!diagnosticEvents.isEmpty()
-                && diagnosticChars + bounded.length() > MAX_DIAGNOSTIC_CHARS) {
-            diagnosticChars -= diagnosticEvents.removeFirst().length();
-        }
-        diagnosticEvents.addLast(bounded);
-        diagnosticChars += bounded.length();
-    }
-
-    @Nonnull
-    public synchronized String getDiagnosticTrace() {
-        final StringBuilder trace = new StringBuilder();
-        for (final String event : diagnosticEvents) {
-            if (trace.length() > 0) {
-                trace.append(" | ");
-            }
-            trace.append(event);
-        }
-        return trace.toString();
-    }
-
-    public void setBackoffListener(@Nullable final BackoffListener listener) {
-        backoffListener = listener;
-    }
-
-    @Nonnull
-    private static String summarizeSegments(@Nonnull final List<SabrMediaSegment> segments) {
-        if (segments.isEmpty()) {
-            return "[]";
-        }
-        final StringBuilder summary = new StringBuilder("[");
-        for (int i = 0; i < segments.size(); i++) {
-            if (i > 0) {
-                summary.append(',');
-            }
-            final SabrMediaSegment segment = segments.get(i);
-            summary.append(segment.getHeader().getItag()).append(':');
-            if (segment.getHeader().isInitSegment()) {
-                summary.append("init");
-            } else {
-                summary.append(segment.getHeader().getSequenceNumber());
-            }
-        }
-        return summary.append(']').toString();
-    }
-
-    /** Production pump path: consume/cache each segment before reading the next one. */
-    public int pumpOnceStreaming(@Nonnull final Localization localization)
-            throws IOException, ExtractionException {
-        final YoutubeSabrResponse result = fetchAndProcessResponse(localization, segment -> {
-            ingestAndCacheSegment(segment);
-            return true;
-        });
-        if (result == null) {
-            return 0;
-        }
-        waitBackoff(result.getBackoffTimeMs(), true);
-        return result.getSegmentCount();
-    }
-
-    /** Execute one SABR transaction and publish every returned segment to this session buffer. */
-    public int requestOnce(@Nonnull final Localization localization)
-            throws IOException, ExtractionException {
-        final YoutubeSabrResponse result = fetchAndProcessResponse(localization, segment -> {
-            ingestAndCacheSegment(segment);
-            return true;
-        });
-        if (result == null) {
-            return 0;
-        }
-        deferBackoff(result.getBackoffTimeMs());
-        return result.getSegmentCount();
-    }
-
-    public int pumpOnceStreamingForStartup(@Nonnull final Localization localization)
-            throws IOException, ExtractionException {
-        if (getBackoffRemainingMs() > 0) {
-            return 0;
-        }
-        final YoutubeSabrResponse result = fetchAndProcessResponse(localization, segment -> {
-            ingestAndCacheSegment(segment);
-            return true;
-        });
-        if (result == null) {
-            return 0;
-        }
-        deferBackoff(result.getBackoffTimeMs(), MAX_STARTUP_BACKOFF_MS);
-        return result.getSegmentCount();
-    }
-
-    @Nonnull
-    public DemandResponseResult pumpOnceStreamingForDemand(
+    public RequestResult requestOnce(
             @Nonnull final Localization localization,
-            @Nonnull final SabrSegmentRequest target) throws IOException, ExtractionException {
-        if (getCachedSegment(target) != null) {
-            return DemandResponseResult.NO_REQUEST;
-        }
-        final long remainingBackoffMs = getBackoffRemainingMs();
-        if (remainingBackoffMs > 0) {
-            return DemandResponseResult.NO_REQUEST;
-        }
-        final int[] targetTrackSegments = {0};
-        final List<DemandReturnedSegment> returnedSegments = new ArrayList<>();
-        final boolean[] returnedSegmentsTruncated = {false};
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer consumer)
+            throws IOException, ExtractionException {
         final YoutubeSabrResponse result = fetchAndProcessResponse(localization, segment -> {
-            ingestAndCacheSegment(segment);
-            final SabrMediaHeader header = segment.getHeader();
-            if (!header.isInitSegment()
-                    && header.getItag() == target.getFormat().getItag()) {
-                targetTrackSegments[0]++;
-            }
-            if (!header.isInitSegment()
-                    && returnedSegments.size()
-                    < MAX_DEMAND_RETURNED_SEGMENTS) {
-                returnedSegments.add(new DemandReturnedSegment(
-                        header.getItag(), header.getSequenceNumber(), header.getStartMs(),
-                        header.getDurationMs()));
-            } else if (!header.isInitSegment()) {
-                returnedSegmentsTruncated[0] = true;
-            }
-            return true;
+            consumer.accept(segment);
         });
-        if (result != null) {
-            deferBackoff(result.getBackoffTimeMs());
+        if (result == null) {
+            return new RequestResult(0, 0);
         }
-        return new DemandResponseResult(result == null ? returnedSegments.size()
-                : result.getSegmentCount(), targetTrackSegments[0], returnedSegments,
-                returnedSegmentsTruncated[0], true);
+        return new RequestResult(result.getSegmentCount(), result.getBackoffTimeMs());
     }
 
-    public static final class DemandResponseResult {
-        private static final DemandResponseResult NO_REQUEST = new DemandResponseResult(0, 0,
-                Collections.emptyList(), false, false);
+    public static final class RequestResult {
         private final int segmentCount;
-        private final int targetTrackSegmentCount;
-        @Nonnull private final List<DemandReturnedSegment> returnedSegments;
-        private final boolean returnedSegmentsTruncated;
-        private final boolean requestPerformed;
+        private final int backoffMs;
 
-        private DemandResponseResult(final int segmentCount, final int targetTrackSegmentCount,
-                                     @Nonnull final List<DemandReturnedSegment> returnedSegments,
-                                     final boolean returnedSegmentsTruncated,
-                                     final boolean requestPerformed) {
+        private RequestResult(final int segmentCount, final int backoffMs) {
             this.segmentCount = segmentCount;
-            this.targetTrackSegmentCount = targetTrackSegmentCount;
-            this.returnedSegments = Collections.unmodifiableList(new ArrayList<>(returnedSegments));
-            this.returnedSegmentsTruncated = returnedSegmentsTruncated;
-            this.requestPerformed = requestPerformed;
+            this.backoffMs = backoffMs;
         }
 
-        public int getSegmentCount() {
-            return segmentCount;
-        }
-
-        public int getTargetTrackSegmentCount() {
-            return targetTrackSegmentCount;
-        }
-
-        @Nonnull
-        public List<DemandReturnedSegment> getReturnedSegments() {
-            return returnedSegments;
-        }
-
-        public boolean areReturnedSegmentsTruncated() {
-            return returnedSegmentsTruncated;
-        }
-
-        public boolean wasRequestPerformed() {
-            return requestPerformed;
-        }
-    }
-
-    public static final class DemandReturnedSegment {
-        private final int itag;
-        private final int sequenceNumber;
-        private final long startMs;
-        private final long durationMs;
-
-        private DemandReturnedSegment(final int itag, final int sequenceNumber,
-                                      final long startMs, final long durationMs) {
-            this.itag = itag;
-            this.sequenceNumber = sequenceNumber;
-            this.startMs = startMs;
-            this.durationMs = durationMs;
-        }
-
-        public int getItag() { return itag; }
-        public int getSequenceNumber() { return sequenceNumber; }
-        public long getStartMs() { return startMs; }
-        public long getDurationMs() { return durationMs; }
-    }
-
-    /** Remaining server-imposed delay before another request may be sent. */
-    public long getBackoffRemainingMs() {
-        final long remainingNs = nextRequestNotBeforeNs - System.nanoTime();
-        if (remainingNs <= 0) {
-            return 0;
-        }
-        return Math.max(1, TimeUnit.NANOSECONDS.toMillis(remainingNs));
-    }
-
-    /** Monotonic counter advanced only when a new media or initialization segment is cached. */
-    public long getMediaProgressVersion() {
-        return mediaProgressVersion;
+        public int getSegmentCount() { return segmentCount; }
+        public int getBackoffMs() { return backoffMs; }
     }
 
     @Nullable
     private YoutubeSabrResponse fetchAndProcessResponse(
             @Nonnull final Localization localization,
-            @Nonnull final SabrStreamingResponseReader.StoppableSegmentConsumer segmentConsumer)
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
         final YoutubeSabrResponse result;
         try {
-            result = fetchNextResponseUntil(localization, segmentConsumer);
+            result = fetchNextResponse(localization, segmentConsumer);
         } catch (final SabrRecoverableException e) {
             if (recoverFromStreamingMediaException(localization, e)) {
                 return null;
@@ -479,7 +187,6 @@ public final class YoutubeSabrSession {
             throw new SabrProtocolException("SABR media integrity issue: " + integrityIssues);
         }
         consecutiveIntegrityFailures = 0;
-        evictCacheIfNeeded();
         handleControlResponse(result, null);
         return result;
     }
@@ -559,482 +266,6 @@ public final class YoutubeSabrSession {
         }
     }
 
-    private void ingestAndCacheSegment(@Nonnull final SabrMediaSegment segment) {
-        final String key = cacheKey(segment);
-        if (cacheClosed || !segment.isComplete() || segment.hasFailed()) {
-            inFlightSegments.remove(key, segment);
-            segment.delete();
-            return;
-        }
-        streamState.ingest(segment);
-        inFlightSegments.remove(key, segment);
-        final SabrMediaSegment previous = segmentCache.putIfAbsent(key, segment);
-        if (previous != null && previous != segment) {
-            // A loader may already hold the cached segment and be about to open its spool file.
-            // Replacing it and deleting the old file creates an ENOENT race. The duplicate carries
-            // the same immutable sequence, so retain the published instance and discard the new one.
-            segment.delete();
-            synchronized (segmentAvailable) {
-                segmentAvailable.notifyAll();
-            }
-            return;
-        }
-        synchronized (segmentAvailable) {
-            segmentAvailable.notifyAll();
-        }
-        if (previous == null && !segment.getHeader().isInitSegment()) {
-            cacheOrder.addLast(key);
-            cachedBytes += segment.getLength();
-            peakCachedBytes = Math.max(peakCachedBytes, cachedBytes);
-        }
-        if (previous == null) {
-            mediaProgressVersion++;
-            recordTraceSegment(segment);
-        }
-        // Streaming responses may contain many large completed segments. Evict between segments,
-        // not only after the whole response has already reached its peak memory use.
-        evictCacheIfNeeded();
-    }
-
-    private void publishInFlightSegment(@Nonnull final SabrMediaSegment segment) {
-        if (segment.isComplete() || segment.getHeader().isInitSegment()) {
-            return;
-        }
-        if (cacheClosed) {
-            segment.failProgressive(new IOException("SABR session cache is closed"));
-            segment.delete();
-            return;
-        }
-        final String key = cacheKey(segment);
-        final SabrMediaSegment previous = inFlightSegments.put(key, segment);
-        if (previous != null && previous != segment) {
-            previous.delete();
-        }
-        synchronized (segmentAvailable) {
-            segmentAvailable.notifyAll();
-        }
-        addDiagnosticEvent("segment_started itag=" + segment.getHeader().getItag()
-                + " seq=" + segment.getHeader().getSequenceNumber()
-                + " bytes=" + segment.getLength());
-    }
-
-    private void abortInFlightSegments(@Nonnull final String message,
-                                       @Nullable final Throwable cause) {
-        for (final SabrMediaSegment segment : inFlightSegments.values()) {
-            final IOException failure = new IOException(message, cause);
-            segment.failProgressive(failure);
-            segment.delete();
-        }
-        inFlightSegments.clear();
-        synchronized (segmentAvailable) {
-            segmentAvailable.notifyAll();
-        }
-    }
-
-    /** Drop the oldest cached media segments (furthest behind the play head) to bound memory. */
-    /** Fed by the pump every round: the real player position, used to evict only played segments. */
-    public void setPlayHeadMs(final long ms) {
-        this.playHeadMs = ms;
-    }
-
-    /** Total cached media bytes. The pump throttles on this so high-bitrate (4K) can't OOM the heap. */
-    public long getCachedBytes() {
-        return cachedBytes;
-    }
-
-    /** Byte ceiling shared with the client-side pump so prefetch cannot stop below eviction. */
-    public static long getMaxCacheBytes() {
-        return MAX_CACHE_BYTES;
-    }
-
-    public long getPeakCachedBytes() {
-        return peakCachedBytes;
-    }
-
-    /** Raw bytes consumed from all SABR HTTP response bodies in this session. */
-    public long getTotalResponseBytes() {
-        return totalResponseBytes;
-    }
-
-    public long getMaxResponseBytes() {
-        return maxResponseBytes;
-    }
-
-    public long getMaxUmpPartBytes() {
-        return maxUmpPartBytes;
-    }
-
-    public long getMaxMediaPartPayloadBytes() {
-        return maxMediaPartPayloadBytes;
-    }
-
-    public long getMaxSegmentBytes() {
-        return maxSegmentBytes;
-    }
-
-    public int getMaxSegmentsPerResponse() {
-        return maxSegmentsPerResponse;
-    }
-
-    public int getMaxStreamProtectionStatus() {
-        return maxStreamProtectionStatus.get();
-    }
-
-    @Nonnull
-    public String getMemoryDiagnosticSummary() {
-        return "requestNumber=" + requestNumber
-                + ", cachedBytes=" + cachedBytes
-                + ", peakCachedBytes=" + peakCachedBytes
-                + ", totalResponseBytes=" + totalResponseBytes
-                + ", maxResponseBytes=" + maxResponseBytes
-                + ", maxUmpPartBytes=" + maxUmpPartBytes
-                + ", maxMediaPartPayloadBytes=" + maxMediaPartPayloadBytes
-                + ", maxSegmentBytes=" + maxSegmentBytes
-                + ", maxSegmentsPerResponse=" + maxSegmentsPerResponse;
-    }
-
-    /**
-     * Drop cached media bytes when the owning media period is released. Init segments are cheap to
-     * refetch and keeping old period caches alive during rapid video switches can fill the app heap.
-     */
-    public void clearCache() {
-        nextRequestNotBeforeNs = 0;
-        cacheClosed = true;
-        abortInFlightSegments("SABR session cache was cleared", null);
-        for (final SabrMediaSegment segment : segmentCache.values()) {
-            segment.delete();
-        }
-        segmentCache.clear();
-        cacheOrder.clear();
-        cachedBytes = 0;
-    }
-
-    /**
-     * Free already-played segments. The pump calls this every round (not just on fetch): when it is
-     * byte-throttled it skips {@link #pumpOnce}, so eviction had to run here too or the cache stayed
-     * full forever and throttling never released -> playback froze.
-     */
-    public void evictPlayed() {
-        evictCacheIfNeeded();
-    }
-
-    private void recordMemoryStats(@Nonnull final YoutubeSabrResponse result) {
-        maxResponseBytes = Math.max(maxResponseBytes, result.getResponseBytes());
-        maxUmpPartBytes = Math.max(maxUmpPartBytes, result.getMaxPartBytes());
-        maxMediaPartPayloadBytes = Math.max(maxMediaPartPayloadBytes,
-                result.getMaxMediaPartPayloadBytes());
-        maxSegmentBytes = Math.max(maxSegmentBytes, result.getMaxSegmentBytes());
-        maxSegmentsPerResponse = Math.max(maxSegmentsPerResponse, result.getSegmentCount());
-    }
-
-    private void evictCacheIfNeeded() {
-        while (cachedBytes > MAX_CACHE_BYTES && cacheOrder.size() > MIN_CACHED_SEGMENTS) {
-            final String oldKey = cacheOrder.peekFirst();
-            if (oldKey == null) {
-                break;
-            }
-            final SabrMediaSegment old = segmentCache.get(oldKey);
-            // Never evict a segment the play head hasn't passed yet: dropping it (FIFO did) starves
-            // the reader, which is sitting exactly on the oldest seq. Stop here and let the cache ride
-            // over budget; the pump's read-ahead cushion bounds how far we get.
-            if (old != null) {
-                final long endMs = old.getHeader().getStartMs() + old.getHeader().getDurationMs();
-                if (endMs > playHeadMs - EVICT_BEHIND_MS) {
-                    break;
-                }
-            }
-            cacheOrder.pollFirst();
-            final SabrMediaSegment removed = segmentCache.remove(oldKey);
-            if (removed != null) {
-                cachedBytes -= removed.getLength();
-                recordTraceDiscard(removed, "cache_limit");
-                removed.delete();
-            }
-        }
-    }
-
-    /**
-     * Collapse the cache to a single {@link #SEEK_KEEP_WINDOW_MS} window around a seek target: drop
-     * MEDIA segments ending before {@code fromMs - window} or starting after {@code fromMs + window}.
-     * Used by both seek directions so the cache can't hold two disjoint spans over the byte cap (the
-     * 4K OOM root cause). Unlike {@link #evictCacheIfNeeded} this does NOT depend on the reader
-     * position, so it works even when a track is blocked on the (uncached) seek target, which is what
-     * deadlocked a forward seek (old span never freed -> heap full -> pump can't fetch the target ->
-     * track stays blocked). The pump re-fetches contiguously, so dropped segments are pure waste.
-     * Runs on the pump thread (same as cache mutation), so no extra locking is needed.
-     */
-    private void evictOutsideSeekWindow(final long fromMs) {
-        final long lowMs = fromMs - SEEK_KEEP_WINDOW_MS;
-        final long highMs = fromMs + SEEK_KEEP_WINDOW_MS;
-        final Iterator<String> it = cacheOrder.iterator();
-        while (it.hasNext()) {
-            final String key = it.next();
-            final SabrMediaSegment seg = segmentCache.get(key);
-            if (seg == null) {
-                continue;
-            }
-            final long startMs = seg.getHeader().getStartMs();
-            final long endMs = startMs + seg.getHeader().getDurationMs();
-            if (endMs < lowMs || startMs > highMs) {
-                it.remove();
-                segmentCache.remove(key);
-                cachedBytes -= seg.getLength();
-                recordTraceDiscard(seg, "seek_window");
-                seg.delete();
-            }
-        }
-    }
-
-    @Nullable
-    public SabrMediaSegment getCachedSegment(@Nonnull final SabrSegmentRequest request) {
-        return segmentCache.get(cacheKey(request));
-    }
-
-    @Nullable
-    public SabrMediaSegment getReadableSegment(@Nonnull final SabrSegmentRequest request) {
-        final String key = cacheKey(request);
-        final SabrMediaSegment complete = segmentCache.get(key);
-        if (complete != null) {
-            return complete;
-        }
-        final SabrMediaSegment inFlight = inFlightSegments.get(key);
-        if (inFlight != null && inFlight.hasFailed()) {
-            inFlightSegments.remove(key, inFlight);
-            return null;
-        }
-        return inFlight;
-    }
-
-    /**
-     * Wait until a streaming response publishes the requested segment. The cache is checked before
-     * and while holding the notification monitor so a segment arriving between those two operations
-     * cannot leave the reader sleeping for the full timeout.
-     */
-    @Nullable
-    public SabrMediaSegment awaitCachedSegment(@Nonnull final SabrSegmentRequest request,
-                                               final long timeoutMs)
-            throws InterruptedException {
-        SabrMediaSegment segment = getCachedSegment(request);
-        if (segment != null || timeoutMs <= 0) {
-            return segment;
-        }
-        synchronized (segmentAvailable) {
-            segment = getCachedSegment(request);
-            if (segment == null) {
-                segmentAvailable.wait(timeoutMs);
-                segment = getCachedSegment(request);
-            }
-        }
-        return segment;
-    }
-
-    @Nullable
-    public SabrMediaSegment awaitReadableSegment(@Nonnull final SabrSegmentRequest request,
-                                                 final long timeoutMs)
-            throws InterruptedException {
-        SabrMediaSegment segment = getReadableSegment(request);
-        if (segment != null || timeoutMs <= 0) {
-            return segment;
-        }
-        synchronized (segmentAvailable) {
-            segment = getReadableSegment(request);
-            if (segment == null) {
-                segmentAvailable.wait(timeoutMs);
-                segment = getReadableSegment(request);
-            }
-        }
-        return segment;
-    }
-
-    public void discardCachedSegment(@Nonnull final SabrSegmentRequest request) {
-        final String key = cacheKey(request);
-        final SabrMediaSegment inFlight = inFlightSegments.remove(key);
-        if (inFlight != null) {
-            inFlight.delete();
-        }
-        final SabrMediaSegment removed = segmentCache.remove(key);
-        if (removed != null && !removed.getHeader().isInitSegment()) {
-            cacheOrder.remove(key);
-            cachedBytes = Math.max(0, cachedBytes - removed.getLength());
-            recordTraceDiscard(removed, "explicit");
-            removed.delete();
-        }
-    }
-
-    public void setTraceEnabled(final boolean traceEnabled) {
-        this.traceEnabled = traceEnabled;
-    }
-
-    @Nonnull
-    public TraceSnapshot getTraceSnapshot() {
-        synchronized (traceLock) {
-            return new TraceSnapshot(traceResponseBytes, traceMediaPayloadBytes,
-                    traceControlPayloadBytes, traceUmpOverheadBytes, traceDiscardedBytes,
-                    requestNumber, cachedBytes, peakCachedBytes,
-                    new java.util.ArrayList<>(traceSegments),
-                    new java.util.ArrayList<>(traceDiscards),
-                    new java.util.ArrayList<>(traceResponses));
-        }
-    }
-
-    private void recordTraceResponse(@Nonnull final YoutubeSabrResponse result) {
-        if (!traceEnabled) {
-            return;
-        }
-        final long umpOverheadBytes = Math.max(0,
-                result.getResponseBytes() - result.getTotalPayloadBytes());
-        synchronized (traceLock) {
-            traceResponseBytes += result.getResponseBytes();
-            traceMediaPayloadBytes += result.getMediaPayloadBytes();
-            traceControlPayloadBytes += result.getControlPayloadBytes();
-            traceUmpOverheadBytes += umpOverheadBytes;
-            addBoundedTraceEvent(traceResponses, "request=" + requestNumber
-                    + ",elapsedMs=" + result.getRequestElapsedMs()
-                    + ",firstSegmentMs=" + result.getFirstSegmentElapsedMs()
-                    + ",bytes=" + result.getResponseBytes()
-                    + ",mediaBytes=" + result.getMediaPayloadBytes()
-                    + ",segments=" + result.getSegmentCount());
-        }
-    }
-
-    private void recordTraceSegment(@Nonnull final SabrMediaSegment segment) {
-        if (!traceEnabled) {
-            return;
-        }
-        final SabrMediaHeader header = segment.getHeader();
-        final String value = "request=" + requestNumber
-                + ",itag=" + header.getItag()
-                + (header.isInitSegment()
-                ? ",init=true"
-                : ",seq=" + header.getSequenceNumber())
-                + ",startMs=" + header.getStartMs()
-                + ",durationMs=" + header.getDurationMs()
-                + ",bytes=" + segment.getLength()
-                + ",elapsedMs=" + traceCurrentSegmentElapsedMs;
-        synchronized (traceLock) {
-            addBoundedTraceEvent(traceSegments, value);
-        }
-    }
-
-    private void recordTraceDiscard(@Nonnull final SabrMediaSegment segment,
-                                    @Nonnull final String reason) {
-        if (!traceEnabled) {
-            return;
-        }
-        final SabrMediaHeader header = segment.getHeader();
-        final long bytes = segment.getLength();
-        final String value = "request=" + requestNumber
-                + ",reason=" + reason
-                + ",itag=" + header.getItag()
-                + (header.isInitSegment()
-                ? ",init=true"
-                : ",seq=" + header.getSequenceNumber())
-                + ",startMs=" + header.getStartMs()
-                + ",durationMs=" + header.getDurationMs()
-                + ",bytes=" + bytes;
-        synchronized (traceLock) {
-            traceDiscardedBytes += bytes;
-            addBoundedTraceEvent(traceDiscards, value);
-        }
-    }
-
-    private static void addBoundedTraceEvent(@Nonnull final Deque<String> events,
-                                             @Nonnull final String value) {
-        if (events.size() >= MAX_TRACE_EVENTS) {
-            events.removeFirst();
-        }
-        events.addLast(value);
-    }
-
-    public static final class TraceSnapshot {
-        private final long responseBytes;
-        private final long mediaPayloadBytes;
-        private final long controlPayloadBytes;
-        private final long umpOverheadBytes;
-        private final long discardedBytes;
-        private final int requestNumber;
-        private final long cachedBytes;
-        private final long peakCachedBytes;
-        @Nonnull
-        private final List<String> segments;
-        @Nonnull
-        private final List<String> discards;
-        @Nonnull
-        private final List<String> responses;
-
-        private TraceSnapshot(final long responseBytes,
-                              final long mediaPayloadBytes,
-                              final long controlPayloadBytes,
-                              final long umpOverheadBytes,
-                              final long discardedBytes,
-                              final int requestNumber,
-                              final long cachedBytes,
-                              final long peakCachedBytes,
-                              @Nonnull final List<String> segments,
-                              @Nonnull final List<String> discards,
-                              @Nonnull final List<String> responses) {
-            this.responseBytes = responseBytes;
-            this.mediaPayloadBytes = mediaPayloadBytes;
-            this.controlPayloadBytes = controlPayloadBytes;
-            this.umpOverheadBytes = umpOverheadBytes;
-            this.discardedBytes = discardedBytes;
-            this.requestNumber = requestNumber;
-            this.cachedBytes = cachedBytes;
-            this.peakCachedBytes = peakCachedBytes;
-            this.segments = Collections.unmodifiableList(segments);
-            this.discards = Collections.unmodifiableList(discards);
-            this.responses = Collections.unmodifiableList(responses);
-        }
-
-        public long getResponseBytes() {
-            return responseBytes;
-        }
-
-        public long getMediaPayloadBytes() {
-            return mediaPayloadBytes;
-        }
-
-        public long getControlPayloadBytes() {
-            return controlPayloadBytes;
-        }
-
-        public long getUmpOverheadBytes() {
-            return umpOverheadBytes;
-        }
-
-        public long getDiscardedBytes() {
-            return discardedBytes;
-        }
-
-        public int getRequestNumber() {
-            return requestNumber;
-        }
-
-        public long getCachedBytes() {
-            return cachedBytes;
-        }
-
-        public long getPeakCachedBytes() {
-            return peakCachedBytes;
-        }
-
-        @Nonnull
-        public List<String> getSegments() {
-            return segments;
-        }
-
-        @Nonnull
-        public List<String> getDiscards() {
-            return discards;
-        }
-
-        @Nonnull
-        public List<String> getResponses() {
-            return responses;
-        }
-    }
-
-
     /** True once the requested media segment is known to be past the last segment of the stream. */
     public boolean isBeyondEnd(@Nonnull final SabrSegmentRequest request) {
         if (request.isInitializationSegment()) {
@@ -1059,7 +290,7 @@ public final class YoutubeSabrSession {
     }
 
     /**
-     * True when playback has caught up to the live head: a live-aware pump should wait for the head
+     * True when playback has caught up to the live head: a live-aware client should wait for the head
      * to advance rather than treating an empty response as the end. Always false for VOD.
      */
     public boolean isAtLiveEdge() {
@@ -1075,64 +306,46 @@ public final class YoutubeSabrSession {
         return requestNumber;
     }
 
-    public void prepareForMediaSegment(@Nonnull final SabrSegmentRequest request) {
-        if (request.isInitializationSegment()) {
-            return;
-        }
-        final YoutubeSabrInfo.Format targetFormat = request.getFormat();
-        final YoutubeSabrInfo.Format companionFormat = getCompanionFormat(targetFormat);
-        final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
-                request.getSequenceNumber());
-        streamState.assumeBufferedUntil(targetFormat, request.getSequenceNumber() - 1);
-        streamState.assumeBufferedUntil(companionFormat,
-                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, targetStartMs));
-        streamState.setPlayerTimeMs(targetStartMs);
-        streamState.clearPlaybackCookie();
-    }
-
-    public void prepareForInitialization(@Nonnull final YoutubeSabrInfo.Format format) {
-        discardCachedSegment(SabrSegmentRequest.initialization(format));
-        streamState.resetInitialization(format);
-        streamState.clearPlaybackCookie();
-    }
-
     /**
      * Bootstrap an exact audio/video timeline exclusively through SABR. A response streams media
-     * before its control metadata is applied, so cached initialization bytes are deliberately
-     * re-ingested after every complete response. This is the point where format metadata and init
-     * bytes can be combined into an exact MP4/WebM segment index.
+     * before its control metadata is applied. Initialization bytes are collected locally and
+     * combined with format metadata into an exact MP4/WebM segment index.
      */
-    public void bootstrapInitialization(@Nonnull final Localization localization)
+    private InitializationResult bootstrapInitialization(@Nonnull final Localization localization)
             throws IOException, ExtractionException {
-        for (int response = 0; response < MAX_BOOTSTRAP_RESPONSES; response++) {
-            reindexCachedInitialization();
-            if (hasExactBootstrapTimeline()) {
-                addDiagnosticEvent("bootstrap_ready responses=" + response);
-                return;
-            }
-            final YoutubeSabrResponse result = fetchAndProcessResponse(localization, segment -> {
-                ingestAndCacheSegment(segment);
-                return !hasCachedBootstrapInitialization();
-            });
-            reindexCachedInitialization();
-            if (hasExactBootstrapTimeline()) {
-                addDiagnosticEvent("bootstrap_ready responses=" + (response + 1));
-                return;
-            }
-            if (result != null) {
-                waitBackoff(result.getBackoffTimeMs(), true);
-            }
+        final byte[][] initialization = new byte[2][];
+        final Map<String, SabrMediaSegment> mediaSegments = new LinkedHashMap<>();
+        fetchAndProcessResponse(localization, segment -> {
+                streamState.ingest(segment);
+                if (segment.getHeader().isInitSegment()) {
+                    if (segment.getHeader().getItag() == audioFormat.getItag()) {
+                        initialization[0] = segment.getData();
+                        streamState.ingestInitializationData(audioFormat, initialization[0]);
+                    } else if (segment.getHeader().getItag() == videoFormat.getItag()) {
+                        initialization[1] = segment.getData();
+                        streamState.ingestInitializationData(videoFormat, initialization[1]);
+                    }
+                    segment.delete();
+                } else {
+                    final String key = segment.getHeader().getItag() + ":"
+                            + segment.getHeader().getSequenceNumber();
+                    final SabrMediaSegment previous = mediaSegments.putIfAbsent(key, segment);
+                    if (previous != null) {
+                        segment.delete();
+                    }
+                }
+        });
+        if (hasExactBootstrapTimeline() && hasBootstrapInitialization(initialization)) {
+            addDiagnosticEvent("bootstrap_ready");
+            return new InitializationResult(initialization[0], initialization[1],
+                    new ArrayList<>(mediaSegments.values()));
         }
-        reindexCachedInitialization();
-        if (hasExactBootstrapTimeline()) {
-            addDiagnosticEvent("bootstrap_ready responses=" + MAX_BOOTSTRAP_RESPONSES);
-            return;
+        for (final SabrMediaSegment segment : mediaSegments.values()) {
+            segment.delete();
         }
         throw new SabrProtocolException("SABR bootstrap did not provide exact audio/video indexes"
-                + ": audioInit=" + (getCachedSegment(
-                SabrSegmentRequest.initialization(audioFormat)) != null)
-                + ", videoInit=" + (getCachedSegment(
-                SabrSegmentRequest.initialization(videoFormat)) != null)
+                + ": audioInit=" + (initialization[0] != null)
+                + ", videoInit=" + (initialization[1] != null)
                 + ", audioEnd=" + streamState.getEndSegment(audioFormat)
                 + ", videoEnd=" + streamState.getEndSegment(videoFormat));
     }
@@ -1186,7 +399,7 @@ public final class YoutubeSabrSession {
     /**
      * Prepare both selected tracks using adaptive initialization first, falling back to native SABR
      * bootstrap on any adaptive failure. The returned data and this session are a single handoff to
-     * the normal streaming pump.
+     * normal streaming requests.
      */
     @Nonnull
     public InitializationResult initialize(@Nonnull final Localization localization,
@@ -1198,33 +411,26 @@ public final class YoutubeSabrSession {
                     ? fetchInitializationData(audioFormat, localization, timeoutMs, poToken) : null;
             final byte[] video = streamState.isVideoTrackEnabled()
                     ? fetchInitializationData(videoFormat, localization, timeoutMs, poToken) : null;
-            return new InitializationResult(audio, video);
+            return new InitializationResult(audio, video, Collections.emptyList());
         } catch (final IOException adaptiveFailure) {
-            prepareForInitialization(audioFormat);
-            prepareForInitialization(videoFormat);
-            bootstrapInitialization(localization);
-            final SabrMediaSegment audio = streamState.isAudioTrackEnabled()
-                    ? getCachedSegment(SabrSegmentRequest.initialization(audioFormat)) : null;
-            final SabrMediaSegment video = streamState.isVideoTrackEnabled()
-                    ? getCachedSegment(SabrSegmentRequest.initialization(videoFormat)) : null;
-            if ((streamState.isAudioTrackEnabled() && audio == null)
-                    || (streamState.isVideoTrackEnabled() && video == null)) {
-                throw new SabrProtocolException("SABR bootstrap completed without cached init segments",
-                        adaptiveFailure);
-            }
-            return new InitializationResult(audio == null ? null : audio.getData(),
-                    video == null ? null : video.getData());
+            streamState.resetInitialization(audioFormat);
+            streamState.resetInitialization(videoFormat);
+            streamState.clearPlaybackCookie();
+            return bootstrapInitialization(localization);
         }
     }
 
     public static final class InitializationResult {
         @Nullable private final byte[] audioData;
         @Nullable private final byte[] videoData;
+        @Nonnull private final List<SabrMediaSegment> mediaSegments;
 
         private InitializationResult(@Nullable final byte[] audioData,
-                                      @Nullable final byte[] videoData) {
+                                      @Nullable final byte[] videoData,
+                                      @Nonnull final List<SabrMediaSegment> mediaSegments) {
             this.audioData = audioData == null ? null : audioData.clone();
             this.videoData = videoData == null ? null : videoData.clone();
+            this.mediaSegments = Collections.unmodifiableList(new ArrayList<>(mediaSegments));
         }
 
         @Nullable
@@ -1235,6 +441,11 @@ public final class YoutubeSabrSession {
         @Nullable
         public byte[] getVideoData() {
             return videoData == null ? null : videoData.clone();
+        }
+
+        @Nonnull
+        public List<SabrMediaSegment> getMediaSegments() {
+            return mediaSegments;
         }
     }
 
@@ -1264,110 +475,14 @@ public final class YoutubeSabrSession {
         return data;
     }
 
-    private void reindexCachedInitialization() {
-        reindexCachedInitialization(audioFormat);
-        reindexCachedInitialization(videoFormat);
-    }
-
-    private void reindexCachedInitialization(@Nonnull final YoutubeSabrInfo.Format format) {
-        final SabrMediaSegment segment = getCachedSegment(
-                SabrSegmentRequest.initialization(format));
-        if (segment != null) {
-            streamState.ingestInitializationData(format, segment.getData());
-        }
-    }
-
     private boolean hasExactBootstrapTimeline() {
         return (!streamState.isAudioTrackEnabled() || streamState.hasSegmentIndex(audioFormat))
                 && (!streamState.isVideoTrackEnabled() || streamState.hasSegmentIndex(videoFormat));
     }
 
-    private boolean hasCachedBootstrapInitialization() {
-        return (!streamState.isAudioTrackEnabled()
-                || getCachedSegment(SabrSegmentRequest.initialization(audioFormat)) != null)
-                && (!streamState.isVideoTrackEnabled()
-                || getCachedSegment(SabrSegmentRequest.initialization(videoFormat)) != null);
-    }
-
-    /**
-     * Backward seek onto an already-buffered-past segment: like {@link #prepareForMediaSegment} but
-     * SHRINKS the buffered head back to the target so the server re-sends it. assumeBufferedUntil
-     * only extends, so prepareForMediaSegment can't rewind (the request comes back empty).
-     */
-    public void prepareForRewind(@Nonnull final SabrSegmentRequest request) {
-        prepareForRewind(request, -1);
-    }
-
-    /** Backward seek counterpart of {@link #prepareForForwardJump(SabrSegmentRequest, long)}. */
-    public void prepareForRewind(@Nonnull final SabrSegmentRequest request,
-                                 final long seekPositionMs) {
-        if (request.isInitializationSegment()) {
-            return;
-        }
-        final YoutubeSabrInfo.Format targetFormat = request.getFormat();
-        final YoutubeSabrInfo.Format companionFormat = getCompanionFormat(targetFormat);
-        final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
-                request.getSequenceNumber());
-        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
-        streamState.rewindBufferedTo(targetFormat, request.getSequenceNumber());
-        streamState.rewindBufferedTo(companionFormat,
-                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, playbackPositionMs));
-        streamState.setPlayerTimeMs(playbackPositionMs);
-        streamState.clearPlaybackCookie();
-        // Discard the now-disconnected forward span (old play position) so the cache doesn't hold two
-        // disjoint spans over the byte cap -> OOM at 4K. The pump re-fetches forward from the target.
-        evictOutsideSeekWindow(playbackPositionMs);
-    }
-
-    /**
-     * Forward jump (cold seek far past the buffered edge): the opposite of
-     * {@link #prepareForRewind}. {@link #prepareForMediaSegment} only extends maxSegment, so the
-     * reported range end (the contiguous edge) stayed behind and the next rounds kept filling the
-     * skipped span (ping-pong + duplicate re-sends). This moves the buffered head onto the target
-     * so the server streams from there and the edge-driven pacing follows naturally.
-     */
-    public void prepareForForwardJump(@Nonnull final SabrSegmentRequest request) {
-        prepareForForwardJump(request, -1);
-    }
-
-    /**
-     * Forward jump anchored at the exact player seek position. The requested video segment can
-     * start several seconds before that position; using its start for the companion track makes
-     * the server send an audio segment which already ends before the player target. Keep the
-     * requested track on its exact segment, but align the companion track and player time to the
-     * actual seek position when it is known.
-     */
-    public void prepareForForwardJump(@Nonnull final SabrSegmentRequest request,
-                                      final long seekPositionMs) {
-        if (request.isInitializationSegment()) {
-            return;
-        }
-        final YoutubeSabrInfo.Format targetFormat = request.getFormat();
-        final YoutubeSabrInfo.Format companionFormat = getCompanionFormat(targetFormat);
-        final long targetStartMs = streamState.getSegmentStartMs(targetFormat,
-                request.getSequenceNumber());
-        final long playbackPositionMs = seekPositionMs >= 0 ? seekPositionMs : targetStartMs;
-        streamState.jumpBufferedTo(targetFormat, request.getSequenceNumber());
-        streamState.jumpBufferedTo(companionFormat,
-                streamState.getSegmentNumberAtOrAfterTimeMs(companionFormat, playbackPositionMs));
-        streamState.setPlayerTimeMs(playbackPositionMs);
-        streamState.clearPlaybackCookie();
-        // Drop the old span behind the jump target right away (don't wait for the reader to advance:
-        // a track blocked on the uncached target keeps reader_tail stale, so play-head eviction never
-        // runs and the heap fills -> stuck buffering / OOM at 4K). The pump fetches from the target.
-        evictOutsideSeekWindow(playbackPositionMs);
-    }
-
-    /** Re-advertise only the missing near-edge track without discarding the companion timeline. */
-    public void prepareForMissingSegment(@Nonnull final SabrSegmentRequest request) {
-        if (request.isInitializationSegment()) {
-            return;
-        }
-        final long targetStartMs = streamState.getSegmentStartMs(request.getFormat(),
-                request.getSequenceNumber());
-        streamState.jumpBufferedTo(request.getFormat(), request.getSequenceNumber());
-        streamState.setPlayerTimeMs(targetStartMs);
-        streamState.clearPlaybackCookie();
+    private boolean hasBootstrapInitialization(@Nonnull final byte[][] initialization) {
+        return (!streamState.isAudioTrackEnabled() || initialization[0] != null)
+                && (!streamState.isVideoTrackEnabled() || initialization[1] != null);
     }
 
     private boolean recoverFromIncompleteMediaResponse(@Nonnull final Localization localization,
@@ -1388,14 +503,7 @@ public final class YoutubeSabrSession {
                                                        final int responseBackoffMs)
             throws IOException, ExtractionException {
         consecutiveIntegrityFailures++;
-        if (consecutiveIntegrityFailures >= MAX_INCOMPLETE_MEDIA_RESPONSES) {
-            return false;
-        }
-        final int backoffMs = responseBackoffMs > 0
-                ? responseBackoffMs
-                : 500 * consecutiveIntegrityFailures;
-        sleepBackoff(backoffMs, responseBackoffMs > 0);
-        return true;
+        return consecutiveIntegrityFailures < MAX_INCOMPLETE_MEDIA_RESPONSES;
     }
 
     private static boolean isRecoverableIncompleteMediaResponse(
@@ -1415,78 +523,6 @@ public final class YoutubeSabrSession {
         return true;
     }
 
-    private void deferBackoff(final int backoffTimeMs) {
-        deferBackoff(backoffTimeMs, MAX_BACKOFF_MS);
-    }
-
-    private void deferBackoff(final int backoffTimeMs, final int limitMs) {
-        final int requestedMs = Math.max(0, backoffTimeMs);
-        final int appliedMs = Math.min(requestedMs, Math.min(limitMs, MAX_BACKOFF_MS));
-        if (appliedMs == 0) {
-            nextRequestNotBeforeNs = 0;
-            return;
-        }
-        nextRequestNotBeforeNs = System.nanoTime()
-                + TimeUnit.MILLISECONDS.toNanos(appliedMs);
-        addDiagnosticEvent("defer_backoff requestedMs=" + requestedMs
-                + " appliedMs=" + appliedMs);
-    }
-
-    private void waitBackoff(final int backoffTimeMs, final boolean notifyListener)
-            throws InterruptedIOException {
-        nextRequestNotBeforeNs = 0;
-        sleepBackoff(backoffTimeMs, notifyListener);
-    }
-
-    private void sleepBackoff(final int backoffTimeMs, final boolean notifyListener)
-            throws InterruptedIOException {
-        // Clamp to [0, MAX_BACKOFF_MS]: a negative (overflowed varint) must not skip the wait, and
-        // a huge server backoff must not be honoured verbatim (would stall playback for minutes).
-        final int ms = Math.min(Math.max(0, backoffTimeMs), MAX_BACKOFF_MS);
-        if (ms == 0) {
-            return;
-        }
-        final BackoffListener listener = notifyListener ? backoffListener : null;
-        notifyBackoffStarted(listener, ms);
-        try {
-            Thread.sleep(ms);
-        } catch (final InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new InterruptedIOException("Interrupted during SABR backoff");
-        } finally {
-            notifyBackoffFinished(listener);
-        }
-    }
-
-    private void notifyBackoffStarted(@Nullable final BackoffListener listener,
-                                      final int durationMs) {
-        if (listener == null) {
-            return;
-        }
-        try {
-            listener.onBackoffStarted(durationMs);
-        } catch (final RuntimeException e) {
-            addDiagnosticEvent("backoff_listener_start_failed type="
-                    + e.getClass().getSimpleName() + " message=" + e.getMessage());
-        }
-    }
-
-    private void notifyBackoffFinished(@Nullable final BackoffListener listener) {
-        if (listener == null) {
-            return;
-        }
-        try {
-            listener.onBackoffFinished();
-        } catch (final RuntimeException e) {
-            addDiagnosticEvent("backoff_listener_finish_failed type="
-                    + e.getClass().getSimpleName() + " message=" + e.getMessage());
-        }
-    }
-
-    private static long elapsedMs(final long startNs) {
-        return Math.max(0, (System.nanoTime() - startNs) / 1_000_000L);
-    }
-
     @Nonnull
     private static String describeRequest(@Nonnull final SabrSegmentRequest request) {
         return "itag=" + request.getFormat().getItag()
@@ -1495,29 +531,122 @@ public final class YoutubeSabrSession {
                 : ":seq=" + request.getSequenceNumber());
     }
 
-    @Nonnull
-    private static String cacheKey(@Nonnull final SabrSegmentRequest request) {
-        return request.getFormat().getItag() + ":"
-                + (request.isInitializationSegment()
-                ? "init"
-                : request.getSequenceNumber());
+    // -------------------------------------------------------------------------
+    // Diagnostics forwarding. These methods expose observability without making
+    // diagnostics part of the SABR request state above.
+    // -------------------------------------------------------------------------
+
+    private final YoutubeSabrSessionDiagnostics diagnostics = new YoutubeSabrSessionDiagnostics();
+
+    public synchronized void addDiagnosticEvent(@Nonnull final String event) {
+        diagnostics.addEvent(event);
     }
 
     @Nonnull
-    private static String cacheKey(@Nonnull final SabrMediaSegment segment) {
-        final SabrMediaHeader header = segment.getHeader();
-        return header.getItag() + ":"
-                + (header.isInitSegment() ? "init" : header.getSequenceNumber());
+    public synchronized String getDiagnosticTrace() {
+        return diagnostics.getTrace();
+    }
+
+    /** ----------------------------------------------------------------------- */
+    /** Response statistics and trace snapshot forwarding. */
+
+    /** Raw bytes consumed from all SABR HTTP response bodies in this session. */
+    public long getTotalResponseBytes() {
+        return diagnostics.getTotalResponseBytes();
+    }
+
+    public long getMaxResponseBytes() {
+        return diagnostics.getMaxResponseBytes();
+    }
+
+    public long getMaxUmpPartBytes() {
+        return diagnostics.getMaxUmpPartBytes();
+    }
+
+    public long getMaxMediaPartPayloadBytes() {
+        return diagnostics.getMaxMediaPartPayloadBytes();
+    }
+
+    public long getMaxSegmentBytes() {
+        return diagnostics.getMaxSegmentBytes();
+    }
+
+    public int getMaxSegmentsPerResponse() {
+        return diagnostics.getMaxSegmentsPerResponse();
+    }
+
+    public int getMaxStreamProtectionStatus() {
+        return diagnostics.getMaxStreamProtectionStatus();
     }
 
     @Nonnull
-    private YoutubeSabrInfo.Format getCompanionFormat(@Nonnull final YoutubeSabrInfo.Format targetFormat) {
-        if (targetFormat.getItag() == audioFormat.getItag()) {
-            return videoFormat;
+    public String getMemoryDiagnosticSummary() {
+        return diagnostics.getMemorySummary(requestNumber);
+    }
+
+    public void setTraceEnabled(final boolean traceEnabled) {
+        diagnostics.setTraceEnabled(traceEnabled);
+    }
+
+    @Nonnull
+    public TraceSnapshot getTraceSnapshot() {
+        return diagnostics.snapshot(requestNumber);
+    }
+
+    @Nonnull
+    private static String summarizeSegments(@Nonnull final List<SabrMediaSegment> segments) {
+        if (segments.isEmpty()) {
+            return "[]";
         }
-        if (targetFormat.getItag() == videoFormat.getItag()) {
-            return audioFormat;
+        final StringBuilder summary = new StringBuilder("[");
+        for (int i = 0; i < segments.size(); i++) {
+            if (i > 0) {
+                summary.append(',');
+            }
+            final SabrMediaSegment segment = segments.get(i);
+            summary.append(segment.getHeader().getItag()).append(':');
+            summary.append(segment.getHeader().isInitSegment()
+                    ? "init" : segment.getHeader().getSequenceNumber());
         }
-        throw new IllegalArgumentException("Unknown SABR itag: " + targetFormat.getItag());
+        return summary.append(']').toString();
+    }
+
+    public static final class TraceSnapshot {
+        private final long responseBytes;
+        private final long mediaPayloadBytes;
+        private final long controlPayloadBytes;
+        private final long umpOverheadBytes;
+        private final long discardedBytes;
+        private final int requestNumber;
+        @Nonnull private final List<String> segments;
+        @Nonnull private final List<String> discards;
+        @Nonnull private final List<String> responses;
+
+        TraceSnapshot(final long responseBytes, final long mediaPayloadBytes,
+                      final long controlPayloadBytes, final long umpOverheadBytes,
+                      final long discardedBytes, final int requestNumber,
+                      @Nonnull final List<String> segments,
+                      @Nonnull final List<String> discards,
+                      @Nonnull final List<String> responses) {
+            this.responseBytes = responseBytes;
+            this.mediaPayloadBytes = mediaPayloadBytes;
+            this.controlPayloadBytes = controlPayloadBytes;
+            this.umpOverheadBytes = umpOverheadBytes;
+            this.discardedBytes = discardedBytes;
+            this.requestNumber = requestNumber;
+            this.segments = Collections.unmodifiableList(segments);
+            this.discards = Collections.unmodifiableList(discards);
+            this.responses = Collections.unmodifiableList(responses);
+        }
+
+        public long getResponseBytes() { return responseBytes; }
+        public long getMediaPayloadBytes() { return mediaPayloadBytes; }
+        public long getControlPayloadBytes() { return controlPayloadBytes; }
+        public long getUmpOverheadBytes() { return umpOverheadBytes; }
+        public long getDiscardedBytes() { return discardedBytes; }
+        public int getRequestNumber() { return requestNumber; }
+        @Nonnull public List<String> getSegments() { return segments; }
+        @Nonnull public List<String> getDiscards() { return discards; }
+        @Nonnull public List<String> getResponses() { return responses; }
     }
 }
