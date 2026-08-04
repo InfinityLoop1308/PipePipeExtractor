@@ -1,6 +1,8 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import com.grack.nanojson.JsonArray;
+import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.schabi.newpipe.extractor.NewPipe;
@@ -11,6 +13,10 @@ import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.localization.Localization;
+import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
+import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
+import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrResponseDecoder;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,7 +41,7 @@ class YoutubeSabrSessionStreamProtectionTest {
     @Test
     void pendingAttestationDefersBackoffWithoutRefreshingToken() throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING, 20, 2_000));
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_PENDING, 20, 2_000));
         final AtomicInteger tokenRequests = new AtomicInteger();
         final Fixture fixture = createFixture(downloader, (info, state) -> {
             tokenRequests.incrementAndGet();
@@ -51,16 +57,16 @@ class YoutubeSabrSessionStreamProtectionTest {
         assertEquals(0, result.getSegmentCount());
         assertEquals(0, tokenRequests.get());
         assertEquals(1, downloader.requestCount.get());
-        assertEquals(SabrStreamProtectionStatus.ATTESTATION_PENDING,
+        assertEquals(YoutubeSabrResponse.ATTESTATION_PENDING,
                 fixture.session.getMaxStreamProtectionStatus());
-        assertTrue(fixture.session.getDemandBackoffRemainingMs() > 0);
+        assertTrue(fixture.session.getBackoffRemainingMs() > 0);
         assertTrue(fixture.session.getDiagnosticTrace().contains("protection=2/20"));
     }
 
     @Test
     void rejectedAttestationTerminatesBeforeBackoff() throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_REQUIRED, 20, 59_000));
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_REQUIRED, 20, 59_000));
         final Fixture fixture = createFixture(downloader, null);
 
         final SabrProtocolException failure = assertThrows(SabrProtocolException.class,
@@ -69,16 +75,16 @@ class YoutubeSabrSessionStreamProtectionTest {
 
         assertTrue(failure.getMessage().contains("attestation required"));
         assertEquals(1, downloader.requestCount.get());
-        assertEquals(SabrStreamProtectionStatus.ATTESTATION_REQUIRED,
+        assertEquals(YoutubeSabrResponse.ATTESTATION_REQUIRED,
                 fixture.session.getMaxStreamProtectionStatus());
-        assertEquals(0, fixture.session.getDemandBackoffRemainingMs());
+        assertEquals(0, fixture.session.getBackoffRemainingMs());
         assertTrue(fixture.session.getDiagnosticTrace().contains("protection=3/20"));
     }
 
     @Test
     void repeatedPendingAttestationFailsAtIndependentDeadLoopLimit() throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING, 20, 0));
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_PENDING, 20, 0));
         final Fixture fixture = createFixture(downloader, null);
         final SabrSegmentRequest request = SabrSegmentRequest.media(fixture.videoFormat, 1);
 
@@ -96,7 +102,7 @@ class YoutubeSabrSessionStreamProtectionTest {
     @Test
     void pendingAttestationRotatesVisitorPlayerAndVideoTokenEpoch() throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING, 20, 2_000),
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_PENDING, 20, 2_000),
                 protectionResponse(1, 0, 0));
         final AtomicInteger invalidations = new AtomicInteger();
         final AtomicInteger tokenRequests = new AtomicInteger();
@@ -135,7 +141,7 @@ class YoutubeSabrSessionStreamProtectionTest {
                         "https://example.com/sabr?alr=yes&cpn=cpn&rn=0",
                         "https://example.com/fresh-sabr?alr=yes&cpn=cpn&rn=0"),
                 downloader.requestUrls);
-        assertEquals(SabrStreamProtectionStatus.ATTESTATION_PENDING,
+        assertEquals(YoutubeSabrResponse.ATTESTATION_PENDING,
                 fixture.session.getMaxStreamProtectionStatus());
         assertTrue(fixture.session.getDiagnosticTrace().contains(
                 "attestation_identity_rotation attempt=1 visitorChanged=true bytes=3"));
@@ -147,7 +153,7 @@ class YoutubeSabrSessionStreamProtectionTest {
             throws Exception {
         final byte[] targetData = new byte[]{4, 5, 6, 7};
         final FakeDownloader downloader = new FakeDownloader(
-                protectionMediaResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING,
+                protectionMediaResponse(YoutubeSabrResponse.ATTESTATION_PENDING,
                         20, 2_000, 299, 1, targetData),
                 protectionResponse(1, 0, 0));
         final AtomicInteger invalidations = new AtomicInteger();
@@ -197,7 +203,7 @@ class YoutubeSabrSessionStreamProtectionTest {
     @Test
     void pendingAttestationRejectsPlayerReloadWithoutSessionPoToken() throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING, 20, 2_000));
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_PENDING, 20, 2_000));
         final AtomicInteger invalidations = new AtomicInteger();
         final AtomicInteger videoTokenRequests = new AtomicInteger();
         final SabrPoTokenProvider tokenProvider = new SabrPoTokenProvider() {
@@ -236,7 +242,7 @@ class YoutubeSabrSessionStreamProtectionTest {
     void pendingAttestationRejectsUnchangedVisitorWithoutDiscardingCurrentToken()
             throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionResponse(SabrStreamProtectionStatus.ATTESTATION_PENDING, 20, 2_000));
+                protectionResponse(YoutubeSabrResponse.ATTESTATION_PENDING, 20, 2_000));
         final AtomicInteger invalidations = new AtomicInteger();
         final AtomicInteger videoTokenRequests = new AtomicInteger();
         final SabrPoTokenProvider tokenProvider = new SabrPoTokenProvider() {
@@ -267,7 +273,7 @@ class YoutubeSabrSessionStreamProtectionTest {
         assertEquals(1, invalidations.get());
         assertEquals(0, videoTokenRequests.get());
         assertArrayEquals(new byte[]{1, 2, 3}, fixture.session.getStreamState().getPoToken());
-        assertTrue(fixture.session.getDemandBackoffRemainingMs() > 0);
+        assertTrue(fixture.session.getBackoffRemainingMs() > 0);
         assertTrue(fixture.session.getDiagnosticTrace().contains(
                 "attestation_identity_rotation_rejected attempt=1 reason=visitor_unchanged"));
         assertFalse(fixture.session.getDiagnosticTrace().contains(
@@ -278,7 +284,7 @@ class YoutubeSabrSessionStreamProtectionTest {
     void fetchSegmentRejectsMediaBearingRequiredAttestationBeforeReturningTarget()
             throws Exception {
         final FakeDownloader downloader = new FakeDownloader(
-                protectionMediaResponse(SabrStreamProtectionStatus.ATTESTATION_REQUIRED,
+                protectionMediaResponse(YoutubeSabrResponse.ATTESTATION_REQUIRED,
                         20, 59_000, 299, 1, new byte[]{4, 5, 6, 7}));
         final Fixture fixture = createFixture(downloader, null);
 
@@ -288,7 +294,7 @@ class YoutubeSabrSessionStreamProtectionTest {
 
         assertTrue(failure.getMessage().contains("attestation required"));
         assertEquals(1, downloader.requestCount.get());
-        assertEquals(SabrStreamProtectionStatus.ATTESTATION_REQUIRED,
+        assertEquals(YoutubeSabrResponse.ATTESTATION_REQUIRED,
                 fixture.session.getMaxStreamProtectionStatus());
     }
 
@@ -304,7 +310,7 @@ class YoutubeSabrSessionStreamProtectionTest {
 
         assertArrayEquals(targetData, segment.getData());
         assertEquals(1, downloader.requestCount.get());
-        assertTrue(fixture.session.getDemandBackoffRemainingMs() > 0);
+        assertTrue(fixture.session.getBackoffRemainingMs() > 0);
     }
 
     @Nonnull
@@ -328,8 +334,7 @@ class YoutubeSabrSessionStreamProtectionTest {
                 + "{\"itag\":299,\"lastModified\":\"2\",\"mimeType\":\"video/mp4\","
                 + "\"width\":1920,\"height\":1080,\"bitrate\":4000000,"
                 + "\"contentLength\":\"2000\",\"approxDurationMs\":\"60000\"}]");
-        final List<YoutubeSabrFormat> parsedFormats =
-                YoutubeSabrFormat.fromAdaptiveFormats("video", formats);
+        final List<YoutubeSabrInfo.Format> parsedFormats = parseFormats(formats);
         final YoutubeSabrInfo info = sabrInfo("visitor", "https://example.com/sabr");
         final YoutubeSabrSession session = playerInfoReloader == null
                 ? new YoutubeSabrSession(
@@ -357,15 +362,26 @@ class YoutubeSabrSessionStreamProtectionTest {
                 + "\"width\":1920,\"height\":1080,\"bitrate\":4000000,"
                 + "\"contentLength\":\"2000\",\"approxDurationMs\":\"60000\"}]");
         return new YoutubeSabrInfo(
-                YoutubeSabrClientProfile.MWEB,
                 "video",
                 "cpn",
-                YoutubeSabrClientProfile.MWEB.getClientVersion(),
+                "2.20250122.04.00",
                 visitorData,
                 streamingUrl,
                 "AA==",
-                YoutubeSabrFormat.fromAdaptiveFormats("video", formats),
+                parseFormats(formats),
                 playerPoTokenAttached);
+    }
+
+    @Nonnull
+    private static List<YoutubeSabrInfo.Format> parseFormats(@Nonnull final JsonArray formats)
+            throws Exception {
+        final JsonObject streamingData = new JsonObject();
+        streamingData.put("serverAbrStreamingUrl", "https://example.com/sabr");
+        streamingData.put("adaptiveFormats", formats);
+        final JsonObject response = new JsonObject();
+        response.put("streamingData", streamingData);
+        return YoutubeStreamExtractor.buildSabrInfoFromPlayerResponse(
+                "video", "cpn", response, null, "2.20250122.04.00").getFormats();
     }
 
     @Nonnull
@@ -434,10 +450,10 @@ class YoutubeSabrSessionStreamProtectionTest {
 
     private static final class Fixture {
         @Nonnull private final YoutubeSabrSession session;
-        @Nonnull private final YoutubeSabrFormat videoFormat;
+        @Nonnull private final YoutubeSabrInfo.Format videoFormat;
 
         private Fixture(@Nonnull final YoutubeSabrSession session,
-                        @Nonnull final YoutubeSabrFormat videoFormat) {
+                        @Nonnull final YoutubeSabrInfo.Format videoFormat) {
             this.session = session;
             this.videoFormat = videoFormat;
         }

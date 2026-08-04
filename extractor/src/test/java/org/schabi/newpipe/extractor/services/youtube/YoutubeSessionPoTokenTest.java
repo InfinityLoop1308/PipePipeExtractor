@@ -7,9 +7,8 @@ import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile;
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -136,8 +135,8 @@ class YoutubeSessionPoTokenTest {
                 + "\"serverAbrStreamingUrl\":\"https://example.com/sabr\","
                 + "\"adaptiveFormats\":[]}}");
 
-        final YoutubeSabrInfo info = YoutubeSabrProbe.fromPlayerResponse("video",
-                YoutubeSabrClientProfile.MWEB, "cpn", response, "request-visitor");
+        final YoutubeSabrInfo info = YoutubeStreamExtractor.buildSabrInfoFromPlayerResponse("video",
+                "cpn", response, "request-visitor");
 
         assertEquals("request-visitor", info.getVisitorData());
     }

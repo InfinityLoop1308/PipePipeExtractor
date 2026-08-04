@@ -4,8 +4,6 @@ import com.grack.nanojson.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoToken;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile;
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
@@ -32,7 +30,7 @@ class YoutubeStreamExtractorSessionPoTokenTest {
                 + "\"adaptiveFormats\":[]}}");
 
         final YoutubeSabrInfo info = YoutubeStreamExtractor.buildSabrInfoFromPlayerResponse(
-                "video", YoutubeSabrClientProfile.MWEB, "cpn", response, "request-visitor",
+                "video", "cpn", response, "request-visitor",
                 "2.test");
 
         assertEquals("request-visitor", info.getVisitorData());

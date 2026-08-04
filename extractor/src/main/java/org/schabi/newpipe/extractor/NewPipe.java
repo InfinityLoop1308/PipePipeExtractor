@@ -24,7 +24,6 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
-import org.schabi.newpipe.extractor.services.youtube.YoutubeSessionPoTokenProvider;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,8 +46,6 @@ public final class NewPipe {
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
     private static String youtubePlayerClient = "android_vr";
-    @Nullable
-    private static YoutubeSessionPoTokenProvider youtubeSessionPoTokenProvider;
     @Nullable
     private static WebViewAvailabilityChecker webViewAvailabilityChecker;
 
@@ -179,16 +176,6 @@ public final class NewPipe {
         } else {
             NewPipe.youtubePlayerClient = "android_vr";
         }
-    }
-
-    public static void setYoutubeSessionPoTokenProvider(
-            @Nullable final YoutubeSessionPoTokenProvider provider) {
-        youtubeSessionPoTokenProvider = provider;
-    }
-
-    @Nullable
-    public static YoutubeSessionPoTokenProvider getYoutubeSessionPoTokenProvider() {
-        return youtubeSessionPoTokenProvider;
     }
 
     public static void setWebViewAvailabilityChecker(

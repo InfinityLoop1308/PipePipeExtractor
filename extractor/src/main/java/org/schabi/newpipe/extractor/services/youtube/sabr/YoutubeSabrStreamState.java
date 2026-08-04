@@ -1,5 +1,14 @@
 package org.schabi.newpipe.extractor.services.youtube.sabr;
 
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
+import org.schabi.newpipe.extractor.services.youtube.sabr.generated.SabrFormatInitializationMetadata;
+import org.schabi.newpipe.extractor.services.youtube.sabr.generated.SabrMediaHeader;
+import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
+import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMp4SegmentIndexParser;
+import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrSegmentIndex;
+import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrWebmSegmentIndexParser;
+import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -11,67 +20,36 @@ import java.util.Map;
 import java.util.Set;
 
 public final class YoutubeSabrStreamState {
-    public static final int TRACK_MODE_VIDEO_AND_AUDIO =
-            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
-    public static final int TRACK_MODE_AUDIO_ONLY =
-            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_AUDIO_ONLY;
-    public static final int TRACK_MODE_VIDEO_ONLY =
-            YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_ONLY;
+    public static final int TRACK_MODE_VIDEO_AND_AUDIO = 0;
+    public static final int TRACK_MODE_AUDIO_ONLY = 1;
+    public static final int TRACK_MODE_VIDEO_ONLY = 2;
 
     private final FormatProgress audio;
     private final FormatProgress video;
-    private final Map<Integer, SabrContextUpdate> sabrContexts = new LinkedHashMap<>();
+    private final Map<Integer, byte[]> sabrContexts = new LinkedHashMap<>();
     private final Set<Integer> activeSabrContextTypes = new LinkedHashSet<>();
     @Nullable
     private byte[] playbackCookie;
     @Nullable
     private byte[] poToken;
-    @Nullable
-    private volatile SabrNextRequestPolicy nextRequestPolicy;
+    private volatile int targetAudioReadaheadMs = -1;
+    private volatile int targetVideoReadaheadMs = -1;
+    private volatile int maxTimeSinceLastRequestMs = -1;
+    private volatile int minAudioReadaheadMs = -1;
+    private volatile int minVideoReadaheadMs = -1;
     private long playerTimeMsOverride = -1;
-    private boolean audioFullyBuffered;
-    private boolean videoFullyBuffered;
-    private boolean audioLastOnlyRange;
-    private boolean videoLastOnlyRange;
-    private boolean lastOnlyRangesUseObservedTiming;
-    private volatile int enabledTrackTypesBitfield = YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO;
+    private volatile int enabledTrackTypesBitfield = TRACK_MODE_VIDEO_AND_AUDIO;
     private volatile boolean selectAudioFormat = true;
     private volatile boolean selectVideoFormat = true;
     private volatile boolean preferAudioFormat = true;
     private volatile boolean preferVideoFormat = true;
     private boolean writeFirstRequestPlaybackState;
     private boolean writeTopLevelPlayerTimeMs = true;
-    private int clientViewportWidth = -1;
-    private int clientViewportHeight = -1;
     private long bandwidthEstimate = -1;
     private float playbackRate = 1.0f;
-    // Experimental knobs used by local SABR probes. Defaults preserve the normal request shape.
-    private int bufferedRangeStartSegmentIndexOffset;
-    private int bufferedRangeEndSegmentIndexOffset;
-    @Nullable
-    private Integer clientAbrVisibility = 1;
     private boolean writeLastManualSelectedResolution;
-    private boolean writeAllPreferredFormats;
-    private boolean writeOfficialWebPreferredFormats;
     private boolean selectVideoFormatBeforeAudio;
-    private boolean writeBufferedRangeTimeRange = true;
-    @Nullable
-    private Integer stickyResolutionOverride;
-    @Nullable
-    private Long officialTimeSinceLastSeekOverride;
-    @Nullable
-    private Long officialElapsedWallTimeOverride;
-    @Nullable
-    private Long officialTimeSinceLastActionOverride;
-    @Nullable
-    private Long officialField57Override;
-    @Nullable
-    private Long officialField68Override;
-    @Nullable
-    private Integer sabrReportRequestCancellationInfoOverride;
-    private boolean writeOfficialWebClientAbrFields;
-    @Nullable
-    private List<SabrBufferedRange> bufferedRangesOverride;
+    private boolean suppressBufferedRanges;
 
     // how close to the head counts as "at the live edge" (segments of slack before we wait)
     private static final long LIVE_EDGE_MARGIN_SEGMENTS = 2;
@@ -82,54 +60,41 @@ public final class YoutubeSabrStreamState {
     private long liveHeadSequenceNumber = -1;
     private long liveHeadTimeMs = -1;
 
-    public YoutubeSabrStreamState(@Nonnull final YoutubeSabrFormat audioFormat,
-                                  @Nonnull final YoutubeSabrFormat videoFormat) {
+    public YoutubeSabrStreamState(@Nonnull final YoutubeSabrInfo.Format audioFormat,
+                                  @Nonnull final YoutubeSabrInfo.Format videoFormat) {
         audio = new FormatProgress(audioFormat);
         video = new FormatProgress(videoFormat);
     }
 
-    public boolean ingest(@Nonnull final SabrDecodedResponse response) {
-        return ingest(SabrResponseStatePatch.builtin(response));
-    }
-
-    public boolean ingest(@Nonnull final SabrResponseStatePatch patch) {
-        final boolean progressed = ingestLocalProgress(patch);
-        final SabrNextRequestPolicy nextRequestPolicy = patch.getNextRequestPolicy();
+    public boolean ingest(@Nonnull final YoutubeSabrResponse response) {
+        final boolean progressed = ingestLocalProgress(response);
+        final byte[] nextRequestPolicy = response.getNextRequestPolicy();
         if (nextRequestPolicy != null) {
-            this.nextRequestPolicy = nextRequestPolicy;
+            ingestNextRequestPolicy(nextRequestPolicy);
         }
-        if (nextRequestPolicy != null && nextRequestPolicy.getRawPlaybackCookie() != null) {
-            playbackCookie = nextRequestPolicy.getRawPlaybackCookie().clone();
-        }
-        for (final SabrContextUpdate contextUpdate : patch.getContextUpdates()) {
+        for (final byte[] contextUpdate : response.getSabrContextUpdates()) {
             ingestContextUpdate(contextUpdate);
         }
-        if (patch.getContextSendingPolicy() != null) {
-            ingestContextSendingPolicy(patch.getContextSendingPolicy());
+        final byte[] contextSendingPolicy = response.getSabrContextSendingPolicy();
+        if (contextSendingPolicy != null) {
+            ingestContextSendingPolicy(contextSendingPolicy);
         }
         return progressed;
     }
 
-    boolean ingestLocalProgress(@Nonnull final SabrResponseStatePatch patch) {
+    boolean ingestLocalProgress(@Nonnull final YoutubeSabrResponse response) {
         boolean progressed = false;
-        for (final SabrLiveMetadata meta : patch.getLiveMetadata()) {
-            live = true;
-            postLiveDvr = meta.isPostLiveDvr();
-            if (meta.getHeadSequenceNumber() >= 0) {
-                liveHeadSequenceNumber = meta.getHeadSequenceNumber();
-            }
-            if (meta.getHeadTimeMs() >= 0) {
-                liveHeadTimeMs = meta.getHeadTimeMs();
-            }
+        for (final byte[] metadata : response.getLiveMetadata()) {
+            ingestLiveMetadata(metadata);
         }
         for (final SabrFormatInitializationMetadata metadata
-                : patch.getFormatMetadata()) {
+                : response.getFormatInitializationMetadata()) {
             final FormatProgress progress = findProgressForItag(metadata.getItag());
             if (progress != null) {
                 progressed |= progress.observeMetadata(metadata);
             }
         }
-        for (final SabrMediaHeader header : patch.getMediaHeaders()) {
+        for (final SabrMediaHeader header : response.getMediaHeaders()) {
             final FormatProgress progress = findProgressForItag(header.getItag());
             if (progress != null) {
                 progressed |= progress.observeHeader(header);
@@ -143,7 +108,7 @@ public final class YoutubeSabrStreamState {
         return progress != null && progress.observeSegment(segment);
     }
 
-    public boolean ingestInitializationData(@Nonnull final YoutubeSabrFormat format,
+    public boolean ingestInitializationData(@Nonnull final YoutubeSabrInfo.Format format,
                                             @Nonnull final byte[] data) {
         final FormatProgress progress = findProgressForItag(format.getItag());
         if (progress == null) {
@@ -154,38 +119,20 @@ public final class YoutubeSabrStreamState {
         return true;
     }
 
-    @Nonnull
-    public List<SabrBufferedRange> getBufferedRanges() {
-        if (bufferedRangesOverride != null) {
-            return new ArrayList<>(bufferedRangesOverride);
+    void forEachBufferedRange(@Nonnull final BufferedRangeConsumer consumer) {
+        if (suppressBufferedRanges) {
+            return;
         }
-        final List<SabrBufferedRange> ranges = new ArrayList<>();
         if (isAudioEnabled()) {
-            if (audioFullyBuffered) {
-                ranges.add(SabrBufferedRange.full(audio.format));
-            } else {
-                audio.addBufferedRange(ranges, audioLastOnlyRange,
-                        lastOnlyRangesUseObservedTiming,
-                        bufferedRangeStartSegmentIndexOffset, bufferedRangeEndSegmentIndexOffset);
-            }
+            audio.emitBufferedRange(consumer);
         }
         if (isVideoEnabled()) {
-            if (videoFullyBuffered) {
-                ranges.add(SabrBufferedRange.full(video.format));
-            } else {
-                video.addBufferedRange(ranges, videoLastOnlyRange,
-                        lastOnlyRangesUseObservedTiming,
-                        bufferedRangeStartSegmentIndexOffset, bufferedRangeEndSegmentIndexOffset);
-            }
+            video.emitBufferedRange(consumer);
         }
-        return ranges;
     }
 
-    public void setBufferedRangesOverride(
-            @Nullable final List<SabrBufferedRange> bufferedRangesOverride) {
-        this.bufferedRangesOverride = bufferedRangesOverride == null
-                ? null
-                : new ArrayList<>(bufferedRangesOverride);
+    void setSuppressBufferedRanges(final boolean suppressBufferedRanges) {
+        this.suppressBufferedRanges = suppressBufferedRanges;
     }
 
     public long getPlayerTimeMs() {
@@ -217,7 +164,7 @@ public final class YoutubeSabrStreamState {
         return Math.min(audio.getBufferedEndMs(), video.getBufferedEndMs());
     }
 
-    public long getBufferedEndMs(@Nonnull final YoutubeSabrFormat format) {
+    public long getBufferedEndMs(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).getBufferedEndMs();
     }
 
@@ -231,7 +178,7 @@ public final class YoutubeSabrStreamState {
 
     @Nonnull
     synchronized InitializationRequestSnapshot prepareInitializationRequest(
-            @Nonnull final YoutubeSabrFormat format) {
+            @Nonnull final YoutubeSabrInfo.Format format) {
         final InitializationRequestSnapshot snapshot = new InitializationRequestSnapshot(
                 enabledTrackTypesBitfield,
                 selectAudioFormat,
@@ -239,7 +186,7 @@ public final class YoutubeSabrStreamState {
                 preferAudioFormat,
                 preferVideoFormat,
                 playerTimeMsOverride,
-                bufferedRangesOverride,
+                suppressBufferedRanges,
                 writeFirstRequestPlaybackState,
                 writeTopLevelPlayerTimeMs,
                 writeLastManualSelectedResolution);
@@ -247,7 +194,7 @@ public final class YoutubeSabrStreamState {
         writeFirstRequestPlaybackState = true;
         writeTopLevelPlayerTimeMs = false;
         writeLastManualSelectedResolution = format.isVideo();
-        bufferedRangesOverride = new ArrayList<>();
+        suppressBufferedRanges = true;
         enabledTrackTypesBitfield = format.isVideo()
                 ? TRACK_MODE_VIDEO_ONLY : TRACK_MODE_AUDIO_ONLY;
         selectAudioFormat = false;
@@ -266,8 +213,7 @@ public final class YoutubeSabrStreamState {
         preferAudioFormat = snapshot.preferAudioFormat;
         preferVideoFormat = snapshot.preferVideoFormat;
         playerTimeMsOverride = snapshot.playerTimeMsOverride;
-        bufferedRangesOverride = snapshot.bufferedRangesOverride == null
-                ? null : new ArrayList<>(snapshot.bufferedRangesOverride);
+        suppressBufferedRanges = snapshot.suppressBufferedRanges;
         writeFirstRequestPlaybackState = snapshot.writeFirstRequestPlaybackState;
         writeTopLevelPlayerTimeMs = snapshot.writeTopLevelPlayerTimeMs;
         writeLastManualSelectedResolution = snapshot.writeLastManualSelectedResolution;
@@ -279,16 +225,20 @@ public final class YoutubeSabrStreamState {
 
     void resetServerSessionState() {
         playbackCookie = null;
-        nextRequestPolicy = null;
+        targetAudioReadaheadMs = -1;
+        targetVideoReadaheadMs = -1;
+        maxTimeSinceLastRequestMs = -1;
+        minAudioReadaheadMs = -1;
+        minVideoReadaheadMs = -1;
         sabrContexts.clear();
         activeSabrContextTypes.clear();
     }
 
-    boolean isInitialized(@Nonnull final YoutubeSabrFormat format) {
+    boolean isInitialized(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).initReceived;
     }
 
-    void resetInitialization(@Nonnull final YoutubeSabrFormat format) {
+    void resetInitialization(@Nonnull final YoutubeSabrInfo.Format format) {
         progressForItag(format.getItag()).initReceived = false;
     }
 
@@ -317,12 +267,12 @@ public final class YoutubeSabrStreamState {
     }
 
     @Nonnull
-    Collection<SabrContextUpdate> getActiveSabrContexts() {
-        final List<SabrContextUpdate> activeSabrContexts = new ArrayList<>();
+    Map<Integer, byte[]> getActiveSabrContexts() {
+        final Map<Integer, byte[]> activeSabrContexts = new LinkedHashMap<>();
         for (final Integer type : activeSabrContextTypes) {
-            final SabrContextUpdate contextUpdate = sabrContexts.get(type);
-            if (contextUpdate != null) {
-                activeSabrContexts.add(contextUpdate);
+            final byte[] value = sabrContexts.get(type);
+            if (value != null) {
+                activeSabrContexts.put(type, value);
             }
         }
         return activeSabrContexts;
@@ -369,8 +319,8 @@ public final class YoutubeSabrStreamState {
      * reached the edge, so a live-aware pump should wait for the head to advance instead of treating
      * an empty response as the end of the stream. Always false for VOD or before the head is known.
      */
-    public boolean isAtLiveEdge(@Nonnull final YoutubeSabrFormat audioFormat,
-                                @Nonnull final YoutubeSabrFormat videoFormat) {
+    public boolean isAtLiveEdge(@Nonnull final YoutubeSabrInfo.Format audioFormat,
+                                @Nonnull final YoutubeSabrInfo.Format videoFormat) {
         if (!live || liveHeadSequenceNumber < 0) {
             return false;
         }
@@ -378,24 +328,24 @@ public final class YoutubeSabrStreamState {
         return slowerTrack >= liveHeadSequenceNumber - LIVE_EDGE_MARGIN_SEGMENTS;
     }
 
-    public int getMaxSegment(@Nonnull final YoutubeSabrFormat format) {
+    public int getMaxSegment(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).maxSegment;
     }
 
-    public long getEndSegment(@Nonnull final YoutubeSabrFormat format) {
+    public long getEndSegment(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).endSegment;
     }
 
     /** True only after initialization bytes yielded an exact per-segment time index. */
-    public boolean hasSegmentIndex(@Nonnull final YoutubeSabrFormat format) {
+    public boolean hasSegmentIndex(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).segmentIndex != null;
     }
 
-    public boolean isComplete(@Nonnull final YoutubeSabrFormat format) {
+    public boolean isComplete(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).isComplete();
     }
 
-    public void assumeBufferedUntil(@Nonnull final YoutubeSabrFormat format,
+    public void assumeBufferedUntil(@Nonnull final YoutubeSabrInfo.Format format,
                                     final int endSegment) {
         if (endSegment > 0) {
             progressForItag(format.getItag()).assumeBufferedUntil(endSegment);
@@ -407,7 +357,7 @@ public final class YoutubeSabrStreamState {
      * re-sends from it. {@link #assumeBufferedUntil} only ever extends the buffered head, so it
      * cannot rewind; this shrinks it.
      */
-    public void rewindBufferedTo(@Nonnull final YoutubeSabrFormat format, final int fromSegment) {
+    public void rewindBufferedTo(@Nonnull final YoutubeSabrInfo.Format format, final int fromSegment) {
         if (fromSegment > 0) {
             progressForItag(format.getItag()).rewindBufferedTo(fromSegment);
         }
@@ -419,47 +369,10 @@ public final class YoutubeSabrStreamState {
      * target instead of filling the skipped span. {@link #rewindBufferedTo} is the backward
      * counterpart.
      */
-    public void jumpBufferedTo(@Nonnull final YoutubeSabrFormat format, final int fromSegment) {
+    public void jumpBufferedTo(@Nonnull final YoutubeSabrInfo.Format format, final int fromSegment) {
         if (fromSegment > 0) {
             progressForItag(format.getItag()).jumpBufferedTo(fromSegment);
         }
-    }
-
-    public void setFullyBuffered(@Nonnull final YoutubeSabrFormat format,
-                                  final boolean fullyBuffered) {
-        if (audio.itag == format.getItag()) {
-            audioFullyBuffered = fullyBuffered;
-        } else if (video.itag == format.getItag()) {
-            videoFullyBuffered = fullyBuffered;
-        } else {
-            throw new IllegalArgumentException("Unknown SABR itag: " + format.getItag());
-        }
-    }
-
-    public void setLastOnlyRange(@Nonnull final YoutubeSabrFormat format,
-                                    final boolean lastOnlyRange) {
-        if (audio.itag == format.getItag()) {
-            audioLastOnlyRange = lastOnlyRange;
-        } else if (video.itag == format.getItag()) {
-            videoLastOnlyRange = lastOnlyRange;
-        } else {
-            throw new IllegalArgumentException("Unknown SABR itag: " + format.getItag());
-        }
-    }
-
-    public void setLastOnlyRangesUseObservedTiming(final boolean useObservedTiming) {
-        lastOnlyRangesUseObservedTiming = useObservedTiming;
-    }
-
-    public void setBufferedRangeSegmentIndexOffset(final int bufferedRangeSegmentIndexOffset) {
-        bufferedRangeStartSegmentIndexOffset = bufferedRangeSegmentIndexOffset;
-        bufferedRangeEndSegmentIndexOffset = bufferedRangeSegmentIndexOffset;
-    }
-
-    public void setBufferedRangeSegmentIndexOffsets(final int startSegmentIndexOffset,
-                                                    final int endSegmentIndexOffset) {
-        bufferedRangeStartSegmentIndexOffset = startSegmentIndexOffset;
-        bufferedRangeEndSegmentIndexOffset = endSegmentIndexOffset;
     }
 
     public synchronized void setRequestTrackMode(final int enabledTrackTypesBitfield,
@@ -480,13 +393,13 @@ public final class YoutubeSabrStreamState {
 
     public void setActiveTrackTypes(final boolean videoActive, final boolean audioActive) {
         if (audioActive && !videoActive) {
-            setRequestTrackMode(YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_AUDIO_ONLY,
+            setRequestTrackMode(TRACK_MODE_AUDIO_ONLY,
                     true, false);
         } else if (videoActive && !audioActive) {
-            setRequestTrackMode(YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_ONLY,
+            setRequestTrackMode(TRACK_MODE_VIDEO_ONLY,
                     false, true);
         } else if (videoActive) {
-            setRequestTrackMode(YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_AND_AUDIO,
+            setRequestTrackMode(TRACK_MODE_VIDEO_AND_AUDIO,
                     true, true);
         }
     }
@@ -504,27 +417,11 @@ public final class YoutubeSabrStreamState {
     }
 
     private boolean isAudioEnabled() {
-        return enabledTrackTypesBitfield
-                != YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_VIDEO_ONLY;
+        return enabledTrackTypesBitfield != TRACK_MODE_VIDEO_ONLY;
     }
 
     private boolean isVideoEnabled() {
-        return enabledTrackTypesBitfield
-                != YoutubeSabrRequestBuilder.ENABLED_TRACK_TYPES_AUDIO_ONLY;
-    }
-
-    public void setClientViewport(final int clientViewportWidth,
-                                  final int clientViewportHeight) {
-        this.clientViewportWidth = clientViewportWidth;
-        this.clientViewportHeight = clientViewportHeight;
-    }
-
-    int getClientViewportWidth() {
-        return clientViewportWidth;
-    }
-
-    int getClientViewportHeight() {
-        return clientViewportHeight;
+        return enabledTrackTypesBitfield != TRACK_MODE_AUDIO_ONLY;
     }
 
     public void setBandwidthEstimate(final long bandwidthEstimate) {
@@ -535,10 +432,11 @@ public final class YoutubeSabrStreamState {
         return bandwidthEstimate;
     }
 
-    @Nullable
-    public SabrNextRequestPolicy getNextRequestPolicy() {
-        return nextRequestPolicy;
-    }
+    public int getTargetAudioReadaheadMs() { return targetAudioReadaheadMs; }
+    public int getTargetVideoReadaheadMs() { return targetVideoReadaheadMs; }
+    public int getMaxTimeSinceLastRequestMs() { return maxTimeSinceLastRequestMs; }
+    public int getMinAudioReadaheadMs() { return minAudioReadaheadMs; }
+    public int getMinVideoReadaheadMs() { return minVideoReadaheadMs; }
 
     public void setPlaybackRate(final float playbackRate) {
         if (playbackRate > 0.0f) {
@@ -562,6 +460,14 @@ public final class YoutubeSabrStreamState {
         return selectVideoFormat;
     }
 
+    boolean isAudioTrackEnabled() {
+        return isAudioEnabled();
+    }
+
+    boolean isVideoTrackEnabled() {
+        return isVideoEnabled();
+    }
+
     boolean shouldPreferAudioFormat() {
         return preferAudioFormat;
     }
@@ -578,47 +484,12 @@ public final class YoutubeSabrStreamState {
         return writeFirstRequestPlaybackState;
     }
 
-    public void setWriteTopLevelPlayerTimeMs(final boolean writeTopLevelPlayerTimeMs) {
-        this.writeTopLevelPlayerTimeMs = writeTopLevelPlayerTimeMs;
-    }
-
     boolean shouldWriteTopLevelPlayerTimeMs() {
         return writeTopLevelPlayerTimeMs;
     }
 
-    public void setClientAbrVisibility(@Nullable final Integer clientAbrVisibility) {
-        this.clientAbrVisibility = clientAbrVisibility;
-    }
-
-    @Nullable
-    Integer getClientAbrVisibility() {
-        return clientAbrVisibility;
-    }
-
-    public void setWriteLastManualSelectedResolution(
-            final boolean writeLastManualSelectedResolution) {
-        this.writeLastManualSelectedResolution = writeLastManualSelectedResolution;
-    }
-
     boolean shouldWriteLastManualSelectedResolution() {
         return writeLastManualSelectedResolution;
-    }
-
-    public void setWriteAllPreferredFormats(final boolean writeAllPreferredFormats) {
-        this.writeAllPreferredFormats = writeAllPreferredFormats;
-    }
-
-    boolean shouldWriteAllPreferredFormats() {
-        return writeAllPreferredFormats;
-    }
-
-    public void setWriteOfficialWebPreferredFormats(
-            final boolean writeOfficialWebPreferredFormats) {
-        this.writeOfficialWebPreferredFormats = writeOfficialWebPreferredFormats;
-    }
-
-    boolean shouldWriteOfficialWebPreferredFormats() {
-        return writeOfficialWebPreferredFormats;
     }
 
     public void setSelectVideoFormatBeforeAudio(final boolean selectVideoFormatBeforeAudio) {
@@ -629,110 +500,38 @@ public final class YoutubeSabrStreamState {
         return selectVideoFormatBeforeAudio;
     }
 
-    public void setWriteBufferedRangeTimeRange(final boolean writeBufferedRangeTimeRange) {
-        this.writeBufferedRangeTimeRange = writeBufferedRangeTimeRange;
-    }
-
-    boolean shouldWriteBufferedRangeTimeRange() {
-        return writeBufferedRangeTimeRange;
-    }
-
-    public void setStickyResolutionOverride(@Nullable final Integer stickyResolutionOverride) {
-        this.stickyResolutionOverride = stickyResolutionOverride;
-    }
-
-    @Nullable
-    Integer getStickyResolutionOverride() {
-        return stickyResolutionOverride;
-    }
-
-    public void setOfficialWebClientAbrTimingOverrides(
-            @Nullable final Long timeSinceLastSeek,
-            @Nullable final Long elapsedWallTime,
-            @Nullable final Long timeSinceLastAction,
-            @Nullable final Long field57) {
-        officialTimeSinceLastSeekOverride = timeSinceLastSeek;
-        officialElapsedWallTimeOverride = elapsedWallTime;
-        officialTimeSinceLastActionOverride = timeSinceLastAction;
-        officialField57Override = field57;
-    }
-
-    public void setOfficialField68Override(@Nullable final Long field68) {
-        officialField68Override = field68;
-    }
-
-    @Nullable
-    Long getOfficialTimeSinceLastSeekOverride() {
-        return officialTimeSinceLastSeekOverride;
-    }
-
-    @Nullable
-    Long getOfficialElapsedWallTimeOverride() {
-        return officialElapsedWallTimeOverride;
-    }
-
-    @Nullable
-    Long getOfficialTimeSinceLastActionOverride() {
-        return officialTimeSinceLastActionOverride;
-    }
-
-    @Nullable
-    Long getOfficialField57Override() {
-        return officialField57Override;
-    }
-
-    @Nullable
-    Long getOfficialField68Override() {
-        return officialField68Override;
-    }
-
-    public void setSabrReportRequestCancellationInfoOverride(
-            @Nullable final Integer sabrReportRequestCancellationInfoOverride) {
-        this.sabrReportRequestCancellationInfoOverride = sabrReportRequestCancellationInfoOverride;
-    }
-
-    @Nullable
-    Integer getSabrReportRequestCancellationInfoOverride() {
-        return sabrReportRequestCancellationInfoOverride;
-    }
-
-    public void setWriteOfficialWebClientAbrFields(
-            final boolean writeOfficialWebClientAbrFields) {
-        this.writeOfficialWebClientAbrFields = writeOfficialWebClientAbrFields;
-    }
-
-    boolean shouldWriteOfficialWebClientAbrFields() {
-        return writeOfficialWebClientAbrFields;
-    }
-
     @Nonnull
     public String summarizeBufferedRanges() {
-        final List<SabrBufferedRange> ranges = getBufferedRanges();
         final StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < ranges.size(); i++) {
-            if (i > 0) {
+        forEachBufferedRange((itag, lastModified, xtags, startTimeMs, durationMs,
+                              startSegmentIndex, endSegmentIndex, timescale) -> {
+            if (builder.length() > 0) {
                 builder.append(',');
             }
-            builder.append(ranges.get(i).summarize());
-        }
+            builder.append("itag=").append(itag)
+                    .append(":seq=").append(startSegmentIndex).append('-')
+                    .append(endSegmentIndex)
+                    .append(":time=").append(startTimeMs).append('+').append(durationMs)
+                    .append(":timescale=").append(timescale);
+        });
         return builder.toString();
     }
 
-    public long getAverageSegmentDurationMs(@Nonnull final YoutubeSabrFormat format) {
+    public long getAverageSegmentDurationMs(@Nonnull final YoutubeSabrInfo.Format format) {
         return progressForItag(format.getItag()).averageDurationMs;
     }
 
-    public long getSegmentStartMs(@Nonnull final YoutubeSabrFormat format,
+    public long getSegmentStartMs(@Nonnull final YoutubeSabrInfo.Format format,
                                   final int sequenceNumber) {
         return progressForItag(format.getItag()).getSegmentStartMs(sequenceNumber);
     }
 
-    public long getSegmentEndMs(@Nonnull final YoutubeSabrFormat format,
+    public long getSegmentEndMs(@Nonnull final YoutubeSabrInfo.Format format,
                                  final int sequenceNumber) {
         return progressForItag(format.getItag()).getSegmentEndMs(sequenceNumber);
     }
 
-    public int getSegmentNumberAtOrAfterTimeMs(@Nonnull final YoutubeSabrFormat format,
+    public int getSegmentNumberAtOrAfterTimeMs(@Nonnull final YoutubeSabrInfo.Format format,
                                                final long timeMs) {
         return progressForItag(format.getItag()).getSegmentNumberAtOrAfterTimeMs(timeMs);
     }
@@ -757,32 +556,104 @@ public final class YoutubeSabrStreamState {
         return null;
     }
 
-    private void ingestContextUpdate(@Nonnull final SabrContextUpdate contextUpdate) {
-        if (contextUpdate.getType() < 0 || contextUpdate.getValueLength() == 0) {
-            return;
-        }
-        if (contextUpdate.getWritePolicy() == SabrContextUpdate.WRITE_POLICY_KEEP_EXISTING
-                && sabrContexts.containsKey(contextUpdate.getType())) {
-            return;
-        }
-        sabrContexts.put(contextUpdate.getType(), contextUpdate);
-        if (contextUpdate.isSendByDefault()) {
-            activeSabrContextTypes.add(contextUpdate.getType());
+    private void ingestNextRequestPolicy(@Nonnull final byte[] data) {
+        try {
+            for (final SabrProto.Field field : SabrProto.readFields(data)) {
+                switch (field.getNumber()) {
+                    case 1: targetAudioReadaheadMs = (int) field.getVarint(); break;
+                    case 2: targetVideoReadaheadMs = (int) field.getVarint(); break;
+                    case 3: maxTimeSinceLastRequestMs = (int) field.getVarint(); break;
+                    case 5: minAudioReadaheadMs = (int) field.getVarint(); break;
+                    case 6: minVideoReadaheadMs = (int) field.getVarint(); break;
+                    case 7: playbackCookie = field.getBytes(); break;
+                    default: break;
+                }
+            }
+        } catch (final SabrProtocolException ignored) {
+            // The decoder already records malformed control parts.
         }
     }
 
-    private void ingestContextSendingPolicy(@Nonnull final SabrContextSendingPolicy policy) {
-        activeSabrContextTypes.addAll(policy.getStartPolicy());
-        activeSabrContextTypes.removeAll(policy.getStopPolicy());
-        for (final Integer type : policy.getDiscardPolicy()) {
-            sabrContexts.remove(type);
-            activeSabrContextTypes.remove(type);
+    private void ingestLiveMetadata(@Nonnull final byte[] data) {
+        try {
+            live = true;
+            for (final SabrProto.Field field : SabrProto.readFields(data)) {
+                switch (field.getNumber()) {
+                    case 3: liveHeadSequenceNumber = field.getVarint(); break;
+                    case 4: liveHeadTimeMs = field.getVarint(); break;
+                    case 8: postLiveDvr = field.getVarint() != 0; break;
+                    default: break;
+                }
+            }
+        } catch (final SabrProtocolException ignored) {
+            // The decoder already records malformed control parts.
         }
+    }
+
+    private void ingestContextUpdate(@Nonnull final byte[] data) {
+        int type = -1;
+        byte[] value = null;
+        boolean sendByDefault = false;
+        int writePolicy = -1;
+        try {
+            for (final SabrProto.Field field : SabrProto.readFields(data)) {
+                switch (field.getNumber()) {
+                    case 1: type = (int) field.getVarint(); break;
+                    case 3: value = field.getBytes(); break;
+                    case 4: sendByDefault = field.getVarint() != 0; break;
+                    case 5: writePolicy = (int) field.getVarint(); break;
+                    default: break;
+                }
+            }
+        } catch (final SabrProtocolException ignored) {
+            return;
+        }
+        if (type < 0 || value == null || value.length == 0
+                || writePolicy == 2 && sabrContexts.containsKey(type)) {
+            return;
+        }
+        sabrContexts.put(type, value);
+        if (sendByDefault) activeSabrContextTypes.add(type);
+    }
+
+    private void ingestContextSendingPolicy(@Nonnull final byte[] data) {
+        try {
+            for (final SabrProto.Field field : SabrProto.readFields(data)) {
+                final List<Long> values = field.getWireType() == SabrProto.WIRE_VARINT
+                        ? java.util.Collections.singletonList(field.getVarint())
+                        : field.getWireType() == SabrProto.WIRE_LENGTH_DELIMITED
+                        ? SabrProto.readPackedVarints(field.getBytes())
+                        : java.util.Collections.emptyList();
+                for (final Long value : values) {
+                    final int type = value.intValue();
+                    if (field.getNumber() == 1) activeSabrContextTypes.add(type);
+                    else if (field.getNumber() == 2) activeSabrContextTypes.remove(type);
+                    else if (field.getNumber() == 3) {
+                        sabrContexts.remove(type);
+                        activeSabrContextTypes.remove(type);
+                    }
+                }
+            }
+        } catch (final SabrProtocolException ignored) {
+            // The decoder already records malformed control parts.
+        }
+    }
+
+    @FunctionalInterface
+    interface BufferedRangeConsumer {
+        void accept(int itag,
+                    long lastModified,
+                    @Nullable String xtags,
+                    long startTimeMs,
+                    long durationMs,
+                    int startSegmentIndex,
+                    int endSegmentIndex,
+                    int timescale);
     }
 
     private static final class FormatProgress {
         @Nonnull
-        private final YoutubeSabrFormat format;
+        private final YoutubeSabrInfo.Format format;
         private final int itag;
         private final long lastModified;
         @Nullable
@@ -799,16 +670,14 @@ public final class YoutubeSabrStreamState {
         private volatile long endSegment = -1;
         private long averageDurationMs = 5000;
         private int firstObservedSegment = -1;
-        private int lastObservedSegment = -1;
         private long observedStartMs = -1;
         private long observedEndMs = -1;
-        private long lastObservedDurationMs = -1;
         @Nullable
         private SabrFormatInitializationMetadata metadata;
         @Nullable
         private SabrSegmentIndex segmentIndex;
 
-        private FormatProgress(@Nonnull final YoutubeSabrFormat format) {
+        private FormatProgress(@Nonnull final YoutubeSabrInfo.Format format) {
             this.format = format;
             itag = format.getItag();
             lastModified = format.getLastModified();
@@ -922,10 +791,6 @@ public final class YoutubeSabrStreamState {
             if (firstObservedSegment < 0 || header.getSequenceNumber() < firstObservedSegment) {
                 firstObservedSegment = header.getSequenceNumber();
             }
-            if (header.getSequenceNumber() >= lastObservedSegment) {
-                lastObservedSegment = header.getSequenceNumber();
-                lastObservedDurationMs = header.getDurationMs();
-            }
             if (header.getStartMs() >= 0 && header.getDurationMs() > 0) {
                 if (observedStartMs < 0 || header.getStartMs() < observedStartMs) {
                     observedStartMs = header.getStartMs();
@@ -938,23 +803,8 @@ public final class YoutubeSabrStreamState {
             return false;
         }
 
-        private void addBufferedRange(@Nonnull final List<SabrBufferedRange> ranges,
-                                      final boolean lastOnlyRange,
-                                      final boolean lastOnlyRangeUseObservedTiming,
-                                      final int startSegmentIndexOffset,
-                                      final int endSegmentIndexOffset) {
+        private void emitBufferedRange(@Nonnull final BufferedRangeConsumer consumer) {
             if (!initReceived || maxSegment <= 0) {
-                return;
-            }
-            if (lastOnlyRange && lastObservedSegment > 0) {
-                final long durationMs = lastObservedDurationMs > 0
-                        ? lastObservedDurationMs : averageDurationMs;
-                final long startTimeMs = lastOnlyRangeUseObservedTiming
-                        ? getSegmentStartMs(lastObservedSegment) : 0;
-                ranges.add(new SabrBufferedRange(itag, lastModified, xtags, startTimeMs,
-                        durationMs,
-                        applySegmentIndexOffset(lastObservedSegment, startSegmentIndexOffset),
-                        applySegmentIndexOffset(lastObservedSegment, endSegmentIndexOffset), 1000));
                 return;
             }
             // Only trust observed timing when there is NO hole (contiguous == max); otherwise the
@@ -962,17 +812,11 @@ public final class YoutubeSabrStreamState {
             final boolean canUseObservedTiming = observedStartMs >= 0 && observedEndMs > observedStartMs
                     && observedMaxSegment >= maxSegment && firstObservedSegment > 0
                     && contiguousMaxSegment >= maxSegment;
-            ranges.add(new SabrBufferedRange(itag, lastModified, xtags,
+            consumer.accept(itag, lastModified, xtags,
                     canUseObservedTiming ? observedStartMs : 0,
                     canUseObservedTiming ? observedEndMs - observedStartMs : getBufferedEndMs(),
-                    applySegmentIndexOffset(canUseObservedTiming ? firstObservedSegment : 1,
-                            startSegmentIndexOffset),
-                    applySegmentIndexOffset(contiguousMaxSegment, endSegmentIndexOffset), 1000));
-        }
-
-        private int applySegmentIndexOffset(final int segmentIndex,
-                                            final int segmentIndexOffset) {
-            return Math.max(0, segmentIndex + segmentIndexOffset);
+                    canUseObservedTiming ? firstObservedSegment : 1,
+                    contiguousMaxSegment, 1000);
         }
 
         private long getBufferedEndMs() {
@@ -1048,7 +892,6 @@ public final class YoutubeSabrStreamState {
             contiguousMaxSegment = last;
             observedMaxSegment = Math.min(observedMaxSegment, last);
             firstObservedSegment = -1;
-            lastObservedSegment = -1;
             observedStartMs = -1;
             observedEndMs = -1;
         }
@@ -1074,7 +917,6 @@ public final class YoutubeSabrStreamState {
             // falls back to the contiguous end until fresh headers rebuild it at the target.
             observedMaxSegment = Math.min(observedMaxSegment, contiguousMaxSegment);
             firstObservedSegment = -1;
-            lastObservedSegment = -1;
             observedStartMs = -1;
             observedEndMs = -1;
         }
@@ -1091,8 +933,7 @@ public final class YoutubeSabrStreamState {
         private final boolean preferAudioFormat;
         private final boolean preferVideoFormat;
         private final long playerTimeMsOverride;
-        @Nullable
-        private final List<SabrBufferedRange> bufferedRangesOverride;
+        private final boolean suppressBufferedRanges;
         private final boolean writeFirstRequestPlaybackState;
         private final boolean writeTopLevelPlayerTimeMs;
         private final boolean writeLastManualSelectedResolution;
@@ -1104,7 +945,7 @@ public final class YoutubeSabrStreamState {
                 final boolean preferAudioFormat,
                 final boolean preferVideoFormat,
                 final long playerTimeMsOverride,
-                @Nullable final List<SabrBufferedRange> bufferedRangesOverride,
+                final boolean suppressBufferedRanges,
                 final boolean writeFirstRequestPlaybackState,
                 final boolean writeTopLevelPlayerTimeMs,
                 final boolean writeLastManualSelectedResolution) {
@@ -1114,8 +955,7 @@ public final class YoutubeSabrStreamState {
             this.preferAudioFormat = preferAudioFormat;
             this.preferVideoFormat = preferVideoFormat;
             this.playerTimeMsOverride = playerTimeMsOverride;
-            this.bufferedRangesOverride = bufferedRangesOverride == null
-                    ? null : new ArrayList<>(bufferedRangesOverride);
+            this.suppressBufferedRanges = suppressBufferedRanges;
             this.writeFirstRequestPlaybackState = writeFirstRequestPlaybackState;
             this.writeTopLevelPlayerTimeMs = writeTopLevelPlayerTimeMs;
             this.writeLastManualSelectedResolution = writeLastManualSelectedResolution;

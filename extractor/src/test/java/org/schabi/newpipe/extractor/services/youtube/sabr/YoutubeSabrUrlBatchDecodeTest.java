@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeApiDecoder;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptDecoder;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -52,8 +53,8 @@ class YoutubeSabrUrlBatchDecodeTest {
         final JsonObject playerResponse = new JsonObject();
         playerResponse.put("streamingData", streamingData);
 
-        final YoutubeSabrInfo info = YoutubeSabrProbe.fromPlayerResponse(
-                "video", YoutubeSabrClientProfile.MWEB, "cpn", playerResponse);
+        final YoutubeSabrInfo info = YoutubeStreamExtractor.buildSabrInfoFromPlayerResponse(
+                "video", "cpn", playerResponse, null);
 
         assertEquals(1, decoder.batchCalls);
         assertEquals(3, decoder.lastSignatures.size());

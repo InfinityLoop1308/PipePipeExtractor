@@ -34,9 +34,8 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.localization.*;
 import org.schabi.newpipe.extractor.services.youtube.*;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrClientProfile;
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrInfo;
-import org.schabi.newpipe.extractor.services.youtube.sabr.YoutubeSabrProbe;
 import org.schabi.newpipe.extractor.stream.*;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
@@ -46,7 +45,10 @@ import org.schabi.newpipe.extractor.utils.Utils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -824,7 +826,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             cachedVideoStreams = new ArrayList<>();
             cachedVideoOnlyStreams = new ArrayList<>();
             final String selectedClient = NewPipe.getYoutubePlayerClient();
-            if (("mweb".equals(selectedClient) || "web".equals(selectedClient))
+            if ("mweb".equals(selectedClient)
                     && streamType != StreamType.LIVE_STREAM
                     && streamType != StreamType.POST_LIVE_STREAM
                     && hasSabrStreamingUrl()) {
@@ -854,22 +856,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      */
     private void buildSabrStreams(@Nonnull final String videoId) {
         final YoutubeSabrInfo sabrInfo = buildSabrInfo(videoId);
-        final JsonObject streamingData = getSabrStreamingData();
-        if (streamingData == null) {
+        if (sabrInfo == null) {
             return;
         }
-        final String serverAbrStreamingUrl =
-                streamingData.getString("serverAbrStreamingUrl", EMPTY_STRING);
-        final JsonArray adaptiveFormats = streamingData.getArray(ADAPTIVE_FORMATS);
-        if (adaptiveFormats == null) {
-            return;
-        }
+        final String serverAbrStreamingUrl = Objects.toString(
+                sabrInfo.getServerAbrStreamingUrl(), EMPTY_STRING);
 
-        for (int i = 0; i < adaptiveFormats.size(); i++) {
-            final JsonObject formatData = adaptiveFormats.getObject(i);
+        for (final YoutubeSabrInfo.Format format : sabrInfo.getFormats()) {
             try {
-                final ItagItem itagItem = ItagItem.getItag(formatData.getInt("itag"));
-                fillSabrItagItem(itagItem, formatData);
+                final ItagItem itagItem = format.toItagItem();
                 final String id = String.valueOf(itagItem.id);
 
                 if (itagItem.itagType == ItagItem.ItagType.AUDIO) {
@@ -885,21 +880,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     // info so the player can show a language selector, and key the id on (itag,
                     // track) so the languages aren't collapsed into one by the dedup below.
                     String streamId = id;
-                    if (formatData.has("audioTrack")) {
-                        final JsonObject audioTrack = formatData.getObject("audioTrack");
-                        if (audioTrack.has("id")) {
-                            final String trackId = audioTrack.getString("id");
-                            final String displayName = audioTrack.getString("displayName");
-                            final String langPart = trackId.split("\\.")[0];
-                            final boolean isOriginal = displayName != null
-                                    && (displayName.contains("original")
-                                        || displayName.contains("yokuqala"));
-                            builder.setAudioTrackId(trackId)
-                                    .setAudioTrackName(displayName != null ? displayName
-                                            : (isOriginal ? langPart + " (original)" : langPart))
-                                    .setAudioLocale(langPart.split("-")[0]);
-                            streamId = id + "-" + trackId;
-                        }
+                    final String trackId = format.getAudioTrackId();
+                    if (trackId != null && !trackId.isEmpty()) {
+                        final String displayName = format.getAudioTrackDisplayName();
+                        final String langPart = trackId.split("\\.")[0];
+                        builder.setAudioTrackId(trackId)
+                                .setAudioTrackName(displayName != null ? displayName : langPart)
+                                .setAudioLocale(langPart.split("-")[0]);
+                        streamId = id + "-" + trackId;
                     }
                     final String audioStreamId = streamId;
                     final AudioStream stream = builder.setId(audioStreamId).build();
@@ -1003,26 +991,26 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private ItagInfo createDirectItag(@Nonnull final JsonObject format,
                                       @Nonnull final ItagItem item,
-                                      @Nonnull final String cpn) throws IOException {
-        String url;
-        String signature = null;
-        if (format.has("url")) {
-            url = format.getString("url");
-        } else if (format.has("signatureCipher") || format.has("cipher")) {
-            final Map<String, String> cipher = Parser.compatParseMap(format.getString("cipher",
-                    format.getString("signatureCipher")));
-            url = cipher.get("url") + "&" + cipher.get("sp") + "=SIGNATURE_PLACEHOLDER";
-            signature = cipher.get("s");
-        } else {
+                                      @Nonnull final String cpn)
+            throws IOException, ParsingException {
+        final StreamingUrlParts urlParts = parseStreamingUrl(format);
+        if (urlParts.url == null || urlParts.url.isEmpty()) {
             return null;
+        }
+        String url = urlParts.url;
+        if (urlParts.signature != null) {
+            url += (url.contains("?") ? "&" : "?")
+                    + (urlParts.signatureParameter == null
+                    ? "signature" : urlParts.signatureParameter)
+                    + "=SIGNATURE_PLACEHOLDER";
         }
         url += "&" + CPN + "=" + cpn;
         fillSabrItagItem(item, format);
         final ItagInfo info = new ItagInfo(url, item);
         info.setIsUrl(!"FORMAT_STREAM_TYPE_OTF".equalsIgnoreCase(
                 format.getString("type", EMPTY_STRING)));
-        if (signature != null) {
-            info.setObfuscatedSignature(signature);
+        if (urlParts.signature != null) {
+            info.setObfuscatedSignature(urlParts.signature);
         }
         return info;
     }
@@ -1080,10 +1068,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return null;
         }
         try {
-            final YoutubeSabrClientProfile profile = getSabrClientProfile();
-            return buildSabrInfoFromPlayerResponse(videoId, profile,
-                    getSabrCpn(), playerResponse, playerResponseVisitorData,
-                    playerResponseClientVersion);
+            return buildSabrInfoFromPlayerResponse(videoId, getSabrCpn(), playerResponse,
+                    playerResponseVisitorData, playerResponseClientVersion);
         } catch (final Exception e) {
             addError(e);
             return null;
@@ -1091,54 +1077,295 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     @Nonnull
-    static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
+    public static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
             @Nonnull final String videoId,
-            @Nonnull final YoutubeSabrClientProfile profile,
             @Nonnull final String cpn,
             @Nonnull final JsonObject response,
             @Nullable final String requestVisitorData) throws ExtractionException {
-        return YoutubeSabrProbe.fromPlayerResponse(videoId, profile, cpn, response,
-                requestVisitorData);
+        return buildSabrInfoFromPlayerResponse(videoId, cpn, response,
+                requestVisitorData, resolveSabrClientVersion());
     }
 
     @Nonnull
-    static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
+    public static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
             @Nonnull final String videoId,
-            @Nonnull final YoutubeSabrClientProfile profile,
             @Nonnull final String cpn,
             @Nonnull final JsonObject response,
             @Nullable final String requestVisitorData,
             @Nullable final String requestClientVersion) throws ExtractionException {
-        if (requestClientVersion == null || requestClientVersion.isEmpty()) {
-            return YoutubeSabrProbe.fromPlayerResponse(videoId, profile, cpn, response,
-                    requestVisitorData);
+        final String clientVersion = requestClientVersion == null || requestClientVersion.isEmpty()
+                ? resolveSabrClientVersion() : requestClientVersion;
+        final JsonObject streamingData = response.getObject("streamingData");
+        if (streamingData == null) {
+            throw new SabrProtocolException("MWEB player response has no streamingData");
         }
-        return YoutubeSabrProbe.fromPlayerResponse(videoId, profile, cpn, response,
-                requestVisitorData, requestClientVersion);
+        final String unresolvedServerAbrStreamingUrl =
+                streamingData.getString("serverAbrStreamingUrl");
+        final String ustreamerConfig = extractVideoPlaybackUstreamerConfig(response);
+        final String visitorData = requestVisitorData == null || requestVisitorData.isEmpty()
+                ? extractVisitorData(response) : requestVisitorData;
+        final JsonArray adaptiveFormats = streamingData.getArray("adaptiveFormats");
+        final Set<String> signatures = new LinkedHashSet<>();
+        final Set<String> nParameters = new LinkedHashSet<>();
+        collectSabrDecodeParameters(adaptiveFormats, signatures, nParameters);
+        final String serverAbrN = extractNParameter(unresolvedServerAbrStreamingUrl);
+        if (serverAbrN != null) {
+            nParameters.add(serverAbrN);
+        }
+        YoutubeApiDecoder.BatchDecodeResult decoded = null;
+        String serverAbrStreamingUrl = unresolvedServerAbrStreamingUrl;
+        if (!signatures.isEmpty() || !nParameters.isEmpty()) {
+            decoded = YoutubeJavaScriptPlayerManager.deobfuscateBatch(videoId,
+                    new ArrayList<>(signatures), new ArrayList<>(nParameters));
+            serverAbrStreamingUrl = resolveNParameter(unresolvedServerAbrStreamingUrl,
+                    decoded);
+        }
+        final List<YoutubeSabrInfo.Format> formats = parseSabrFormats(adaptiveFormats, decoded);
+        return new YoutubeSabrInfo(videoId, cpn, clientVersion, visitorData,
+                serverAbrStreamingUrl, ustreamerConfig, formats);
+    }
+
+    private static void collectSabrDecodeParameters(
+            @Nullable final JsonArray formats,
+            @Nonnull final Set<String> signatures,
+            @Nonnull final Set<String> nParameters) throws ParsingException {
+        if (formats == null) {
+            return;
+        }
+        for (int i = 0; i < formats.size(); i++) {
+            final JsonObject format = formats.getObject(i);
+            if (format == null) {
+                continue;
+            }
+            final StreamingUrlParts urlParts = parseStreamingUrl(format);
+            if (urlParts.signature != null) {
+                signatures.add(urlParts.signature);
+            }
+            if (urlParts.nParameter != null) {
+                nParameters.add(urlParts.nParameter);
+            }
+        }
     }
 
     @Nonnull
-    private YoutubeSabrClientProfile getSabrClientProfile() {
-        switch (NewPipe.getYoutubePlayerClient()) {
-            case "web":
-                return YoutubeSabrClientProfile.WEB;
-            default:
-                return YoutubeSabrClientProfile.MWEB;
+    private static List<YoutubeSabrInfo.Format> parseSabrFormats(
+            @Nullable final JsonArray formats,
+            @Nullable final YoutubeApiDecoder.BatchDecodeResult decoded) throws ParsingException {
+        final List<YoutubeSabrInfo.Format> result = new ArrayList<>();
+        if (formats == null) {
+            return result;
+        }
+        for (int i = 0; i < formats.size(); i++) {
+            final JsonObject formatData = formats.getObject(i);
+            if (formatData == null || !formatData.has("itag")) {
+                continue;
+            }
+            final ItagItem parsedFormat;
+            try {
+                parsedFormat = ItagItem.getItag(formatData.getInt("itag"));
+            } catch (final ParsingException ignored) {
+                continue;
+            }
+            try {
+                fillSabrItagItem(parsedFormat, formatData);
+                final JsonObject audioTrack = formatData.getObject("audioTrack");
+                final JsonObject initRange = formatData.getObject("initRange");
+                final JsonObject indexRange = formatData.getObject("indexRange");
+                final long initRangeStart = initRange == null
+                        ? -1 : parseSabrLong(initRange.get("start"));
+                long initRangeEnd = initRange == null
+                        ? -1 : parseSabrLong(initRange.get("end"));
+                if (indexRange != null) {
+                    initRangeEnd = Math.max(initRangeEnd,
+                            parseSabrLong(indexRange.get("end")));
+                }
+                result.add(YoutubeSabrInfo.Format.fromParsedFormat(parsedFormat,
+                        parseSabrLong(formatData.get("lastModified")),
+                        formatData.getString("xtags"), formatData.getString("mimeType"),
+                        audioTrack == null ? null : audioTrack.getString("id"),
+                        audioTrack == null ? null : audioTrack.getString("displayName"),
+                        formatData.getBoolean("isDrc", false),
+                        resolveStreamingUrl(formatData, decoded),
+                        initRangeStart, initRangeEnd));
+            } catch (final RuntimeException ignored) {
+                // Skip malformed and unsupported formats without discarding the complete response.
+            }
+        }
+        return result;
+    }
+
+    @Nullable
+    private static String resolveStreamingUrl(
+            @Nonnull final JsonObject format,
+            @Nullable final YoutubeApiDecoder.BatchDecodeResult decoded) throws ParsingException {
+        final StreamingUrlParts parts = parseStreamingUrl(format);
+        String url = parts.url;
+        if (url == null || url.isEmpty()) {
+            return url;
+        }
+        if (parts.signature != null) {
+            if (decoded == null) {
+                return null;
+            }
+            final String signature = decoded.getSignatures().get(parts.signature);
+            if (signature == null) {
+                return null;
+            }
+            url += (url.contains("?") ? "&" : "?")
+                    + encodeUrlComponent(parts.signatureParameter == null
+                    ? "signature" : parts.signatureParameter)
+                    + '=' + encodeUrlComponent(signature);
+        }
+        return decoded == null ? url : resolveNParameter(url, decoded);
+    }
+
+    @Nonnull
+    private static StreamingUrlParts parseStreamingUrl(
+            @Nonnull final JsonObject format) throws ParsingException {
+        String url = format.getString("url");
+        String signature = null;
+        String signatureParameter = null;
+        final String cipher = format.has("signatureCipher")
+                ? format.getString("signatureCipher") : format.getString("cipher");
+        if ((url == null || url.isEmpty()) && cipher != null && !cipher.isEmpty()) {
+            try {
+                final Map<String, String> values = Parser.compatParseMap(cipher);
+                url = values.get("url");
+                signature = values.get("s");
+                signatureParameter = values.getOrDefault("sp", "signature");
+            } catch (final UnsupportedEncodingException e) {
+                throw new ParsingException("Could not parse SABR signature cipher", e);
+            }
+        }
+        return new StreamingUrlParts(url, signature, signatureParameter,
+                extractNParameter(url));
+    }
+
+    @Nullable
+    private static String resolveNParameter(
+            @Nullable final String url,
+            @Nonnull final YoutubeApiDecoder.BatchDecodeResult decoded) throws ParsingException {
+        if (url == null || url.isEmpty()) {
+            return url;
+        }
+        final String encryptedN = extractNParameter(url);
+        if (encryptedN == null) {
+            return url;
+        }
+        final String decryptedN = decoded.getNParameters().get(encryptedN);
+        if (decryptedN == null) {
+            return url;
+        }
+        final java.util.regex.Matcher queryMatcher = java.util.regex.Pattern
+                .compile("([?&])n=([^&]+)").matcher(url);
+        if (queryMatcher.find()) {
+            return url.substring(0, queryMatcher.start(2))
+                    + encodeUrlComponent(decryptedN)
+                    + url.substring(queryMatcher.end(2));
+        }
+        final java.util.regex.Matcher pathMatcher = java.util.regex.Pattern
+                .compile("/n/([^/?#]+)").matcher(url);
+        if (!pathMatcher.find()) {
+            return url;
+        }
+        return url.substring(0, pathMatcher.start(1)) + decryptedN
+                + url.substring(pathMatcher.end(1));
+    }
+
+    @Nullable
+    private static String extractNParameter(@Nullable final String url)
+            throws ParsingException {
+        if (url == null || url.isEmpty()) {
+            return null;
+        }
+        final java.util.regex.Matcher queryMatcher = java.util.regex.Pattern
+                .compile("([?&])n=([^&]+)").matcher(url);
+        if (queryMatcher.find()) {
+            try {
+                return URLDecoder.decode(queryMatcher.group(2), StandardCharsets.UTF_8.name());
+            } catch (final UnsupportedEncodingException e) {
+                throw new ParsingException("Could not decode SABR n parameter", e);
+            }
+        }
+        final java.util.regex.Matcher pathMatcher = java.util.regex.Pattern
+                .compile("/n/([^/?#]+)").matcher(url);
+        return pathMatcher.find() ? pathMatcher.group(1) : null;
+    }
+
+    @Nonnull
+    private static String encodeUrlComponent(@Nonnull final String value)
+            throws ParsingException {
+        try {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8.name());
+        } catch (final UnsupportedEncodingException e) {
+            throw new ParsingException("Could not encode SABR URL parameter", e);
+        }
+    }
+
+    private static long parseSabrLong(@Nullable final Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Long.parseLong((String) value);
+            } catch (final NumberFormatException ignored) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
+    private static final class StreamingUrlParts {
+        @Nullable private final String url;
+        @Nullable private final String signature;
+        @Nullable private final String signatureParameter;
+        @Nullable private final String nParameter;
+
+        private StreamingUrlParts(@Nullable final String url,
+                                  @Nullable final String signature,
+                                  @Nullable final String signatureParameter,
+                                  @Nullable final String nParameter) {
+            this.url = url;
+            this.signature = signature;
+            this.signatureParameter = signatureParameter;
+            this.nParameter = nParameter;
+        }
+    }
+
+    @Nullable
+    private static String extractVisitorData(@Nonnull final JsonObject response) {
+        final JsonObject responseContext = response.getObject("responseContext");
+        return responseContext == null ? null : responseContext.getString("visitorData");
+    }
+
+    @Nullable
+    private static String extractVideoPlaybackUstreamerConfig(
+            @Nonnull final JsonObject response) {
+        JsonObject current = response.getObject("playerConfig");
+        if (current == null) {
+            return null;
+        }
+        current = current.getObject("mediaCommonConfig");
+        if (current == null) {
+            return null;
+        }
+        current = current.getObject("mediaUstreamerRequestConfig");
+        return current == null ? null : current.getString("videoPlaybackUstreamerConfig");
+    }
+
+    @Nonnull
+    private static String resolveSabrClientVersion() {
+        try {
+            return getClientVersion();
+        } catch (final Exception ignored) {
+            return "2.20250122.04.00";
         }
     }
 
     @Nonnull
     private String getSabrCpn() {
-        final String cpn;
-        switch (NewPipe.getYoutubePlayerClient()) {
-            case "web":
-                cpn = webCpn;
-                break;
-            default:
-                cpn = mwebCpn;
-                break;
-        }
-        return isNullOrEmpty(cpn) ? generateContentPlaybackNonce() : cpn;
+        return isNullOrEmpty(mwebCpn) ? generateContentPlaybackNonce() : mwebCpn;
     }
 
     private static void fillSabrItagItem(@Nonnull final ItagItem itagItem,
@@ -1989,14 +2216,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                              @Nonnull final String videoId)
             throws IOException, ExtractionException {
         webCpn = generateContentPlaybackNonce();
-        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
-                createJsonPlayerBody(localization,
-                        contentCountry,
-                        videoId,
-                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                        webCpn,
-                        "WEB", WEB_USER_AGENT),
-                localization, contentCountry);
+        final byte[] body = createJsonPlayerBody(localization,
+                contentCountry,
+                videoId,
+                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
+                webCpn,
+                "WEB", WEB_USER_AGENT);
 
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
@@ -2011,8 +2236,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("Web player response is not valid");
                     }
 
-                    playerResponseVisitorData = playerRequest.getVisitorData();
-                    playerResponseClientVersion = playerRequest.getClientVersion();
+                    playerResponseVisitorData = null;
+                    playerResponseClientVersion = getClientVersion();
                     YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
                     updateAvailableAt(webPlayerResponse);
 
@@ -2035,8 +2260,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         };
 
-        return getJsonPlayerResponseAsync(PLAYER,
-                playerRequest, localization, "1", WEB_USER_AGENT, callback);
+        return getJsonPlayerResponseAsync(
+                PLAYER, body, localization, "1", WEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebJsonPlayer(@Nonnull final ContentCountry contentCountry,
@@ -2044,15 +2269,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                                                   @Nonnull final String videoId)
             throws IOException, ExtractionException {
         mwebCpn = generateContentPlaybackNonce();
-        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
-                createJsonPlayerBody(localization,
-                        contentCountry,
-                        videoId,
-                        YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                        mwebCpn,
-                        "MWEB",
-                        MWEB_USER_AGENT),
-                localization, contentCountry);
+        final byte[] body = createJsonPlayerBody(localization,
+                contentCountry,
+                videoId,
+                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
+                mwebCpn,
+                "MWEB",
+                MWEB_USER_AGENT);
 
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
@@ -2066,8 +2289,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         throw new ExtractionException("MWEB player response is not valid");
                     }
 
-                    playerResponseVisitorData = playerRequest.getVisitorData();
-                    playerResponseClientVersion = playerRequest.getClientVersion();
+                    playerResponseVisitorData = null;
+                    playerResponseClientVersion = getClientVersion();
                     YoutubeStreamExtractor.this.playerResponse = mwebPlayerResponse;
                     updateAvailableAt(mwebPlayerResponse);
 
@@ -2092,8 +2315,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         };
 
-        return getJsonPlayerResponseAsync(PLAYER,
-                playerRequest, localization, "2", MWEB_USER_AGENT, callback);
+        return getJsonPlayerResponseAsync(
+                PLAYER, body, localization, "2", MWEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebHlsManifest(
@@ -2167,8 +2390,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value(CONTENT_CHECK_OK, true)
                 .value(RACY_CHECK_OK, true)
                 .done()).getBytes(StandardCharsets.UTF_8);
-        final YoutubePlayerRequest playerRequest = prepareSessionPoTokenPlayerRequest(
-                body, localization, contentCountry);
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
             public void onSuccess(final Response response) {
@@ -2180,8 +2401,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     if (isPlayerResponseNotValid(configuredResponse, videoId)) {
                         throw new ExtractionException(selectedClient + " player response is not valid");
                     }
-                    playerResponseVisitorData = playerRequest.getVisitorData();
-                    playerResponseClientVersion = playerRequest.getClientVersion();
+                    playerResponseVisitorData = null;
+                    playerResponseClientVersion = client.clientVersion;
                     playerResponse = configuredResponse;
                     updateAvailableAt(configuredResponse);
                     final JsonObject streamingData = configuredResponse.getObject(STREAMING_DATA);
@@ -2200,7 +2421,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 addError(error);
             }
         };
-        return getJsonPlayerResponseAsync(PLAYER, playerRequest, localization,
+        return getJsonPlayerResponseAsync(PLAYER, body, localization,
                 client.clientId,
                 client.clientVersion, client.userAgent, callback);
     }
