@@ -26,6 +26,7 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 
 final class YoutubeSabrRequestHelper {
     private static final int MWEB_CLIENT_ID = 2;
+    static final Localization MWEB_LOCALIZATION = new Localization("en", "US");
 
     private YoutubeSabrRequestHelper() {
     }
@@ -43,12 +44,9 @@ final class YoutubeSabrRequestHelper {
                                     final boolean audioActive,
                                     final boolean videoActive,
                                     final boolean videoFirst,
-                                    final long bandwidthEstimate,
                                     final float playbackRate,
-                                    @Nullable final byte[] poToken,
                                     @Nonnull final String serverAbrStreamingUrl,
                                     final int requestNumber,
-                                    @Nonnull final Localization localization,
                                     @Nullable final SabrStreamingResponseReader
                                             .SegmentConsumer segmentConsumer,
                                     @Nullable final SabrStreamingResponseReader
@@ -58,7 +56,7 @@ final class YoutubeSabrRequestHelper {
         final byte[] requestBody = buildMediaRequest(
                 info, audioFormat, videoFormat, session, playerTimeMs,
                 audioTimeline, audioBufferedThrough, videoTimeline, videoBufferedThrough,
-                audioActive, videoActive, videoFirst, bandwidthEstimate, playbackRate, poToken,
+                audioActive, videoActive, videoFirst, playbackRate,
                 requestNumber > 0);
         final long requestStartNs = System.nanoTime();
         final long[] firstSegmentElapsedMs = {-1};
@@ -78,7 +76,7 @@ final class YoutubeSabrRequestHelper {
                 };
         try (StreamingResponse response = NewPipe.getDownloader().postStreaming(
                 withSessionParameters(serverAbrStreamingUrl, info.getCpn(), requestNumber),
-                buildRequestHeaders(), requestBody, localization)) {
+                buildRequestHeaders(), requestBody, MWEB_LOCALIZATION)) {
             final String contentType = response.getHeader("Content-Type");
             if (contentType == null
                     || !contentType.toLowerCase().contains("application/vnd.yt-ump")) {
@@ -114,9 +112,7 @@ final class YoutubeSabrRequestHelper {
                                             final boolean audioActive,
                                             final boolean videoActive,
                                             final boolean videoFirst,
-                                            final long bandwidthEstimate,
                                             final float playbackRate,
-                                            @Nullable final byte[] poToken,
                                             final boolean followUp)
             throws SabrProtocolException {
         final String ustreamerConfig = info.getVideoPlaybackUstreamerConfig();
@@ -125,15 +121,18 @@ final class YoutubeSabrRequestHelper {
         }
 
         final List<byte[]> bufferedRanges = new ArrayList<>();
-        addBufferedRange(bufferedRanges, audioTimeline, audioBufferedThrough, audioActive);
-        addBufferedRange(bufferedRanges, videoTimeline, videoBufferedThrough, videoActive);
+        addBufferedRange(bufferedRanges, audioFormat, audioTimeline,
+                audioBufferedThrough, audioActive);
+        addBufferedRange(bufferedRanges, videoFormat, videoTimeline,
+                videoBufferedThrough, videoActive);
         final boolean includePlaybackState = followUp
                 || playerTimeMs > 0 || !bufferedRanges.isEmpty();
         final int trackMode = audioActive && !videoActive ? 1
                 : videoActive && !audioActive ? 2 : 0;
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
-                followUp || includePlaybackState, trackMode, bandwidthEstimate, playbackRate));
+                followUp || includePlaybackState, trackMode,
+                session.getBandwidthEstimate(), playbackRate));
         if (includePlaybackState) {
             if (videoFirst && videoActive) {
                 request.writeMessage(2, SabrProto.formatId(videoFormat));
@@ -151,7 +150,7 @@ final class YoutubeSabrRequestHelper {
         }
         request.writeBytes(5, decodeBase64(ustreamerConfig));
         writePreferredFormats(request, audioFormat, videoFormat, audioActive, videoActive);
-        request.writeMessage(19, buildStreamerContext(info, poToken, session));
+        request.writeMessage(19, buildStreamerContext(info, session));
         return request.toByteArray();
     }
 
@@ -207,10 +206,10 @@ final class YoutubeSabrRequestHelper {
 
     @Nonnull
     private static byte[] buildStreamerContext(@Nonnull final YoutubeSabrInfo info,
-                                               @Nullable final byte[] poToken,
                                                @Nonnull final YoutubeSabrSession session) {
         final SabrProto.Writer context = new SabrProto.Writer();
         context.writeMessage(1, buildClientInfo(info));
+        final byte[] poToken = session.getRawPoToken();
         if (poToken != null && poToken.length > 0) {
             context.writeBytes(2, poToken);
         }
@@ -232,6 +231,7 @@ final class YoutubeSabrRequestHelper {
     }
 
     private static void addBufferedRange(@Nonnull final List<byte[]> ranges,
+                                         @Nonnull final YoutubeSabrInfo.Format format,
                                          @Nullable final YoutubeSabrFormatTimeline timeline,
                                          final int bufferedThrough,
                                          final boolean active) {
@@ -242,7 +242,6 @@ final class YoutubeSabrRequestHelper {
         if (endSequence <= 0) {
             return;
         }
-        final YoutubeSabrInfo.Format format = timeline.getFormat();
         ranges.add(buildBufferedRange(format.getItag(), format.getLastModified(),
                 format.getXtags(), 0, Math.max(0, timeline.getEndMs(endSequence)),
                 1, endSequence, 1000));

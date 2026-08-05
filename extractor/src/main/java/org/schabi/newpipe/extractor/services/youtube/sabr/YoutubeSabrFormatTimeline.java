@@ -9,12 +9,9 @@ import javax.annotation.Nonnull;
 
 /** Immutable segment timeline parsed from one format's initialization data. */
 public final class YoutubeSabrFormatTimeline {
-    @Nonnull private final YoutubeSabrInfo.Format format;
     @Nonnull private final SabrSegmentIndex index;
 
-    private YoutubeSabrFormatTimeline(@Nonnull final YoutubeSabrInfo.Format format,
-                                      @Nonnull final SabrSegmentIndex index) {
-        this.format = format;
+    private YoutubeSabrFormatTimeline(@Nonnull final SabrSegmentIndex index) {
         this.index = index;
     }
 
@@ -38,10 +35,9 @@ public final class YoutubeSabrFormatTimeline {
         if (index.size() == 0) {
             throw new SabrProtocolException("Empty SABR segment index: itag=" + format.getItag());
         }
-        return new YoutubeSabrFormatTimeline(format, index);
+        return new YoutubeSabrFormatTimeline(index);
     }
 
-    @Nonnull public YoutubeSabrInfo.Format getFormat() { return format; }
     public int getEndSequence() { return index.size(); }
 
     public long getStartMs(final int sequenceNumber) {
