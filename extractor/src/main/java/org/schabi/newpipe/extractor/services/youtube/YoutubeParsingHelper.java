@@ -1565,6 +1565,46 @@ YoutubeParsingHelper {
                 .getBytes(StandardCharsets.UTF_8);
     }
 
+    @Nonnull
+    public static YoutubePlayerRequest createMwebPlayerRequest(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce,
+            @Nonnull final String userAgent,
+            @Nonnull final YoutubePoTokenResult poTokenResult) {
+        final byte[] body = JsonWriter.string(JsonObject.builder()
+                .object("context")
+                    .object("client")
+                        .value("utcOffsetMinutes", 0)
+                        .value("timeZone", "UTC")
+                        .value("hl", localization.getLocalizationCode())
+                        .value("gl", contentCountry.getCountryCode())
+                        .value("userAgent", userAgent)
+                        .value("clientName", "MWEB")
+                        .value("clientVersion", poTokenResult.getClientVersion())
+                        .value("visitorData", poTokenResult.getVisitorData())
+                    .end()
+                .end()
+                .object("playbackContext")
+                    .object("contentPlaybackContext")
+                        .value("html5Preference", "HTML5_PREF_WANTS")
+                        .value("signatureTimestamp", sts)
+                    .end()
+                .end()
+                .object("serviceIntegrityDimensions")
+                    .value("poToken", poTokenResult.getPlayerPoToken())
+                .end()
+                .value(CPN, contentPlaybackNonce)
+                .value(VIDEO_ID, videoId)
+                .value(CONTENT_CHECK_OK, true)
+                .value(RACY_CHECK_OK, true)
+                .done()).getBytes(StandardCharsets.UTF_8);
+        return new YoutubePlayerRequest(body, poTokenResult.getVisitorData(),
+                poTokenResult.getClientVersion());
+    }
+
     public static CancellableCall getJsonPlayerResponseAsync(final String endpoint,
                                                              final byte[] body,
                                                              final Localization localization,

@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class YoutubeSabrInfo implements Serializable {
-    private static final long serialVersionUID = 2L;
+    private static final long serialVersionUID = 3L;
 
     @Nonnull
     private final String videoId;
@@ -23,7 +23,8 @@ public final class YoutubeSabrInfo implements Serializable {
     private final String serverAbrStreamingUrl;
     @Nullable
     private final String videoPlaybackUstreamerConfig;
-    private final boolean playerPoTokenAttached;
+    @Nullable
+    private final byte[] poToken;
     @Nonnull
     private final List<Format> formats;
 
@@ -35,7 +36,7 @@ public final class YoutubeSabrInfo implements Serializable {
                     @Nullable final String videoPlaybackUstreamerConfig,
                     @Nonnull final List<Format> formats) {
         this(videoId, cpn, clientVersion, visitorData, serverAbrStreamingUrl,
-                videoPlaybackUstreamerConfig, formats, false);
+                videoPlaybackUstreamerConfig, formats, null);
     }
 
     public YoutubeSabrInfo(@Nonnull final String videoId,
@@ -45,7 +46,7 @@ public final class YoutubeSabrInfo implements Serializable {
                     @Nullable final String serverAbrStreamingUrl,
                     @Nullable final String videoPlaybackUstreamerConfig,
                     @Nonnull final List<Format> formats,
-                    final boolean playerPoTokenAttached) {
+                    @Nullable final byte[] poToken) {
         this.videoId = videoId;
         this.cpn = cpn;
         this.clientVersion = clientVersion;
@@ -53,7 +54,7 @@ public final class YoutubeSabrInfo implements Serializable {
         this.serverAbrStreamingUrl = serverAbrStreamingUrl;
         this.videoPlaybackUstreamerConfig = videoPlaybackUstreamerConfig;
         this.formats = formats;
-        this.playerPoTokenAttached = playerPoTokenAttached;
+        this.poToken = poToken == null ? null : poToken.clone();
     }
 
     @Nonnull
@@ -86,8 +87,9 @@ public final class YoutubeSabrInfo implements Serializable {
         return videoPlaybackUstreamerConfig;
     }
 
-    public boolean isPlayerPoTokenAttached() {
-        return playerPoTokenAttached;
+    @Nullable
+    public byte[] getPoToken() {
+        return poToken == null ? null : poToken.clone();
     }
 
     @Nonnull
