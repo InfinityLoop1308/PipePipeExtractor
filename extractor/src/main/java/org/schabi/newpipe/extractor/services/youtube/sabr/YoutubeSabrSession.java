@@ -6,18 +6,14 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
 
-import org.schabi.newpipe.extractor.NewPipe;
-import org.schabi.newpipe.extractor.downloader.StreamingResponse;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -28,29 +24,6 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class YoutubeSabrSession {
-    @FunctionalInterface
-    public interface PoTokenRefresher {
-        @Nonnull
-        byte[] refresh() throws IOException, ExtractionException;
-    }
-
-    @FunctionalInterface
-    public interface IdentityRefresher {
-        @Nonnull
-        SessionIdentity refresh() throws IOException, ExtractionException;
-    }
-
-    public static final class SessionIdentity {
-        @Nonnull private final YoutubeSabrInfo info;
-        @Nonnull private final byte[] poToken;
-
-        public SessionIdentity(@Nonnull final YoutubeSabrInfo info,
-                               @Nonnull final byte[] poToken) {
-            this.info = info;
-            this.poToken = poToken.clone();
-        }
-    }
-
     // -------------------------------------------------------------------------
     // Session configuration and protocol state
     // -------------------------------------------------------------------------
@@ -60,7 +33,7 @@ public final class YoutubeSabrSession {
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
     private static final int MAX_BACKOFF_MS = 30_000;
     @Nonnull
-    private YoutubeSabrInfo info;
+    private final YoutubeSabrInfo info;
     @Nullable
     private final YoutubeSabrInfo.Format audioFormat;
     @Nullable
@@ -73,7 +46,6 @@ public final class YoutubeSabrSession {
     private int redirectCount;
     private int consecutiveIntegrityFailures;
     private int consecutiveAttestationPendingResponses;
-    private int consecutiveAttestationTokenRefreshes;
     @Nullable
     private byte[] playbackCookie;
     private final Map<Integer, byte[]> sabrContexts = new LinkedHashMap<>();
@@ -85,8 +57,6 @@ public final class YoutubeSabrSession {
     private long bandwidthEstimate = -1;
     private volatile long backoffDeadlineNs;
     @Nullable private byte[] poToken;
-    @Nullable private PoTokenRefresher poTokenRefresher;
-    @Nullable private IdentityRefresher identityRefresher;
 
     // -------------------------------------------------------------------------
     // Construction
@@ -299,7 +269,7 @@ public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
 
     private void handleControlResponse(@Nonnull final YoutubeSabrResponse result)
-            throws IOException, ExtractionException {
+            throws SabrProtocolException {
         final YoutubeSabrResponse decoded = result;
         if (decoded.isAttestationPending() && decoded.isNoMediaResponse()) {
             consecutiveAttestationPendingResponses++;
@@ -332,14 +302,8 @@ public final class YoutubeSabrSession {
             throw new SabrProtocolException("SABR error: " + decoded.getSabrError());
         }
         if (decoded.isAttestationRequired()) {
-            if (!refreshRejectedPoToken()) {
-                throw new SabrProtocolException("SABR attestation required: "
-                        + decoded.summarizeNoMediaResponse());
-            }
-            return;
-        }
-        if (decoded.getSegmentCount() > 0) {
-            consecutiveAttestationTokenRefreshes = 0;
+            throw new SabrProtocolException("SABR attestation required: "
+                    + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isReloadRequested()) {
             throw new SabrProtocolException("SABR requested player reload: "
@@ -523,62 +487,6 @@ public final class YoutubeSabrSession {
 
     public synchronized void setPoToken(@Nullable final byte[] value) {
         poToken = value == null ? null : value.clone();
-    }
-
-    public synchronized void setPoTokenRefresher(@Nullable final PoTokenRefresher value) {
-        poTokenRefresher = value;
-    }
-
-    public synchronized void setIdentityRefresher(@Nullable final IdentityRefresher value) {
-        identityRefresher = value;
-    }
-
-    private boolean refreshRejectedPoToken() throws IOException, ExtractionException {
-        if (consecutiveAttestationTokenRefreshes >= 3) return false;
-        final IdentityRefresher epochRefresher = identityRefresher;
-        byte[] refreshed;
-        if (epochRefresher != null) {
-            final SessionIdentity identity = Objects.requireNonNull(epochRefresher.refresh());
-            if (!hasCompatibleFormats(identity.info)) {
-                throw new SabrProtocolException(
-                        "Refreshed SABR identity changed selected formats");
-            }
-            info = identity.info;
-            serverAbrStreamingUrl = identity.info.getServerAbrStreamingUrl();
-            requestNumber = 0;
-            redirectCount = 0;
-            refreshed = identity.poToken;
-        } else {
-            final PoTokenRefresher tokenRefresher = poTokenRefresher;
-            if (tokenRefresher == null) return false;
-            refreshed = tokenRefresher.refresh();
-        }
-        if (refreshed == null || refreshed.length == 0) return false;
-        poToken = refreshed.clone();
-        playbackCookie = null;
-        sabrContexts.clear();
-        activeSabrContextTypes.clear();
-        consecutiveAttestationTokenRefreshes++;
-        addDiagnosticEvent("attestation_token_refresh attempt="
-                + consecutiveAttestationTokenRefreshes
-                + " bytes=" + refreshed.length);
-        return true;
-    }
-
-    private boolean hasCompatibleFormats(@Nonnull final YoutubeSabrInfo refreshedInfo) {
-        return hasCompatibleFormat(refreshedInfo, audioFormat)
-                && hasCompatibleFormat(refreshedInfo, videoFormat);
-    }
-
-    private static boolean hasCompatibleFormat(@Nonnull final YoutubeSabrInfo refreshedInfo,
-                                               @Nullable final YoutubeSabrInfo.Format selected) {
-        if (selected == null) return true;
-        for (final YoutubeSabrInfo.Format format : refreshedInfo.getFormats()) {
-            if (format.isAudio() == selected.isAudio()
-                    && format.getItag() == selected.getItag()
-                    && Objects.equals(format.getXtags(), selected.getXtags())) return true;
-        }
-        return false;
     }
 
     @Nullable
