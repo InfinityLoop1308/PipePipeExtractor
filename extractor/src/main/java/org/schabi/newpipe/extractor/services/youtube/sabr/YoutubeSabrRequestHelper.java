@@ -33,8 +33,8 @@ final class YoutubeSabrRequestHelper {
 
     @Nonnull
     static YoutubeSabrResponse post(@Nonnull final YoutubeSabrInfo info,
-                                    @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                                    @Nonnull final YoutubeSabrInfo.Format videoFormat,
+                                    @Nullable final YoutubeSabrInfo.Format audioFormat,
+                                    @Nullable final YoutubeSabrInfo.Format videoFormat,
                                     @Nonnull final YoutubeSabrSession session,
                                     final long playerTimeMs,
                                     @Nullable final YoutubeSabrFormatTimeline audioTimeline,
@@ -101,8 +101,8 @@ final class YoutubeSabrRequestHelper {
 
     @Nonnull
     private static byte[] buildMediaRequest(@Nonnull final YoutubeSabrInfo info,
-                                            @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                                            @Nonnull final YoutubeSabrInfo.Format videoFormat,
+                                            @Nullable final YoutubeSabrInfo.Format audioFormat,
+                                            @Nullable final YoutubeSabrInfo.Format videoFormat,
                                             @Nonnull final YoutubeSabrSession session,
                                             final long playerTimeMs,
                                             @Nullable final YoutubeSabrFormatTimeline audioTimeline,
@@ -115,6 +115,15 @@ final class YoutubeSabrRequestHelper {
                                             final float playbackRate,
                                             final boolean followUp)
             throws SabrProtocolException {
+        if (audioActive && audioFormat == null) {
+            throw new SabrProtocolException("Active SABR audio request has no audio format");
+        }
+        if (videoActive && videoFormat == null) {
+            throw new SabrProtocolException("Active SABR video request has no video format");
+        }
+        if (!audioActive && !videoActive) {
+            throw new SabrProtocolException("SABR request has no active track");
+        }
         final String ustreamerConfig = info.getVideoPlaybackUstreamerConfig();
         if (ustreamerConfig == null || ustreamerConfig.isEmpty()) {
             throw new SabrProtocolException("Missing video playback ustreamer config");
@@ -132,15 +141,15 @@ final class YoutubeSabrRequestHelper {
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
                 followUp || includePlaybackState, trackMode,
-                session.getBandwidthEstimate(), playbackRate));
+                session.getBandwidthEstimate(), playbackRate, audioActive, videoActive));
         if (includePlaybackState) {
-            if (videoFirst && videoActive) {
+            if (videoFirst && videoActive && videoFormat != null) {
                 request.writeMessage(2, SabrProto.formatId(videoFormat));
             }
-            if (audioActive) {
+            if (audioActive && audioFormat != null) {
                 request.writeMessage(2, SabrProto.formatId(audioFormat));
             }
-            if (!videoFirst && videoActive) {
+            if (!videoFirst && videoActive && videoFormat != null) {
                 request.writeMessage(2, SabrProto.formatId(videoFormat));
             }
             for (final byte[] range : bufferedRanges) {
@@ -155,25 +164,27 @@ final class YoutubeSabrRequestHelper {
     }
 
     @Nonnull
-    private static byte[] buildClientAbrState(@Nonnull final YoutubeSabrInfo.Format audioFormat,
-                                               @Nonnull final YoutubeSabrInfo.Format videoFormat,
+    private static byte[] buildClientAbrState(@Nullable final YoutubeSabrInfo.Format audioFormat,
+                                               @Nullable final YoutubeSabrInfo.Format videoFormat,
                                                final long playerTimeMs,
                                                final boolean includeFollowUpState,
                                                final int enabledTrackTypesBitfield,
                                                final long requestedBandwidthEstimate,
-                                               final float playbackRate) {
+                                               final float playbackRate,
+                                               final boolean audioActive,
+                                               final boolean videoActive) {
         final SabrProto.Writer state = new SabrProto.Writer();
-        if (includeFollowUpState) {
+        if (includeFollowUpState && videoActive && videoFormat != null) {
             state.writeInt32(18, Math.max(videoFormat.getWidth(), 640));
             state.writeInt32(19, Math.max(videoFormat.getHeight(), 360));
         }
-        state.writeInt32(21, Math.max(videoFormat.getHeight(), 360));
+        if (videoActive && videoFormat != null) {
+            state.writeInt32(21, Math.max(videoFormat.getHeight(), 360));
+        }
         if (includeFollowUpState) {
             final long bandwidthEstimate = requestedBandwidthEstimate > 0
                     ? requestedBandwidthEstimate
-                    : audioFormat.getBitrate() > 0 && videoFormat.getBitrate() > 0
-                    ? (audioFormat.getBitrate() + videoFormat.getBitrate()) * 2L
-                    : -1;
+                    : activeBitrateEstimate(audioFormat, videoFormat, audioActive, videoActive);
             if (bandwidthEstimate > 0) {
                 state.writeUInt64(23, bandwidthEstimate);
             }
@@ -183,23 +194,42 @@ final class YoutubeSabrRequestHelper {
         if (enabledTrackTypesBitfield != 0) {
             state.writeInt32(40, enabledTrackTypesBitfield);
         }
-        if (audioFormat.isDrc()) {
+        if (audioActive && audioFormat != null && audioFormat.isDrc()) {
             state.writeBool(46, true);
         }
         state.writeUInt64(28, playerTimeMs);
-        state.writeStringIfNotEmpty(69, audioFormat.getAudioTrackId());
+        if (audioActive && audioFormat != null) {
+            state.writeStringIfNotEmpty(69, audioFormat.getAudioTrackId());
+        }
         return state.toByteArray();
     }
 
-    private static void writePreferredFormats(@Nonnull final SabrProto.Writer request,
-                                              @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                                              @Nonnull final YoutubeSabrInfo.Format videoFormat,
-                                              final boolean audioActive,
-                                              final boolean videoActive) {
+    private static long activeBitrateEstimate(
+            @Nullable final YoutubeSabrInfo.Format audioFormat,
+            @Nullable final YoutubeSabrInfo.Format videoFormat,
+            final boolean audioActive,
+            final boolean videoActive) {
+        long bitrate = 0;
         if (audioActive) {
-            request.writeMessage(16, SabrProto.formatId(audioFormat));
+            if (audioFormat == null || audioFormat.getBitrate() <= 0) return -1;
+            bitrate += audioFormat.getBitrate();
         }
         if (videoActive) {
+            if (videoFormat == null || videoFormat.getBitrate() <= 0) return -1;
+            bitrate += videoFormat.getBitrate();
+        }
+        return bitrate > 0 ? bitrate * 2L : -1;
+    }
+
+    private static void writePreferredFormats(@Nonnull final SabrProto.Writer request,
+                                              @Nullable final YoutubeSabrInfo.Format audioFormat,
+                                              @Nullable final YoutubeSabrInfo.Format videoFormat,
+                                              final boolean audioActive,
+                                              final boolean videoActive) {
+        if (audioActive && audioFormat != null) {
+            request.writeMessage(16, SabrProto.formatId(audioFormat));
+        }
+        if (videoActive && videoFormat != null) {
             request.writeMessage(17, SabrProto.formatId(videoFormat));
         }
     }
@@ -231,11 +261,11 @@ final class YoutubeSabrRequestHelper {
     }
 
     private static void addBufferedRange(@Nonnull final List<byte[]> ranges,
-                                         @Nonnull final YoutubeSabrInfo.Format format,
+                                         @Nullable final YoutubeSabrInfo.Format format,
                                          @Nullable final YoutubeSabrFormatTimeline timeline,
                                          final int bufferedThrough,
                                          final boolean active) {
-        if (!active || timeline == null || bufferedThrough <= 0) {
+        if (!active || format == null || timeline == null || bufferedThrough <= 0) {
             return;
         }
         final int endSequence = Math.min(bufferedThrough, timeline.getEndSequence());

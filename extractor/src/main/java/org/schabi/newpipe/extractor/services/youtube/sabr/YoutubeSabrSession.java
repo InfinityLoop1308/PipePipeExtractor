@@ -38,9 +38,9 @@ public final class YoutubeSabrSession {
     private static final int MAX_INITIALIZATION_BYTES = 4 * 1024 * 1024;
     @Nonnull
     private final YoutubeSabrInfo info;
-    @Nonnull
+    @Nullable
     private final YoutubeSabrInfo.Format audioFormat;
-    @Nonnull
+    @Nullable
     private final YoutubeSabrInfo.Format videoFormat;
     @Nullable
     private final File segmentSpoolDirectory;
@@ -67,14 +67,14 @@ public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
-                               @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                               @Nonnull final YoutubeSabrInfo.Format videoFormat) {
+                               @Nullable final YoutubeSabrInfo.Format audioFormat,
+                               @Nullable final YoutubeSabrInfo.Format videoFormat) {
         this(info, audioFormat, videoFormat, (File) null);
     }
 
     public YoutubeSabrSession(@Nonnull final YoutubeSabrInfo info,
-                              @Nonnull final YoutubeSabrInfo.Format audioFormat,
-                              @Nonnull final YoutubeSabrInfo.Format videoFormat,
+                              @Nullable final YoutubeSabrInfo.Format audioFormat,
+                              @Nullable final YoutubeSabrInfo.Format videoFormat,
                               @Nullable final File segmentSpoolDirectory) {
         validateFormats(audioFormat, videoFormat);
         if (info.getServerAbrStreamingUrl() == null || info.getServerAbrStreamingUrl().isEmpty()) {
@@ -93,8 +93,8 @@ public final class YoutubeSabrSession {
 
     @Nonnull
     private YoutubeSabrResponse fetchNextResponse(
-            @Nonnull final YoutubeSabrInfo.Format requestedAudioFormat,
-            @Nonnull final YoutubeSabrInfo.Format requestedVideoFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedAudioFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedVideoFormat,
             final long playerTimeMs,
             @Nullable final YoutubeSabrFormatTimeline audioTimeline,
             final int audioBufferedThrough,
@@ -163,8 +163,8 @@ public final class YoutubeSabrSession {
     }
 
     public synchronized RequestResult requestOnce(
-            @Nonnull final YoutubeSabrInfo.Format requestedAudioFormat,
-            @Nonnull final YoutubeSabrInfo.Format requestedVideoFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedAudioFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedVideoFormat,
             final long playerTimeMs,
             @Nullable final YoutubeSabrFormatTimeline audioTimeline,
             final int audioBufferedThrough,
@@ -177,6 +177,8 @@ public final class YoutubeSabrSession {
             @Nonnull final SabrStreamingResponseReader.SegmentConsumer consumer)
             throws IOException, ExtractionException {
         validateFormats(requestedAudioFormat, requestedVideoFormat);
+        validateActiveFormats(requestedAudioFormat, requestedVideoFormat,
+                audioActive, videoActive);
         final long backoffRemainingMs = getBackoffRemainingMs();
         if (backoffRemainingMs > 0) {
             return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
@@ -225,8 +227,8 @@ public final class YoutubeSabrSession {
 
     @Nullable
     private YoutubeSabrResponse fetchAndProcessResponse(
-            @Nonnull final YoutubeSabrInfo.Format requestedAudioFormat,
-            @Nonnull final YoutubeSabrInfo.Format requestedVideoFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedAudioFormat,
+            @Nullable final YoutubeSabrInfo.Format requestedVideoFormat,
             final long playerTimeMs,
             @Nullable final YoutubeSabrFormatTimeline audioTimeline,
             final int audioBufferedThrough,
@@ -491,23 +493,19 @@ public final class YoutubeSabrSession {
     // Initialization: adaptive range first, native SABR fallback
     // -------------------------------------------------------------------------
 
-    /**
-     * Bootstrap an exact audio/video timeline exclusively through SABR. A response streams media
-     * before its control metadata is applied. Initialization bytes are collected locally and
-     * combined with format metadata into an exact MP4/WebM segment index.
-     */
+    /** Bootstrap exact timelines for every selected track exclusively through SABR. */
     private InitializationResult bootstrapInitialization()
             throws IOException, ExtractionException {
         final byte[][] initialization = new byte[2][];
         final YoutubeSabrFormatTimeline[] timelines = new YoutubeSabrFormatTimeline[2];
         final Map<String, SabrMediaSegment> mediaSegments = new LinkedHashMap<>();
         fetchAndProcessResponse(audioFormat, videoFormat, 0, null, 0, null, 0,
-                true, true, false, 1.0f, segment -> {
+                audioFormat != null, videoFormat != null, false, 1.0f, segment -> {
                 if (segment.getHeader().isInitSegment()) {
-                    if (matchesFormat(audioFormat, segment)) {
+                    if (audioFormat != null && matchesFormat(audioFormat, segment)) {
                         initialization[0] = segment.getData();
                         timelines[0] = parseTimeline(audioFormat, initialization[0]);
-                    } else if (matchesFormat(videoFormat, segment)) {
+                    } else if (videoFormat != null && matchesFormat(videoFormat, segment)) {
                         initialization[1] = segment.getData();
                         timelines[1] = parseTimeline(videoFormat, initialization[1]);
                     }
@@ -521,8 +519,11 @@ public final class YoutubeSabrSession {
                     }
                 }
         });
-        if (timelines[0] != null && timelines[1] != null
-                && initialization[0] != null && initialization[1] != null) {
+        final boolean audioReady = audioFormat == null
+                || timelines[0] != null && initialization[0] != null;
+        final boolean videoReady = videoFormat == null
+                || timelines[1] != null && initialization[1] != null;
+        if (audioReady && videoReady) {
             addDiagnosticEvent("bootstrap_ready");
             return new InitializationResult(initialization[0], initialization[1],
                     timelines[0], timelines[1],
@@ -531,7 +532,7 @@ public final class YoutubeSabrSession {
         for (final SabrMediaSegment segment : mediaSegments.values()) {
             segment.delete();
         }
-        throw new SabrProtocolException("SABR bootstrap did not provide exact audio/video indexes"
+        throw new SabrProtocolException("SABR bootstrap did not provide every selected index"
                 + ": audioInit=" + (initialization[0] != null)
                 + ", videoInit=" + (initialization[1] != null)
                 + ", audioTimeline=" + (timelines[0] != null)
@@ -622,8 +623,8 @@ public final class YoutubeSabrSession {
             @Nonnull final SabrStreamingResponseReader.SegmentConsumer mediaConsumer)
             throws IOException, ExtractionException {
         final byte[][] initialization = new byte[1][];
-        final YoutubeSabrInfo.Format requestedAudio = format.isAudio() ? format : audioFormat;
-        final YoutubeSabrInfo.Format requestedVideo = format.isVideo() ? format : videoFormat;
+        final YoutubeSabrInfo.Format requestedAudio = format.isAudio() ? format : null;
+        final YoutubeSabrInfo.Format requestedVideo = format.isVideo() ? format : null;
         fetchAndProcessResponse(requestedAudio, requestedVideo, 0,
                 null, 0, null, 0, format.isAudio(), format.isVideo(), false, 1.0f,
                 segment -> {
@@ -644,24 +645,22 @@ public final class YoutubeSabrSession {
         return initialization[0];
     }
 
-    /**
-     * Prepare both selected tracks using adaptive initialization first, falling back to native SABR
-     * bootstrap on any adaptive failure. The returned data and this session are a single handoff to
-     * normal streaming requests.
-     */
+    /** Prepare every selected track using adaptive initialization, then native SABR fallback. */
     @Nonnull
     public synchronized InitializationResult initialize(final long timeoutMs,
                                                         @Nonnull final byte[] poToken)
             throws IOException, ExtractionException {
         setPoToken(poToken);
         try {
-            final byte[] audio = fetchInitializationData(
-                    audioFormat, timeoutMs, poToken);
-            final byte[] video = fetchInitializationData(
-                    videoFormat, timeoutMs, poToken);
+            final byte[] audio = audioFormat == null ? null
+                    : fetchInitializationData(audioFormat, timeoutMs, poToken);
+            final byte[] video = videoFormat == null ? null
+                    : fetchInitializationData(videoFormat, timeoutMs, poToken);
             return new InitializationResult(audio, video,
-                    YoutubeSabrFormatTimeline.parse(audioFormat, audio),
-                    YoutubeSabrFormatTimeline.parse(videoFormat, video),
+                    audioFormat == null ? null
+                            : YoutubeSabrFormatTimeline.parse(audioFormat, audio),
+                    videoFormat == null ? null
+                            : YoutubeSabrFormatTimeline.parse(videoFormat, video),
                     Collections.emptyList());
         } catch (final IOException adaptiveFailure) {
             clearPlaybackCookie();
@@ -763,18 +762,37 @@ public final class YoutubeSabrSession {
         }
     }
 
-    private static void validateFormats(@Nonnull final YoutubeSabrInfo.Format audio,
-                                        @Nonnull final YoutubeSabrInfo.Format video) {
-        if (!audio.isAudio()) {
+    private static void validateFormats(@Nullable final YoutubeSabrInfo.Format audio,
+                                        @Nullable final YoutubeSabrInfo.Format video) {
+        if (audio == null && video == null) {
+            throw new IllegalArgumentException("SABR session must select at least one format");
+        }
+        if (audio != null && !audio.isAudio()) {
             throw new IllegalArgumentException("SABR audio format must be audio: itag="
                     + audio.getItag());
         }
-        if (!video.isVideo()) {
+        if (video != null && !video.isVideo()) {
             throw new IllegalArgumentException("SABR video format must be video: itag="
                     + video.getItag());
         }
-        if (audio.getItag() == video.getItag()) {
+        if (audio != null && video != null && audio.getItag() == video.getItag()) {
             throw new IllegalArgumentException("SABR audio/video formats must be distinct");
+        }
+    }
+
+    private static void validateActiveFormats(
+            @Nullable final YoutubeSabrInfo.Format audio,
+            @Nullable final YoutubeSabrInfo.Format video,
+            final boolean audioActive,
+            final boolean videoActive) {
+        if (!audioActive && !videoActive) {
+            throw new IllegalArgumentException("SABR request must activate at least one track");
+        }
+        if (audioActive && audio == null) {
+            throw new IllegalArgumentException("Active SABR audio request has no audio format");
+        }
+        if (videoActive && video == null) {
+            throw new IllegalArgumentException("Active SABR video request has no video format");
         }
     }
 
