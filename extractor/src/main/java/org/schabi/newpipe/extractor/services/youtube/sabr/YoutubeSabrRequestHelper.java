@@ -24,11 +24,50 @@ import java.util.concurrent.TimeUnit;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.MWEB_USER_AGENT;
 
-final class YoutubeSabrRequestHelper {
+public final class YoutubeSabrRequestHelper {
     private static final int MWEB_CLIENT_ID = 2;
+    private static final int MAX_INITIALIZATION_BYTES = 4 * 1024 * 1024;
     static final Localization MWEB_LOCALIZATION = new Localization("en", "US");
 
     private YoutubeSabrRequestHelper() {
+    }
+
+    @Nonnull
+    public static byte[] fetchInitializationData(
+            @Nonnull final YoutubeSabrInfo.Format format,
+            @Nonnull final byte[] poToken,
+            final long timeoutMs) throws IOException {
+        final String initializationUrl = format.getInitializationUrl();
+        final long start = format.getInitRangeStart();
+        final long end = format.getInitRangeEnd();
+        if (initializationUrl == null || initializationUrl.isEmpty() || start < 0 || end < start
+                || end - start >= MAX_INITIALIZATION_BYTES) {
+            throw new IOException("Invalid SABR initialization range: itag="
+                    + format.getItag() + ", start=" + start + ", end=" + end);
+        }
+        if (poToken.length == 0) {
+            throw new IOException("Missing PO token for SABR initialization range: itag="
+                    + format.getItag());
+        }
+        final String url = appendQueryParameterIfMissing(initializationUrl, "pot",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(poToken));
+        final int length = (int) (end - start + 1);
+        final Map<String, List<String>> headers = Collections.singletonMap(
+                "Range", Collections.singletonList("bytes=" + start + '-' + end));
+        try (StreamingResponse response = timeoutMs > 0
+                ? NewPipe.getDownloader().getStreaming(url, headers,
+                        MWEB_LOCALIZATION, timeoutMs)
+                : NewPipe.getDownloader().getStreaming(url, headers, MWEB_LOCALIZATION)) {
+            if (response.responseCode() != 206
+                    && !(response.responseCode() == 200 && start == 0)) {
+                throw new IOException("SABR initialization range failed: itag="
+                        + format.getItag() + ", status=" + response.responseCode());
+            }
+            return readExactly(response.body(), length);
+        } catch (final ExtractionException error) {
+            throw new IOException("SABR initialization range failed: itag="
+                    + format.getItag(), error);
+        }
     }
 
     @Nonnull
@@ -406,6 +445,22 @@ final class YoutubeSabrRequestHelper {
 
     private static long elapsedMs(final long startNs) {
         return Math.max(0L, TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs));
+    }
+
+    @Nonnull
+    private static byte[] readExactly(@Nonnull final InputStream input,
+                                      final int length) throws IOException {
+        final byte[] data = new byte[length];
+        int offset = 0;
+        while (offset < length) {
+            final int read = input.read(data, offset, length - offset);
+            if (read < 0) {
+                throw new IOException("Truncated SABR initialization range: expected="
+                        + length + ", actual=" + offset);
+            }
+            offset += read;
+        }
+        return data;
     }
 
     private static final class CountingInputStream extends FilterInputStream {
