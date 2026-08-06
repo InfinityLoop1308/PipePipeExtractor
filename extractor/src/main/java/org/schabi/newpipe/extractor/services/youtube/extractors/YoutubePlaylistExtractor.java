@@ -39,6 +39,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -51,6 +53,8 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
     private static final String PLAYLIST_VIDEO_RENDERER = "playlistVideoRenderer";
     private static final String PLAYLIST_VIDEO_LIST_RENDERER = "playlistVideoListRenderer";
     private static final String VIDEO_OWNER_RENDERER = "videoOwnerRenderer";
+    private static final Pattern ZULU_PLAYLIST_OWNER_PATTERN = Pattern.compile(
+            "^ka-(.+?)(?: (?:nomunye ongu|nabanye abangu)-\\d+)?$");
 
     private JsonObject browseResponse;
     private JsonObject playlistInfo;
@@ -167,7 +171,9 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
     @Override
     public String getUploaderName() throws ParsingException {
         try {
-            return getTextFromObject(getUploaderInfo().getObject("title"));
+            final String uploaderName = getTextFromObject(getUploaderInfo().getObject("title"));
+            final Matcher zuluOwnerMatcher = ZULU_PLAYLIST_OWNER_PATTERN.matcher(uploaderName);
+            return zuluOwnerMatcher.matches() ? zuluOwnerMatcher.group(1) : uploaderName;
         } catch (final Exception e) {
             throw new ParsingException("Could not get playlist uploader name", e);
         }
