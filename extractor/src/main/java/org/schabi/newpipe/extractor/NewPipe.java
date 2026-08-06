@@ -47,7 +47,7 @@ public final class NewPipe {
     private static Downloader downloader;
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
-    private static String youtubePlayerClient = "android_vr";
+    private static String youtubePlayerClient = "visionos";
     @Nullable
     private static volatile Function<String, YoutubePoTokenResult> youtubePoTokenResolver;
     @Nullable
@@ -175,10 +175,11 @@ public final class NewPipe {
     public static void setYoutubePlayerClient(final String youtubePlayerClient) {
         if ("mweb".equals(youtubePlayerClient)
                 || "android_vr".equals(youtubePlayerClient)
+                || "visionos".equals(youtubePlayerClient)
                 || "tv_downgraded".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
-            NewPipe.youtubePlayerClient = "android_vr";
+            NewPipe.youtubePlayerClient = "visionos";
         }
     }
 

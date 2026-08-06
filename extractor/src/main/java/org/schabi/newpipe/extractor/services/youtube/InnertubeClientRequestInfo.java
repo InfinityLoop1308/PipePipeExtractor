@@ -18,6 +18,11 @@ import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_DEVICE_MODEL;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_OS_VERSION;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.MOBILE_CLIENT_PLATFORM;
+import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_CLIENT_ID;
+import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_CLIENT_NAME;
+import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_CLIENT_VERSION;
+import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_DEVICE_MODEL;
+import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_VERSION;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WATCH_CLIENT_SCREEN;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_CLIENT_ID;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_CLIENT_NAME;
@@ -135,6 +140,15 @@ public final class InnertubeClientRequestInfo {
                         ANDROID_VR_CLIENT_VERSION, WATCH_CLIENT_SCREEN, ANDROID_VR_CLIENT_ID, null),
                 new InnertubeClientRequestInfo.DeviceInfo(MOBILE_CLIENT_PLATFORM, ANDROID_VR_DEVICE_MAKE,
                         ANDROID_VR_DEVICE_MODEL, "Android", ANDROID_VR_OS_VERSION, ANDROID_VR_SDK_VERSION));
+    }
+
+    @Nonnull
+    public static InnertubeClientRequestInfo ofVisionOsClient() {
+        return new InnertubeClientRequestInfo(
+                new InnertubeClientRequestInfo.ClientInfo(VISIONOS_CLIENT_NAME,
+                        VISIONOS_CLIENT_VERSION, WATCH_CLIENT_SCREEN, VISIONOS_CLIENT_ID, null),
+                new InnertubeClientRequestInfo.DeviceInfo(MOBILE_CLIENT_PLATFORM, "Apple",
+                        VISIONOS_DEVICE_MODEL, "visionOS", VISIONOS_VERSION, -1));
     }
 
     @Nonnull

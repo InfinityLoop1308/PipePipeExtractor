@@ -1288,6 +1288,17 @@ YoutubeParsingHelper {
                 IOS_YOUTUBE_KEY, endPartOfUrlRequest, callback);
     }
 
+    public static CancellableCall getJsonMobilePostResponseAsync(
+            final String endpoint,
+            final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final String userAgent,
+            @Nullable final String endPartOfUrlRequest,
+            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
+        return getMobilePostResponseAsync(endpoint, body, localization, userAgent, "",
+                endPartOfUrlRequest, callback);
+    }
+
     private static JsonObject getMobilePostResponse(
             final String endpoint,
             final byte[] body,
@@ -1849,6 +1860,15 @@ YoutubeParsingHelper {
                 + " (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip";
     }
 
+    @Nonnull
+    public static String getVisionOsUserAgent(@Nullable final Localization localization) {
+        return "com.google.visionos.youtube/" + VISIONOS_CLIENT_VERSION + "("
+                + VISIONOS_DEVICE_MODEL + "; U; CPU visionOS " + VISIONOS_USER_AGENT_VERSION
+                + " like Mac OS X; "
+                + (localization != null ? localization : Localization.DEFAULT).getCountryCode()
+                + ")";
+    }
+
     /**
      * Get the user-agent string used as the user-agent for InnerTube requests with the iOS
      * client.
@@ -2028,6 +2048,10 @@ YoutubeParsingHelper {
             final String alertText = getTextFromObject(alertRenderer.getObject("text"));
             final String alertType = alertRenderer.getString("type", "");
             if (alertType.equalsIgnoreCase("ERROR")) {
+                if (alertText != null && alertText.contains("siteshi kasitholakali")) {
+                    throw new ContentNotAvailableException(
+                            "Got error: \"This channel is unavailable.\"");
+                }
                 if (alertText != null
                         && (alertText.contains("This account has been terminated")
                         || alertText.contains("This channel was removed"))) {
@@ -2242,7 +2266,7 @@ YoutubeParsingHelper {
 
     public static String resolveChannelId(final String idOrPath)
             throws ExtractionException, IOException {
-        final String[] channelId = idOrPath.split("/");
+        final String[] channelId = idOrPath.split("/", 2);
 
         if (channelId[0].startsWith("UC")) {
             return channelId[0];
@@ -2292,7 +2316,10 @@ YoutubeParsingHelper {
                 return browseId;
             }
         }
-        return channelId[1];
+        // A handle (for example, "@bloombergexplained") has no slash. Keep the complete
+        // unresolved path so that it can be reported as unavailable instead of crashing while
+        // indexing the second path component.
+        return channelId.length > 1 ? channelId[1] : channelId[0];
     }
 
     public static final class ChannelResponseData {
@@ -2567,7 +2594,7 @@ YoutubeParsingHelper {
     }
 
     @Nonnull
-    static JsonBuilder<JsonObject> prepareJsonBuilder(
+    public static JsonBuilder<JsonObject> prepareJsonBuilder(
             @Nonnull final Localization localization,
             @Nonnull final ContentCountry contentCountry,
             @Nonnull final InnertubeClientRequestInfo innertubeClientRequestInfo,

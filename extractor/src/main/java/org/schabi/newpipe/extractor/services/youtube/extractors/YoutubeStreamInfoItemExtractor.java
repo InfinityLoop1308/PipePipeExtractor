@@ -571,7 +571,7 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                     for (final Object runObj : runs) {
                         final String text = ((JsonObject) runObj).getString("text");
                         if (text != null
-                                && (text.toLowerCase().contains("view")
+                                && (text.toLowerCase().matches(".*\\bviews?\\b.*")
                                 || text.toLowerCase().contains("ukubukwa")
                                 || text.toLowerCase().contains("no views")
                                 || text.toLowerCase().contains("akukho"))) {
@@ -583,7 +583,11 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                                     || text.toLowerCase().contains("okutusiwe")) {
                                 return -1;
                             }
-                            return Utils.mixedNumberWordToLong(text);
+                            try {
+                                return Utils.mixedNumberWordToLong(text);
+                            } catch (final NumberFormatException | ParsingException ignored) {
+                                // This metadata part is not a view count; try the next one.
+                            }
                         }
                     }
                 } catch (final Exception ignored) {
@@ -601,7 +605,7 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                         final String content = ((JsonObject) part)
                                 .getObject("text")
                                 .getString("content");
-                        if (content != null && (content.toLowerCase().contains("view")
+                        if (content != null && (content.toLowerCase().matches(".*\\bviews?\\b.*")
                                 || content.toLowerCase().contains("ukubukwa")
                                 || content.toLowerCase().contains("no views")
                                 || content.toLowerCase().contains("akukho"))) {
@@ -613,7 +617,11 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
                                     || content.toLowerCase().contains("okutusiwe")) {
                                 return -1;
                             }
-                            return Utils.mixedNumberWordToLong(content);
+                            try {
+                                return Utils.mixedNumberWordToLong(content);
+                            } catch (final NumberFormatException | ParsingException ignored) {
+                                // This metadata part is not a view count; try the next one.
+                            }
                         }
                     }
                 }
