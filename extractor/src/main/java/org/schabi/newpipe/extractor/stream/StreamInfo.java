@@ -90,7 +90,7 @@ public class StreamInfo extends Info {
 
     public static StreamInfo getInfo(@Nonnull final StreamExtractor extractor)
             throws ExtractionException, IOException {
-        final String performanceId = extractor.getId();
+        final String performanceId = extractor.getLinkHandler().getId();
         final long totalStartedAt = System.nanoTime();
         final SponsorBlockApiSettings sponsorBlockApiSettings = extractor.getService()
                 .getSponsorBlockApiSettings();
