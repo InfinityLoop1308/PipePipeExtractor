@@ -2352,7 +2352,7 @@ YoutubeParsingHelper {
 
     public static String resolveChannelId(final String idOrPath)
             throws ExtractionException, IOException {
-        final String[] channelId = idOrPath.split("/");
+        final String[] channelId = idOrPath.split("/", 2);
 
         if (channelId[0].startsWith("UC")) {
             return channelId[0];
@@ -2402,7 +2402,10 @@ YoutubeParsingHelper {
                 return browseId;
             }
         }
-        return channelId[1];
+        // A handle (for example, "@bloombergexplained") has no slash. Keep the complete
+        // unresolved path so that it can be reported as unavailable instead of crashing while
+        // indexing the second path component.
+        return channelId.length > 1 ? channelId[1] : channelId[0];
     }
 
     public static final class ChannelResponseData {
