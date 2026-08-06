@@ -392,6 +392,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return -1;
         }
 
+        final String exactLikeCount = playerResponse.getObject("videoDetails")
+                .getString("likeCount");
+        if (!isNullOrEmpty(exactLikeCount)) {
+            try {
+                return Long.parseLong(exactLikeCount);
+            } catch (final NumberFormatException ignored) {
+                // Fall back to the like button data below.
+            }
+        }
+
         String likesString = null;
 
         try {
@@ -433,9 +443,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 return 0;
             }
 
-            return Integer.parseInt(Utils.removeNonDigitCharacters(likesString));
+            final String digits = Utils.removeNonDigitCharacters(likesString);
+            if (isNullOrEmpty(digits)) {
+                return -1;
+            }
+
+            return Long.parseLong(digits);
         } catch (final NumberFormatException nfe) {
-            throw new ParsingException("Could not parse \"" + likesString + "\" as an Integer",
+            throw new ParsingException("Could not parse \"" + likesString + "\" as a Long",
                     nfe);
         } catch (final Exception e) {
             throw new ParsingException("Could not get like count", e);
