@@ -2134,6 +2134,10 @@ YoutubeParsingHelper {
             final String alertText = getTextFromObject(alertRenderer.getObject("text"));
             final String alertType = alertRenderer.getString("type", "");
             if (alertType.equalsIgnoreCase("ERROR")) {
+                if (alertText != null && alertText.contains("siteshi kasitholakali")) {
+                    throw new ContentNotAvailableException(
+                            "Got error: \"This channel is unavailable.\"");
+                }
                 if (alertText != null
                         && (alertText.contains("This account has been terminated")
                         || alertText.contains("This channel was removed"))) {
