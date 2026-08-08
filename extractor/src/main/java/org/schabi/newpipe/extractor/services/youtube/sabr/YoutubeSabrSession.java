@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrAttestationException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
@@ -277,7 +278,7 @@ public final class YoutubeSabrSession {
                     + consecutiveAttestationPendingResponses);
             if (consecutiveAttestationPendingResponses
                     >= MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES) {
-                throw new SabrProtocolException(
+                throw new SabrAttestationException(
                         "SABR attestation remained pending without media for "
                                 + consecutiveAttestationPendingResponses
                                 + " consecutive responses: "
@@ -302,7 +303,7 @@ public final class YoutubeSabrSession {
             throw new SabrProtocolException("SABR error: " + decoded.getSabrError());
         }
         if (decoded.isAttestationRequired()) {
-            throw new SabrProtocolException("SABR attestation required: "
+            throw new SabrAttestationException("SABR attestation required: "
                     + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isReloadRequested()) {
