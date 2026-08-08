@@ -84,6 +84,7 @@ public final class YoutubeSabrRequestHelper {
                                     final boolean videoActive,
                                     final boolean videoFirst,
                                     final float playbackRate,
+                                    final boolean initializationRequest,
                                     @Nonnull final String serverAbrStreamingUrl,
                                     final int requestNumber,
                                     @Nullable final SabrStreamingResponseReader
@@ -96,7 +97,7 @@ public final class YoutubeSabrRequestHelper {
                 info, audioFormat, videoFormat, session, playerTimeMs,
                 audioTimeline, audioBufferedThrough, videoTimeline, videoBufferedThrough,
                 audioActive, videoActive, videoFirst, playbackRate,
-                requestNumber > 0);
+                requestNumber > 0, initializationRequest);
         final long requestStartNs = System.nanoTime();
         final long[] firstSegmentElapsedMs = {-1};
         final SabrStreamingResponseReader.SegmentConsumer timedConsumer =
@@ -152,7 +153,8 @@ public final class YoutubeSabrRequestHelper {
                                             final boolean videoActive,
                                             final boolean videoFirst,
                                             final float playbackRate,
-                                            final boolean followUp)
+                                            final boolean followUp,
+                                            final boolean initializationRequest)
             throws SabrProtocolException {
         if (audioActive && audioFormat == null) {
             throw new SabrProtocolException("Active SABR audio request has no audio format");
@@ -169,17 +171,19 @@ public final class YoutubeSabrRequestHelper {
         }
 
         final List<byte[]> bufferedRanges = new ArrayList<>();
-        addBufferedRange(bufferedRanges, audioFormat, audioTimeline,
-                audioBufferedThrough, audioActive);
-        addBufferedRange(bufferedRanges, videoFormat, videoTimeline,
-                videoBufferedThrough, videoActive);
-        final boolean includePlaybackState = followUp
-                || playerTimeMs > 0 || !bufferedRanges.isEmpty();
+        if (!initializationRequest) {
+            addBufferedRange(bufferedRanges, audioFormat, audioTimeline,
+                    audioBufferedThrough, audioActive);
+            addBufferedRange(bufferedRanges, videoFormat, videoTimeline,
+                    videoBufferedThrough, videoActive);
+        }
+        final boolean includePlaybackState = !initializationRequest && (followUp
+                || playerTimeMs > 0 || !bufferedRanges.isEmpty());
         final int trackMode = audioActive && !videoActive ? 1
                 : videoActive && !audioActive ? 2 : 0;
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
-                followUp || includePlaybackState, trackMode,
+                !initializationRequest && (followUp || includePlaybackState), trackMode,
                 session.getBandwidthEstimate(), playbackRate, audioActive, videoActive));
         if (includePlaybackState) {
             if (videoFirst && videoActive && videoFormat != null) {

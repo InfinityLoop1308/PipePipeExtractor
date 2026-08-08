@@ -101,12 +101,14 @@ public final class YoutubeSabrSession {
             final boolean videoActive,
             final boolean videoFirst,
             final float playbackRate,
+            final boolean initializationRequest,
             @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
         addDiagnosticEvent("request n=" + requestNumber
                 + " playerMs=" + playerTimeMs
                 + " audioThrough=" + audioBufferedThrough
                 + " videoThrough=" + videoBufferedThrough
+                + " initialization=" + initializationRequest
                 + " poTokenBytes=" + (poToken == null ? -1 : poToken.length));
         final SabrStreamingResponseReader.SegmentConsumer timedConsumer = segmentConsumer;
         final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> { };
@@ -116,7 +118,7 @@ public final class YoutubeSabrSession {
                     requestedVideoFormat, this,
                     playerTimeMs, audioTimeline, audioBufferedThrough,
                     videoTimeline, videoBufferedThrough, audioActive, videoActive, videoFirst,
-                    playbackRate,
+                    playbackRate, initializationRequest,
                     serverAbrStreamingUrl, requestNumber, timedConsumer,
                     startedConsumer, segmentSpoolDirectory);
         } catch (final IOException | ExtractionException e) {
@@ -185,7 +187,41 @@ public final class YoutubeSabrSession {
                 requestedAudioFormat, requestedVideoFormat, playerTimeMs,
                 audioTimeline, audioBufferedThrough, videoTimeline, videoBufferedThrough,
                 audioActive, videoActive, videoFirst, playbackRate,
-                consumer);
+                false, consumer);
+        if (result == null) {
+            return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
+                    getBackoffRemainingMs()), false);
+        }
+        return new RequestResult(result.getSegmentCount(), result.getBackoffTimeMs(), false);
+    }
+
+    /**
+     * Requests the native SABR initialization segment for one format.
+     *
+     * <p>An initialization request deliberately omits selected format IDs and buffered ranges.
+     * A zero-length buffered range is not sufficient: selected format IDs tell the SABR server
+     * that the client has already initialized those formats.</p>
+     */
+    public synchronized RequestResult requestInitializationOnce(
+            @Nonnull final YoutubeSabrInfo.Format format,
+            @Nonnull final SabrStreamingResponseReader.SegmentConsumer consumer)
+            throws IOException, ExtractionException {
+        final YoutubeSabrInfo.Format requestedAudioFormat = format.isAudio() ? format : null;
+        final YoutubeSabrInfo.Format requestedVideoFormat = format.isVideo() ? format : null;
+        validateFormats(requestedAudioFormat, requestedVideoFormat);
+        if (!format.isAudio() && !format.isVideo()) {
+            throw new IllegalArgumentException("SABR initialization format has no track type");
+        }
+        final long backoffRemainingMs = getBackoffRemainingMs();
+        if (backoffRemainingMs > 0) {
+            return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
+                    backoffRemainingMs), true);
+        }
+        final YoutubeSabrResponse result = fetchAndProcessResponse(
+                requestedAudioFormat, requestedVideoFormat, 0,
+                null, 0, null, 0,
+                format.isAudio(), format.isVideo(), false, 1.0f,
+                true, consumer);
         if (result == null) {
             return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
                     getBackoffRemainingMs()), false);
@@ -235,6 +271,7 @@ public final class YoutubeSabrSession {
             final boolean videoActive,
             final boolean videoFirst,
             final float playbackRate,
+            final boolean initializationRequest,
             @Nonnull final SabrStreamingResponseReader.SegmentConsumer segmentConsumer)
             throws IOException, ExtractionException {
         final YoutubeSabrResponse result;
@@ -242,7 +279,8 @@ public final class YoutubeSabrSession {
             result = fetchNextResponse(requestedAudioFormat, requestedVideoFormat,
                     playerTimeMs, audioTimeline,
                     audioBufferedThrough, videoTimeline, videoBufferedThrough,
-                    audioActive, videoActive, videoFirst, playbackRate, segmentConsumer);
+                    audioActive, videoActive, videoFirst, playbackRate,
+                    initializationRequest, segmentConsumer);
         } catch (final SabrRecoverableException e) {
             if (recoverFromStreamingMediaException(e)) {
                 return null;
