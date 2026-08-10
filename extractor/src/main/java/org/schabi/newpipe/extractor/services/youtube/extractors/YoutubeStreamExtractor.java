@@ -2590,6 +2590,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         final PlayerClient client = PlayerClient.forName(selectedClient);
+        final boolean isAndroidVr = "android_vr".equals(selectedClient);
+        final java.util.function.Function<String, YoutubePoTokenResult> poTokenResolver =
+                isAndroidVr ? NewPipe.getYoutubePoTokenResolver() : null;
+        final YoutubePoTokenResult poTokenResult = poTokenResolver == null
+                ? null : poTokenResolver.apply(videoId);
+        final String requestVisitorData = poTokenResult == null
+                ? null : poTokenResult.getVisitorData();
+        final byte[] requestPoToken = poTokenResult == null
+                ? null : Base64.getUrlDecoder().decode(poTokenResult.getPlayerPoToken());
         configuredCpn = generateContentPlaybackNonce();
         final JsonBuilder<JsonObject> clientBuilder = JsonObject.builder()
                 .value("utcOffsetMinutes", 0)
@@ -2599,14 +2608,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value("userAgent", client.userAgent)
                 .value("clientName", client.clientName)
                 .value("clientVersion", client.clientVersion);
-        if ("android_vr".equals(selectedClient)) {
+        if (isAndroidVr) {
             clientBuilder.value("deviceMake", "Oculus")
                     .value("deviceModel", "Quest 3")
                     .value("androidSdkVersion", 32)
                     .value("osName", "Android")
                     .value("osVersion", "12L");
+            if (requestVisitorData != null) {
+                clientBuilder.value("visitorData", requestVisitorData);
+            }
         }
-        final byte[] body = JsonWriter.string(JsonObject.builder()
+        final JsonBuilder<JsonObject> bodyBuilder = JsonObject.builder()
                 .object("context")
                     .value("client", clientBuilder.done())
                 .end()
@@ -2620,17 +2632,23 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value(CPN, configuredCpn)
                 .value(VIDEO_ID, videoId)
                 .value(CONTENT_CHECK_OK, true)
-                .value(RACY_CHECK_OK, true)
-                .done()).getBytes(StandardCharsets.UTF_8);
+                .value(RACY_CHECK_OK, true);
+        if (poTokenResult != null) {
+            bodyBuilder.object("serviceIntegrityDimensions")
+                    .value("poToken", poTokenResult.getPlayerPoToken())
+                    .end();
+        }
+        final byte[] body = JsonWriter.string(bodyBuilder.done())
+                .getBytes(StandardCharsets.UTF_8);
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
             @Override
             public void onSuccess(final Response response) {
                 try {
                     final JsonObject configuredResponse = JsonUtils.toJsonObject(
                             getValidJsonResponseBody(response));
-                    playerResponseVisitorData = null;
+                    playerResponseVisitorData = requestVisitorData;
                     playerResponseClientVersion = client.clientVersion;
-                    playerResponsePoToken = null;
+                    playerResponsePoToken = requestPoToken;
                     playerResponse = configuredResponse;
                     updateAvailableAt(configuredResponse);
                     checkPlayabilityStatus(
