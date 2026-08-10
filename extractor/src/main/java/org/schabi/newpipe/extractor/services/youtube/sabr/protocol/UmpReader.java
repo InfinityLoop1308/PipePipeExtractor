@@ -6,6 +6,7 @@ import javax.annotation.Nonnull;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -143,7 +144,7 @@ public final class UmpReader {
 
     private static void throwIfInterrupted() throws IOException {
         if (Thread.currentThread().isInterrupted()) {
-            throw new IOException("Interrupted while reading UMP stream");
+            throw new InterruptedIOException("Interrupted while reading UMP stream");
         }
     }
 
