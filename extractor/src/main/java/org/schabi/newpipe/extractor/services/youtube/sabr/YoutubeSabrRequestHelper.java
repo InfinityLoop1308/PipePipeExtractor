@@ -143,26 +143,29 @@ public final class YoutubeSabrRequestHelper {
                 audioTrack == null ? null : audioTrack.getFormat();
         final YoutubeSabrInfo.Format videoFormat =
                 videoTrack == null ? null : videoTrack.getFormat();
-        final long playerTimeMs = playbackState == null ? 0 : playbackState.getPlayerTimeMs();
-        final float playbackRate = playbackState == null ? 1.0f
-                : playbackState.getPlaybackRate();
+        final long playerTimeMs = playbackState.getPlayerTimeMs();
+        final float playbackRate = playbackState.getPlaybackRate();
         final List<byte[]> bufferedRanges = new ArrayList<>();
-        if (playbackState != null) {
+        if (sabrRequest.hasSelectedTracks()) {
             for (final YoutubeSabrRequest.Track track : sabrRequest.getTracks()) {
                 addBufferedRange(bufferedRanges, track);
             }
         }
-        final boolean includePlaybackState = playbackState != null && (followUp
-                || playerTimeMs > 0 || !bufferedRanges.isEmpty());
+        final boolean includePlaybackState = followUp
+                || playerTimeMs > 0 || !bufferedRanges.isEmpty();
+        final boolean includeSelectedTracks = includePlaybackState
+                && sabrRequest.hasSelectedTracks();
         final int trackMode = audioTrack != null && videoTrack == null ? 1
                 : videoTrack != null && audioTrack == null ? 2 : 0;
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
-                playbackState != null && (followUp || includePlaybackState), trackMode,
+                followUp || includePlaybackState, trackMode,
                 session.getBandwidthEstimate(), playbackRate));
         if (includePlaybackState) {
-            for (final YoutubeSabrRequest.Track track : sabrRequest.getTracks()) {
-                request.writeMessage(2, SabrProto.formatId(track.getFormat()));
+            if (includeSelectedTracks) {
+                for (final YoutubeSabrRequest.Track track : sabrRequest.getTracks()) {
+                    request.writeMessage(2, SabrProto.formatId(track.getFormat()));
+                }
             }
             for (final byte[] range : bufferedRanges) {
                 request.writeMessage(3, range);

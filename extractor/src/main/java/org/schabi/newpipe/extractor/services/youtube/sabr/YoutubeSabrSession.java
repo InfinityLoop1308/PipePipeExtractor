@@ -86,10 +86,10 @@ public final class YoutubeSabrSession {
         final YoutubeSabrRequest.Track audioTrack = request.getAudioTrack();
         final YoutubeSabrRequest.Track videoTrack = request.getVideoTrack();
         addDiagnosticEvent("request n=" + requestNumber
-                + " playerMs=" + (playbackState == null ? 0 : playbackState.getPlayerTimeMs())
+                + " playerMs=" + playbackState.getPlayerTimeMs()
                 + " audioThrough=" + (audioTrack == null ? 0 : audioTrack.getBufferedThrough())
                 + " videoThrough=" + (videoTrack == null ? 0 : videoTrack.getBufferedThrough())
-                + " initialization=" + (playbackState == null)
+                + " selectedTracks=" + request.hasSelectedTracks()
                 + " poTokenBytes=" + (poToken == null ? -1 : poToken.length));
         final SabrStreamingResponseReader.SegmentConsumer timedConsumer = segmentConsumer;
         final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> { };

@@ -12,11 +12,13 @@ import java.util.Objects;
 public final class YoutubeSabrRequest {
     @Nonnull
     private final List<Track> tracks;
-    @Nullable
+    @Nonnull
     private final PlaybackState playbackState;
+    private final boolean selectedTracks;
 
     private YoutubeSabrRequest(@Nonnull final Collection<Track> tracks,
-                               @Nullable final PlaybackState playbackState) {
+                               @Nonnull final PlaybackState playbackState,
+                               final boolean selectedTracks) {
         Objects.requireNonNull(tracks, "tracks");
         if (tracks.isEmpty()) {
             throw new IllegalArgumentException("SABR request must contain at least one track");
@@ -50,20 +52,28 @@ public final class YoutubeSabrRequest {
                 && audioFormat.getItag() == videoFormat.getItag()) {
             throw new IllegalArgumentException("SABR audio/video formats must be distinct");
         }
-        if (playbackState == null && copy.size() != 1) {
-            throw new IllegalArgumentException(
-                    "SABR initialization request must contain exactly one track");
-        }
         this.tracks = Collections.unmodifiableList(copy);
-        this.playbackState = playbackState;
+        this.playbackState = Objects.requireNonNull(playbackState, "playbackState");
+        this.selectedTracks = selectedTracks;
     }
 
-    /** Requests a missing initialization segment without sending playback state. */
+    /**
+     * Prepares format timelines around a playback position without declaring selected tracks.
+     * Media returned alongside initialization segments may be retained by the caller.
+     */
     @Nonnull
-    public static YoutubeSabrRequest initialization(
-            @Nonnull final YoutubeSabrInfo.Format format) {
-        return new YoutubeSabrRequest(
-                Collections.singletonList(Track.of(format, null, 0)), null);
+    public static YoutubeSabrRequest preparation(
+            final long playerTimeMs,
+            @Nonnull final Collection<YoutubeSabrInfo.Format> preferredFormats) {
+        if (playerTimeMs < 0) {
+            throw new IllegalArgumentException("SABR player time must not be negative");
+        }
+        Objects.requireNonNull(preferredFormats, "preferredFormats");
+        final List<Track> tracks = new ArrayList<>(preferredFormats.size());
+        for (final YoutubeSabrInfo.Format format : preferredFormats) {
+            tracks.add(Track.of(format, null, 0));
+        }
+        return new YoutubeSabrRequest(tracks, new PlaybackState(playerTimeMs, 1.0f), false);
     }
 
     /** Requests media for the active tracks in their preferred response order. */
@@ -79,7 +89,7 @@ public final class YoutubeSabrRequest {
             throw new IllegalArgumentException("SABR playback rate must be positive");
         }
         return new YoutubeSabrRequest(tracks,
-                new PlaybackState(playerTimeMs, playbackRate));
+                new PlaybackState(playerTimeMs, playbackRate), true);
     }
 
     @Nonnull
@@ -87,9 +97,13 @@ public final class YoutubeSabrRequest {
         return tracks;
     }
 
-    @Nullable
+    @Nonnull
     PlaybackState getPlaybackState() {
         return playbackState;
+    }
+
+    boolean hasSelectedTracks() {
+        return selectedTracks;
     }
 
     @Nullable
