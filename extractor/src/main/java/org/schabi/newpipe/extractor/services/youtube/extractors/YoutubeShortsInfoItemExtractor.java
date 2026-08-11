@@ -3,17 +3,33 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nullable;
 
+import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
+
 public class YoutubeShortsInfoItemExtractor implements StreamInfoItemExtractor {
     public JsonObject item;
-    public YoutubeShortsInfoItemExtractor(JsonObject item) {
-        this.item = item;
+    @Nullable
+    private final String textualUploadDate;
+    private final TimeAgoParser timeAgoParser;
+
+    public YoutubeShortsInfoItemExtractor(final JsonObject item) {
+        this(item, null, null);
     }
+
+    public YoutubeShortsInfoItemExtractor(final JsonObject item,
+                                          @Nullable final String textualUploadDate,
+                                          @Nullable final TimeAgoParser timeAgoParser) {
+        this.item = item;
+        this.textualUploadDate = textualUploadDate;
+        this.timeAgoParser = timeAgoParser;
+    }
+
     @Override
     public String getName() throws ParsingException {
         return item.getObject("overlayMetadata").getObject("primaryText").getString("content");
@@ -65,12 +81,16 @@ public class YoutubeShortsInfoItemExtractor implements StreamInfoItemExtractor {
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return null;
+        return textualUploadDate;
     }
 
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return null;
+        final String textualUploadDate = getTextualUploadDate();
+        if (timeAgoParser == null || isNullOrEmpty(textualUploadDate)) {
+            return null;
+        }
+        return timeAgoParser.parse(textualUploadDate);
     }
 }

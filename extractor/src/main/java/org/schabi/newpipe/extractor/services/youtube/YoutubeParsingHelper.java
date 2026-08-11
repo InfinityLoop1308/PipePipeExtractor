@@ -1528,6 +1528,27 @@ YoutubeParsingHelper {
         // @formatter:on
     }
 
+    public static JsonBuilder<JsonObject> prepareTvHtml5JsonBuilder(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry) {
+        // @formatter:off
+        return JsonObject.builder()
+                .object("context")
+                .object("client")
+                .value("clientName", TVHTML5_CLIENT_NAME)
+                .value("clientVersion", TVHTML5_CLIENT_VERSION)
+                .value("platform", TVHTML5_CLIENT_PLATFORM)
+                .value("deviceMake", TVHTML5_DEVICE_MAKE)
+                .value("deviceModel", TVHTML5_DEVICE_MODEL_AND_OS_NAME)
+                .value("osName", TVHTML5_DEVICE_MODEL_AND_OS_NAME)
+                .value("hl", localization.getLocalizationCode())
+                .value("gl", contentCountry.getCountryCode())
+                .value("utcOffsetMinutes", 0)
+                .end()
+                .end();
+        // @formatter:on
+    }
+
     @Nonnull
     public static JsonBuilder<JsonObject> prepareJsonPlayerBuilder(
             @Nonnull final Localization localization,

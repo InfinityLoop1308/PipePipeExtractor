@@ -29,8 +29,13 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.YOUTUBEI_V1_URL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelResponse;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonAndroidPostResponse;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareAndroidMobileJsonBuilder;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareTvHtml5JsonBuilder;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.resolveChannelId;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -47,6 +52,7 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     @Nullable
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     protected Optional<YoutubeChannelHelper.ChannelHeader> channelHeader;
+    private Map<String, String> shortsUploadDates = Collections.emptyMap();
 
     public YoutubeChannelTabExtractor(final StreamingService service,
                                       final ListLinkHandler linkHandler) {
@@ -133,14 +139,27 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         Page nextPage = null;
 
         if (getTabData() != null) {
-            final JsonArray items = getSelectedSortFilterIndex() > 0
-                    ? getSortedItemsFrom(tabData)
+            final int sortFilterIndex = getSelectedSortFilterIndex();
+            String sortContinuation = null;
+            if (sortFilterIndex > 0) {
+                sortContinuation = getSortContinuationToken(tabData);
+            } else if (useVisitorData) {
+                try {
+                    sortContinuation = getSortContinuationToken(tabData);
+                } catch (final ParsingException ignored) {
+                    // Small channels may not expose sort chips. Their generated Shorts playlist
+                    // is used as the upload-date fallback below.
+                }
+            }
+            final JsonArray items = sortFilterIndex > 0
+                    ? getSortedItemsFrom(sortContinuation)
                     : getInitialItemsFrom(tabData);
 
             final List<String> channelIds = new ArrayList<>();
             channelIds.add(getChannelName());
             channelIds.add(YoutubeChannelLinkHandlerFactory.getInstance()
                     .getUrl("channel/" + getId()));
+            shortsUploadDates = fetchShortsUploadDates(sortContinuation, getId());
             final JsonObject continuation = collectItemsFrom(collector, items, channelIds);
 
             nextPage = getNextPageFrom(continuation, channelIds);
@@ -171,11 +190,11 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
     }
 
     @Nonnull
-    private JsonArray getSortedItemsFrom(@Nonnull final JsonObject currentTabData)
+    private JsonArray getSortedItemsFrom(@Nonnull final String continuation)
             throws IOException, ExtractionException {
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
                         getExtractorContentCountry())
-                        .value("continuation", getSortContinuationToken(currentTabData))
+                        .value("continuation", continuation)
                         .done())
                 .getBytes(StandardCharsets.UTF_8);
 
@@ -327,8 +346,11 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
 
         final JsonObject ajaxJson = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
 
-        final JsonObject continuation = collectItemsFrom(collector,
-                getContinuationItemsFrom(ajaxJson, "appendContinuationItemsAction"), channelIds);
+        final JsonArray continuationItems = getContinuationItemsFrom(
+                ajaxJson, "appendContinuationItemsAction");
+        shortsUploadDates = fetchShortsUploadDates(getContinuationFromPage(page), null);
+        final JsonObject continuation = collectItemsFrom(
+                collector, continuationItems, channelIds);
         if (ServiceList.YouTube.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
         }
@@ -502,8 +524,11 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             } else if (richItem.has("reelItemRenderer")) {
                 commitVideo.accept(richItem.getObject("reelItemRenderer"));
             } else if (richItem.has("shortsLockupViewModel")) {
+                final JsonObject shortsLockupViewModel = richItem.getObject(
+                        "shortsLockupViewModel");
+                final String videoId = getShortsVideoId(shortsLockupViewModel);
                 collector.commit(new YoutubeShortsInfoItemExtractor(
-                        richItem.getObject("shortsLockupViewModel")
+                        shortsLockupViewModel, shortsUploadDates.get(videoId), getTimeAgoParser()
                 ) {
                     @Override
                     public String getUploaderName() {
@@ -555,6 +580,139 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                     item.getObject("lockupViewModel"), channelIds);
         }
         return null;
+    }
+
+    /**
+     * The WEB client omits upload dates from Shorts cards. For regular channels, replaying the
+     * exact sort or page continuation with TVHTML5 returns dated tile renderers. Small channels
+     * without sort chips use their generated {@code UUSH} playlist through the Android client.
+     * Dates from either response are associated with the WEB items by video ID.
+     */
+    @Nonnull
+    private Map<String, String> fetchShortsUploadDates(
+            @Nullable final String continuation,
+            @Nullable final String currentChannelId) {
+        if (!useVisitorData) {
+            return Collections.emptyMap();
+        }
+
+        try {
+            final Map<String, String> uploadDates = new HashMap<>();
+            if (!isNullOrEmpty(continuation)) {
+                final byte[] body = JsonWriter.string(prepareTvHtml5JsonBuilder(
+                                getExtractorLocalization(), getExtractorContentCountry())
+                                .value("continuation", continuation)
+                                .done())
+                        .getBytes(StandardCharsets.UTF_8);
+                collectShortsUploadDates(getJsonPostResponse(
+                        "browse", body, getExtractorLocalization()), uploadDates);
+            } else if (!isNullOrEmpty(currentChannelId) && currentChannelId.startsWith("UC")) {
+                final byte[] body = JsonWriter.string(prepareAndroidMobileJsonBuilder(
+                                getExtractorLocalization(), getExtractorContentCountry(),
+                                visitorData == null ? "" : visitorData)
+                                .value("playlistId", "UUSH" + currentChannelId.substring(2))
+                                .done())
+                        .getBytes(StandardCharsets.UTF_8);
+                collectShortsUploadDates(getJsonAndroidPostResponse(
+                        "next", body, getExtractorLocalization(), null), uploadDates);
+            }
+            return uploadDates;
+        } catch (final IOException | ExtractionException ignored) {
+            return Collections.emptyMap();
+        }
+    }
+
+    private void collectShortsUploadDates(@Nonnull final Object object,
+                                          @Nonnull final Map<String, String> uploadDates) {
+        if (object instanceof JsonObject) {
+            final JsonObject jsonObject = (JsonObject) object;
+            if (jsonObject.has("tileRenderer")) {
+                final JsonObject tileRenderer = jsonObject.getObject("tileRenderer");
+                final String videoId = tileRenderer.getString("contentId");
+                final String uploadDate = getTileUploadDate(tileRenderer);
+                if (!isNullOrEmpty(videoId) && !isNullOrEmpty(uploadDate)) {
+                    uploadDates.put(videoId, uploadDate);
+                }
+            } else if (jsonObject.has("playlistPanelVideoRenderer")) {
+                final JsonObject videoRenderer = jsonObject.getObject(
+                        "playlistPanelVideoRenderer");
+                final String videoId = videoRenderer.getString("videoId");
+                final String uploadDate = getPlaylistPanelUploadDate(videoRenderer);
+                if (!isNullOrEmpty(videoId) && !isNullOrEmpty(uploadDate)) {
+                    uploadDates.put(videoId, uploadDate);
+                }
+            }
+
+            for (final Object value : jsonObject.values()) {
+                collectShortsUploadDates(value, uploadDates);
+            }
+        } else if (object instanceof JsonArray) {
+            for (final Object value : (JsonArray) object) {
+                collectShortsUploadDates(value, uploadDates);
+            }
+        }
+    }
+
+    @Nullable
+    private String getTileUploadDate(@Nonnull final JsonObject tileRenderer) {
+        final JsonArray lines = tileRenderer
+                .getObject("metadata")
+                .getObject("tileMetadataRenderer")
+                .getArray("lines");
+        for (final Object line : lines) {
+            final JsonArray items = ((JsonObject) line)
+                    .getObject("lineRenderer")
+                    .getArray("items");
+            for (final Object item : items) {
+                try {
+                    final String text = getTextFromObject(((JsonObject) item)
+                            .getObject("lineItemRenderer")
+                            .getObject("text"));
+                    if (!isNullOrEmpty(text)) {
+                        getTimeAgoParser().parse(text);
+                        return text;
+                    }
+                } catch (final Exception ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private String getPlaylistPanelUploadDate(@Nonnull final JsonObject videoRenderer) {
+        for (final Object run : videoRenderer.getObject("videoInfo").getArray("runs")) {
+            final String text = ((JsonObject) run).getString("text");
+            try {
+                getTimeAgoParser().parse(text);
+                return text;
+            } catch (final Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private String getContinuationFromPage(@Nonnull final Page page) {
+        if (page.getBody() == null) {
+            return null;
+        }
+        try {
+            return JsonUtils.toJsonObject(new String(page.getBody(), StandardCharsets.UTF_8))
+                    .getString("continuation");
+        } catch (final Exception ignored) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private String getShortsVideoId(@Nonnull final JsonObject shortsLockupViewModel) {
+        final String videoId = shortsLockupViewModel
+                .getObject("onTap")
+                .getObject("innertubeCommand")
+                .getObject("reelWatchEndpoint")
+                .getString("videoId");
+        return isNullOrEmpty(videoId) ? null : videoId;
     }
 
     @Nullable
