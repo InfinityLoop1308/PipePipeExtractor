@@ -19,6 +19,9 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 
 public class YoutubeMixOrPlaylistLockupInfoItemExtractor implements PlaylistInfoItemExtractor {
 
+    private static final String MIX_TITLE_PREFIX = "Mix - ";
+    private static final String ZULU_MIX_TITLE_PREFIX = "Imiksi - ";
+
     @Nonnull
     private final JsonObject lockupViewModel;
     @Nonnull
@@ -66,10 +69,17 @@ public class YoutubeMixOrPlaylistLockupInfoItemExtractor implements PlaylistInfo
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return firstMetadataRow.getArray("metadataParts")
+        if (playlistType != PlaylistInfo.PlaylistType.NORMAL) {
+            // Mix metadata contains a localized summary of featured artists, not an uploader.
+            // Auto-generated mixes are created by YouTube.
+            return "YouTube";
+        }
+
+        final String uploaderName = firstMetadataRow.getArray("metadataParts")
                 .getObject(0)
                 .getObject("text")
                 .getString("content");
+        return uploaderName;
     }
 
 //    @Override
@@ -138,8 +148,15 @@ public class YoutubeMixOrPlaylistLockupInfoItemExtractor implements PlaylistInfo
 
     @Override
     public String getName() throws ParsingException {
-        return lockupMetadataViewModel.getObject("title")
+        final String name = lockupMetadataViewModel.getObject("title")
                 .getString("content");
+
+        if (playlistType != PlaylistInfo.PlaylistType.NORMAL
+                && name.startsWith(ZULU_MIX_TITLE_PREFIX)) {
+            return MIX_TITLE_PREFIX + name.substring(ZULU_MIX_TITLE_PREFIX.length());
+        }
+
+        return name;
     }
 
     @Override
