@@ -19,6 +19,9 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 public class BandcampSearchExtractor extends SearchExtractor {
 
@@ -30,7 +33,9 @@ public class BandcampSearchExtractor extends SearchExtractor {
     public InfoItemsPage<InfoItem> getPageInternal(final Page page)
             throws IOException, ExtractionException {
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-        final Document d = Jsoup.parse(getDownloader().get(page.getUrl()).responseBody());
+        final Map<String, List<String>> headers = Collections.singletonMap(
+                "Cookie", Collections.singletonList("identity"));
+        final Document d = Jsoup.parse(getDownloader().get(page.getUrl(), headers).responseBody());
 
         for (final Element searchResult : d.getElementsByClass("searchresult")) {
             final String type = searchResult.getElementsByClass("result-info").stream()
