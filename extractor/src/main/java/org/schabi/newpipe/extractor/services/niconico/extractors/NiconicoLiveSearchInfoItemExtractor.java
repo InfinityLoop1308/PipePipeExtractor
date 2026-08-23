@@ -1,34 +1,38 @@
 package org.schabi.newpipe.extractor.services.niconico.extractors;
 
-import org.jsoup.nodes.Element;
+import com.grack.nanojson.JsonObject;
+
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+
 import javax.annotation.Nullable;
-import java.net.URLDecoder;
 
 public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtractor {
-    Element data;
-    public NiconicoLiveSearchInfoItemExtractor(Element e) {
-        data = e;
+    private final JsonObject data;
+
+    public NiconicoLiveSearchInfoItemExtractor(final JsonObject data) {
+        this.data = data;
     }
 
     @Override
     public String getName() throws ParsingException {
-        return data.select("a[class*=___program-card-title-anchor___]").attr("title");
+        return data.getString("title", "");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return data.select("a[class*=___program-card-title-anchor___]").attr("href");
+        return data.getString("watchPageUrl", "");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return URLDecoder.decode(data.select("img[class*=___program-card-thumbnail-image___]").attr("src"));
+        return data.getString("listingThumbnail", "");
     }
 
     @Override
@@ -48,28 +52,38 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
 
     @Override
     public long getViewCount() throws ParsingException {
-        try {
-            return Long.parseLong(data.select("span[class*=___program-card-statistics-text___] > span").get(1).text());
-        } catch (Exception e) {
-            return -1;
-        }
+        return data.getObject("statistics").getLong("watchCount");
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return data.select("p[class*=___program-card-provider-name___] > a[class*=___program-card-provider-name-link___]").text();
+        if (!data.isNull("supplier")) {
+            return data.getObject("supplier").getString("name", "");
+        }
+        return data.getObject("socialGroup").getString("name", "");
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return data.select("p[class*=___program-card-provider-name___] > a[class*=___program-card-provider-name-link___]")
-                .attr("href").split("/live_programs")[0];
+        if (!data.isNull("supplier")) {
+            final String providerId = data.getObject("supplier")
+                    .getString("programProviderId", "");
+            return providerId.isEmpty() ? "" : NiconicoService.USER_URL + providerId;
+        }
+
+        final String socialGroupId = data.getObject("socialGroup").getString("id", "");
+        return socialGroupId.isEmpty()
+                ? "" : NiconicoService.CHANNEL_URL + "channel/" + socialGroupId;
     }
 
     @Nullable
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return null;
+        if (!data.isNull("supplier")) {
+            return data.getObject("supplier").getObject("icons")
+                    .getString("uri150x150", "");
+        }
+        return data.getObject("socialGroup").getString("thumbnailUrl", "");
     }
 
     @Override
@@ -80,22 +94,22 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        try {
-            return data.select("span[class*=___program-card-statistics-text___] > span").get(0).text();
-        } catch (Exception e) {
-            return null;
-        }
+        final long beginTime = data.getLong("beginTime");
+        return beginTime == 0 ? null
+                : Instant.ofEpochSecond(beginTime).atOffset(ZoneOffset.ofHours(9)).toString();
     }
 
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return null;
+        final long beginTime = data.getLong("beginTime");
+        return beginTime == 0 ? null : new DateWrapper(
+                Instant.ofEpochSecond(beginTime).atOffset(ZoneOffset.ofHours(9)));
     }
 
     @Nullable
     @Override
     public String getShortDescription() throws ParsingException {
-        return null;
+        return data.getString("description", "");
     }
 }

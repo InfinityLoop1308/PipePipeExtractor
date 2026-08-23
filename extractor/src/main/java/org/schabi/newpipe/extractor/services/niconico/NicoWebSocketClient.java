@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.niconico;
 
+import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
@@ -12,6 +13,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.StringJoiner;
 
 import javax.annotation.Nonnull;
 
@@ -20,9 +22,10 @@ public class NicoWebSocketClient  {
     private final URI serverUri;
     private final Map<String, String> httpHeaders;
 
-    private String serverUrl;
+    private volatile String serverUrl;
     private String threadId;
-    public String url;
+    private volatile String url;
+    private volatile String streamCookie;
     private int retryTimes = 0;
     private Map<String, String> pageIndicators;
 
@@ -37,7 +40,7 @@ public class NicoWebSocketClient  {
 
         @Override
         public void onOpen(ServerHandshake handshakedata) {
-            send("{\"type\":\"startWatching\",\"data\":{\"stream\":{\"quality\":\"super_high\",\"protocol\":\"hls+fmp4\",\"latency\":\"low\",\"chasePlay\":false},\"room\":{\"protocol\":\"webSocket\",\"commentable\":true},\"reconnect\":false}}");
+            send("{\"type\":\"startWatching\",\"data\":{\"stream\":{\"quality\":\"abr\",\"protocol\":\"hls\",\"latency\":\"high\",\"accessRightMethod\":\"single_cookie\",\"chasePlay\":false},\"room\":{\"protocol\":\"webSocket\",\"commentable\":true},\"reconnect\":false}}");
         }
 
         @Override
@@ -56,7 +59,22 @@ public class NicoWebSocketClient  {
                         messages.add(data.getObject("chat"));
                     }else if(data.has("type")){
                         if(data.getString("type").equals("stream")){
-                            url = data.getObject("data").getString("uri");
+                            final JsonObject streamData = data.getObject("data");
+                            final JsonArray cookies = streamData.getArray("cookies");
+                            final StringJoiner cookieHeader = new StringJoiner("; ");
+                            for (final Object cookieObject : cookies) {
+                                if (cookieObject instanceof JsonObject) {
+                                    final JsonObject cookie = (JsonObject) cookieObject;
+                                    final String name = cookie.getString("name");
+                                    final String value = cookie.getString("value");
+                                    if (name != null && !name.isEmpty()
+                                            && value != null && !value.isEmpty()) {
+                                        cookieHeader.add(name + "=" + value);
+                                    }
+                                }
+                            }
+                            streamCookie = cookieHeader.toString();
+                            url = streamData.getString("uri");
                         }else if(data.getString("type").equals("messageServer")){
                             serverUrl = data.getObject("data").getString("viewUri");
                         }
@@ -116,6 +134,10 @@ public class NicoWebSocketClient  {
 
     public String getUrl() {
         return url;
+    }
+
+    public String getStreamCookie() {
+        return streamCookie;
     }
 
     public String getServerUrl() {

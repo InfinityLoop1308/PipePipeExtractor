@@ -8,7 +8,6 @@ import com.grack.nanojson.JsonParserException;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -85,17 +84,32 @@ public class NiconicoSearchExtractor extends SearchExtractor {
             }
 
         } else if (page.getUrl().contains(NiconicoService.LIVE_SEARCH_URL)) {
-            Elements lives = Jsoup.parse(response).select("div.program-search-result").first()
-                    .select("ul[class*=program-card-list] > li[class*=___program-card___]");
             final MultiInfoItemsCollector collector
                     = new MultiInfoItemsCollector(getServiceId());
-            for (final Element e : lives) {
-                collector.commit(new NiconicoLiveSearchInfoItemExtractor(e));
+            final Element embeddedData = Jsoup.parse(response)
+                    .selectFirst("script#embedded-data");
+            if (embeddedData == null) {
+                throw new ParsingException("Could not find live search data");
             }
-            if(lives.size() == 0){
-                return new InfoItemsPage<>(collector, null);
+
+            try {
+                final JsonObject onAir = JsonParser.object()
+                        .from(embeddedData.attr("data-props"))
+                        .getObject("searchResult")
+                        .getObject("statusData")
+                        .getObject("onair");
+                for (final Object program : onAir.getArray("programs")) {
+                    collector.commit(new NiconicoLiveSearchInfoItemExtractor(
+                            (JsonObject) program));
+                }
+
+                final Page nextPage = onAir.getBoolean("hasMore")
+                        ? new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1))
+                        : null;
+                return new InfoItemsPage<>(collector, nextPage);
+            } catch (final JsonParserException | ClassCastException e) {
+                throw new ParsingException("Could not parse live search results", e);
             }
-            return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), "page", 1)));
         } else if (page.getUrl().contains(NiconicoService.PLAYLIST_SEARCH_API_URL)){
             final MultiInfoItemsCollector collector
                     = new MultiInfoItemsCollector(getServiceId());
