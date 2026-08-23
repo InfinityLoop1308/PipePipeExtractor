@@ -2182,7 +2182,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final CancellableCall jsonPlayerCall;
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
-            case "android_vr":
             case "visionos":
             case "tv_simply":
             case "tv_downgraded":
@@ -2202,8 +2201,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         logPerformance(videoId, "schedule.jsonPlayer", stageStartedAt);
 
         CancellableCall androidReelCall = null;
-        if ("android_vr".equals(NewPipe.getYoutubePlayerClient())
-                || "visionos".equals(NewPipe.getYoutubePlayerClient())) {
+        if ("visionos".equals(NewPipe.getYoutubePlayerClient())) {
             try {
                 androidReelCall = fetchAndroidReelMuxedFormats(
                         contentCountry, localization, videoId);
@@ -2590,15 +2588,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         final PlayerClient client = PlayerClient.forName(selectedClient);
-        final boolean isAndroidVr = "android_vr".equals(selectedClient);
-        final java.util.function.Function<String, YoutubePoTokenResult> poTokenResolver =
-                isAndroidVr ? NewPipe.getYoutubePoTokenResolver() : null;
-        final YoutubePoTokenResult poTokenResult = poTokenResolver == null
-                ? null : poTokenResolver.apply(videoId);
-        final String requestVisitorData = poTokenResult == null
-                ? null : poTokenResult.getVisitorData();
-        final byte[] requestPoToken = poTokenResult == null
-                ? null : Base64.getUrlDecoder().decode(poTokenResult.getPlayerPoToken());
         configuredCpn = generateContentPlaybackNonce();
         final JsonBuilder<JsonObject> clientBuilder = JsonObject.builder()
                 .value("utcOffsetMinutes", 0)
@@ -2608,16 +2597,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value("userAgent", client.userAgent)
                 .value("clientName", client.clientName)
                 .value("clientVersion", client.clientVersion);
-        if (isAndroidVr) {
-            clientBuilder.value("deviceMake", "Oculus")
-                    .value("deviceModel", "Quest 3")
-                    .value("androidSdkVersion", 32)
-                    .value("osName", "Android")
-                    .value("osVersion", "12L");
-            if (requestVisitorData != null) {
-                clientBuilder.value("visitorData", requestVisitorData);
-            }
-        }
         final JsonBuilder<JsonObject> bodyBuilder = JsonObject.builder()
                 .object("context")
                     .value("client", clientBuilder.done())
@@ -2633,11 +2612,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value(VIDEO_ID, videoId)
                 .value(CONTENT_CHECK_OK, true)
                 .value(RACY_CHECK_OK, true);
-        if (poTokenResult != null) {
-            bodyBuilder.object("serviceIntegrityDimensions")
-                    .value("poToken", poTokenResult.getPlayerPoToken())
-                    .end();
-        }
         final byte[] body = JsonWriter.string(bodyBuilder.done())
                 .getBytes(StandardCharsets.UTF_8);
         final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
@@ -2646,9 +2620,9 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 try {
                     final JsonObject configuredResponse = JsonUtils.toJsonObject(
                             getValidJsonResponseBody(response));
-                    playerResponseVisitorData = requestVisitorData;
+                    playerResponseVisitorData = null;
                     playerResponseClientVersion = client.clientVersion;
-                    playerResponsePoToken = requestPoToken;
+                    playerResponsePoToken = null;
                     playerResponse = configuredResponse;
                     updateAvailableAt(configuredResponse);
                     checkPlayabilityStatus(
@@ -2662,12 +2636,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         configuredStreamingData = streamingData;
                         playerCaptionsTracklistRenderer = configuredResponse.getObject("captions")
                                 .getObject("playerCaptionsTracklistRenderer");
-                    }
-                } catch (final ContentNotAvailableException e) {
-                    if ("android_vr".equals(selectedClient)) {
-                        primaryPlayerError = e;
-                    } else {
-                        addError(e);
                     }
                 } catch (final Exception e) {
                     addError(e);
@@ -2765,17 +2733,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         private static PlayerClient forName(final String name) {
             switch (name) {
-                case "android_vr":
-                    return new PlayerClient("ANDROID_VR", "1.65.10", "28",
-                            "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip");
                 case "tv_simply":
                     return new PlayerClient("TVHTML5_SIMPLY", "1.0", "75", WEB_USER_AGENT);
                 case "tv_downgraded":
                     return new PlayerClient("TVHTML5", "5.20260114", "7",
                             "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
                 default:
-                    return new PlayerClient("ANDROID_VR", "1.65.10", "28",
-                            "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip");
+                    return new PlayerClient("TVHTML5", "5.20260114", "7",
+                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
             }
         }
     }
