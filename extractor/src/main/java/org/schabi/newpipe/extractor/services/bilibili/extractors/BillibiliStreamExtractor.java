@@ -298,6 +298,18 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         return StreamType.VIDEO_STREAM;
     }
 
+    private JsonObject parseVideoMetadata(final String response) {
+        try {
+            final JsonObject responseJson = JsonParser.object().from(response);
+            if (responseJson.getInt("code") != 0) {
+                return null;
+            }
+            return responseJson.getObject("data");
+        } catch (JsonParserException e) {
+            return null;
+        }
+    }
+
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         watchDataCache.init(getUrl());
@@ -391,17 +403,19 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 e.printStackTrace();
             }
         } else {
-            String url = getLinkHandler().getOriginalUrl();
             bvid = utils.getPureBV(getId());
-            url = utils.getUrl(url, bvid);
-            String response = downloader.get(url,
-                    getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") != null ? getLoggedHeadersOrNull(getOriginalUrl(), "ai_subtitle") : getHeaders(getOriginalUrl())
-            ).responseBody();
-            try {
-                watch = JsonParser.object().from(response).getObject("data");
-            } catch (JsonParserException e) {
-                e.printStackTrace();
+            final String metadataUrl =
+                    "https://api.bilibili.com/x/web-interface/wbi/view?bvid=" + bvid;
+            final Map<String, List<String>> metadataHeaders = new LinkedHashMap<>();
+            metadataHeaders.put("Cookie", Collections.singletonList(""));
+            final String response = downloader.get(metadataUrl, metadataHeaders).responseBody();
+            watch = parseVideoMetadata(response);
+
+            if (watch == null) {
+                throw new ContentNotAvailableException(
+                        "Could not get Bilibili video metadata");
             }
+
             String pageNumString = Utils.getQueryValue(Utils.stringToURL(getLinkHandler().getUrl()), "p");
             int pageNum = 1;
             if (pageNumString != null) {
