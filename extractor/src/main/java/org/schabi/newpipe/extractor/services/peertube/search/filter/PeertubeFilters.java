@@ -47,12 +47,14 @@ public final class PeertubeFilters extends SearchFiltersBase {
         /* content filters */
         final int contentFilterAll = builder.addSortItem(
                 new PeertubeFilterItem("all", ""));
+        // The kind of content searched for selects the search endpoint
+        // (see PeertubeSearchQueryHandlerFactory); it is not a query parameter.
         final int contentFilterVideos = builder.addSortItem(
-                new PeertubeFilterItem("videos", "resultType=videos"));
+                new PeertubeFilterItem("videos", ""));
         final int contentFilterChannels = builder.addSortItem(
-                new PeertubeFilterItem("channels", "resultType=channels"));
+                new PeertubeFilterItem("channels", ""));
         final int contentFilterPlaylists = builder.addSortItem(
-                new PeertubeFilterItem("playlists", "resultType=playlists"));
+                new PeertubeFilterItem("playlists", ""));
 
 
         /* this is the default content filter */
