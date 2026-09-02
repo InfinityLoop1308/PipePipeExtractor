@@ -90,8 +90,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
 
     @Nonnull
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return baseUrl + JsonUtils.getString(json, "previewPath");
+    public String getThumbnailUrl() {
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getThumbnails());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() {
+        return PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(baseUrl, json);
     }
 
     @Nonnull

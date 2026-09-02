@@ -152,6 +152,53 @@ public final class PeertubeParsingHelper {
     }
 
     /**
+     * Get the thumbnails of a playlist or of a video object.
+     *
+     * <p>
+     * A video carries a small {@code thumbnailPath} and a bigger {@code previewPath}; a playlist
+     * only carries a {@code thumbnailPath}, and even that one is absent while the playlist has no
+     * video yet. Both are returned when present, smallest first, so that a caller can pick the
+     * size it needs and still get something when the other one is missing.
+     * </p>
+     *
+     * @param baseUrl                    the base URL of the instance
+     * @param playlistOrVideoItemObject  a playlist or video object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getThumbnailsFromPlaylistOrVideoItem(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject playlistOrVideoItemObject) {
+        final List<Image> images = new ArrayList<>(2);
+
+        final String thumbnailPath = playlistOrVideoItemObject.getString("thumbnailPath");
+        if (!Utils.isBlank(thumbnailPath)) {
+            images.add(new Image(baseUrl + thumbnailPath, Image.HEIGHT_UNKNOWN,
+                    Image.WIDTH_UNKNOWN, Image.ResolutionLevel.LOW));
+        }
+
+        final String previewPath = playlistOrVideoItemObject.getString("previewPath");
+        if (!Utils.isBlank(previewPath)) {
+            images.add(new Image(baseUrl + previewPath, Image.HEIGHT_UNKNOWN,
+                    Image.WIDTH_UNKNOWN, Image.ResolutionLevel.MEDIUM));
+        }
+
+        return Collections.unmodifiableList(images);
+    }
+
+    /**
+     * Get the URL of the first image of a list, to be returned by the {@code String} image
+     * getters which want the smallest known image.
+     *
+     * @param images a list of {@link Image}s, which may be empty
+     * @return the URL of the first image, or {@code null} if the list is empty
+     */
+    @Nullable
+    public static String getFirstImageUrl(@Nonnull final List<Image> images) {
+        return images.isEmpty() ? null : images.get(0).getUrl();
+    }
+
+    /**
      * Get the URL of the biggest image of a list, to be returned by the {@code String} image
      * getters of the extractors.
      *
@@ -160,8 +207,11 @@ public final class PeertubeParsingHelper {
      */
     @Nullable
     public static String getBiggestImageUrl(@Nonnull final List<Image> images) {
+        // Widths are unknown for thumbnails, so fall back on the estimated resolution level,
+        // whose ordinals run from the highest quality to the lowest one
         return images.stream()
-                .max(Comparator.comparingInt(Image::getWidth))
+                .max(Comparator.comparingInt(Image::getWidth)
+                        .thenComparing(image -> -image.getEstimatedResolutionLevel().ordinal()))
                 .map(Image::getUrl)
                 .orElse(null);
     }

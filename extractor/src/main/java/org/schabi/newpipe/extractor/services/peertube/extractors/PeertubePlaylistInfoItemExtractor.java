@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.peertube.PeertubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import javax.annotation.Nonnull;
@@ -25,8 +26,9 @@ public class PeertubePlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
     }
 
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return baseUrl + JsonUtils.getString(item, "thumbnailPath");
+    public String getThumbnailUrl() {
+        return PeertubeParsingHelper.getFirstImageUrl(
+                PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(baseUrl, item));
     }
 
     @Override

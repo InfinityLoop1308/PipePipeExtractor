@@ -28,8 +28,11 @@ public class PeertubeStreamInfoItemExtractor implements StreamInfoItemExtractor 
     }
 
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return baseUrl + JsonUtils.getString(item, "thumbnailPath");
+    public String getThumbnailUrl() {
+        // The list thumbnail comes first; the bigger preview is only a fallback for the
+        // instances which do not serve a thumbnailPath
+        return PeertubeParsingHelper.getFirstImageUrl(
+                PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(baseUrl, item));
     }
 
     @Override
