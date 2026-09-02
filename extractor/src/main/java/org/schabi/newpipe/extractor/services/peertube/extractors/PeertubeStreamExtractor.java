@@ -8,6 +8,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -179,13 +180,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "account.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getUploaderAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getUploaderAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("account"));
     }
 
     @Nonnull
@@ -203,13 +206,20 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getSubChannelAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "channel.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getSubChannelAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    /**
+     * The default implementation of {@link StreamExtractor#getSubChannelAvatars()} wraps the
+     * sub-channel <i>page</i> URL in an {@link Image}, which is an HTML document, so it has to be
+     * overridden here.
+     */
+    @Nonnull
+    @Override
+    public List<Image> getSubChannelAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("channel"));
     }
 
     @Nonnull

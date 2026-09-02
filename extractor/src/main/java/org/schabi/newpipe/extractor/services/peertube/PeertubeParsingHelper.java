@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.peertube;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
@@ -12,10 +13,16 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.Utils;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public final class PeertubeParsingHelper {
     public static final String START_KEY = "start";
@@ -66,6 +73,97 @@ public final class PeertubeParsingHelper {
             return new Page(prevPageUrl.replace(
                     START_KEY + "=" + prevStart, START_KEY + "=" + nextStart));
         }
+    }
+
+    /**
+     * Get the avatars of an owner account or a video channel.
+     *
+     * <p>
+     * PeerTube 6.0 removed the singular {@code avatar} object every extractor used to read and
+     * only serves an {@code avatars} array since then.
+     * </p>
+     *
+     * @param baseUrl                          the base URL of the instance
+     * @param ownerAccountOrVideoChannelObject an {@code account}, {@code ownerAccount} or
+     *                                         {@code channel}/{@code videoChannel} object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getAvatarsFromOwnerAccountOrVideoChannelObject(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject ownerAccountOrVideoChannelObject) {
+        return getImagesFromAvatarOrBannerArray(baseUrl,
+                ownerAccountOrVideoChannelObject.getArray("avatars"));
+    }
+
+    /**
+     * Get the banners of an account or a video channel.
+     *
+     * @param baseUrl                     the base URL of the instance
+     * @param accountOrVideoChannelObject an account or video channel object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getBannersFromAccountOrVideoChannelObject(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject accountOrVideoChannelObject) {
+        return getImagesFromAvatarOrBannerArray(baseUrl,
+                accountOrVideoChannelObject.getArray("banners"));
+    }
+
+    /**
+     * Convert an {@code avatars} or {@code banners} array into {@link Image}s.
+     *
+     * <p>
+     * Every element carries an instance-relative {@code path} and, since PeerTube 8.0, an
+     * absolute {@code fileUrl}, which is preferred because it also resolves for images stored on
+     * an external object storage. The estimated resolution level is derived from the width.
+     * </p>
+     *
+     * @param baseUrl              the base URL of the instance
+     * @param avatarsOrBannersArray an {@code avatars} or {@code banners} array
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getImagesFromAvatarOrBannerArray(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonArray avatarsOrBannersArray) {
+        final List<Image> images = new ArrayList<>(avatarsOrBannersArray.size());
+        for (final Object o : avatarsOrBannersArray) {
+            if (!(o instanceof JsonObject)) {
+                continue;
+            }
+            final JsonObject avatarOrBanner = (JsonObject) o;
+
+            String url = avatarOrBanner.getString("fileUrl");
+            if (Utils.isBlank(url)) {
+                final String path = avatarOrBanner.getString("path");
+                if (Utils.isBlank(path)) {
+                    continue;
+                }
+                url = baseUrl + path;
+            }
+
+            final int width = avatarOrBanner.getInt("width", Image.WIDTH_UNKNOWN);
+            images.add(new Image(url, avatarOrBanner.getInt("height", Image.HEIGHT_UNKNOWN), width,
+                    Image.ResolutionLevel.fromHeight(width)));
+        }
+        return Collections.unmodifiableList(images);
+    }
+
+    /**
+     * Get the URL of the biggest image of a list, to be returned by the {@code String} image
+     * getters of the extractors.
+     *
+     * @param images a list of {@link Image}s, which may be empty
+     * @return the URL of the widest image, or {@code null} if the list is empty
+     */
+    @Nullable
+    public static String getBiggestImageUrl(@Nonnull final List<Image> images) {
+        return images.stream()
+                .max(Comparator.comparingInt(Image::getWidth))
+                .map(Image::getUrl)
+                .orElse(null);
     }
 
     public static void collectStreamsFrom(final InfoItemsCollector collector,
