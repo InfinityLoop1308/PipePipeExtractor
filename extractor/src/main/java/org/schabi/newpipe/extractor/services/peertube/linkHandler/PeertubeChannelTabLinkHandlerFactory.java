@@ -18,7 +18,7 @@ public final class PeertubeChannelTabLinkHandlerFactory extends ListLinkHandlerF
         return INSTANCE;
     }
 
-    private static String getUrlSuffix(final String tab) throws ParsingException {
+    public static String getUrlSuffix(final String tab) throws ParsingException {
         switch (tab) {
             case ChannelTabs.VIDEOS:
                 return "/videos";
