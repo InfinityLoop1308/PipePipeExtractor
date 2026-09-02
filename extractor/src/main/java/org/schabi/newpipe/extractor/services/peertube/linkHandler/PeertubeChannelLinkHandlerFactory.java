@@ -14,6 +14,10 @@ public final class PeertubeChannelLinkHandlerFactory extends ListLinkHandlerFact
     private static final PeertubeChannelLinkHandlerFactory INSTANCE
             = new PeertubeChannelLinkHandlerFactory();
     private static final String ID_PATTERN = "((accounts|a)|(video-channels|c))/([^/?&#]*)";
+    // From an URL, the pattern must be anchored on a path separator, otherwise the "a" and "c"
+    // alternatives also match inside the host name (e.g. "kolektiva.media/c/foo" would give
+    // "a/foo" instead of "c/foo", because of the "a" of "media").
+    private static final String ID_URL_PATTERN = "/((accounts|a)|(video-channels|c))/([^/?&#]*)";
     public static final String API_ENDPOINT = "/api/v1/";
 
     private PeertubeChannelLinkHandlerFactory() {
@@ -25,7 +29,8 @@ public final class PeertubeChannelLinkHandlerFactory extends ListLinkHandlerFact
 
     @Override
     public String getId(final String url) throws ParsingException {
-        return fixId(Parser.matchGroup(ID_PATTERN, url, 0));
+        // Drop the leading path separator the pattern is anchored on
+        return fixId(Parser.matchGroup(ID_URL_PATTERN, url, 0).substring(1));
     }
 
     @Override
