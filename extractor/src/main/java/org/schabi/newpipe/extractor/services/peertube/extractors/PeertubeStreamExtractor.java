@@ -429,7 +429,13 @@ public class PeertubeStreamExtractor extends StreamExtractor {
                 for (final Object c : captions) {
                     if (c instanceof JsonObject) {
                         final JsonObject caption = (JsonObject) c;
-                        final String url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        // PeerTube 8.0 deprecated captionPath in favour of an absolute fileUrl,
+                        // which is also the only correct one when captions are stored on an
+                        // external object storage
+                        String url = caption.getString("fileUrl");
+                        if (Utils.isBlank(url)) {
+                            url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        }
                         final String languageCode = JsonUtils.getString(caption, "language.id");
                         final String ext = url.substring(url.lastIndexOf(".") + 1);
                         final MediaFormat fmt = MediaFormat.getFromSuffix(ext);
