@@ -13,6 +13,14 @@ import java.util.Optional;
 
 public final class PeertubeFilters extends SearchFiltersBase {
 
+    /**
+     * Name of the group holding the "SepiaSearch" toggle.
+     *
+     * <p>The group needs a name: the client skips any filter group whose name is {@code null}
+     * when it builds the search filter dialog, so a nameless group is never shown to the user.</p>
+     */
+    private static final String SEPIA_GROUP_NAME = "Sepia Search";
+
     private boolean isAscending = false;
 
     public PeertubeFilters() {
@@ -132,7 +140,7 @@ public final class PeertubeFilters extends SearchFiltersBase {
                 new PeertubeFilterItem("long_video", "durationMin=600"));
 
         final Filter allSortFilters = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup(null, false, new FilterItem[]{
+                builder.createSortGroup(SEPIA_GROUP_NAME, false, new FilterItem[]{
                         builder.getFilterForId(filterSepiaSearch),
                 }),
                 builder.createSortGroup("sortby", true, new FilterItem[]{
@@ -173,7 +181,7 @@ public final class PeertubeFilters extends SearchFiltersBase {
         }).build();
 
         final Filter sepiaFilterOnly = new Filter.Builder(new FilterGroup[]{
-                builder.createSortGroup(null, false, new FilterItem[]{
+                builder.createSortGroup(SEPIA_GROUP_NAME, false, new FilterItem[]{
                         builder.getFilterForId(filterSepiaSearch),
                 })}).build();
         addContentFilterSortVariant(-1, allSortFilters);
