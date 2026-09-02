@@ -107,7 +107,7 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
                 PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null, getBaseUrl()),
                 PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
-                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.CHANNELS)), null, getBaseUrl())
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null, getBaseUrl())
         );
     }
 
