@@ -6,8 +6,9 @@ import org.schabi.newpipe.extractor.search.filter.FilterGroup;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.search.filter.SearchFiltersBase;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 public final class PeertubeFilters extends SearchFiltersBase {
@@ -218,15 +219,16 @@ public final class PeertubeFilters extends SearchFiltersBase {
 
         @Override
         public String getQueryData() {
-            // return format eg: startDate=2022-08-01T22:00:00.000
+            // return format eg: startDate=2022-08-01T22:00:00.000Z
 
             if (days == NO_DAYS_SET) {
                 return "";
             }
-            final LocalDateTime localDateTime = LocalDateTime.now().minusDays(days);
+            final Instant startDate = Instant.now()
+                    .minus(days, ChronoUnit.DAYS)
+                    .truncatedTo(ChronoUnit.MILLIS);
 
-            return "startDate=" + localDateTime.format(
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+            return "startDate=" + DateTimeFormatter.ISO_INSTANT.format(startDate);
         }
     }
 
