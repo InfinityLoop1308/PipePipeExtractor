@@ -85,10 +85,13 @@ public final class SponsorBlockExtractorHelper {
             return new SponsorBlockSegment[0];
         }
 
-        final String url = getApiUrl(extractor.getServiceId()) + "skipSegments/" + videoIdHash.substring(0, 4)
+        final String apiUrl = getApiUrl(extractor.getServiceId());
+        // bsbsb.top (BiliBili SponsorBlock) rejects unknown query parameters,
+        // while sponsor.ajay.app requires the userAgent one.
+        final String url = apiUrl + "skipSegments/" + videoIdHash.substring(0, 4)
                 + "?categories=" + categoryParams
                 + "&actionTypes=" + actionParams
-                + "&userAgent=Mozilla/5.0";
+                + (apiUrl.contains("bsbsb.top") ? "" : "&userAgent=Mozilla/5.0");
 
         JsonArray responseArray = null;
 
@@ -174,7 +177,8 @@ public final class SponsorBlockExtractorHelper {
                 + "&endTime=" + endInSeconds
                 + "&category=" + segment.category.getApiName()
                 + "&userID=" + userId
-                + "&userAgent=PipePipe/1.1.0"
+                // bsbsb.top (BiliBili SponsorBlock) rejects unknown query parameters
+                + (apiUrl.contains("bsbsb.top") ? "" : "&userAgent=PipePipe/1.1.0")
                 + "&actionType=" + actionType;
         return NewPipe.getDownloader().post(url, apiUrl.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null, new byte[0]);
     }
