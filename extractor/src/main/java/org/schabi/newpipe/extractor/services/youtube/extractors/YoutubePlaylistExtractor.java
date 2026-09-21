@@ -18,6 +18,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -325,6 +326,10 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
             nextPage = getNextPageFrom(contents);
         }
 
+        if (ServiceList.YouTube.getFilterTypes().contains("playlists")) {
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
+        }
+
         return new InfoItemsPage<>(collector, nextPage);
     }
 
@@ -349,6 +354,10 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                 .getArray("continuationItems");
 
         collectStreamsFrom(collector, continuation);
+
+        if (ServiceList.YouTube.getFilterTypes().contains("playlists")) {
+            collector.applyBlocking(ServiceList.YouTube.getFilterConfig());
+        }
 
         return new InfoItemsPage<>(collector, getNextPageFrom(continuation));
     }

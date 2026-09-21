@@ -6,6 +6,7 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -53,6 +54,9 @@ public class NiconicoPlaylistExtractor extends PlaylistExtractor {
                 = new StreamInfoItemsCollector(getServiceId());
         for (int i = 0; i< items.size(); i++) {
             collector.commit(new NiconicoPlaylistContentItemExtractor(items.getObject(i)));
+        }
+        if (ServiceList.NicoNico.getFilterTypes().contains("playlists")) {
+            collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
         }
         return collector;
     }

@@ -7,6 +7,7 @@ import com.grack.nanojson.JsonParserException;
 
 import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -73,6 +74,9 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                                 URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8"),
                                 String.valueOf(i + 1), getUploaderName(), null));
             }
+            if (ServiceList.BiliBili.getFilterTypes().contains("playlists")) {
+                collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
+            }
             return new InfoItemsPage<>(collector, null);
         }
         return getPage(new Page(getUrl() + "&username=" + getUploaderName(), getDefaultCookies()));
@@ -96,6 +100,9 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         for (int i = 0; i < results.size(); i++) {
             collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), getUploaderName(), getUploaderAvatarUrl()));
+        }
+        if (ServiceList.BiliBili.getFilterTypes().contains("playlists")) {
+            collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), type.equals("seasons_archives") ? "page_num" : "pn", 1), getDefaultCookies()));
     }
