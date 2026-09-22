@@ -101,7 +101,7 @@ public class BilibiliService extends StreamingService {
     public static String FETCH_COOKIE_URL = "https://api.bilibili.com/x/frontend/finger/spi";
     public static String FETCH_COMMENTS_URL = "https://api.bilibili.com/x/v2/reply/wbi/main";
     public static String FETCH_TAGS_URL = "https://api.bilibili.com/x/web-interface/view/detail/tag?bvid=";
-    public final static String FETCH_RECOMMENDED_LIVES_URL = "https://api.live.bilibili.com/xlive/web-interface/v1/second/getUserRecommend?page_size=30&platform=web";
+    public final static String FETCH_RECOMMENDED_LIVES_URL = "https://api.live.bilibili.com/room/v1/room/get_user_recommend?page_size=30&platform=web";
     public static String VIDEOSHOT_API_URL = "https://api.bilibili.com/x/player/videoshot?index=1&bvid=";
     public final static String FETCH_TICKET_URL = "https://api.bilibili.com/bapis/bilibili.api.ticket.v1.Ticket/GenWebTicket";
 

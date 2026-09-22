@@ -53,7 +53,7 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
                 }
                 break;
             case "Recommended Lives":
-                results = response.getObject("data").getArray("list");
+                results = response.getArray("data");
                 for (int i = 0; i < results.size(); i++) {
                     collector.commit(new BilibiliRecommendLiveInfoItemExtractor(results.getObject(i)));
                 }
