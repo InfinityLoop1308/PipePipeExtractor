@@ -157,6 +157,11 @@ public class BilibiliWebSocketClient {
         return webSocketClient;
     }
     public void wrappedReconnect() throws URISyntaxException, InterruptedException {
+        // disconnect() sets this flag to keep onClose from reconnecting on the intentional close.
+        // A reconnect requested after that (e.g. when playback of a live stream resumes) has to
+        // clear it again, otherwise the new socket would never send the keep-alive packets and
+        // would never reconnect on its own either.
+        shouldStop.set(false);
         webSocketClient.stopTimer();
         webSocketClient = new WrappedWebSocketClient();
         webSocketClient.connectBlocking();
