@@ -8,38 +8,42 @@ import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 
 import javax.annotation.Nullable;
 
 public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtractor {
-    private JsonObject data;
+    private final JsonObject data;
 
-    public NiconicoLiveHistoryInfoItemExtractor(JsonObject data){
+    public NiconicoLiveHistoryInfoItemExtractor(final JsonObject data) {
         this.data = data;
     }
+
     @Override
     public String getName() throws ParsingException {
-        return data.getObject("program").getString("title");
+        return data.getObject("program").getString("title", "");
     }
 
     @Override
     public String getUrl() throws ParsingException {
-        return NiconicoService.WATCH_URL + data.getObject("linkedContent").getString("contentId");
+        return NiconicoService.LIVE_URL + data.getObject("id").getString("value", "");
     }
 
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return data.getObject("thumbnail").getObject("huge").getString("s352x198");
+        final JsonObject thumbnail = data.getObject("thumbnail");
+        final String listing = thumbnail.getObject("listing").getString("middle");
+        if (listing != null && !listing.isEmpty()) {
+            return listing;
+        }
+        return thumbnail.getObject("screenshot").getString("middle", "");
     }
 
     @Override
     public StreamType getStreamType() throws ParsingException {
-        return StreamType.VIDEO_STREAM;
+        return "ON_AIR".equals(getSchedule().getString("status"))
+                ? StreamType.LIVE_STREAM : StreamType.VIDEO_STREAM;
     }
 
     @Override
@@ -49,7 +53,10 @@ public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtra
 
     @Override
     public long getDuration() throws ParsingException {
-        JsonObject schedule = data.getObject("program").getObject("schedule");
+        if (getStreamType() == StreamType.LIVE_STREAM) {
+            return -1;
+        }
+        final JsonObject schedule = getSchedule();
         return schedule.getObject("endTime").getLong("seconds")
                 - schedule.getObject("beginTime").getLong("seconds");
     }
@@ -61,12 +68,12 @@ public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtra
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return data.getObject("programProvider").getString("name");
+        return data.getObject("programProvider").getString("name", "");
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return data.getObject("programProvider").getString("profileUrl");
+        return data.getObject("programProvider").getString("profileUrl", "");
     }
 
     @Nullable
@@ -83,13 +90,29 @@ public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtra
     @Nullable
     @Override
     public String getTextualUploadDate() throws ParsingException {
-        return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date(data.getObject("program").getObject("schedule").getObject("endTime").getLong("seconds") * 1000L));
+        final long beginTimeSeconds = getBeginTimeSeconds();
+        if (beginTimeSeconds <= 0) {
+            return null;
+        }
+        return Instant.ofEpochSecond(beginTimeSeconds).atOffset(ZoneOffset.ofHours(9)).toString();
     }
 
     @Nullable
     @Override
     public DateWrapper getUploadDate() throws ParsingException {
-        return new DateWrapper(LocalDateTime.parse(
-                getTextualUploadDate(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")).atOffset(ZoneOffset.ofHours(9)));
+        final long beginTimeSeconds = getBeginTimeSeconds();
+        if (beginTimeSeconds <= 0) {
+            return null;
+        }
+        return new DateWrapper(
+                Instant.ofEpochSecond(beginTimeSeconds).atOffset(ZoneOffset.ofHours(9)));
+    }
+
+    private JsonObject getSchedule() {
+        return data.getObject("program").getObject("schedule");
+    }
+
+    private long getBeginTimeSeconds() {
+        return getSchedule().getObject("beginTime").getLong("seconds");
     }
 }

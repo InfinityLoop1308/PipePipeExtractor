@@ -53,7 +53,7 @@ public class NiconicoChannelTabExtractor extends ChannelTabExtractor {
                 for(int i = 0; i< datalist.size(); i++){
                     collector.commit(new NiconicoLiveHistoryInfoItemExtractor(datalist.getObject(i)));
                 }
-                if(datalist.size() == 0){
+                if(datalist.size() == 0 || !data.getBoolean("hasNext")){
                     return new InfoItemsPage<>(collector, null);
                 }
                 String currentPageString = page.getUrl().split("offset=")[1].split("&")[0];
