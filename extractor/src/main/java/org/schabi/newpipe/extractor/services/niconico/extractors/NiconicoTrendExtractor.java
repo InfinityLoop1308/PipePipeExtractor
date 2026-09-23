@@ -11,7 +11,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.parser.Parser;
-import org.jsoup.select.Elements;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -88,9 +87,18 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
 
                 break;
             case "Top Lives":
-                final Elements dataArray = document.select("[class^=___rk-program-card___]");
-                for (final Element e : dataArray) {
-                    collector.commit(new NiconicoTopLivesInfoItemExtractor(e));
+                final Element embeddedData = document.selectFirst("script#embedded-data");
+                if (embeddedData == null) {
+                    throw new ParsingException("Could not find live ranking data");
+                }
+                try {
+                    final JsonObject ranking = JsonParser.object()
+                            .from(embeddedData.attr("data-props"))
+                            .getObject("ranking");
+                    collectRankingPrograms(collector, ranking.getArray("officialAndChannelPrograms"));
+                    collectRankingPrograms(collector, ranking.getArray("userPrograms"));
+                } catch (final JsonParserException e) {
+                    throw new ParsingException("Could not parse live ranking data", e);
                 }
                 break;
         }
@@ -98,6 +106,16 @@ public class NiconicoTrendExtractor extends KioskExtractor<StreamInfoItem> {
             collector.applyBlocking(ServiceList.NicoNico.getFilterConfig());
         }
         return new InfoItemsPage<>(collector, null);
+    }
+
+    private void collectRankingPrograms(final StreamInfoItemsCollector collector,
+                                        final JsonArray programs) {
+        for (final Object entry : programs) {
+            if (entry instanceof JsonObject) {
+                final JsonObject program = ((JsonObject) entry).getObject("value");
+                collector.commit(new NiconicoLiveSearchInfoItemExtractor(program));
+            }
+        }
     }
 
     @Override

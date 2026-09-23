@@ -64,6 +64,9 @@ public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtrac
 
     @Override
     public long getDuration() throws ParsingException {
+        if (getStreamType() == StreamType.LIVE_STREAM) {
+            return -1;
+        }
         return data.getObject("content_meta").getLong("length_seconds");
     }
 
@@ -78,7 +81,12 @@ public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtrac
     @Override
     public String getUploaderName() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){
-            return data.getObject("content_meta").getString("community_text");
+            final JsonObject contentMeta = data.getObject("content_meta");
+            final String nickname = contentMeta.getString("user_nickname");
+            if(nickname != null && !nickname.isEmpty()){
+                return nickname;
+            }
+            return contentMeta.getString("community_text", "");
         }
         String result = "user/" + data.getObject("content_meta").getLong("author_id");
         if(data.getObject("content_meta").getLong("author_id") == 0){
@@ -92,7 +100,16 @@ public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtrac
 
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return NiconicoService.USER_URL+ data.getObject("content_meta").getString("author_id");
+        final JsonObject contentMeta = data.getObject("content_meta");
+        final long channelId = contentMeta.getLong("channel_id");
+        if (channelId > 0) {
+            return NiconicoService.CHANNEL_URL + "ch" + channelId;
+        }
+        final long userId = contentMeta.getLong("user_id");
+        if (userId > 0) {
+            return NiconicoService.USER_URL + userId;
+        }
+        return "";
     }
 
     @Nullable
