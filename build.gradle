@@ -15,7 +15,7 @@ allprojects {
         enabled = false
         group = null
     }
-    version 'v5.3.1'
+    version 'v5.4.0'
     group 'com.github.InfinityLoop1308.PipePipeExtractor'
 
     repositories {
