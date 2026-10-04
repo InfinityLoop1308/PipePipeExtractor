@@ -12,20 +12,22 @@ public class TwitchStreamLinkHandlerFactory extends LinkHandlerFactory {
 
     @Override
     public String getId(final String urlString) throws ParsingException, UnsupportedOperationException {
-        return switch (type) {
-            case CLIP -> TwitchUrlParser.parseClipIdFromClipUrl(urlString);
-            case STREAM -> TwitchUrlParser.parseChannelNameFromStreamUrl(urlString);
-            case VOD -> TwitchUrlParser.parseVodIdFromVodUrl(urlString);
-        };
+//        return switch (type) {
+//            case CLIP -> TwitchUrlParser.parseClipIdFromClipUrl(urlString);
+//            case STREAM -> TwitchUrlParser.parse(urlString);
+//            case VOD -> TwitchUrlParser.parseVodIdFromVodUrl(urlString);
+//        };
+        return urlString;
     }
 
     @Override
     public String getUrl(final String id) throws ParsingException, UnsupportedOperationException {
-        return switch (type) {
-            case CLIP -> TwitchUrlBuilder.buildClipUrlFromClipId(id);
-            case STREAM -> TwitchUrlBuilder.buildStreamUrlFromChannelName(id);
-            case VOD -> TwitchUrlBuilder.buildVodUrlFromVodId(id);
-        };
+//        return switch (type) {
+//            case CLIP -> TwitchUrlBuilder.buildClipUrlFromClipId(id);
+//            case STREAM -> TwitchUrlBuilder.buildStreamUrlFromChannelName(id);
+//            case VOD -> TwitchUrlBuilder.buildVodUrlFromVodId(id);
+//        };
+        return id;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class TwitchStreamLinkHandlerFactory extends LinkHandlerFactory {
         } catch (Exception ignored) {
         }
         try {
-            TwitchUrlParser.parseChannelNameFromStreamUrl(urlString);
+            TwitchUrlParser.parseChannelUrl(urlString);
             type = TwitchStreamLinkType.STREAM;
             return true;
         } catch (Exception ignored) {

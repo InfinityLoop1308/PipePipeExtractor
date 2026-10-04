@@ -10,6 +10,10 @@ public final class TwitchSearchChannelResponseEntry extends TwitchSearchBaseResp
     private final String channelName;
 
     @Nonnull
+    private final String loginName;
+    @Nonnull
+    private final String channelId;
+    @Nonnull
     private final String channelDescription;
 
     @Nonnull
@@ -19,8 +23,17 @@ public final class TwitchSearchChannelResponseEntry extends TwitchSearchBaseResp
 
     private final int channelFollowerCount;
 
-    public TwitchSearchChannelResponseEntry(@Nonnull String channelName, @Nonnull String channelDescription, @Nonnull String channelAvatarUrl, boolean isChannelPartnered, int channelFollowerCount) {
+    public TwitchSearchChannelResponseEntry(
+            @Nonnull String channelName,
+            @Nonnull String loginName,
+            @Nonnull String channelId,
+            @Nonnull String channelDescription,
+            @Nonnull String channelAvatarUrl,
+            boolean isChannelPartnered,
+            int channelFollowerCount) {
         this.channelName = channelName;
+        this.loginName = loginName;
+        this.channelId = channelId;
         this.channelDescription = channelDescription;
         this.channelAvatarUrl = channelAvatarUrl;
         this.isChannelPartnered = isChannelPartnered;
@@ -48,5 +61,15 @@ public final class TwitchSearchChannelResponseEntry extends TwitchSearchBaseResp
 
     public int getChannelFollowerCount() {
         return channelFollowerCount;
+    }
+
+    @Nonnull
+    public String getChannelId() {
+        return channelId;
+    }
+
+    @Nonnull
+    public String getLoginName() {
+        return loginName;
     }
 }

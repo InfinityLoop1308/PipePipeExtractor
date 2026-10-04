@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.twitch.kiosks;
 
 import com.grack.nanojson.JsonParserException;
 
+import org.jetbrains.annotations.Nullable;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -12,12 +13,17 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
-import org.schabi.newpipe.extractor.services.twitch.data.api.responses.nowLive.TwitchNowLiveResponse;
-import org.schabi.newpipe.extractor.services.twitch.data.api.responses.nowLive.TwitchNowLiveResponseInner;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.nowLive.TwitchHelixNowLiveResponseInner;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.nowLive.TwitchNowLiveResponseEntry;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
 
@@ -28,7 +34,9 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
     public static final String KIOSK_ID = "live";
     @Nonnull
     private final TwitchApiClient apiClient;
-    private TwitchNowLiveResponseInner response;
+    private TwitchHelixNowLiveResponseInner response;
+    private TwitchNowLiveResponseEntry[] entries;
+    private Pagination pagination;
 
     public TwitchLiveKiosk(final @Nonnull StreamingService streamingService,
                            final @Nonnull ListLinkHandler linkHandler,
@@ -39,18 +47,28 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
-        populateData(downloader, getUrl());
+        fetchData(downloader, getUrl());
     }
 
-    private void populateData(@Nonnull final Downloader downloader, @Nonnull final String url) throws IOException, ExtractionException {
+    private void fetchData(@Nonnull final Downloader downloader, @Nonnull final String url) throws IOException, ExtractionException {
         try {
+            final var paginationString = TwitchUrlParser.parsePaginationFromKioskUrl(url);
+            pagination = TwitchPaginationHelper.getPaginationFromString(paginationString);
             if(apiClient.getApiSettings().shouldUseHelixForKiosk()) {
-                final var cursor = TwitchUrlParser.parseLiveKioskCursorFromKioskUrl(url);
-                response = apiClient.getAuthorized().getNowLiveInformation(downloader, cursor);
+                response = apiClient.getAuthorized().getNowLiveInformation(downloader,
+                        ((CursorBasedPagination)pagination).cursor()
+                );
             }
-
             else
-                response = apiClient.getUnauthorized().getNowLiveInformation(downloader).getData();
+                entries = TwitchPaginationHelper.paginateArray(
+                        apiClient.getUnauthorized().getNowLiveInformation(
+                                        downloader,
+                                        ((PositionBasedPagination)pagination).offset()
+                                                + ((PositionBasedPagination)pagination).size()
+                                ).getData(),
+                            TwitchNowLiveResponseEntry.class,
+                            (PositionBasedPagination)pagination
+                );
         } catch (JsonParserException e) {
             throw new IOException(e);
         }
@@ -65,34 +83,70 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
     @Nonnull
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
+        Page nextPage = null;
+        if(apiClient.getApiSettings().shouldUseHelixForKiosk()) {
+            if(response.hasMoreEntries()) {
+                nextPage = new Page(TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
+                        new CursorBasedPagination(response.cursor())
+                ));
+            }
+            return getPage(
+                    response.liveEntries().toArray(TwitchNowLiveResponseEntry[]::new),
+                    response.hasMoreEntries() ? nextPage : null
+            );
+        }
+        else {
+            final var positionPagination = (PositionBasedPagination)pagination;
+            final var hasMoreEntries = positionPagination.offset() + positionPagination.size() < 100;
+            if(hasMoreEntries) {
+                nextPage = new Page(TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
+                        positionPagination.shift()
+                ));
+            }
+            return getPage(
+                    entries,
+                    hasMoreEntries ? nextPage : null
+            );
+        }
+    }
+
+    private InfoItemsPage<StreamInfoItem> getPage(
+            @Nonnull final TwitchNowLiveResponseEntry[] entries,
+            @Nullable final Page nextPage) {
         return new InfoItemsPage<>(
-                response.liveEntries()
-                        .stream()
+                Arrays.stream(entries)
                         .map(liveEntry -> {
                             final var infoItem = new StreamInfoItem(
                                     getServiceId(),
-                                    TwitchUrlBuilder.buildStreamUrlFromChannelName(liveEntry.streamerLoginName()),
+                                    TwitchUrlBuilder.buildStreamUrlFromChannelName(
+                                            liveEntry.streamerLoginName(),
+                                            liveEntry.streamerId(),
+                                            PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                                    ),
                                     liveEntry.streamTitle(),
                                     StreamType.LIVE_STREAM
                             );
                             infoItem.setViewCount(liveEntry.streamViewers());
                             infoItem.setUploaderName(liveEntry.streamerName());
-                            infoItem.setUploaderUrl(TwitchUrlBuilder.buildStreamUrlFromChannelName(liveEntry.streamerName()));
+                            infoItem.setUploaderUrl(TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                                    liveEntry.streamerLoginName(),
+                                    liveEntry.streamerId(),
+                                    PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                            ));
                             infoItem.setShortDescription(liveEntry.gameName());
                             infoItem.setUploaderAvatarUrl(liveEntry.thumbnailUrl());
                             infoItem.setThumbnailUrl(liveEntry.thumbnailUrl());
                             return infoItem;
                         })
                         .collect(Collectors.toList()),
-                        apiClient.getApiSettings().shouldUseHelixForKiosk() && response.hasMoreEntries()
-                    ? new Page(TwitchUrlBuilder.buildLiveKioskUrlFromCursor(response.cursor()))
-                    : null,
-                Collections.emptyList());
+                        nextPage,
+                Collections.emptyList()
+        );
     }
 
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        populateData(getDownloader(), page.getUrl());
+        fetchData(getDownloader(), page.getUrl());
         return getInitialPage();
     }
 }

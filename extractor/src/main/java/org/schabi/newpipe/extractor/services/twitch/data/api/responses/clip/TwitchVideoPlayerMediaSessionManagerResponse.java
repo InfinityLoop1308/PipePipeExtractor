@@ -27,6 +27,7 @@ public final class TwitchVideoPlayerMediaSessionManagerResponse extends TwitchBa
                 clipObject.getString("title"),
                 broadcaster.getString("displayName"),
                 broadcaster.getString("login"),
+                broadcaster.getString("id"),
                 broadcaster.getString("profileImageURL")
         );
     }
@@ -37,6 +38,7 @@ public final class TwitchVideoPlayerMediaSessionManagerResponse extends TwitchBa
                 videoObject.getString("title"),
                 owner.getString("displayName"),
                 owner.getString("login"),
+                owner.getString("id"),
                 owner.getString("profileImageURL")
         );
     }

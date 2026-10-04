@@ -13,6 +13,9 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchClipPlaybackResponseInner;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchVideoPlayerMediaSessionManagerResponseInner;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -75,7 +78,14 @@ public final class TwitchClipExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return TwitchUrlBuilder.buildChannelUrlFromChannelName(response.ownerLoginName());
+        return TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                response.ownerLoginName(),
+                // FIXME
+                "",
+                apiClient.getApiSettings().shouldUseHelixForVods()
+                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+        );
     }
 
     @Nonnull

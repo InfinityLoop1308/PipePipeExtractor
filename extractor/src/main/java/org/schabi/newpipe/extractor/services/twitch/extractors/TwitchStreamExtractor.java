@@ -18,6 +18,9 @@ import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
 import org.schabi.newpipe.extractor.services.twitch.data.Resolution;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchVideoStream;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchSideNavResponseInner;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.channel.TwitchChannelResponseInner;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.stream.TwitchStreamResponseInner;
@@ -87,7 +90,13 @@ public class TwitchStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return TwitchUrlBuilder.buildChannelUrlFromChannelName(getUploaderName());
+        return TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                streamResponse.streamerLoginName(),
+                channelResponse.channelId(),
+                apiClient.getApiSettings().shouldUseHelixForVods()
+                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+        );
     }
 
     @Nonnull
@@ -110,7 +119,13 @@ public class TwitchStreamExtractor extends StreamExtractor {
                 return Arrays.stream(sideNavResponses).map(res -> {
                     var item = new StreamInfoItem(
                             getServiceId(),
-                            TwitchUrlBuilder.buildStreamUrlFromChannelName(res.streamerLoginName()),
+                            TwitchUrlBuilder.buildStreamUrlFromChannelName(
+                                    res.streamerLoginName(),
+                                    channelResponse.channelId(),
+                                    apiClient.getApiSettings().shouldUseHelixForKiosk()
+                                            ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                                            : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                            ),
                             res.title(),
                             StreamType.VIDEO_STREAM
                     );
@@ -150,8 +165,8 @@ public class TwitchStreamExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            final var streamId = TwitchUrlParser.parseChannelNameFromStreamUrl(getUrl());
-            final var streamInfo = apiClient.getUnauthorized().getStreamInformation(downloader, streamId);
+            final var channelUrl = TwitchUrlParser.parseChannelUrl(getUrl());
+            final var streamInfo = apiClient.getUnauthorized().getStreamInformation(downloader, channelUrl.channelLoginName());
             streamResponse = streamInfo.getData();
             channelResponse = apiClient.getUnauthorized().getTwitchChannel(downloader, streamResponse.streamerLoginName()).getData();
             sideNavResponses = apiClient.getUnauthorized().getTwitchSideNavResponse(downloader, streamResponse.streamerLoginName()).getData();

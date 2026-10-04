@@ -1,87 +1,93 @@
 package org.schabi.newpipe.extractor.services.twitch;
 
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchChannelTabLinkType;
-import org.schabi.newpipe.extractor.utils.Utils;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
+import org.schabi.newpipe.extractor.services.twitch.url.UrlBuilder;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class TwitchUrlBuilder {
+
+    private static final String HTTPS_SCHEMA = "https";
+    private static final String TWITCH_HOST = "twitch.tv";
+
     public static @Nonnull String buildSearchUrlFromSearchQuery(@Nonnull final String query) {
-        try {
-            return new URL(TwitchService.BaseUrl + "/search?term=" + query).toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        return new UrlBuilder()
+                .withSchema(HTTPS_SCHEMA)
+                .withHost(TWITCH_HOST)
+                .withPathSegments("search")
+                .withQuery("_term", query)
+                .build();
     }
 
-    public static @Nonnull String buildChannelUrlFromChannelName(@Nonnull final String name) {
-        try {
-            return new URL(TwitchService.BaseUrl + "/" + name + "?_type=channel").toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+    public static @Nonnull String buildChannelUrlFromChannelNameAndPagination(@Nonnull final String channelName,
+                                                                              @Nonnull final String channelId,
+                                                                              @Nonnull final Pagination pagination) {
+        return buildChannelTabUrl(
+                channelName, channelId, TwitchChannelTabLinkType.FRONT, pagination
+        );
     }
 
-    public static @Nonnull String buildStreamUrlFromChannelName(@Nonnull final String name) {
-        try {
-            return new URL(TwitchService.BaseUrl + "/" + name + "?_type=stream").toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+    public static @Nonnull String buildStreamUrlFromChannelName(@Nonnull final String channelName,
+                                                                @Nonnull final String channelId,
+                                                                @Nonnull final Pagination pagination) {
+        return buildChannelTabUrl(
+                channelName, channelId, TwitchChannelTabLinkType.LIVE, pagination
+        );
     }
 
-    public static @Nonnull String buildCategoryUrlFromCategoryName(@Nonnull final String name, @Nonnull final String id, @Nullable final String cursor) {
-        try {
-            var urlString = TwitchService.BaseUrl + "/directory/category/" + name;
-            urlString += "?_id=" + id;
-            if(cursor != null)
-                urlString += "&_cursor=" + URLEncoder.encode(cursor, StandardCharsets.UTF_8);
-            final var url = new URL(urlString);
-            return url.toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+    public static @Nonnull String buildCategoryUrlFromCategoryName(@Nonnull final String name,
+                                                                   @Nonnull final String slug,
+                                                                   @Nonnull final String id,
+                                                                   @Nonnull final Pagination pagination) {
+        return new UrlBuilder()
+                .withSchema(HTTPS_SCHEMA)
+                .withHost(TWITCH_HOST)
+                .withPathSegments("directory", "category", slug)
+                .addQuery("_id", id)
+                .addQuery("_name", name)
+                .addQuery("_pagination", TwitchPaginationHelper.createPaginationString(pagination))
+                .build();
     }
 
     public static @Nonnull String buildClipUrlFromClipId(@Nonnull final String clipId) {
-        try {
-            return new URL(TwitchService.BaseUrl + "/clip/" + clipId).toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        return new UrlBuilder()
+                .withSchema(HTTPS_SCHEMA)
+                .withHost(TWITCH_HOST)
+                .withPathSegments("clip", clipId)
+                .build();
     }
 
     public static @Nonnull String buildVodUrlFromVodId(@Nonnull final String vodId) {
-        try {
-            return new URL(TwitchService.BaseUrl + "/videos/" + vodId).toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
+        return new UrlBuilder()
+                .withSchema(HTTPS_SCHEMA)
+                .withHost(TWITCH_HOST)
+                .withPathSegments("videos", vodId)
+                .build();
     }
 
-    public static @Nonnull String buildChannelTabUrlFromChannelNameAndTabType(
-            @Nonnull final String channelName, @Nonnull final TwitchChannelTabLinkType type) {
-        try {
-            var typeString = switch (type) {
-                case CLIPS -> "/clips";
-                case VIDEOS -> "/videos";
-                case LIVE -> "?_type=stream";
-            };
-            return new URL(TwitchService.BaseUrl + "/" + channelName + typeString).toString();
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+    public static @Nonnull String buildChannelTabUrl(@Nonnull final String channelName,
+                                                     @Nonnull final String channelId,
+                                                     @Nonnull final TwitchChannelTabLinkType type,
+                                                     @Nonnull final Pagination pagination) {
+        final var builder = new UrlBuilder()
+                .withSchema(HTTPS_SCHEMA)
+                .withHost(TWITCH_HOST)
+                .withQuery("_channelId", channelId)
+                .addQuery("_pagination", TwitchPaginationHelper.createPaginationString(pagination))
+                .withPathSegments(channelName);
+
+        switch (type) {
+            case CLIPS -> builder.addPathSegments("clips");
+            case VIDEOS -> builder.addPathSegments("videos");
+            case LIVE -> builder.addQuery("_type", "stream");
+            case FRONT -> builder.addQuery("_type", "channel");
         }
+        return builder.build();
     }
 
-    public static @Nonnull String buildLiveKioskUrlFromCursor(final @Nullable String cursor) {
-        return cursor == null
-                ? "live?"
-                : "live?" + cursor;
+    public static @Nonnull String buildLiveKioskUrlFromPagination(final @Nonnull Pagination pagination) {
+        return "live?" + TwitchPaginationHelper.createPaginationString(pagination);
     }
 }

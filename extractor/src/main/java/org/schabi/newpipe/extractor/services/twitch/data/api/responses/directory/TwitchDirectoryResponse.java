@@ -1,10 +1,11 @@
-package org.schabi.newpipe.extractor.services.twitch.data.api.responses;
+package org.schabi.newpipe.extractor.services.twitch.data.api.responses.directory;
 
 import com.grack.nanojson.JsonObject;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchExtensionsData;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchBaseResponse;
 
 public class TwitchDirectoryResponse extends TwitchBaseResponse<TwitchDirectoryResponseInner> {
     public TwitchDirectoryResponse(@Nullable String[] errors, @NotNull TwitchExtensionsData extensions, @NotNull JsonObject data) {
@@ -15,8 +16,6 @@ public class TwitchDirectoryResponse extends TwitchBaseResponse<TwitchDirectoryR
     protected TwitchDirectoryResponseInner ParseData(final @NotNull JsonObject data) {
         final var game = data.getObject("game");
         return new TwitchDirectoryResponseInner(
-                false,
-                null,
                 game.getString("displayName"),
                 game.getString("id"),
                 game.getObject("streams").getArray("edges").stream().map(obj -> {
@@ -28,6 +27,7 @@ public class TwitchDirectoryResponse extends TwitchBaseResponse<TwitchDirectoryR
                             node.getString("id"),
                             broadcaster.getString("displayName"),
                             broadcaster.getString("login"),
+                            broadcaster.getString("id"),
                             broadcaster.getString("profileImageURL"),
                             broadcaster.getObject("roles").getBoolean("isPartner"),
                             node.getInt("viewersCount")

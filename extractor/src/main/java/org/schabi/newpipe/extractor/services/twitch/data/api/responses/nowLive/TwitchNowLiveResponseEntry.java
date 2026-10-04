@@ -1,9 +1,12 @@
 package org.schabi.newpipe.extractor.services.twitch.data.api.responses.nowLive;
 
-public record TwitchNowLiveResponseEntry(String streamerName,
-                                         String streamerLoginName,
-                                         String streamTitle,
+import javax.annotation.Nonnull;
+
+public record TwitchNowLiveResponseEntry(@Nonnull String streamerName,
+                                         @Nonnull String streamerLoginName,
+                                         @Nonnull String streamerId,
+                                         @Nonnull String streamTitle,
                                          int streamViewers,
-                                         String thumbnailUrl,
-                                         String gameName) {
+                                         @Nonnull String thumbnailUrl,
+                                         @Nonnull String gameName) {
 }

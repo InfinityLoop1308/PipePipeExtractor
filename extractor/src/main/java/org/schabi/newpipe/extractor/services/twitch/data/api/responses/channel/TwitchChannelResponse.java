@@ -22,6 +22,7 @@ public final class TwitchChannelResponse extends TwitchBaseResponse<TwitchChanne
         final var channelShell = data.getObject("synthetic-2");
         return new TwitchChannelResponseInner(
                 homeOfflineCarousel.getObject("user").getString("displayName"),
+                homeOfflineCarousel.getObject("user").getString("id"),
                 channelShell.getObject("userOrError").getString("bannerImageURL"),
                 channelShell.getObject("userOrError").getString("profileImageURL"),
                 homeOfflineCarousel.getObject("user").getString("description"),

@@ -11,9 +11,13 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
+import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchVideoStream;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchVideoPlayerMediaSessionManagerResponseInner;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.DeliveryMethod;
@@ -52,9 +56,10 @@ public class TwitchVodExtractor extends StreamExtractor {
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
-            final var token = apiClient.getUnauthorized().getVodPlaybackToken(downloader, getId());
-            streams = apiClient.getUnauthorized().getM3U8VodPlaybackUrl(downloader, getId(), token.getData().signature(), token.getData().value());
-            twitchVideoPlayerMediaSessionManager = apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionManager(downloader, getId()).getData();
+            final var vodId = TwitchUrlParser.parseVodIdFromVodUrl(getUrl());
+            final var token = apiClient.getUnauthorized().getVodPlaybackToken(downloader, vodId);
+            streams = apiClient.getUnauthorized().getM3U8VodPlaybackUrl(downloader, vodId, token.getData().signature(), token.getData().value());
+            twitchVideoPlayerMediaSessionManager = apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionManager(downloader, vodId).getData();
         } catch (JsonParserException e) {
             throw new IOException(e);
         }
@@ -75,7 +80,13 @@ public class TwitchVodExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderUrl() throws ParsingException {
-        return TwitchUrlBuilder.buildChannelUrlFromChannelName(getUploaderName());
+        return TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                getUploaderName(),
+                twitchVideoPlayerMediaSessionManager.ownerId(),
+                apiClient.getApiSettings().shouldUseHelixForVods()
+                    ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                    : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+        );
     }
 
     @Nonnull

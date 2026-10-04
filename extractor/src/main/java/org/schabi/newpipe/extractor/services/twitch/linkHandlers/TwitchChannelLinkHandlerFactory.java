@@ -5,6 +5,8 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
 
 import java.util.List;
 import java.util.Objects;
@@ -12,19 +14,18 @@ import java.util.Objects;
 public final class TwitchChannelLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override
     public String getId(String url) throws ParsingException, UnsupportedOperationException {
-        return TwitchUrlParser.parseChannelNameFromChannelUrl(url);
+        return url;
     }
 
     @Override
     public String getUrl(String id, List<FilterItem> contentFilter, List<FilterItem> sortFilter) throws ParsingException, UnsupportedOperationException {
-        return TwitchUrlBuilder.buildChannelUrlFromChannelName(id);
+        return id;
     }
 
     @Override
     public boolean onAcceptUrl(String urlString) throws ParsingException {
         try {
-            var channelName = TwitchUrlParser.parseChannelNameFromChannelUrl(urlString);
-            Objects.requireNonNull(channelName);
+            TwitchUrlParser.parseChannelUrl(urlString);
             return true;
         } catch (Exception e) {
             return false;

@@ -10,6 +10,12 @@ public final class TwitchSearchStreamResponseEntry extends TwitchSearchBaseRespo
     private final String channelName;
 
     @Nonnull
+    private final String loginName;
+    @Nonnull
+    private final String channelId;
+    @Nonnull
+    private final String channelDescription;
+    @Nonnull
     private final String streamTitle;
 
     private final int streamViewerCount;
@@ -21,14 +27,30 @@ public final class TwitchSearchStreamResponseEntry extends TwitchSearchBaseRespo
     private final String streamGameName;
 
     @Nonnull
+    private final String streamGameId;
+    @Nonnull
     private final String channelAvatarUrl;
 
-    public TwitchSearchStreamResponseEntry(@Nonnull String channelName, @Nonnull String streamTitle, int streamViewerCount, @Nonnull String streamThumbnailUrl, @Nonnull String streamGameName, @Nonnull String channelAvatarUrl) {
+    public TwitchSearchStreamResponseEntry(
+            @Nonnull String channelName,
+            @Nonnull String loginName,
+            @Nonnull String channelId,
+            @Nonnull String channelDescription,
+            @Nonnull String streamTitle,
+            int streamViewerCount,
+            @Nonnull String streamThumbnailUrl,
+            @Nonnull String streamGameName,
+            @Nonnull String streamGameId,
+            @Nonnull String channelAvatarUrl) {
         this.channelName = channelName;
+        this.loginName = loginName;
+        this.channelId = channelId;
+        this.channelDescription = channelDescription;
         this.streamTitle = streamTitle;
         this.streamViewerCount = streamViewerCount;
         this.streamThumbnailUrl = streamThumbnailUrl;
         this.streamGameName = streamGameName;
+        this.streamGameId = streamGameId;
         this.channelAvatarUrl = channelAvatarUrl;
     }
 
@@ -59,5 +81,24 @@ public final class TwitchSearchStreamResponseEntry extends TwitchSearchBaseRespo
     @Nonnull
     public String getChannelAvatarUrl() {
         return channelAvatarUrl;
+    }
+
+    public String getChannelId() {
+        return channelId;
+    }
+
+    @Nonnull
+    public String getStreamGameId() {
+        return streamGameId;
+    }
+
+    @Nonnull
+    public String getLoginName() {
+        return loginName;
+    }
+
+    @Nonnull
+    public String getChannelDescription() {
+        return channelDescription;
     }
 }

@@ -21,6 +21,9 @@ import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.TwitchSearchResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.types.TwitchSearchChannelResponseEntry;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.types.TwitchSearchGameResponseEntry;
@@ -47,10 +50,16 @@ public class TwitchSearchExtractor extends SearchExtractor {
         this.apiClient = apiClient;
     }
 
-    private static StreamInfoItem buildStreamInfoItem(final int serviceId, final TwitchSearchStreamResponseEntry entry) {
+    private StreamInfoItem buildStreamInfoItem(final int serviceId, final TwitchSearchStreamResponseEntry entry) {
         final var item = new StreamInfoItem(
                 serviceId,
-                TwitchUrlBuilder.buildStreamUrlFromChannelName(entry.getChannelName()),
+                TwitchUrlBuilder.buildStreamUrlFromChannelName(
+                        entry.getChannelName(),
+                        entry.getChannelId(),
+                        apiClient.getApiSettings().shouldUseHelixForKiosk()
+                                ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                                : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                ),
                 entry.getStreamTitle(),
                 StreamType.LIVE_STREAM
         );
@@ -62,10 +71,16 @@ public class TwitchSearchExtractor extends SearchExtractor {
         return item;
     }
 
-    private static ChannelInfoItem buildChannelInfoItem(final int serviceId, final TwitchSearchChannelResponseEntry entry) {
+    private ChannelInfoItem buildChannelInfoItem(final int serviceId, final TwitchSearchChannelResponseEntry entry) {
         final var item = new ChannelInfoItem(
                 serviceId,
-                TwitchUrlBuilder.buildChannelUrlFromChannelName(entry.getChannelName()),
+                TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                        entry.getChannelName(),
+                        entry.getChannelId(),
+                        apiClient.getApiSettings().shouldUseHelixForVods()
+                                ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                                : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                ),
                 entry.getChannelName()
         );
         item.setThumbnailUrl(entry.getChannelAvatarUrl());
@@ -75,10 +90,17 @@ public class TwitchSearchExtractor extends SearchExtractor {
         return item;
     }
 
-    private static PlaylistInfoItem buildCategoryInfoItem(final int serviceId, final TwitchSearchGameResponseEntry entry) {
+    private PlaylistInfoItem buildCategoryInfoItem(final int serviceId, final TwitchSearchGameResponseEntry entry) {
         final var item = new PlaylistInfoItem(
                 serviceId,
-                TwitchUrlBuilder.buildCategoryUrlFromCategoryName(entry.getSlug(), entry.getId(), null),
+                TwitchUrlBuilder.buildCategoryUrlFromCategoryName(
+                        entry.getGameName(),
+                        entry.getSlug(),
+                        entry.getId(),
+                        apiClient.getApiSettings().shouldUseHelixForCategories()
+                            ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                            : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                ),
                 entry.getGameName()
         );
         item.setThumbnailUrl(entry.getGameBoxArtUrl());
@@ -282,7 +304,7 @@ public class TwitchSearchExtractor extends SearchExtractor {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException{
         try {
             final var query = TwitchUrlParser.parseQueryFromSearchUrl(getUrl());
             response = apiClient.getUnauthorized().getSearchResponse(downloader, query);

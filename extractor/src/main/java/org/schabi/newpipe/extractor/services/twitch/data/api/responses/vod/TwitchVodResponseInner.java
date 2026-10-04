@@ -23,7 +23,14 @@ public final class TwitchVodResponseInner {
 
     private final int vodLength;
 
-    public TwitchVodResponseInner(@Nonnull String vodPreviewUrl, @Nonnull String gameName, @Nonnull String vodId, @Nonnull String vodTitle, @Nonnull String uploadDateTimeString, int vodViewerCount, int vodLength) {
+    public TwitchVodResponseInner(
+            @Nonnull String vodPreviewUrl,
+            @Nonnull String gameName,
+            @Nonnull String vodId,
+            @Nonnull String vodTitle,
+            @Nonnull String uploadDateTimeString,
+            int vodViewerCount,
+            int vodLength) {
         this.vodPreviewUrl = vodPreviewUrl;
         this.gameName = gameName;
         this.vodId = vodId;

@@ -13,17 +13,17 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class TwitchNowLiveResponse extends TwitchBaseResponse<TwitchNowLiveResponseInner> {
+public class TwitchNowLiveResponse extends TwitchBaseResponse<TwitchNowLiveResponseEntry[]> {
 
     public TwitchNowLiveResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 
     @Override
-    protected TwitchNowLiveResponseInner ParseData(@NotNull JsonObject data) {
+    protected TwitchNowLiveResponseEntry[] ParseData(@NotNull JsonObject data) {
         final var streams = data.getObject("streams");
         final var nodes = streams.getArray("edges");
-        final var entries = nodes.stream().map(ob -> {
+        return nodes.stream().map(ob -> {
                     final var outerNode = (JsonObject) ob;
                     final var node = outerNode.getObject("node");
                     final var broadcaster = node.getObject("broadcaster");
@@ -35,6 +35,7 @@ public class TwitchNowLiveResponse extends TwitchBaseResponse<TwitchNowLiveRespo
                     return new TwitchNowLiveResponseEntry(
                             streamerName,
                             loginName,
+                            "",
                             title,
                             viewers,
                             TwitchThumbnailURLGenerator.getThumbnailURLForStream(loginName),
@@ -42,11 +43,6 @@ public class TwitchNowLiveResponse extends TwitchBaseResponse<TwitchNowLiveRespo
                     );
                 })
                 .sorted(Comparator.comparing(TwitchNowLiveResponseEntry::streamViewers).reversed())
-                .collect(Collectors.toList());
-        return new TwitchNowLiveResponseInner(
-                streams.getObject("pageInfo").getBoolean("hasNextPage"),
-                null,
-                entries
-        );
+                .toArray(TwitchNowLiveResponseEntry[]::new);
     }
 }

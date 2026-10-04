@@ -13,7 +13,7 @@ import org.schabi.newpipe.extractor.services.twitch.data.TwitchVideoStream;
 import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchIntegrityToken;
 import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchResponseParser;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchBaseResponse;
-import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchDirectoryResponse;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.directory.TwitchDirectoryResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchSideNavResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.channel.TwitchChannelResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchClipPlaybackResponse;
@@ -37,7 +37,6 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
 
@@ -123,14 +122,14 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
                 downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
                 requestId -> TwitchGQLTemplates.getSearchResult(requestId, query),
-                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonArrayFromString(response.responseBody()).getObject(0), TwitchSearchResponse.class)
+                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchSearchResponse.class)
         );
     }
 
-    public @Nonnull TwitchNowLiveResponse getNowLiveInformation(final @Nonnull Downloader downloader) throws IOException, ReCaptchaException, JsonParserException {
+    public @Nonnull TwitchNowLiveResponse getNowLiveInformation(final @Nonnull Downloader downloader, final int count) throws IOException, ReCaptchaException, JsonParserException {
         return performRequest(downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
-                _ -> TwitchGQLTemplates.getNowLive(),
+                _ -> TwitchGQLTemplates.getNowLive(count),
                 response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchNowLiveResponse.class)
         );
     }
@@ -195,20 +194,20 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
         );
     }
 
-    public @Nonnull TwitchVodResponse getTwitchVods(final @Nonnull Downloader downloader, final @Nonnull String channelName) throws IOException, ReCaptchaException, JsonParserException {
+    public @Nonnull TwitchVodResponse getTwitchVods(final @Nonnull Downloader downloader, final @Nonnull String channelName, final int count) throws IOException, ReCaptchaException, JsonParserException {
         return performRequest(downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
-                _ -> TwitchGQLTemplates.getVods(channelName),
-                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonArrayFromString(response.responseBody()).getObject(0), TwitchVodResponse.class)
+                _ -> TwitchGQLTemplates.getVods(channelName, count),
+                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchVodResponse.class)
         );
     }
 
 
-    public @Nonnull TwitchClipResponse getTwitchClips(final @Nonnull Downloader downloader, final @Nonnull String channelName) throws IOException, ReCaptchaException, JsonParserException {
+    public @Nonnull TwitchClipResponse getTwitchClips(final @Nonnull Downloader downloader, final @Nonnull String channelName, final int count) throws IOException, ReCaptchaException, JsonParserException {
         return performRequest(downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
-                _ -> TwitchGQLTemplates.getClips(channelName),
-                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonArrayFromString(response.responseBody()).getObject(0), TwitchClipResponse.class)
+                _ -> TwitchGQLTemplates.getClips(channelName, count),
+                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchClipResponse.class)
         );
     }
 
@@ -216,7 +215,7 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
         return performRequest(downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
                 _ -> TwitchGQLTemplates.getClipPlayback(clipSlug),
-                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonArrayFromString(response.responseBody()).getObject(0), TwitchClipPlaybackResponse.class)
+                response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchClipPlaybackResponse.class)
         );
     }
 
@@ -288,10 +287,10 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
         );
     }
 
-    public @Nonnull TwitchDirectoryResponse getTwitchCategory(@Nonnull final Downloader downloader, @Nonnull final String categorySlug) throws JsonParserException, IOException, ReCaptchaException {
+    public @Nonnull TwitchDirectoryResponse getTwitchCategory(@Nonnull final Downloader downloader, @Nonnull final String categorySlug, final int count) throws JsonParserException, IOException, ReCaptchaException {
         return performRequest(downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
-                _ -> TwitchGQLTemplates.getDirectoryTemplate(categorySlug),
+                _ -> TwitchGQLTemplates.getDirectoryTemplate(categorySlug, count),
                 response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchDirectoryResponse.class)
         );
     }

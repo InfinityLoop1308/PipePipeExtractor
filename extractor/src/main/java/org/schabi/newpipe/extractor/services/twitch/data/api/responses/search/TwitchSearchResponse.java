@@ -27,7 +27,14 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
 
     private static @Nonnull TwitchSearchChannelResponseEntry parseAsChannelEntry(JsonObject node) {
         final var item = node.getObject("item");
-        return new TwitchSearchChannelResponseEntry(item.getString("displayName"), item.getString("description"), item.getString("profileImageURL"), item.getObject("roles").getBoolean("isPartner"), item.getObject("followers").getInt("totalCount"));
+        return new TwitchSearchChannelResponseEntry(
+                item.getString("displayName"),
+                item.getString("login"),
+                item.getString("id"),
+                item.getString("description"),
+                item.getString("profileImageURL"),
+                item.getObject("roles").getBoolean("isPartner"),
+                item.getObject("followers").getInt("totalCount"));
     }
 
     private static @Nonnull TwitchSearchStreamResponseEntry parseAsStreamEntry(JsonObject node) {
@@ -35,24 +42,31 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
         final var stream = item.getObject("stream");
         return new TwitchSearchStreamResponseEntry(
                 item.getString("displayName"),
+                item.getString("login"),
+                item.getString("id"),
+                item.getString("description"),
                 item.getObject("broadcastSettings").getString("title"),
                 stream.getInt("viewersCount"),
-                TwitchThumbnailURLGenerator.getThumbnailURLForStream(item.getString("login")),
+                item.getString("previewThumbnailURL"),
                 stream.getObject("game").getString("name"),
+                stream.getObject("game").getString("id"),
                 item.getString("profileImageURL")
         );
     }
 
     private static @Nonnull TwitchSearchVodResponseEntry parseAsVodEntry(JsonObject node) {
         final var item = node.getObject("item");
+        final var owner = item.getObject("owner");
         return new TwitchSearchVodResponseEntry(
                 item.getString("title"),
-                item.getObject("owner").getString("displayName"),
+                item.getString("id"),
+                owner.getString("displayName"),
+                owner.getString("login"),
+                owner.getString("id"),
                 item.getInt("viewCount"),
                 item.getInt("lengthSeconds"),
                 item.getString("previewThumbnailURL"),
-                item.getString("createdAt"),
-                item.getString("id")
+                item.getString("createdAt")
         );
     }
 

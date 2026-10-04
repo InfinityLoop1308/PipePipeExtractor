@@ -16,6 +16,9 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 
 public class TwitchBaseApiClient {
+
+    protected TwitchBaseApiClient() {}
+
     protected <T> T performRawRequest(@Nonnull final Downloader downloader,
                                       final HttpRequestType requestType,
                                       @Nonnull final Function<String, String> urlGenerator,

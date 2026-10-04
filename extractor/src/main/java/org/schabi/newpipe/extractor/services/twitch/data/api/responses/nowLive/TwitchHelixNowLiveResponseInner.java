@@ -4,9 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-import javax.annotation.Nonnull;
-
-public record TwitchNowLiveResponseInner(
+public record TwitchHelixNowLiveResponseInner(
         boolean hasMoreEntries,
         @Nullable String cursor,
         List<TwitchNowLiveResponseEntry> liveEntries
