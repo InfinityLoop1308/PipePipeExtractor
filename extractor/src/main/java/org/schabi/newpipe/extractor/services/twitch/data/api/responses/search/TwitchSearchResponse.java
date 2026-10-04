@@ -38,6 +38,23 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 item.getObject("followers").getInt("totalCount"));
     }
 
+    private static @ Nonnull TwitchSearchStreamResponseEntry parseAsTaggedStreamEntry(JsonObject node) {
+        final var item = node.getObject("item");
+        final var stream = item.getObject("stream");
+        return new TwitchSearchStreamResponseEntry(
+                item.getString("displayName"),
+                item.getString("login"),
+                item.getString("id"),
+                item.getString("description"),
+                item.getObject("broadcastSettings").getString("title"),
+                stream.getInt("viewersCount"),
+                stream.getString("previewImageURL"),
+                stream.getObject("game").getString("name"),
+                stream.getObject("game").getString("id"),
+                item.getString("profileImageURL")
+        );
+    }
+
     private static @Nonnull TwitchSearchStreamResponseEntry parseAsStreamEntry(JsonObject node) {
         final var item = node.getObject("item");
         final var stream = item.getObject("stream");
@@ -48,7 +65,6 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 item.getString("description"),
                 item.getObject("broadcastSettings").getString("title"),
                 stream.getInt("viewersCount"),
-                //item.getString("previewThumbnailURL"),
                 stream.getString("previewImageURL"),
                 stream.getObject("game").getString("name"),
                 stream.getObject("game").getString("id"),
@@ -97,16 +113,12 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 ? Optional.of(searchFor.getObject("videos").getArray("edges"))
                 : Optional.empty();
         final var masterList = new LinkedList<TwitchSearchBaseResponseEntry>();
-
-        final var combinesChannels = Stream.concat(
-                channelsWithTags.orElse(new JsonArray()).stream(),
-                channels.orElse(new JsonArray()).stream()
-        );
-        masterList.addAll(combinesChannels.map(ob -> {
+        channelsWithTags.ifPresent(objects -> masterList.addAll(objects.stream().map(ob -> parseAsTaggedStreamEntry((JsonObject) ob)).toList()));
+        channels.ifPresent(objects -> masterList.addAll(objects.stream().map(ob ->  {
             final var obj = (JsonObject) ob;
             final var isLive = obj.getObject("item").getObject("stream").has("viewersCount");
             return isLive ? parseAsStreamEntry(obj) : parseAsChannelEntry(obj);
-        }).toList());
+        }).toList()));
         games.ifPresent(objects ->
                 masterList.addAll(objects.stream().map(ob -> TwitchSearchResponse.parseAsGameEntry((JsonObject) ob)).toList()));
         vods.ifPresent(objects ->
