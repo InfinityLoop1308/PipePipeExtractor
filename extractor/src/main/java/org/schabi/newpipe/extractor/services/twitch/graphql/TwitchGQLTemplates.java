@@ -4,11 +4,13 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 
+import org.jetbrains.annotations.Nullable;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUtils;
 import org.schabi.newpipe.extractor.services.twitch.data.api.requests.TwitchGqlRequestBuilder;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 
@@ -131,7 +133,14 @@ public final class TwitchGQLTemplates {
         return String.format(STREAMER_TEMPLATE, channelName);
     }
 
-    public static String getSearchResult(final @Nonnull String requestId, final @Nonnull String query) {
+    public static String getSearchResult(final @Nonnull String requestId, final @Nonnull String query, final @Nullable String[] contentTypes) {
+        JsonArray targets = null;
+        if(contentTypes != null) {
+            targets = new JsonArray();
+            for (final var contentType : contentTypes) {
+                targets.add(new JsonObject(Map.of("index", contentType.toUpperCase())));
+            }
+        }
         return JsonWriter.string(new TwitchGqlRequestBuilder(
                 "a7c600111acc4d1b294eafa364600556227939e2ff88505faa73035b57a83b22",
                 "SearchResultsPage_SearchResults"
@@ -140,7 +149,7 @@ public final class TwitchGQLTemplates {
             .withVariable("query", query)
             .withVariable("platform", "web")
             .withVariable("options", new JsonObject(TwitchUtils.mapOfNullables(
-                    "targets", null,
+                    "targets", targets,
                     "shouldSkipDiscoveryControl", false
             )))
             .build());

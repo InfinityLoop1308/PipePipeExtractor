@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.ty
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,7 +48,8 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 item.getString("description"),
                 item.getObject("broadcastSettings").getString("title"),
                 stream.getInt("viewersCount"),
-                item.getString("previewThumbnailURL"),
+                //item.getString("previewThumbnailURL"),
+                stream.getString("previewImageURL"),
                 stream.getObject("game").getString("name"),
                 stream.getObject("game").getString("id"),
                 item.getString("profileImageURL")
@@ -82,15 +84,29 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
     @Override
     protected List<TwitchSearchBaseResponseEntry> ParseData(@NotNull JsonObject o) {
         final var searchFor = o.getObject("searchFor");
-        final Optional<JsonArray> channels = searchFor.has("channels") ? Optional.of(searchFor.getObject("channels").getArray("edges")) : Optional.empty();
-        final Optional<JsonArray> games = searchFor.has("games") ? Optional.of(searchFor.getObject("games").getArray("edges")) : Optional.empty();
-        final Optional<JsonArray> vods = searchFor.has("videos") ? Optional.of(searchFor.getObject("videos").getArray("edges")) : Optional.empty();
+        final Optional<JsonArray> channelsWithTags = searchFor.has("channelsWithTag")
+                ? Optional.of(searchFor.getObject("channelsWithTag").getArray("edges"))
+                : Optional.empty();
+        final Optional<JsonArray> channels = searchFor.has("channels")
+                ? Optional.of(searchFor.getObject("channels").getArray("edges"))
+                : Optional.empty();
+        final Optional<JsonArray> games = searchFor.has("games")
+                ? Optional.of(searchFor.getObject("games").getArray("edges"))
+                : Optional.empty();
+        final Optional<JsonArray> vods = searchFor.has("videos")
+                ? Optional.of(searchFor.getObject("videos").getArray("edges"))
+                : Optional.empty();
         final var masterList = new LinkedList<TwitchSearchBaseResponseEntry>();
-        channels.ifPresent(objects -> masterList.addAll(objects.stream().map(ob -> {
+
+        final var combinesChannels = Stream.concat(
+                channelsWithTags.orElse(new JsonArray()).stream(),
+                channels.orElse(new JsonArray()).stream()
+        );
+        masterList.addAll(combinesChannels.map(ob -> {
             final var obj = (JsonObject) ob;
             final var isLive = obj.getObject("item").getObject("stream").has("viewersCount");
             return isLive ? parseAsStreamEntry(obj) : parseAsChannelEntry(obj);
-        }).toList()));
+        }).toList());
         games.ifPresent(objects ->
                 masterList.addAll(objects.stream().map(ob -> TwitchSearchResponse.parseAsGameEntry((JsonObject) ob)).toList()));
         vods.ifPresent(objects ->

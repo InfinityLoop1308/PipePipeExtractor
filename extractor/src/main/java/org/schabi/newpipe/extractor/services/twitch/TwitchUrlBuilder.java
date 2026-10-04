@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.twitch;
 
+import org.jetbrains.annotations.Nullable;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchChannelTabLinkType;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
@@ -12,13 +13,18 @@ public final class TwitchUrlBuilder {
     private static final String HTTPS_SCHEMA = "https";
     private static final String TWITCH_HOST = "twitch.tv";
 
-    public static @Nonnull String buildSearchUrlFromSearchQuery(@Nonnull final String query) {
-        return new UrlBuilder()
+    public static @Nonnull String buildSearchUrlFromSearchQuery(@Nonnull final String query,
+                                                                @Nullable final String contentType) {
+        final var builder = new UrlBuilder()
                 .withSchema(HTTPS_SCHEMA)
                 .withHost(TWITCH_HOST)
                 .withPathSegments("search")
-                .withQuery("_term", query)
-                .build();
+                .withQuery("term", query);
+
+        if(contentType != null)
+            builder.addQuery("type", contentType);
+
+        return builder.build();
     }
 
     public static @Nonnull String buildChannelUrlFromChannelNameAndPagination(@Nonnull final String channelName,

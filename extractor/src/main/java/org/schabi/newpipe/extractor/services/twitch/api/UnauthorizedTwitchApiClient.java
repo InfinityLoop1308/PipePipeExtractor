@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.twitch.api;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.jetbrains.annotations.Nullable;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
@@ -117,11 +118,11 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
         apiDataStore.deviceId = targetCookie.get().value();
     }
 
-    public @Nonnull TwitchSearchResponse getSearchResponse(@Nonnull final Downloader downloader, @Nonnull final String query) throws IOException, ReCaptchaException, JsonParserException {
+    public @Nonnull TwitchSearchResponse getSearchResponse(@Nonnull final Downloader downloader, @Nonnull final String query, @Nullable final String[] contentTypes) throws IOException, ReCaptchaException, JsonParserException {
         return performRequest(
                 downloader, false, HttpRequestType.POST,
                 _ -> TwitchApiConstants.TWITCH_GQL_URL,
-                requestId -> TwitchGQLTemplates.getSearchResult(requestId, query),
+                requestId -> TwitchGQLTemplates.getSearchResult(requestId, query, contentTypes),
                 response -> TwitchResponseParser.parseFromJson(TwitchJsonHelper.parseJsonObjectFromString(response.responseBody()), TwitchSearchResponse.class)
         );
     }

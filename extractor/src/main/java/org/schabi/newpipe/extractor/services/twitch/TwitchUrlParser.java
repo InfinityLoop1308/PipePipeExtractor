@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.services.twitch.data.TwitchChannelTabLinkTyp
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
 import org.schabi.newpipe.extractor.services.twitch.data.url.CategoryUrl;
 import org.schabi.newpipe.extractor.services.twitch.data.url.ChannelUrl;
+import org.schabi.newpipe.extractor.services.twitch.data.url.SearchUrl;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.net.MalformedURLException;
@@ -15,7 +16,6 @@ import java.net.URL;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class TwitchUrlParser {
 
@@ -42,9 +42,21 @@ public final class TwitchUrlParser {
         Assertions.assertThat(() -> Utils.removeMAndWWWFromUrl(urlString).startsWith(TwitchService.BaseUrl));
     }
 
-    public static @Nonnull String parseQueryFromSearchUrl(@Nonnull final String urlString) {
+    public static @Nonnull SearchUrl parseSearchUrl(@Nonnull final String urlString) {
         ensureIsCorrectBaseUrl(urlString);
-        return getRequiredQueryParameter(stringToUrl(urlString), "_term");
+
+        final var url = stringToUrl(urlString);
+
+        final var contentType = Utils.getQueryValue(url, "type");
+
+        final var contentTypes = contentType != null
+                ? contentType.split(",")
+                : null;
+
+        return new SearchUrl(
+                getRequiredQueryParameter(url, "term"),
+                contentTypes
+        );
     }
 
     /*
