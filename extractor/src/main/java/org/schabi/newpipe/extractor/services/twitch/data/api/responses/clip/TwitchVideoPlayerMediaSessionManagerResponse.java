@@ -10,7 +10,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class TwitchVideoPlayerMediaSessionManagerResponse extends TwitchBaseResponse<TwitchVideoPlayerMediaSessionManagerResponseInner> {
-    public TwitchVideoPlayerMediaSessionManagerResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchVideoPlayerMediaSessionManagerResponse(@Nullable String[] errors,
+                                                        @Nonnull TwitchExtensionsData extensions,
+                                                        @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 

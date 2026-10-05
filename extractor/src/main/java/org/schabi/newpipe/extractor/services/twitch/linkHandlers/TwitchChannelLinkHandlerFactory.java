@@ -3,13 +3,9 @@ package org.schabi.newpipe.extractor.services.twitch.linkHandlers;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
-import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
-import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
-import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
 
 import java.util.List;
-import java.util.Objects;
 
 public final class TwitchChannelLinkHandlerFactory extends ListLinkHandlerFactory {
     @Override

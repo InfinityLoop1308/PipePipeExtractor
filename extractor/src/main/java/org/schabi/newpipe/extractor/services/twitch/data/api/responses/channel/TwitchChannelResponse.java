@@ -11,7 +11,9 @@ import javax.annotation.Nullable;
 
 public final class TwitchChannelResponse extends TwitchBaseResponse<TwitchChannelResponseInner> {
 
-    public TwitchChannelResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchChannelResponse(@Nullable String[] errors,
+                                 @Nonnull TwitchExtensionsData extensions,
+                                 @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 

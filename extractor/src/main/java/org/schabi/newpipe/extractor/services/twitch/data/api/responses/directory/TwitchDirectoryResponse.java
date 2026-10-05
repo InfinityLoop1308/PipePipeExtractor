@@ -8,7 +8,9 @@ import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchExtensionsDat
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchBaseResponse;
 
 public class TwitchDirectoryResponse extends TwitchBaseResponse<TwitchDirectoryResponseInner> {
-    public TwitchDirectoryResponse(@Nullable String[] errors, @NotNull TwitchExtensionsData extensions, @NotNull JsonObject data) {
+    public TwitchDirectoryResponse(@Nullable String[] errors,
+                                   @NotNull TwitchExtensionsData extensions,
+                                   @NotNull JsonObject data) {
         super(errors, extensions, data);
     }
 
@@ -19,7 +21,7 @@ public class TwitchDirectoryResponse extends TwitchBaseResponse<TwitchDirectoryR
                 game.getString("displayName"),
                 game.getString("id"),
                 game.getObject("streams").getArray("edges").stream().map(obj -> {
-                    final var innerObj = (JsonObject)obj;
+                    final var innerObj = (JsonObject) obj;
                     final var node = innerObj.getObject("node");
                     final var broadcaster = node.getObject("broadcaster");
                     return new TwitchDirectoryResponseEntry(

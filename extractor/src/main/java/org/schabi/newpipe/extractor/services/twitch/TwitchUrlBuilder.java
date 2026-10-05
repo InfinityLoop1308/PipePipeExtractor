@@ -21,7 +21,7 @@ public final class TwitchUrlBuilder {
                 .withPathSegments("search")
                 .withQuery("term", query);
 
-        if(contentType != null)
+        if (contentType != null)
             builder.addQuery("type", contentType);
 
         return builder.build();

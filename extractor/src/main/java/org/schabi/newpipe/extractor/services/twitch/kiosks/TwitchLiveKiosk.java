@@ -46,7 +46,8 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         fetchData(downloader, getUrl());
     }
 
@@ -54,20 +55,19 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
         try {
             final var paginationString = TwitchUrlParser.parsePaginationFromKioskUrl(url);
             pagination = TwitchPaginationHelper.getPaginationFromString(paginationString);
-            if(apiClient.getApiSettings().shouldUseHelixForKiosk()) {
+            if (apiClient.getApiSettings().shouldUseHelixForKiosk()) {
                 response = apiClient.getAuthorized().getNowLiveInformation(downloader,
-                        ((CursorBasedPagination)pagination).cursor()
+                        ((CursorBasedPagination) pagination).cursor()
                 );
-            }
-            else
+            } else
                 entries = TwitchPaginationHelper.paginateArray(
                         apiClient.getUnauthorized().getNowLiveInformation(
-                                        downloader,
-                                        ((PositionBasedPagination)pagination).offset()
-                                                + ((PositionBasedPagination)pagination).size()
-                                ).getData(),
-                            TwitchNowLiveResponseEntry.class,
-                            (PositionBasedPagination)pagination
+                                downloader,
+                                ((PositionBasedPagination) pagination).offset()
+                                        + ((PositionBasedPagination) pagination).size()
+                        ).getData(),
+                        TwitchNowLiveResponseEntry.class,
+                        (PositionBasedPagination) pagination
                 );
         } catch (JsonParserException e) {
             throw new IOException(e);
@@ -84,8 +84,8 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         Page nextPage = null;
-        if(apiClient.getApiSettings().shouldUseHelixForKiosk()) {
-            if(response.hasMoreEntries()) {
+        if (apiClient.getApiSettings().shouldUseHelixForKiosk()) {
+            if (response.hasMoreEntries()) {
                 nextPage = new Page(TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
                         new CursorBasedPagination(response.cursor())
                 ));
@@ -94,11 +94,10 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
                     response.liveEntries().toArray(TwitchNowLiveResponseEntry[]::new),
                     response.hasMoreEntries() ? nextPage : null
             );
-        }
-        else {
-            final var positionPagination = (PositionBasedPagination)pagination;
+        } else {
+            final var positionPagination = (PositionBasedPagination) pagination;
             final var hasMoreEntries = positionPagination.offset() + positionPagination.size() < 30;
-            if(hasMoreEntries) {
+            if (hasMoreEntries) {
                 nextPage = new Page(TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
                         positionPagination.shift(30)
                 ));
@@ -139,13 +138,14 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
                             return infoItem;
                         })
                         .collect(Collectors.toList()),
-                        nextPage,
+                nextPage,
                 Collections.emptyList()
         );
     }
 
     @Override
-    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException,
+            ExtractionException {
         fetchData(getDownloader(), page.getUrl());
         return getInitialPage();
     }

@@ -23,8 +23,8 @@ public class TwitchLiveKioskLinkHandlerFactory extends ListLinkHandlerFactory {
     public String getUrl(String id, List<FilterItem> contentFilter, List<FilterItem> sortFilter) throws ParsingException, UnsupportedOperationException {
         return TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
                 apiSettings.shouldUseHelixForKiosk()
-                    ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
-                    : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
         );
     }
 

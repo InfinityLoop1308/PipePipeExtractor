@@ -52,9 +52,9 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
         Page nextPage = null;
 
-        if(pagination instanceof PositionBasedPagination positionBasedPagination) {
-            if(positionBasedPagination.offset() + positionBasedPagination.size() < 100
-               && response.length != 0)
+        if (pagination instanceof PositionBasedPagination positionBasedPagination) {
+            if (positionBasedPagination.offset() + positionBasedPagination.size() < 100
+                    && response.length != 0)
                 nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
                         channelName,
                         channelId,
@@ -63,12 +63,14 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
                 ));
         }
 
-        if(pagination instanceof CursorBasedPagination cursorBasedPagination) {
+        if (pagination instanceof CursorBasedPagination cursorBasedPagination) {
             // TODO
         }
 
         return new InfoItemsPage<>(Arrays.stream(response).map(res -> {
-            final var item = new StreamInfoItem(getServiceId(), TwitchUrlBuilder.buildClipUrlFromClipId(res.clipId()), res.clipTitle(), StreamType.NONE);
+            final var item = new StreamInfoItem(getServiceId(),
+                    TwitchUrlBuilder.buildClipUrlFromClipId(res.clipId()), res.clipTitle(),
+                    StreamType.NONE);
             item.setThumbnailUrl(res.clipThumbnailUrl());
             item.setUploaderName(res.clipperName());
             item.setDuration(res.clipLength());
@@ -99,8 +101,8 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
                     apiClient.getUnauthorized().getTwitchClips(
                             downloader,
                             channelName,
-                            ((PositionBasedPagination)pagination).offset() + ((PositionBasedPagination)pagination).size()
-                    ).getData(), TwitchClipResponseInner.class, (PositionBasedPagination)pagination
+                            ((PositionBasedPagination) pagination).offset() + ((PositionBasedPagination) pagination).size()
+                    ).getData(), TwitchClipResponseInner.class, (PositionBasedPagination) pagination
             );
         } catch (JsonParserException e) {
             throw new IOException(e);
@@ -108,7 +110,8 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         fetchData(downloader, getUrl());
     }
 }

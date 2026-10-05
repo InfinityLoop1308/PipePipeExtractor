@@ -9,4 +9,5 @@ public record TwitchDirectoryResponseEntry(@Nonnull String title,
                                            @Nonnull String streamerId,
                                            @Nonnull String profileImageUrl,
                                            boolean isPartner,
-                                           int viewCount) {}
+                                           int viewCount) {
+}

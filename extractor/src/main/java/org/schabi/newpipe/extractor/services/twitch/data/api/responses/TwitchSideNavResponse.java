@@ -12,7 +12,9 @@ import javax.annotation.Nullable;
 
 public class TwitchSideNavResponse extends TwitchBaseResponse<TwitchSideNavResponseInner[]> {
 
-    public TwitchSideNavResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchSideNavResponse(@Nullable String[] errors,
+                                 @Nonnull TwitchExtensionsData extensions,
+                                 @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 

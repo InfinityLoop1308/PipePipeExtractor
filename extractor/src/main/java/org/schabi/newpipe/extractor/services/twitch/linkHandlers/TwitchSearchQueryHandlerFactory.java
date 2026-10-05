@@ -3,13 +3,10 @@ package org.schabi.newpipe.extractor.services.twitch.linkHandlers;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.Filter;
-import org.schabi.newpipe.extractor.search.filter.FilterGroup;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.twitch.TwitchSearchFilters;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 
-import java.lang.reflect.Array;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,10 +17,11 @@ public final class TwitchSearchQueryHandlerFactory extends SearchQueryHandlerFac
     @Override
     public String getUrl(String query,
                          List<FilterItem> contentFilter,
-                         List<FilterItem> sortFilter) throws ParsingException, UnsupportedOperationException {
+                         List<FilterItem> sortFilter) throws ParsingException,
+            UnsupportedOperationException {
         String contentType = null;
 
-        if(!contentFilter.isEmpty()) {
+        if (!contentFilter.isEmpty()) {
             final var stringifiedFilters = contentFilter.stream().map(filter ->
                     switch (filter.getIdentifier()) {
                         case 1 -> "channel_with_tag";
@@ -32,7 +30,7 @@ public final class TwitchSearchQueryHandlerFactory extends SearchQueryHandlerFac
                         case 4 -> "game";
                         default -> null;
                     }).filter(Objects::nonNull).toList();
-            if(!stringifiedFilters.isEmpty())
+            if (!stringifiedFilters.isEmpty())
                 contentType = String.join(",", stringifiedFilters);
         }
 

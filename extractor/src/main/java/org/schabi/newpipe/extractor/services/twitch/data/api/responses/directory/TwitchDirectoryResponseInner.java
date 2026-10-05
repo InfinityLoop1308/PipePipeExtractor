@@ -1,7 +1,5 @@
 package org.schabi.newpipe.extractor.services.twitch.data.api.responses.directory;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.util.List;
 
 import javax.annotation.Nonnull;

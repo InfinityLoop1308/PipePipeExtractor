@@ -8,14 +8,15 @@ import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchExtensionsDat
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchBaseResponse;
 
 import java.util.Comparator;
-import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class TwitchNowLiveResponse extends TwitchBaseResponse<TwitchNowLiveResponseEntry[]> {
 
-    public TwitchNowLiveResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchNowLiveResponse(@Nullable String[] errors,
+                                 @Nonnull TwitchExtensionsData extensions,
+                                 @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 

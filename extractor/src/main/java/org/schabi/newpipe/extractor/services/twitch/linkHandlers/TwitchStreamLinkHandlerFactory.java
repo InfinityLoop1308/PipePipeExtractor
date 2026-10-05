@@ -2,7 +2,6 @@ package org.schabi.newpipe.extractor.services.twitch.linkHandlers;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
-import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchStreamLinkType;
 
@@ -11,7 +10,8 @@ public class TwitchStreamLinkHandlerFactory extends LinkHandlerFactory {
     private TwitchStreamLinkType type;
 
     @Override
-    public String getId(final String urlString) throws ParsingException, UnsupportedOperationException {
+    public String getId(final String urlString) throws ParsingException,
+            UnsupportedOperationException {
 //        return switch (type) {
 //            case CLIP -> TwitchUrlParser.parseClipIdFromClipUrl(urlString);
 //            case STREAM -> TwitchUrlParser.parse(urlString);

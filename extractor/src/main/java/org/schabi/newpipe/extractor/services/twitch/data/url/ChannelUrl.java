@@ -8,4 +8,5 @@ import javax.annotation.Nonnull;
 public record ChannelUrl(@Nonnull String channelLoginName,
                          @Nonnull String channelId,
                          @Nonnull TwitchChannelTabLinkType tabType,
-                         @Nonnull Pagination pagination) { }
+                         @Nonnull Pagination pagination) {
+}

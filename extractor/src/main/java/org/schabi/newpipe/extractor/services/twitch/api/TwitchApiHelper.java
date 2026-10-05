@@ -63,7 +63,8 @@ public final class TwitchApiHelper {
             @Nonnull final String requestId
     ) {
         final var headers = new HashMap<>(generateUnauthenticatedRequestHeaders(dataStore));
-        headers.put("Client-Integrity", List.of(Objects.requireNonNull(dataStore.integrityToken).token()));
+        headers.put("Client-Integrity",
+                List.of(Objects.requireNonNull(dataStore.integrityToken).token()));
         headers.put("Client-Request-Id", List.of(Objects.requireNonNull(requestId)));
         return headers;
     }

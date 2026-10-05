@@ -18,12 +18,14 @@ public class TwitchGqlRequestBuilder {
 
     private final Map<String, Object> variables = new HashMap<>();
 
-    public TwitchGqlRequestBuilder(@Nonnull final String sha256Hash, @Nonnull final String operationName) {
+    public TwitchGqlRequestBuilder(@Nonnull final String sha256Hash,
+                                   @Nonnull final String operationName) {
         this.sha256Hash = sha256Hash;
         this.operationName = operationName;
     }
 
-    public TwitchGqlRequestBuilder withVariable(@Nonnull final String key, @Nullable final Object value) {
+    public TwitchGqlRequestBuilder withVariable(@Nonnull final String key,
+                                                @Nullable final Object value) {
         variables.put(key, value);
         return this;
     }

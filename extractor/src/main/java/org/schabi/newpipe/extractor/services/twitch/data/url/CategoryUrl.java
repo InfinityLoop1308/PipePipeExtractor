@@ -7,4 +7,5 @@ import javax.annotation.Nonnull;
 public record CategoryUrl(@Nonnull String categoryName,
                           @Nonnull String categorySlug,
                           @Nonnull String categoryId,
-                          @Nonnull Pagination pagination) { }
+                          @Nonnull Pagination pagination) {
+}

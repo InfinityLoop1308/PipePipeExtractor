@@ -14,7 +14,9 @@ import javax.annotation.Nullable;
 
 public final class TwitchClipPlaybackResponse extends TwitchBaseResponse<TwitchClipPlaybackResponseInner[]> {
 
-    public TwitchClipPlaybackResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchClipPlaybackResponse(@Nullable String[] errors,
+                                      @Nonnull TwitchExtensionsData extensions,
+                                      @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 
@@ -30,7 +32,8 @@ public final class TwitchClipPlaybackResponse extends TwitchBaseResponse<TwitchC
             final var clipHeight = Integer.parseInt(obj.getString("quality"));
             final var clipWidth = Math.round(clipHeight * aspectRatio);
             return new TwitchClipPlaybackResponseInner(
-                    obj.getString("sourceURL") + "?token=" + URLEncoder.encode(value, Charset.defaultCharset()) + "&sig=" + signature,
+                    obj.getString("sourceURL") + "?token=" + URLEncoder.encode(value,
+                            Charset.defaultCharset()) + "&sig=" + signature,
                     clipHeight,
                     clipWidth
             );

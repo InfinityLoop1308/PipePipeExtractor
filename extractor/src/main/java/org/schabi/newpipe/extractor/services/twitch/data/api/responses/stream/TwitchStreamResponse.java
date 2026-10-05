@@ -11,7 +11,9 @@ import javax.annotation.Nullable;
 
 public final class TwitchStreamResponse extends TwitchBaseResponse<TwitchStreamResponseInner> {
 
-    public TwitchStreamResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchStreamResponse(@Nullable String[] errors,
+                                @Nonnull TwitchExtensionsData extensions,
+                                @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 

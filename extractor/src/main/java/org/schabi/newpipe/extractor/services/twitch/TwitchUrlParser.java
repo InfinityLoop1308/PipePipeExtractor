@@ -1,9 +1,5 @@
 package org.schabi.newpipe.extractor.services.twitch;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.ImmutableTriple;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchChannelTabLinkType;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
 import org.schabi.newpipe.extractor.services.twitch.data.url.CategoryUrl;
@@ -27,13 +23,14 @@ public final class TwitchUrlParser {
         }
     }
 
-    private static @Nonnull String getRequiredQueryParameter(@Nonnull final URL url, @Nonnull final String queryKey) {
+    private static @Nonnull String getRequiredQueryParameter(@Nonnull final URL url,
+                                                             @Nonnull final String queryKey) {
         return Objects.requireNonNull(Utils.getQueryValue(url, queryKey));
     }
 
     private static @Nonnull String getPath(@Nonnull final URL url) {
         final var path = url.getPath();
-        if(!path.isEmpty() && path.charAt(0) == '/')
+        if (!path.isEmpty() && path.charAt(0) == '/')
             return path.substring(1);
         return path;
     }
@@ -60,17 +57,17 @@ public final class TwitchUrlParser {
     }
 
     /*
-    * Parse channel url
-    * e.g. https://twitch.tv/foo
-    *   -> Since this link is ambiguous (could be live or frontpage) we append query _type
-    *       -> _type == channel => Front
-    *       -> _type == live => Live
-    * other links do not have a query parameter since they can be identified
-    * https://twitch.tv/foo/clips
-    * https://twitch.tv/foo/videos
-    * https://twitch.tv/foo/about       => not implemented
-    * https://twitch.tv/foo/schedule    => not implemented
-    * */
+     * Parse channel url
+     * e.g. https://twitch.tv/foo
+     *   -> Since this link is ambiguous (could be live or frontpage) we append query _type
+     *       -> _type == channel => Front
+     *       -> _type == live => Live
+     * other links do not have a query parameter since they can be identified
+     * https://twitch.tv/foo/clips
+     * https://twitch.tv/foo/videos
+     * https://twitch.tv/foo/about       => not implemented
+     * https://twitch.tv/foo/schedule    => not implemented
+     * */
     public static @Nonnull ChannelUrl parseChannelUrl(@Nonnull final String urlString) {
         final var url = stringToUrl(urlString);
 
@@ -82,15 +79,14 @@ public final class TwitchUrlParser {
 
         var tabType = TwitchChannelTabLinkType.FRONT;
 
-        if(pathParts.length == 1) {
+        if (pathParts.length == 1) {
             final var queryValue = getRequiredQueryParameter(url, "_type");
             tabType = switch (queryValue) {
                 case "channel" -> TwitchChannelTabLinkType.FRONT;
                 case "stream" -> TwitchChannelTabLinkType.LIVE;
                 default -> throw new IllegalStateException("Unexpected value: " + queryValue);
             };
-        }
-        else {
+        } else {
             tabType = switch (pathParts[1]) {
                 case "clips" -> TwitchChannelTabLinkType.CLIPS;
                 case "videos" -> TwitchChannelTabLinkType.VIDEOS;
@@ -103,7 +99,8 @@ public final class TwitchUrlParser {
                 pathParts[0],
                 getRequiredQueryParameter(url, "_channelId"),
                 tabType,
-                TwitchPaginationHelper.getPaginationFromString(getRequiredQueryParameter(url, "_pagination"))
+                TwitchPaginationHelper.getPaginationFromString(getRequiredQueryParameter(url,
+                        "_pagination"))
         );
     }
 

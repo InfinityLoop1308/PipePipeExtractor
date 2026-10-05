@@ -22,7 +22,6 @@ import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
-import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.TwitchSearchResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.types.TwitchSearchChannelResponseEntry;
@@ -50,7 +49,23 @@ public class TwitchSearchExtractor extends SearchExtractor {
         this.apiClient = apiClient;
     }
 
-    private StreamInfoItem buildStreamInfoItem(final int serviceId, final TwitchSearchStreamResponseEntry entry) {
+    private static StreamInfoItem buildVodInfoItem(final int serviceId,
+                                                   final TwitchSearchVodResponseEntry entry) {
+        final var item = new StreamInfoItem(
+                serviceId,
+                TwitchUrlBuilder.buildVodUrlFromVodId(entry.getVodId()),
+                entry.getVodTitle(),
+                StreamType.POST_LIVE_STREAM
+        );
+        item.setViewCount(entry.getVodViewCount());
+        item.setDuration(entry.getVodDurationInSeconds());
+        item.setUploaderName(entry.getChannelName());
+        item.setThumbnailUrl(entry.getStreamThumbnailUrl());
+        return item;
+    }
+
+    private StreamInfoItem buildStreamInfoItem(final int serviceId,
+                                               final TwitchSearchStreamResponseEntry entry) {
         final var item = new StreamInfoItem(
                 serviceId,
                 TwitchUrlBuilder.buildStreamUrlFromChannelName(
@@ -71,7 +86,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
         return item;
     }
 
-    private ChannelInfoItem buildChannelInfoItem(final int serviceId, final TwitchSearchChannelResponseEntry entry) {
+    private ChannelInfoItem buildChannelInfoItem(final int serviceId,
+                                                 final TwitchSearchChannelResponseEntry entry) {
         final var item = new ChannelInfoItem(
                 serviceId,
                 TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
@@ -90,7 +106,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
         return item;
     }
 
-    private PlaylistInfoItem buildCategoryInfoItem(final int serviceId, final TwitchSearchGameResponseEntry entry) {
+    private PlaylistInfoItem buildCategoryInfoItem(final int serviceId,
+                                                   final TwitchSearchGameResponseEntry entry) {
         final var item = new PlaylistInfoItem(
                 serviceId,
                 TwitchUrlBuilder.buildCategoryUrlFromCategoryName(
@@ -98,8 +115,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
                         entry.getSlug(),
                         entry.getId(),
                         apiClient.getApiSettings().shouldUseHelixForCategories()
-                            ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
-                            : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                                ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                                : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
                 ),
                 entry.getGameName()
         );
@@ -109,26 +126,14 @@ public class TwitchSearchExtractor extends SearchExtractor {
         return item;
     }
 
-    private static StreamInfoItem buildVodInfoItem(final int serviceId, final TwitchSearchVodResponseEntry entry) {
-        final var item = new StreamInfoItem(
-                serviceId,
-                TwitchUrlBuilder.buildVodUrlFromVodId(entry.getVodId()),
-                entry.getVodTitle(),
-                StreamType.POST_LIVE_STREAM
-        );
-        item.setViewCount(entry.getVodViewCount());
-        item.setDuration(entry.getVodDurationInSeconds());
-        item.setUploaderName(entry.getChannelName());
-        item.setThumbnailUrl(entry.getStreamThumbnailUrl());
-        return item;
-    }
-
     @Override
-    protected InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException, ExtractionException {
+    protected InfoItemsPage<InfoItem> getInitialPageInternal() throws IOException,
+            ExtractionException {
         var collector = new MultiInfoItemsCollector(getServiceId());
         for (final var item : response.getData()) {
             if (item instanceof TwitchSearchChannelResponseEntry) {
-                var infoItem = buildChannelInfoItem(getServiceId(), (TwitchSearchChannelResponseEntry) item);
+                var infoItem = buildChannelInfoItem(getServiceId(),
+                        (TwitchSearchChannelResponseEntry) item);
                 collector.commit(new ChannelInfoItemExtractor() {
                     @Override
                     public String getDescription() throws ParsingException {
@@ -166,7 +171,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
                     }
                 });
             } else if (item instanceof TwitchSearchStreamResponseEntry) {
-                var infoItem = buildStreamInfoItem(getServiceId(), (TwitchSearchStreamResponseEntry) item);
+                var infoItem = buildStreamInfoItem(getServiceId(),
+                        (TwitchSearchStreamResponseEntry) item);
                 collector.commit(new StreamInfoItemExtractor() {
                     @Override
                     public StreamType getStreamType() throws ParsingException {
@@ -216,7 +222,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
                     }
                 });
             } else if (item instanceof TwitchSearchVodResponseEntry) {
-                final var infoItem = buildVodInfoItem(getServiceId(), (TwitchSearchVodResponseEntry) item);
+                final var infoItem = buildVodInfoItem(getServiceId(),
+                        (TwitchSearchVodResponseEntry) item);
                 collector.commit(new StreamInfoItemExtractor() {
                     @Override
                     public StreamType getStreamType() throws ParsingException {
@@ -266,7 +273,8 @@ public class TwitchSearchExtractor extends SearchExtractor {
                     }
                 });
             } else if (item instanceof TwitchSearchGameResponseEntry) {
-                final var infoItem = buildCategoryInfoItem(getServiceId(), (TwitchSearchGameResponseEntry) item);
+                final var infoItem = buildCategoryInfoItem(getServiceId(),
+                        (TwitchSearchGameResponseEntry) item);
                 collector.commit(new PlaylistInfoItemExtractor() {
                     @Override
                     public String getUploaderName() throws ParsingException {
@@ -299,12 +307,14 @@ public class TwitchSearchExtractor extends SearchExtractor {
     }
 
     @Override
-    protected InfoItemsPage<InfoItem> getPageInternal(Page page) throws IOException, ExtractionException {
+    protected InfoItemsPage<InfoItem> getPageInternal(Page page) throws IOException,
+            ExtractionException {
         return getInitialPageInternal();
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException{
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         try {
             final var searchUrl = TwitchUrlParser.parseSearchUrl(getUrl());
             response = apiClient.getUnauthorized().getSearchResponse(

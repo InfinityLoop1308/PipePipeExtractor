@@ -8,7 +8,6 @@ import org.schabi.newpipe.extractor.services.twitch.api.TwitchJsonHelper;
 
 import java.lang.reflect.Array;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Map;
 
@@ -19,14 +18,14 @@ public final class TwitchPaginationHelper {
 
         JsonObject paginationObject;
 
-        if(pagination instanceof CursorBasedPagination cursorBasedPagination)
+        if (pagination instanceof CursorBasedPagination cursorBasedPagination)
             paginationObject = new JsonObject(TwitchUtils.mapOfNullables(
-                "cursor", cursorBasedPagination.cursor()
+                    "cursor", cursorBasedPagination.cursor()
             ));
-        else if(pagination instanceof PositionBasedPagination positionBasedPagination)
+        else if (pagination instanceof PositionBasedPagination positionBasedPagination)
             paginationObject = new JsonObject(Map.of(
-                "offset", positionBasedPagination.offset(),
-                "size", positionBasedPagination.size()
+                    "offset", positionBasedPagination.offset(),
+                    "size", positionBasedPagination.size()
             ));
         else throw new UnsupportedOperationException();
 
@@ -40,7 +39,7 @@ public final class TwitchPaginationHelper {
                 new String(Base64.getDecoder().decode(paginationString), StandardCharsets.UTF_8).trim()
         );
 
-        if(paginationObject.has("cursor"))
+        if (paginationObject.has("cursor"))
             return new CursorBasedPagination(paginationObject.getString("cursor"));
 
         return new PositionBasedPagination(
@@ -49,12 +48,14 @@ public final class TwitchPaginationHelper {
         );
     }
 
-    public static <T> T[] paginateArray(T[] toPaginate, Class<T> clazz, PositionBasedPagination pagination) {
-        final var targetArraySize = Math.clamp(toPaginate.length - pagination.offset(), 0, pagination.size());
-        if(targetArraySize == 0)
+    public static <T> T[] paginateArray(T[] toPaginate, Class<T> clazz,
+                                        PositionBasedPagination pagination) {
+        final var targetArraySize = Math.clamp(toPaginate.length - pagination.offset(), 0,
+                pagination.size());
+        if (targetArraySize == 0)
             //noinspection unchecked
-            return (T[])Array.newInstance(clazz, 0);
-        @SuppressWarnings("unchecked") final var targetArray = (T[])Array.newInstance(
+            return (T[]) Array.newInstance(clazz, 0);
+        @SuppressWarnings("unchecked") final var targetArray = (T[]) Array.newInstance(
                 clazz,
                 Math.min(toPaginate.length - pagination.offset(), pagination.size())
         );

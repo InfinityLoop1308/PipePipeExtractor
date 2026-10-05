@@ -4,7 +4,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class CursorBasedPagination extends Pagination {
 
-    public static final CursorBasedPagination DEFAULT_CURSOR_PAGINATION = new CursorBasedPagination(null);
+    public static final CursorBasedPagination DEFAULT_CURSOR_PAGINATION =
+            new CursorBasedPagination(null);
 
     @Nullable
     private final String cursor;

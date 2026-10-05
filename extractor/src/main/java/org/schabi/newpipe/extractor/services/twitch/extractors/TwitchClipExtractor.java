@@ -54,11 +54,14 @@ public final class TwitchClipExtractor extends StreamExtractor {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         try {
             final var clipSlug = TwitchUrlParser.parseClipIdFromClipUrl(getUrl());
-            clipResponse = apiClient.getUnauthorized().getClipPlaybackToken(downloader, clipSlug).getData();
-            response = apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionClipManager(downloader, clipSlug).getData();
+            clipResponse =
+                    apiClient.getUnauthorized().getClipPlaybackToken(downloader, clipSlug).getData();
+            response =
+                    apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionClipManager(downloader, clipSlug).getData();
         } catch (JsonParserException e) {
             throw new IOException(e);
         }

@@ -4,7 +4,6 @@ import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 
 import org.jetbrains.annotations.NotNull;
-import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
 import org.schabi.newpipe.extractor.services.twitch.data.api.TwitchExtensionsData;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.TwitchBaseResponse;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.types.TwitchSearchChannelResponseEntry;
@@ -15,14 +14,15 @@ import org.schabi.newpipe.extractor.services.twitch.data.api.responses.search.ty
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSearchBaseResponseEntry>> {
 
-    public TwitchSearchResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    public TwitchSearchResponse(@Nullable String[] errors,
+                                @Nonnull TwitchExtensionsData extensions,
+                                @Nonnull JsonObject data) {
         super(errors, extensions, data);
     }
 
@@ -38,7 +38,7 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 item.getObject("followers").getInt("totalCount"));
     }
 
-    private static @ Nonnull TwitchSearchStreamResponseEntry parseAsTaggedStreamEntry(JsonObject node) {
+    private static @Nonnull TwitchSearchStreamResponseEntry parseAsTaggedStreamEntry(JsonObject node) {
         final var item = node.getObject("item");
         final var stream = item.getObject("stream");
         return new TwitchSearchStreamResponseEntry(
@@ -114,7 +114,7 @@ public final class TwitchSearchResponse extends TwitchBaseResponse<List<TwitchSe
                 : Optional.empty();
         final var masterList = new LinkedList<TwitchSearchBaseResponseEntry>();
         channelsWithTags.ifPresent(objects -> masterList.addAll(objects.stream().map(ob -> parseAsTaggedStreamEntry((JsonObject) ob)).toList()));
-        channels.ifPresent(objects -> masterList.addAll(objects.stream().map(ob ->  {
+        channels.ifPresent(objects -> masterList.addAll(objects.stream().map(ob -> {
             final var obj = (JsonObject) ob;
             final var isLive = obj.getObject("item").getObject("stream").has("viewersCount");
             return isLive ? parseAsStreamEntry(obj) : parseAsChannelEntry(obj);

@@ -1,14 +1,11 @@
 package org.schabi.newpipe.extractor.services.twitch.data.api.pagination;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.util.Objects;
-
-import javax.annotation.Nonnull;
 
 public final class PositionBasedPagination extends Pagination {
 
-    public static final PositionBasedPagination DEFAULT_POSITION_PAGINATION = new PositionBasedPagination(0, 20);
+    public static final PositionBasedPagination DEFAULT_POSITION_PAGINATION =
+            new PositionBasedPagination(0, 20);
 
     private final int offset;
     private final int size;
@@ -19,7 +16,8 @@ public final class PositionBasedPagination extends Pagination {
     }
 
     public PositionBasedPagination shift(final int maxLength) {
-        return new PositionBasedPagination(offset + size, Math.min(size, maxLength - (offset + size)));
+        return new PositionBasedPagination(offset + size, Math.min(size,
+                maxLength - (offset + size)));
     }
 
     public int offset() {

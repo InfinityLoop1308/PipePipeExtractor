@@ -16,7 +16,6 @@ import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
 import org.schabi.newpipe.extractor.services.twitch.data.TwitchVideoStream;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
-import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Pagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchVideoPlayerMediaSessionManagerResponseInner;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -54,12 +53,15 @@ public class TwitchVodExtractor extends StreamExtractor {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         try {
             final var vodId = TwitchUrlParser.parseVodIdFromVodUrl(getUrl());
             final var token = apiClient.getUnauthorized().getVodPlaybackToken(downloader, vodId);
-            streams = apiClient.getUnauthorized().getM3U8VodPlaybackUrl(downloader, vodId, token.getData().signature(), token.getData().value());
-            twitchVideoPlayerMediaSessionManager = apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionManager(downloader, vodId).getData();
+            streams = apiClient.getUnauthorized().getM3U8VodPlaybackUrl(downloader, vodId,
+                    token.getData().signature(), token.getData().value());
+            twitchVideoPlayerMediaSessionManager =
+                    apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionManager(downloader, vodId).getData();
         } catch (JsonParserException e) {
             throw new IOException(e);
         }
@@ -84,8 +86,8 @@ public class TwitchVodExtractor extends StreamExtractor {
                 getUploaderName(),
                 twitchVideoPlayerMediaSessionManager.ownerId(),
                 apiClient.getApiSettings().shouldUseHelixForVods()
-                    ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
-                    : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
         );
     }
 

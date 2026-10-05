@@ -51,8 +51,8 @@ public final class TwitchChannelVodExtractor extends ChannelTabExtractor {
     public InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
         Page nextPage = null;
 
-        if(pagination instanceof PositionBasedPagination positionBasedPagination) {
-            if(positionBasedPagination.offset() + positionBasedPagination.size() < 100
+        if (pagination instanceof PositionBasedPagination positionBasedPagination) {
+            if (positionBasedPagination.offset() + positionBasedPagination.size() < 100
                     && response.length != 0)
                 nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
                         channelName,
@@ -62,7 +62,7 @@ public final class TwitchChannelVodExtractor extends ChannelTabExtractor {
                 ));
         }
 
-        if(pagination instanceof CursorBasedPagination cursorBasedPagination) {
+        if (pagination instanceof CursorBasedPagination cursorBasedPagination) {
             // TODO
         }
 
@@ -106,14 +106,15 @@ public final class TwitchChannelVodExtractor extends ChannelTabExtractor {
             response = apiClient.getUnauthorized().getTwitchVods(
                     downloader,
                     channelName,
-                    ((PositionBasedPagination)pagination).offset() + ((PositionBasedPagination)pagination).size()).getData();
+                    ((PositionBasedPagination) pagination).offset() + ((PositionBasedPagination) pagination).size()).getData();
         } catch (JsonParserException e) {
             throw new IOException(e);
         }
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         fetchData(downloader, getUrl());
     }
 }

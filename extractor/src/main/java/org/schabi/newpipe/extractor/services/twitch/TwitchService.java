@@ -53,8 +53,12 @@ public final class TwitchService extends StreamingService {
 
     private TwitchApiClient twitchApiClient;
 
+    public TwitchService(final int id) {
+        super(id, "Twitch", List.of(LIVE, VIDEO));
+    }
+
     private TwitchApiClient getOrInitializeTwitchClient() {
-        if(twitchApiClient == null)
+        if (twitchApiClient == null)
             twitchApiClient = new TwitchApiClient(
                     new TwitchApiSettings(
                             shouldUseHelixForKiosk,
@@ -66,10 +70,6 @@ public final class TwitchService extends StreamingService {
                     getTokens()
             );
         return twitchApiClient;
-    }
-
-    public TwitchService(final int id) {
-        super(id, "Twitch", List.of(LIVE, VIDEO));
     }
 
     @Override
@@ -126,9 +126,11 @@ public final class TwitchService extends StreamingService {
     public KioskList getKioskList() throws ExtractionException {
         try {
             final var list = new KioskList(this);
-            final var streamHandler = new TwitchLiveKioskLinkHandlerFactory(getOrInitializeTwitchClient().getApiSettings());
+            final var streamHandler =
+                    new TwitchLiveKioskLinkHandlerFactory(getOrInitializeTwitchClient().getApiSettings());
             list.addKioskEntry((streamingService, url, _) ->
-                            new TwitchLiveKiosk(streamingService, streamHandler.fromUrl(url), getOrInitializeTwitchClient()),
+                            new TwitchLiveKiosk(streamingService, streamHandler.fromUrl(url),
+                                    getOrInitializeTwitchClient()),
                     streamHandler,
                     TwitchLiveKiosk.KIOSK_ID
             );
@@ -148,9 +150,14 @@ public final class TwitchService extends StreamingService {
     public ChannelTabExtractor getChannelTabExtractor(ListLinkHandler linkHandler) throws ExtractionException {
         final var channelUrl = TwitchUrlParser.parseChannelUrl(linkHandler.getUrl());
         return switch (channelUrl.tabType()) {
-            case CLIPS -> new TwitchChannelClipExtractor(this, linkHandler, getOrInitializeTwitchClient());
-            case VIDEOS -> new TwitchChannelVodExtractor(this, linkHandler, getOrInitializeTwitchClient());
-            case LIVE -> new TwitchChannelStreamExtractor(this, linkHandler, getOrInitializeTwitchClient());
+            case CLIPS ->
+                    new TwitchChannelClipExtractor(this, linkHandler,
+                            getOrInitializeTwitchClient());
+            case VIDEOS ->
+                    new TwitchChannelVodExtractor(this, linkHandler, getOrInitializeTwitchClient());
+            case LIVE ->
+                    new TwitchChannelStreamExtractor(this, linkHandler,
+                            getOrInitializeTwitchClient());
             default -> throw new IllegalStateException("Unexpected value: " + channelUrl.tabType());
         };
     }

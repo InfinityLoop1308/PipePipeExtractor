@@ -3,7 +3,6 @@ package org.schabi.newpipe.extractor.services.twitch.linkHandlers;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
-import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 
 import java.util.List;
@@ -25,8 +24,7 @@ public class TwitchPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
         try {
             TwitchUrlParser.parseCategoryUrl(url);
             return true;
-        }
-        catch (Exception ignored) {
+        } catch (Exception ignored) {
             return false;
         }
     }

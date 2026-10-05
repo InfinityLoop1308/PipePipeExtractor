@@ -14,11 +14,10 @@ import javax.annotation.Nonnull;
 
 public class UrlBuilder {
 
-    private String schema, host;
+    private static final Pattern pathSegmentRegex = Pattern.compile("^[a-zA-Z0-9\\-_+]+$");
     private final List<String> path = new ArrayList<>();
     private final List<ImmutablePair<String, String>> queries = new ArrayList<>();
-
-    private static final Pattern pathSegmentRegex = Pattern.compile("^[a-zA-Z0-9\\-_+]+$");
+    private String schema, host;
 
     public UrlBuilder withSchema(@Nonnull final String schema) {
         this.schema = schema;
@@ -67,9 +66,11 @@ public class UrlBuilder {
 
         for (int i = 0; i < queries.size(); i++) {
             var queryTuple = queries.get(i);
-            var urlEncodedQueryKey = URLEncoder.encode(queryTuple.getLeft(), StandardCharsets.UTF_8);
-            var urlEncodedQueryValue = URLEncoder.encode(queryTuple.getRight(), StandardCharsets.UTF_8);
-            if(i == 0)
+            var urlEncodedQueryKey = URLEncoder.encode(queryTuple.getLeft(),
+                    StandardCharsets.UTF_8);
+            var urlEncodedQueryValue = URLEncoder.encode(queryTuple.getRight(),
+                    StandardCharsets.UTF_8);
+            if (i == 0)
                 queryStringBuilder.append("?");
             else
                 queryStringBuilder.append("&");

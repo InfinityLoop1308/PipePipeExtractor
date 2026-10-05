@@ -6,5 +6,5 @@ public record TwitchApiSettings(
         boolean shouldUseHelixForVods,
         boolean shouldUseHelixForClips,
         boolean shouldUseHelixForSearch
-        ) {
+) {
 }

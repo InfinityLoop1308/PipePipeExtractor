@@ -20,7 +20,9 @@ public abstract class TwitchBaseResponse<T> {
     @Nullable
     private final T data;
 
-    protected TwitchBaseResponse(@Nullable String[] errors, @Nonnull TwitchExtensionsData extensions, @Nonnull JsonObject data) {
+    protected TwitchBaseResponse(@Nullable String[] errors,
+                                 @Nonnull TwitchExtensionsData extensions,
+                                 @Nonnull JsonObject data) {
         this.errors = errors;
         this.extensions = extensions;
         this.data = errors == null

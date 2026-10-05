@@ -11,7 +11,7 @@ public class TwitchApiClient {
     private final AuthorizedTwitchApiClient authorized;
 
     public TwitchApiClient(@Nonnull final TwitchApiSettings apiSettings,
-                          @Nullable final String helixApiToken) {
+                           @Nullable final String helixApiToken) {
         this.apiSettings = apiSettings;
         authorized = new AuthorizedTwitchApiClient(helixApiToken);
     }

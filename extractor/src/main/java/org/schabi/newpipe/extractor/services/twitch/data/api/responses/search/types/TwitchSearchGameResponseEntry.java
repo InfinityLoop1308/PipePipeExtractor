@@ -16,7 +16,8 @@ public final class TwitchSearchGameResponseEntry extends TwitchSearchBaseRespons
     private final String gameBoxArtUrl;
 
 
-    public TwitchSearchGameResponseEntry(@Nonnull String gameName, @Nonnull final String slug, final String id, @Nonnull String gameBoxArtUrl) {
+    public TwitchSearchGameResponseEntry(@Nonnull String gameName, @Nonnull final String slug,
+                                         final String id, @Nonnull String gameBoxArtUrl) {
         this.gameName = gameName;
         this.slug = slug;
         this.id = id;

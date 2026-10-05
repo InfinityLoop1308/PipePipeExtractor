@@ -62,8 +62,8 @@ public class TwitchChannelExtractor extends ChannelExtractor {
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         Page nextPage = null;
 
-        if(channelUrl.pagination() instanceof PositionBasedPagination positionBasedPagination) {
-            if(positionBasedPagination.offset() + positionBasedPagination.size() < 100
+        if (channelUrl.pagination() instanceof PositionBasedPagination positionBasedPagination) {
+            if (positionBasedPagination.offset() + positionBasedPagination.size() < 100
                     && gqlResponse.length != 0)
                 nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
                         channelUrl.channelLoginName(),
@@ -73,8 +73,8 @@ public class TwitchChannelExtractor extends ChannelExtractor {
                 ));
         }
 
-        if(channelUrl.pagination() instanceof CursorBasedPagination) {
-            if(helixResponse.hasMoreEntries())
+        if (channelUrl.pagination() instanceof CursorBasedPagination) {
+            if (helixResponse.hasMoreEntries())
                 nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
                         channelUrl.channelLoginName(),
                         channelUrl.channelId(),
@@ -141,7 +141,8 @@ public class TwitchChannelExtractor extends ChannelExtractor {
     }
 
     @Override
-    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException,
+            ExtractionException {
         fetchData(getDownloader(), page.getUrl());
         return getInitialPage();
     }
@@ -199,7 +200,7 @@ public class TwitchChannelExtractor extends ChannelExtractor {
                         apiClient.getApiSettings().shouldUseHelixForVods()
                                 ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
                                 : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
-                        ),
+                ),
                 getId(),
                 Collections.singletonList(new FilterItem(
                         Filter.ITEM_IDENTIFIER_UNKNOWN,
@@ -216,7 +217,7 @@ public class TwitchChannelExtractor extends ChannelExtractor {
                         apiClient.getApiSettings().shouldUseHelixForClips()
                                 ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
                                 : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
-                    ),
+                ),
                 getId(),
                 Collections.singletonList(new FilterItem(
                         Filter.ITEM_IDENTIFIER_UNKNOWN,
@@ -230,15 +231,15 @@ public class TwitchChannelExtractor extends ChannelExtractor {
     private void fetchData(@Nonnull final Downloader downloader, @Nonnull final String url) throws IOException, ExtractionException {
         try {
             channelUrl = TwitchUrlParser.parseChannelUrl(url);
-            channelResponse = apiClient.getUnauthorized().getTwitchChannel(downloader, channelUrl.channelLoginName()).getData();
-            if(apiClient.getApiSettings().shouldUseHelixForVods()) {
+            channelResponse = apiClient.getUnauthorized().getTwitchChannel(downloader,
+                    channelUrl.channelLoginName()).getData();
+            if (apiClient.getApiSettings().shouldUseHelixForVods()) {
                 helixResponse = apiClient.getAuthorized().getVods(
                         downloader,
                         channelUrl.channelId(),
-                        ((CursorBasedPagination)channelUrl.pagination()).cursor());
-            }
-            else {
-                final var positionPagination = (PositionBasedPagination)channelUrl.pagination();
+                        ((CursorBasedPagination) channelUrl.pagination()).cursor());
+            } else {
+                final var positionPagination = (PositionBasedPagination) channelUrl.pagination();
                 gqlResponse = TwitchPaginationHelper.paginateArray(
                         apiClient.getUnauthorized().getTwitchVods(
                                 downloader,
@@ -253,7 +254,8 @@ public class TwitchChannelExtractor extends ChannelExtractor {
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
         fetchData(downloader, getUrl());
     }
 

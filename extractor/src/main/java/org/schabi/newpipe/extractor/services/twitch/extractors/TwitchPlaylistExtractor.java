@@ -79,26 +79,25 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
         try {
             final var categoryUrl = TwitchUrlParser.parseCategoryUrl(url);
             pagination = categoryUrl.pagination();
-            if(apiClient.getApiSettings().shouldUseHelixForCategories()) {
+            if (apiClient.getApiSettings().shouldUseHelixForCategories()) {
                 response = apiClient.getAuthorized().GetDirectoryInformation(
                         downloader,
                         categoryUrl.categoryName(),
                         categoryUrl.categoryId(),
-                        ((CursorBasedPagination)pagination).cursor()
+                        ((CursorBasedPagination) pagination).cursor()
                 );
-            }
-            else {
+            } else {
                 final var response = apiClient.getUnauthorized().getTwitchCategory(
                         downloader,
                         categoryUrl.categorySlug(),
-                        ((PositionBasedPagination)pagination).offset()
-                                + ((PositionBasedPagination)pagination).size()
+                        ((PositionBasedPagination) pagination).offset()
+                                + ((PositionBasedPagination) pagination).size()
                 ).getData();
                 gameId = response.gameId();
                 gameName = response.directoryName();
                 gameSlug = categoryUrl.categorySlug();
                 entries = response.entries().stream()
-                        .skip(((PositionBasedPagination)pagination).offset())
+                        .skip(((PositionBasedPagination) pagination).offset())
                         .toArray(TwitchDirectoryResponseEntry[]::new);
             }
         } catch (JsonParserException e) {
@@ -110,8 +109,8 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
         Page nextPage = null;
-        if(apiClient.getApiSettings().shouldUseHelixForCategories()) {
-            if(response.hasMoreEntries()) {
+        if (apiClient.getApiSettings().shouldUseHelixForCategories()) {
+            if (response.hasMoreEntries()) {
                 nextPage = new Page(TwitchUrlBuilder.buildCategoryUrlFromCategoryName(
                         response.directoryName(),
                         response.directoryName(),
@@ -123,11 +122,11 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
                     response.entries().toArray(TwitchDirectoryResponseEntry[]::new),
                     response.hasMoreEntries() ? nextPage : null
             );
-        }
-        else {
-            final var positionPagination = (PositionBasedPagination)pagination;
-            final var hasMoreEntries = positionPagination.offset() + positionPagination.size() < 100;
-            if(hasMoreEntries) {
+        } else {
+            final var positionPagination = (PositionBasedPagination) pagination;
+            final var hasMoreEntries =
+                    positionPagination.offset() + positionPagination.size() < 100;
+            if (hasMoreEntries) {
                 nextPage = new Page(TwitchUrlBuilder.buildCategoryUrlFromCategoryName(
                         gameName, gameSlug, gameId,
                         positionPagination.shift(100)
@@ -168,7 +167,7 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
                             apiClient.getApiSettings().shouldUseHelixForVods()
                                     ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
                                     : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
-                            ));
+                    ));
                     streamItem.setUploaderVerified(directoryEntry.isPartner());
                     streamItem.setViewCount(directoryEntry.viewCount());
                     return streamItem;
@@ -179,13 +178,15 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
     }
 
     @Override
-    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException,
+            ExtractionException {
         populateData(getDownloader(), page.getUrl());
         return getInitialPage();
     }
 
     @Override
-    public void onFetchPage(@NotNull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@NotNull Downloader downloader) throws IOException,
+            ExtractionException {
         populateData(downloader, getUrl());
     }
 
