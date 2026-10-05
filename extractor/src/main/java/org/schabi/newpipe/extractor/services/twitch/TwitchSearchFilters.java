@@ -12,7 +12,6 @@ public class TwitchSearchFilters extends SearchFiltersBase {
     }
 
     protected void init() {
-        /* content filters */
         final var allFilter = builder.addFilterItem(
                 new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, "All"));
         final var streamsFilter = builder.addFilterItem(
@@ -24,10 +23,8 @@ public class TwitchSearchFilters extends SearchFiltersBase {
         final var categoriesFilter = builder.addFilterItem(
                 new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, "Categories"));
 
-        // 'ALL' this is the default search content filter.
         this.defaultContentFilterId = allFilter;
 
-        /* content filters with sort filters */
         addContentFilter(builder.createSortGroup(null, false, new FilterItem[]{
                 builder.getFilterForId(allFilter),
                 builder.getFilterForId(streamsFilter),

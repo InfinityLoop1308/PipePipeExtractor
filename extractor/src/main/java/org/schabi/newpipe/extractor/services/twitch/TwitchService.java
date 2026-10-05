@@ -47,6 +47,9 @@ public final class TwitchService extends StreamingService {
 
     private boolean shouldUseHelixForKiosk;
     private boolean shouldUseHelixForCategories;
+    private boolean shouldUseHelixForVods;
+    private boolean shouldUseHelixForClips;
+    private boolean shouldUseHelixForSearch;
 
     private TwitchApiClient twitchApiClient;
 
@@ -54,13 +57,11 @@ public final class TwitchService extends StreamingService {
         if(twitchApiClient == null)
             twitchApiClient = new TwitchApiClient(
                     new TwitchApiSettings(
-//                            shouldUseHelixForKiosk,
-//                            shouldUseHelixForCategories,
-                            false,
-                            false,
-                            false,
-                            false,
-                            false
+                            shouldUseHelixForKiosk,
+                            shouldUseHelixForCategories,
+                            shouldUseHelixForVods,
+                            shouldUseHelixForClips,
+                            shouldUseHelixForSearch
                     ),
                     getTokens()
             );
@@ -191,5 +192,17 @@ public final class TwitchService extends StreamingService {
 
     public void setShouldUseHelixForCategories(final boolean should) {
         shouldUseHelixForCategories = should;
+    }
+
+    public void setShouldUseHelixForVods(final boolean should) {
+        shouldUseHelixForVods = should;
+    }
+
+    public void setShouldUseHelixForClips(final boolean should) {
+        shouldUseHelixForClips = should;
+    }
+
+    public void setShouldUseHelixForSearch(final boolean should) {
+        shouldUseHelixForSearch = should;
     }
 }
