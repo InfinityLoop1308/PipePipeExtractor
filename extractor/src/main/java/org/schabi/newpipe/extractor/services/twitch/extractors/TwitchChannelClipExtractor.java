@@ -59,7 +59,7 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
                         channelName,
                         channelId,
                         TwitchChannelTabLinkType.CLIPS,
-                        positionBasedPagination.shift()
+                        positionBasedPagination.shift(100)
                 ));
         }
 

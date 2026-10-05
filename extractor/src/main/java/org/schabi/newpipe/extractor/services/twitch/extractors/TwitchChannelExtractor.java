@@ -69,7 +69,7 @@ public class TwitchChannelExtractor extends ChannelExtractor {
                         channelUrl.channelLoginName(),
                         channelUrl.channelId(),
                         TwitchChannelTabLinkType.VIDEOS,
-                        positionBasedPagination.shift()
+                        positionBasedPagination.shift(100)
                 ));
         }
 

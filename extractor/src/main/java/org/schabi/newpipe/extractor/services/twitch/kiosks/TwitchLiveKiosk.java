@@ -97,10 +97,10 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
         }
         else {
             final var positionPagination = (PositionBasedPagination)pagination;
-            final var hasMoreEntries = positionPagination.offset() + positionPagination.size() < 100;
+            final var hasMoreEntries = positionPagination.offset() + positionPagination.size() < 30;
             if(hasMoreEntries) {
                 nextPage = new Page(TwitchUrlBuilder.buildLiveKioskUrlFromPagination(
-                        positionPagination.shift()
+                        positionPagination.shift(30)
                 ));
             }
             return getPage(

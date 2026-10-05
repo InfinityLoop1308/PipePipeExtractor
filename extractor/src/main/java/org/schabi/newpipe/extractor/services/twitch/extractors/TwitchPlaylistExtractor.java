@@ -130,7 +130,7 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
             if(hasMoreEntries) {
                 nextPage = new Page(TwitchUrlBuilder.buildCategoryUrlFromCategoryName(
                         gameName, gameSlug, gameId,
-                        positionPagination.shift()
+                        positionPagination.shift(100)
                 ));
             }
             return getPage(
