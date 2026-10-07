@@ -8,11 +8,15 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreaming
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
 
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import okhttp3.HttpUrl;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -22,6 +26,8 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
@@ -32,12 +38,25 @@ public final class YoutubeSabrSession {
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
     private static final int MAX_BACKOFF_MS = 30_000;
+    /**
+     * A googlevideo node host, such as {@code rr2---sn-qja5m5-5v.googlevideo.com}. The captured
+     * group is the {@code rr} index, which is also advertised by the streaming URL as {@code mvi}.
+     */
+    private static final Pattern GOOGLEVIDEO_HOST_PATTERN =
+            Pattern.compile("^rr(\\d+)---[^/]+\\.googlevideo\\.com$");
     @Nonnull
     private final YoutubeSabrInfo info;
     @Nullable
     private final File segmentSpoolDirectory;
     @Nonnull
     private String serverAbrStreamingUrl;
+    /**
+     * Candidate streaming URLs, in preference order, built from the {@code mn} node list and the
+     * {@code mvi} index of the current URL. Index 0 is always the URL the server handed us.
+     */
+    @Nonnull
+    private List<String> hostCandidates = Collections.emptyList();
+    private int hostCandidateIndex;
     private int requestNumber;
     private int redirectCount;
     private int consecutiveIntegrityFailures;
@@ -70,6 +89,7 @@ public final class YoutubeSabrSession {
         this.info = info;
         this.segmentSpoolDirectory = segmentSpoolDirectory;
         this.serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
+        updateHostCandidates(this.serverAbrStreamingUrl);
     }
 
     // -------------------------------------------------------------------------
@@ -94,9 +114,7 @@ public final class YoutubeSabrSession {
         final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> { };
         final YoutubeSabrResponse result;
         try {
-            result = YoutubeSabrRequestHelper.post(info, request, this,
-                    serverAbrStreamingUrl, requestNumber, timedConsumer,
-                    startedConsumer, segmentSpoolDirectory);
+            result = postWithHostRotation(request, timedConsumer, startedConsumer);
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
                     + " type=" + e.getClass().getSimpleName()
@@ -118,6 +136,105 @@ public final class YoutubeSabrSession {
         updateBandwidthEstimate(result.getResponseBytes(), result.getRequestElapsedMs());
         requestNumber++;
         return result;
+    }
+
+    /**
+     * Posts a SABR request, rotating to another {@code googlevideo} node advertised by the
+     * streaming URL's {@code mn} parameter when the current host cannot be reached.
+     *
+     * <p>A transport-level failure such as {@link UnknownHostException} (Android reports DNS
+     * {@code EAI_NODATA} this way) means the current hostname could not be resolved on this
+     * network. Rotating to a sibling node changes the DNS cache key, which bypasses a negative
+     * cache entry for the previous host and any filtering that only affects that node.
+     *</p>
+     *
+     * <p>The SABR protocol state is not advanced here: {@code rn} stays at the current request
+     * number because no response was received, so a rotated retry is the same logical request.
+     *</p>
+     */
+    @Nonnull
+    private YoutubeSabrResponse postWithHostRotation(
+            @Nonnull final YoutubeSabrRequest request,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer startedConsumer)
+            throws IOException, ExtractionException {
+        while (true) {
+            try {
+                return YoutubeSabrRequestHelper.post(info, request, this,
+                        serverAbrStreamingUrl, requestNumber, segmentConsumer,
+                        startedConsumer, segmentSpoolDirectory);
+            } catch (final UnknownHostException | ConnectException | NoRouteToHostException e) {
+                addDiagnosticEvent("host_unreachable n=" + requestNumber
+                        + " host=" + hostOf(serverAbrStreamingUrl)
+                        + " type=" + e.getClass().getSimpleName());
+                if (!rotateHost()) {
+                    throw e;
+                }
+                addDiagnosticEvent("host_rotate n=" + requestNumber
+                        + " host=" + hostOf(serverAbrStreamingUrl));
+            }
+        }
+    }
+
+    private void updateHostCandidates(@Nonnull final String url) {
+        hostCandidates = buildHostCandidates(url);
+        hostCandidateIndex = 0;
+    }
+
+    /**
+     * Advances to the next candidate host, if any, and returns whether one was available.
+     */
+    private boolean rotateHost() {
+        if (hostCandidateIndex + 1 >= hostCandidates.size()) {
+            return false;
+        }
+        hostCandidateIndex++;
+        serverAbrStreamingUrl = hostCandidates.get(hostCandidateIndex);
+        return true;
+    }
+
+    /**
+     * Builds the list of equivalent streaming URLs by rewriting the host to every node advertised
+     * under the {@code mn} parameter, keeping the current URL first and preserving all other
+     * parameters (including the signature, which is not bound to the host).
+     */
+    @Nonnull
+    private static List<String> buildHostCandidates(@Nonnull final String url) {
+        final HttpUrl parsed = HttpUrl.parse(url);
+        if (parsed == null) {
+            return Collections.singletonList(url);
+        }
+        final String host = parsed.host();
+        final Matcher hostMatcher = GOOGLEVIDEO_HOST_PATTERN.matcher(host);
+        final String mn = parsed.queryParameter("mn");
+        if (!hostMatcher.matches() || mn == null || mn.isEmpty()) {
+            return Collections.singletonList(url);
+        }
+        final String mvi = parsed.queryParameter("mvi");
+        final String rrIndex = mvi != null && mvi.matches("\\d+") ? mvi : hostMatcher.group(1);
+        final List<String> candidates = new ArrayList<>();
+        candidates.add(url);
+        for (final String node : mn.split(",")) {
+            final String trimmedNode = node.trim();
+            if (trimmedNode.isEmpty()) {
+                continue;
+            }
+            final String candidateHost = "rr" + rrIndex + "---" + trimmedNode + ".googlevideo.com";
+            if (candidateHost.equals(host)) {
+                continue;
+            }
+            final String candidateUrl = parsed.newBuilder().host(candidateHost).build().toString();
+            if (!candidates.contains(candidateUrl)) {
+                candidates.add(candidateUrl);
+            }
+        }
+        return candidates;
+    }
+
+    @Nullable
+    private static String hostOf(@Nonnull final String url) {
+        final HttpUrl parsed = HttpUrl.parse(url);
+        return parsed == null ? null : parsed.host();
     }
 
     public synchronized RequestResult requestOnce(
@@ -227,6 +344,7 @@ public final class YoutubeSabrSession {
                         "SABR redirect limit exceeded: redirects=" + redirectCount);
             }
             serverAbrStreamingUrl = redirectUrl;
+            updateHostCandidates(redirectUrl);
         }
 
         if (decoded.getSabrError() != null) {
