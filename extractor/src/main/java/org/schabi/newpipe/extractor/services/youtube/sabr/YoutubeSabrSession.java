@@ -13,7 +13,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -227,7 +226,6 @@ public final class YoutubeSabrSession {
                 throw new SabrProtocolException(
                         "SABR redirect limit exceeded: redirects=" + redirectCount);
             }
-            validateRedirectUrl(redirectUrl);
             serverAbrStreamingUrl = redirectUrl;
         }
 
@@ -376,20 +374,6 @@ public final class YoutubeSabrSession {
             if (!activeSabrContextTypes.contains(type)) unsent.add(type);
         }
         return unsent;
-    }
-
-    private static void validateRedirectUrl(@Nonnull final String redirectUrl)
-            throws SabrProtocolException {
-        try {
-            final URI uri = URI.create(redirectUrl);
-            final String host = uri.getHost();
-            if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
-                    || !(host.equals("googlevideo.com") || host.endsWith(".googlevideo.com"))) {
-                throw new SabrProtocolException("SABR redirect escaped the GoogleVideo Host");
-            }
-        } catch (final IllegalArgumentException error) {
-            throw new SabrProtocolException("Malformed SABR redirect URL", error);
-        }
     }
 
     // -------------------------------------------------------------------------
