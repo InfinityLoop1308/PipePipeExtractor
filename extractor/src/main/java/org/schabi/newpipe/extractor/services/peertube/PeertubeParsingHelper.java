@@ -6,6 +6,8 @@ import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeChannelInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubePlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeSepiaStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
@@ -109,6 +111,50 @@ public final class PeertubeParsingHelper {
                     extractor = new PeertubeStreamInfoItemExtractor(item, baseUrl);
                 }
                 collector.commit(extractor);
+            }
+        }
+    }
+
+    /**
+     * Collect items which may be streams, playlists or channels from a JSON response.
+     *
+     * <p>
+     * PeerTube's channel tab endpoints ({@code /videos}, {@code /video-playlists} and
+     * {@code /video-channels}) all answer with the same {@code data} envelope, so the type of
+     * every element is derived from its shape: playlists carry {@code videosLength} and channels
+     * carry {@code followingCount}, videos carry neither.
+     * </p>
+     *
+     * @param collector the collector used to collect information
+     * @param json      the JSON response to retrieve data from
+     * @param baseUrl   the base URL of the instance
+     */
+    public static void collectItemsFrom(final InfoItemsCollector collector,
+                                        final JsonObject json,
+                                        final String baseUrl) throws ParsingException {
+        final JsonArray contents;
+        try {
+            contents = (JsonArray) JsonUtils.getValue(json, "data");
+        } catch (final Exception e) {
+            throw new ParsingException("Unable to extract list info", e);
+        }
+
+        for (final Object c : contents) {
+            if (c instanceof JsonObject) {
+                JsonObject item = (JsonObject) c;
+
+                // PeerTube playlists have the stream info encapsulated in an "video" object
+                if (item.has("video")) {
+                    item = item.getObject("video");
+                }
+
+                if (item.has("videosLength")) {
+                    collector.commit(new PeertubePlaylistInfoItemExtractor(item, baseUrl));
+                } else if (item.has("followingCount")) {
+                    collector.commit(new PeertubeChannelInfoItemExtractor(item, baseUrl));
+                } else {
+                    collector.commit(new PeertubeStreamInfoItemExtractor(item, baseUrl));
+                }
             }
         }
     }
