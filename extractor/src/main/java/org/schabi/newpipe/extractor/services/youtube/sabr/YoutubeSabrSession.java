@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrAttestationException;
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrReloadException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
@@ -37,6 +38,7 @@ public final class YoutubeSabrSession {
     private static final int MAX_REDIRECTS_PER_SESSION = 3;
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
+    private static final int MAX_RELOADS_PER_SESSION = 2;
     private static final int MAX_BACKOFF_MS = 30_000;
     /**
      * A googlevideo node host, such as {@code rr2---sn-qja5m5-5v.googlevideo.com}. The captured
@@ -45,7 +47,9 @@ public final class YoutubeSabrSession {
     private static final Pattern GOOGLEVIDEO_HOST_PATTERN =
             Pattern.compile("^rr(\\d+)---[^/]+\\.googlevideo\\.com$");
     @Nonnull
-    private final YoutubeSabrInfo info;
+    private YoutubeSabrInfo info;
+    @Nullable
+    private volatile SabrInfoReloader infoReloader;
     @Nullable
     private final File segmentSpoolDirectory;
     @Nonnull
@@ -61,6 +65,7 @@ public final class YoutubeSabrSession {
     private int redirectCount;
     private int consecutiveIntegrityFailures;
     private int consecutiveAttestationPendingResponses;
+    private int reloads;
     @Nullable
     private byte[] playbackCookie;
     private final Map<Integer, byte[]> sabrContexts = new LinkedHashMap<>();
@@ -318,7 +323,7 @@ public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
 
     private void handleControlResponse(@Nonnull final YoutubeSabrResponse result)
-            throws SabrProtocolException {
+            throws IOException, ExtractionException {
         final YoutubeSabrResponse decoded = result;
         if (decoded.isAttestationPending() && decoded.isNoMediaResponse()) {
             consecutiveAttestationPendingResponses++;
@@ -355,12 +360,62 @@ public final class YoutubeSabrSession {
                     + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isReloadRequested()) {
-            throw new SabrProtocolException("SABR requested player reload: "
-                    + decoded.summarizeNoMediaResponse());
+            if (tryReload(decoded.getReloadToken())) {
+                return;
+            }
+            throw new SabrReloadException("SABR requested player reload: "
+                    + decoded.summarizeNoMediaResponse(), decoded.getReloadToken());
         }
 
         if (result.getSegmentCount() > 0) {
             redirectCount = 0;
+            reloads = 0;
+        }
+    }
+
+    /** Installs the callback used to fetch a fresh player response on a reload request. */
+    public void setInfoReloader(@Nullable final SabrInfoReloader reloader) {
+        infoReloader = reloader;
+    }
+
+    /**
+     * Handles a server-requested player reload: fetches a fresh info through the installed
+     * reloader and hot-swaps the streaming URL, ustreamer config and PO token, keeping the
+     * playback state (request number, playback cookie, live head) so the session resumes in place.
+     *
+     * @return {@code true} when a fresh info was applied and the caller should retry
+     */
+    private boolean tryReload(@Nullable final String token) throws IOException, ExtractionException {
+        if (infoReloader == null || reloads >= MAX_RELOADS_PER_SESSION) {
+            return false;
+        }
+        reloads++;
+        addDiagnosticEvent("reload_requested n=" + requestNumber + " attempt=" + reloads
+                + " token=" + (token == null || token.isEmpty() ? "absent" : "present"));
+        final YoutubeSabrInfo fresh = infoReloader.reload(info.getVideoId(),
+                token == null ? "" : token);
+        if (fresh == null || fresh.getServerAbrStreamingUrl() == null
+                || fresh.getServerAbrStreamingUrl().isEmpty()) {
+            addDiagnosticEvent("reload_failed n=" + requestNumber);
+            return false;
+        }
+        applyReload(fresh);
+        addDiagnosticEvent("reload_applied n=" + requestNumber
+                + " url=" + hostOf(fresh.getServerAbrStreamingUrl()));
+        return true;
+    }
+
+    private synchronized void applyReload(@Nonnull final YoutubeSabrInfo fresh) {
+        info = fresh;
+        serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
+        updateHostCandidates(serverAbrStreamingUrl);
+        redirectCount = 0;
+        consecutiveIntegrityFailures = 0;
+        sabrContexts.clear();
+        activeSabrContextTypes.clear();
+        final byte[] freshPoToken = fresh.getPoToken();
+        if (freshPoToken != null && freshPoToken.length > 0) {
+            poToken = freshPoToken;
         }
     }
 

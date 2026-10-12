@@ -58,6 +58,7 @@ public final class YoutubeSabrResponse {
     private int streamProtectionMaxRetries = -1;
     private int backoffTimeMs = -1;
     private boolean reloadRequested;
+    @Nullable private String reloadToken;
 
     public YoutubeSabrResponse() { }
 
@@ -152,6 +153,7 @@ public final class YoutubeSabrResponse {
     public void setStreamProtectionMaxRetries(final int value) { streamProtectionMaxRetries = value; }
     public void setBackoffTimeMs(final int value) { backoffTimeMs = value; }
     public void setReloadRequested(final boolean value) { reloadRequested = value; }
+    public void setReloadToken(@Nullable final String value) { reloadToken = value; }
 
     @Nonnull public YoutubeSabrInfo getInfo() { return java.util.Objects.requireNonNull(info); }
     @Nonnull public List<SabrMediaSegment> getSegments() { return segments; }
@@ -195,6 +197,7 @@ public final class YoutubeSabrResponse {
     public int getStreamProtectionMaxRetries() { return streamProtectionMaxRetries; }
     public int getBackoffTimeMs() { return backoffTimeMs; }
     public boolean isReloadRequested() { return reloadRequested; }
+    @Nullable public String getReloadToken() { return reloadToken; }
     public boolean hasMedia() { return !mediaHeaders.isEmpty() || !mediaBytesByHeaderId.isEmpty(); }
     public boolean isNoMediaResponse() { return !hasMedia(); }
     public boolean isPolicyOnlyResponse() {

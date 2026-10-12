@@ -1233,6 +1233,55 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
     }
 
+    /**
+     * Re-runs the MWEB player request with the token of a server-requested SABR reload and builds
+     * a fresh {@link YoutubeSabrInfo} from the response. Used to hot-swap an expired SABR session
+     * (new streaming URL, ustreamer config and PO token) without restarting playback.
+     *
+     * @param videoId     the video to reload
+     * @param reloadToken the token carried by the reload response, or an empty string when the
+     *                    server did not provide one
+     */
+    @Nonnull
+    public static YoutubeSabrInfo fetchSabrInfoForReload(
+            @Nonnull final String videoId,
+            @Nonnull final String reloadToken) throws IOException, ExtractionException {
+        final Localization localization = NewPipe.getPreferredLocalization();
+        final ContentCountry contentCountry = NewPipe.getPreferredContentCountry();
+        final String cpn = generateContentPlaybackNonce();
+        final Integer sts = YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId);
+        final java.util.function.Function<String, YoutubePoTokenResult> poTokenResolver =
+                NewPipe.getYoutubePoTokenResolver();
+        final byte[] body;
+        final String visitorData;
+        final String clientVersion;
+        final String headerClientVersion;
+        final byte[] poToken;
+        if (poTokenResolver == null) {
+            visitorData = null;
+            clientVersion = resolveSabrClientVersion();
+            headerClientVersion = clientVersion;
+            poToken = null;
+            body = createJsonPlayerBody(localization, contentCountry, videoId, sts, cpn,
+                    "MWEB", MWEB_USER_AGENT, reloadToken);
+        } else {
+            final YoutubePoTokenResult poTokenResult = poTokenResolver.apply(videoId);
+            final YoutubePlayerRequest request = createMwebPlayerRequest(localization,
+                    contentCountry, videoId, sts, cpn, MWEB_USER_AGENT, poTokenResult,
+                    reloadToken);
+            visitorData = poTokenResult.getVisitorData();
+            clientVersion = poTokenResult.getClientVersion();
+            headerClientVersion = isNullOrEmpty(clientVersion)
+                    ? resolveSabrClientVersion() : clientVersion;
+            poToken = Base64.getUrlDecoder().decode(poTokenResult.getPlayerPoToken());
+            body = request.getBody();
+        }
+        final JsonObject response = getJsonPlayerResponse(PLAYER, body, localization,
+                "2", headerClientVersion, MWEB_USER_AGENT);
+        return buildSabrInfoFromPlayerResponse(videoId, cpn, response, visitorData,
+                clientVersion, poToken);
+    }
+
     @Nonnull
     public static YoutubeSabrInfo buildSabrInfoFromPlayerResponse(
             @Nonnull final String videoId,

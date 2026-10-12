@@ -1169,6 +1169,32 @@ YoutubeParsingHelper {
                         + queryParametersString, headers, body, localization)));
     }
 
+    /**
+     * Posts a player request synchronously, using the same client headers as
+     * {@link #getJsonPlayerResponseAsync} (client name/version, user agent and logged-in
+     * credentials). Needed by callers that cannot await a {@link Downloader.AsyncCallback}, such
+     * as the SABR player reload path.
+     */
+    @Nonnull
+    public static JsonObject getJsonPlayerResponse(
+            @Nonnull final String endpoint,
+            @Nonnull final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final String clientId,
+            @Nonnull final String clientVersion,
+            @Nonnull final String userAgent)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(userAgent));
+        headers.put("X-YouTube-Client-Name", singletonList(clientId));
+        headers.put("X-Youtube-Client-Version", singletonList(clientVersion));
+        addLoggedInHeaders(headers);
+        return JsonUtils.toJsonObject(getValidJsonResponseBody(
+                getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?"
+                        + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization)));
+    }
+
     public static CancellableCall getJsonPostResponseAsync(final String endpoint,
                                                 final byte[] body,
                                                 final Localization localization,
@@ -1502,21 +1528,56 @@ YoutubeParsingHelper {
             @Nonnull final String clientName,
             @Nonnull final String userAgent)
             throws IOException, ExtractionException {
-        return JsonWriter.string(
-                        prepareJsonPlayerBuilder(localization, contentCountry,
-                                clientName, userAgent)
-                                .object("playbackContext")
-                                    .object("contentPlaybackContext")
-                                        .value("html5Preference", "HTML5_PREF_WANTS")
-                                        .value("signatureTimestamp", sts)
-                                    .end()
-                                .end()
-                                .value(CPN, contentPlaybackNonce)
-                                .value(VIDEO_ID, videoId)
-                                .value(CONTENT_CHECK_OK, true)
-                                .value(RACY_CHECK_OK, true)
-                                .done())
+        return createJsonPlayerBody(localization, contentCountry, videoId, sts,
+                contentPlaybackNonce, clientName, userAgent, null);
+    }
+
+    @Nonnull
+    public static byte[] createJsonPlayerBody(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce,
+            @Nonnull final String clientName,
+            @Nonnull final String userAgent,
+            @Nullable final String reloadPlaybackToken)
+            throws IOException, ExtractionException {
+        JsonBuilder<JsonObject> playbackContext = prepareJsonPlayerBuilder(localization,
+                contentCountry, clientName, userAgent)
+                        .object("playbackContext")
+                            .object("contentPlaybackContext")
+                                .value("html5Preference", "HTML5_PREF_WANTS")
+                                .value("signatureTimestamp", sts)
+                            .end();
+        playbackContext = appendReloadPlaybackContext(playbackContext, reloadPlaybackToken);
+        return JsonWriter.string(playbackContext
+                        .end()
+                        .value(CPN, contentPlaybackNonce)
+                        .value(VIDEO_ID, videoId)
+                        .value(CONTENT_CHECK_OK, true)
+                        .value(RACY_CHECK_OK, true)
+                        .done())
                 .getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Adds the {@code reloadPlaybackContext} that carries the token of a server-requested player
+     * reload into an open {@code playbackContext} builder.
+     */
+    @Nonnull
+    private static JsonBuilder<JsonObject> appendReloadPlaybackContext(
+            @Nonnull final JsonBuilder<JsonObject> playbackContext,
+            @Nullable final String reloadPlaybackToken) {
+        if (reloadPlaybackToken == null || reloadPlaybackToken.isEmpty()) {
+            return playbackContext;
+        }
+        return playbackContext
+                .object("reloadPlaybackContext")
+                    .object("reloadPlaybackParams")
+                        .value("token", reloadPlaybackToken)
+                    .end()
+                .end();
     }
 
     @Nonnull
@@ -1528,7 +1589,21 @@ YoutubeParsingHelper {
             @Nonnull final String contentPlaybackNonce,
             @Nonnull final String userAgent,
             @Nonnull final YoutubePoTokenResult poTokenResult) {
-        final byte[] body = JsonWriter.string(JsonObject.builder()
+        return createMwebPlayerRequest(localization, contentCountry, videoId, sts,
+                contentPlaybackNonce, userAgent, poTokenResult, null);
+    }
+
+    @Nonnull
+    public static YoutubePlayerRequest createMwebPlayerRequest(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce,
+            @Nonnull final String userAgent,
+            @Nonnull final YoutubePoTokenResult poTokenResult,
+            @Nullable final String reloadPlaybackToken) {
+        JsonBuilder<JsonObject> playbackContext = JsonObject.builder()
                 .object("context")
                     .object("client")
                         .value("utcOffsetMinutes", 0)
@@ -1545,7 +1620,9 @@ YoutubeParsingHelper {
                     .object("contentPlaybackContext")
                         .value("html5Preference", "HTML5_PREF_WANTS")
                         .value("signatureTimestamp", sts)
-                    .end()
+                    .end();
+        playbackContext = appendReloadPlaybackContext(playbackContext, reloadPlaybackToken);
+        final byte[] body = JsonWriter.string(playbackContext
                 .end()
                 .object("serviceIntegrityDimensions")
                     .value("poToken", poTokenResult.getPlayerPoToken())

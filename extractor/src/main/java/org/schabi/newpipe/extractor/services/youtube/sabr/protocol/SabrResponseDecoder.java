@@ -150,6 +150,7 @@ public final class SabrResponseDecoder {
                     break;
                 case RELOAD_PLAYER_RESPONSE:
                     decoded.setReloadRequested(true);
+                    decoded.setReloadToken(decodeReloadToken(partData));
                     decoded.addGenericPartDescription(part.getType(),
                             describeGenericMessage(partData));
                     break;
@@ -270,6 +271,28 @@ public final class SabrResponseDecoder {
             }
         }
         return value;
+    }
+
+    /**
+     * Extracts the {@code ReloadPlaybackContext.reload_playback_params.token} carried by a
+     * RELOAD_PLAYER_RESPONSE part. The token has to be sent back in the next player request so
+     * YouTube can hand out a fresh streaming URL and ustreamer config for the same session.
+     */
+    @Nullable
+    private static String decodeReloadToken(@Nonnull final byte[] data)
+            throws SabrProtocolException {
+        for (final SabrProto.Field field : SabrProto.readFields(data)) {
+            if (field.getNumber() == 1
+                    && field.getWireType() == SabrProto.WIRE_LENGTH_DELIMITED) {
+                for (final SabrProto.Field inner : SabrProto.readFields(field.getBytes())) {
+                    if (inner.getNumber() == 1
+                            && inner.getWireType() == SabrProto.WIRE_LENGTH_DELIMITED) {
+                        return inner.getString();
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Nonnull
