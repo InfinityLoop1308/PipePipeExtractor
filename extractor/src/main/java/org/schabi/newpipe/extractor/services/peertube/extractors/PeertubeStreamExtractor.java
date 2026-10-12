@@ -8,6 +8,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -92,8 +93,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
 
     @Nonnull
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return baseUrl + JsonUtils.getString(json, "previewPath");
+    public String getThumbnailUrl() {
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getThumbnails());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() {
+        return PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(baseUrl, json);
     }
 
     @Nonnull
@@ -182,13 +190,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "account.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getUploaderAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getUploaderAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("account"));
     }
 
     @Nonnull
@@ -206,13 +216,20 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getSubChannelAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "channel.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getSubChannelAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    /**
+     * The default implementation of {@link StreamExtractor#getSubChannelAvatars()} wraps the
+     * sub-channel <i>page</i> URL in an {@link Image}, which is an HTML document, so it has to be
+     * overridden here.
+     */
+    @Nonnull
+    @Override
+    public List<Image> getSubChannelAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("channel"));
     }
 
     @Nonnull
@@ -421,7 +438,13 @@ public class PeertubeStreamExtractor extends StreamExtractor {
                 for (final Object c : captions) {
                     if (c instanceof JsonObject) {
                         final JsonObject caption = (JsonObject) c;
-                        final String url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        // PeerTube 8.0 deprecated captionPath in favour of an absolute fileUrl,
+                        // which is also the only correct one when captions are stored on an
+                        // external object storage
+                        String url = caption.getString("fileUrl");
+                        if (Utils.isBlank(url)) {
+                            url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        }
                         final String languageCode = JsonUtils.getString(caption, "language.id");
                         final String ext = url.substring(url.lastIndexOf(".") + 1);
                         final MediaFormat fmt = MediaFormat.getFromSuffix(ext);

@@ -36,7 +36,11 @@ public class PeertubePlaylistExtractor extends PlaylistExtractor {
     @Nonnull
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        return getBaseUrl() + playlistInfo.getString("thumbnailPath");
+        // A playlist with no video yet has no thumbnailPath, which used to produce ".../null"
+        final String url = PeertubeParsingHelper.getFirstImageUrl(
+                PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(
+                        getBaseUrl(), playlistInfo));
+        return url == null ? Utils.EMPTY_STRING : url;
     }
 
     @Override
@@ -51,8 +55,9 @@ public class PeertubePlaylistExtractor extends PlaylistExtractor {
 
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
-        return getBaseUrl()
-                + playlistInfo.getObject("ownerAccount").getObject("avatar").getString("path");
+        return PeertubeParsingHelper.getBiggestImageUrl(
+                PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                        getBaseUrl(), playlistInfo.getObject("ownerAccount")));
     }
 
     @Override
@@ -80,8 +85,10 @@ public class PeertubePlaylistExtractor extends PlaylistExtractor {
     @Nonnull
     @Override
     public String getSubChannelAvatarUrl() throws ParsingException {
-        return getBaseUrl()
-                + playlistInfo.getObject("videoChannel").getObject("avatar").getString("path");
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(
+                PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                        getBaseUrl(), playlistInfo.getObject("videoChannel")));
+        return url == null ? Utils.EMPTY_STRING : url;
     }
 
     @Nonnull
