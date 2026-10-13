@@ -855,13 +855,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     && streamType != StreamType.POST_LIVE_STREAM
                     && hasSabrStreamingUrl()) {
                 buildSabrStreams(videoId);
-            } else if (!("tv_downgraded".equals(selectedClient)
+            } else if (!(isTvClient(selectedClient)
                     && streamType == StreamType.LIVE_STREAM)) {
                 extractDirectFormats(videoId);
             }
             if (streamType == StreamType.POST_LIVE_STREAM
                     || (streamType == StreamType.LIVE_STREAM
-                        && "tv_downgraded".equals(selectedClient))) {
+                        && isTvClient(selectedClient))) {
                 tryExtractHlsStreams(videoId);
             }
         } catch (final Exception e) {
@@ -1981,7 +1981,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         } else if (playabilityStatus.has("liveStreamability")) {
             if (StringUtils.isBlank(ServiceList.YouTube.getTokens())
                     && !playerResponse.getObject(STREAMING_DATA).has("hlsManifestUrl")
-                    && !"tv_downgraded".equals(NewPipe.getYoutubePlayerClient())) {
+                    && !isTvClient(NewPipe.getYoutubePlayerClient())) {
                 streamType = StreamType.VIDEO_STREAM;
             } else {
                 streamType = StreamType.LIVE_STREAM;
@@ -2234,6 +2234,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             case "visionos":
             case "tv_simply":
             case "tv_downgraded":
+            case "tv_samsung":
                 jsonPlayerCall = fetchConfiguredJsonPlayer(
                         contentCountry, localization, videoId,
                         NewPipe.getYoutubePlayerClient());
@@ -2289,7 +2290,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         resolvePrimaryPlayerErrorWithAndroidReel(videoId);
         final String selectedClient = NewPipe.getYoutubePlayerClient();
         if (streamType == StreamType.LIVE_STREAM
-                && "tv_downgraded".equals(selectedClient)) {
+                && isTvClient(selectedClient)) {
             final CancellableCall mwebHlsCall = fetchMwebHlsManifest(
                     contentCountry, localization, videoId);
             awaitRequiredCalls(new CancellableCall[]{mwebHlsCall},
@@ -2646,6 +2647,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .value("userAgent", client.userAgent)
                 .value("clientName", client.clientName)
                 .value("clientVersion", client.clientVersion);
+        if (client.deviceMake != null) {
+            clientBuilder.value("deviceMake", client.deviceMake)
+                    .value("deviceModel", client.deviceModel)
+                    .value("osName", client.osName)
+                    .value("osVersion", client.osVersion);
+        }
         final JsonBuilder<JsonObject> bodyBuilder = JsonObject.builder()
                 .object("context")
                     .value("client", clientBuilder.done())
@@ -2766,22 +2773,57 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 "&t=" + generateTParameter() + "&id=" + videoId, callback);
     }
 
+    /**
+     * TVHTML5 clients do not return usable live formats, so live streams use MWEB HLS instead.
+     */
+    private static boolean isTvClient(final String client) {
+        return "tv_downgraded".equals(client) || "tv_samsung".equals(client);
+    }
+
     private static final class PlayerClient {
         private final String clientName;
         private final String clientVersion;
         private final String clientId;
         private final String userAgent;
+        @Nullable
+        private final String deviceMake;
+        @Nullable
+        private final String deviceModel;
+        @Nullable
+        private final String osName;
+        @Nullable
+        private final String osVersion;
 
         private PlayerClient(final String clientName, final String clientVersion,
                              final String clientId, final String userAgent) {
+            this(clientName, clientVersion, clientId, userAgent, null, null, null, null);
+        }
+
+        @SuppressWarnings("checkstyle:ParameterNumber")
+        private PlayerClient(final String clientName, final String clientVersion,
+                             final String clientId, final String userAgent,
+                             @Nullable final String deviceMake,
+                             @Nullable final String deviceModel,
+                             @Nullable final String osName,
+                             @Nullable final String osVersion) {
             this.clientName = clientName;
             this.clientVersion = clientVersion;
             this.clientId = clientId;
             this.userAgent = userAgent;
+            this.deviceMake = deviceMake;
+            this.deviceModel = deviceModel;
+            this.osName = osName;
+            this.osVersion = osVersion;
         }
 
         private static PlayerClient forName(final String name) {
             switch (name) {
+                case "tv_samsung":
+                    // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
+                    return new PlayerClient("TVHTML5", "5.20260707", "7",
+                            "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
+                                    + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
+                            "Samsung", "UKS9800", "Tizen", "2.4.0");
                 case "tv_simply":
                     return new PlayerClient("TVHTML5_SIMPLY", "1.0", "75", WEB_USER_AGENT);
                 case "tv_downgraded":
