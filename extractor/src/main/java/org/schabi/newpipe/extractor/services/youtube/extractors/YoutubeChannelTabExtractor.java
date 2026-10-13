@@ -582,7 +582,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                                              @Nonnull final List<String> channelIds) {
         final String contentType = lockupViewModel.getString("contentType");
         if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(contentType)
-                || "LOCKUP_CONTENT_TYPE_PODCAST".equals(contentType)) {
+                || "LOCKUP_CONTENT_TYPE_PODCAST".equals(contentType)
+                || "LOCKUP_CONTENT_TYPE_SHOW".equals(contentType)) {
             String channelName;
             try {
                 channelName = getChannelName();
