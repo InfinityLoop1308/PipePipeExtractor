@@ -11,6 +11,8 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
 
@@ -45,8 +47,9 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
 
         final CommentsInfo commentsInfo = new CommentsInfo(serviceId, listUrlIdHandler, name);
         commentsInfo.setCommentsExtractor(commentsExtractor);
-        final InfoItemsPage<CommentsInfoItem> initialCommentsPage =
-                ExtractorHelper.getItemsPageOrLogError(commentsInfo, commentsExtractor);
+        final InfoItemsPage<CommentsInfoItem> initialCommentsPage = applyCommentsFilter(
+                commentsExtractor.getService(), commentsExtractor,
+                ExtractorHelper.getItemsPageOrLogError(commentsInfo, commentsExtractor));
         commentsInfo.setCommentsDisabled(commentsExtractor.isCommentsDisabled());
         commentsInfo.setRelatedItems(initialCommentsPage.getItems());
         commentsInfo.setNextPage(initialCommentsPage.getNextPage());
@@ -80,7 +83,46 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
             final StreamingService service,
             final String url,
             final Page page) throws IOException, ExtractionException {
-        return service.getCommentsExtractor(url).getPage(page);
+        final CommentsExtractor extractor = service.getCommentsExtractor(url);
+        return applyCommentsFilter(service, extractor, extractor.getPage(page));
+    }
+
+    /**
+     * Maximum number of extra pages fetched when every comment of a page gets filtered out.
+     */
+    private static final int MAX_FILTERED_EMPTY_PAGE_FETCHES = 10;
+
+    /**
+     * Removes comments matching the user's comment filters. If a whole page is filtered out,
+     * following pages are fetched (up to a limit) so that pagination does not stop early.
+     */
+    private static InfoItemsPage<CommentsInfoItem> applyCommentsFilter(
+            final StreamingService service,
+            final CommentsExtractor extractor,
+            final InfoItemsPage<CommentsInfoItem> page) {
+        final CommentsFilterConfig config = service.getCommentsFilterConfig();
+        if (config == null || config.isEmpty() || page == null) {
+            return page;
+        }
+
+        final List<Throwable> errors = new ArrayList<>(page.getErrors());
+        List<CommentsInfoItem> items = config.filter(page.getItems());
+        Page nextPage = page.getNextPage();
+        int extraFetches = 0;
+        while (items.isEmpty() && Page.isValid(nextPage)
+                && extraFetches < MAX_FILTERED_EMPTY_PAGE_FETCHES) {
+            extraFetches++;
+            try {
+                final InfoItemsPage<CommentsInfoItem> next = extractor.getPage(nextPage);
+                errors.addAll(next.getErrors());
+                items = config.filter(next.getItems());
+                nextPage = next.getNextPage();
+            } catch (final Exception e) {
+                errors.add(e);
+                break;
+            }
+        }
+        return new InfoItemsPage<>(items, nextPage, errors);
     }
 
     private transient CommentsExtractor commentsExtractor;
