@@ -2,30 +2,25 @@ package org.schabi.newpipe.extractor.comments;
 
 import org.jsoup.Jsoup;
 import org.schabi.newpipe.extractor.stream.Description;
+import org.schabi.newpipe.extractor.utils.KeywordMatcher;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * User-defined rules for hiding comments: by keywords in the comment text,
+ * User-defined rules for hiding comments: by keywords (or {@code /regex/}) in the comment text,
  * by the commenter's name, or by a minimum like count.
  */
 public class CommentsFilterConfig {
-    private final List<String> keywords = new ArrayList<>();
+    private final KeywordMatcher keywords;
     private final List<String> usernames = new ArrayList<>();
     private final int minLikeCount;
 
     public CommentsFilterConfig(final List<String> keywords,
                                 final List<String> usernames,
                                 final int minLikeCount) {
-        if (keywords != null) {
-            for (final String keyword : keywords) {
-                if (keyword != null && !keyword.trim().isEmpty()) {
-                    this.keywords.add(keyword.trim().toLowerCase(Locale.ROOT));
-                }
-            }
-        }
+        this.keywords = new KeywordMatcher(keywords);
         if (usernames != null) {
             for (final String username : usernames) {
                 final String normalized = normalizeUsername(username);
@@ -62,15 +57,8 @@ public class CommentsFilterConfig {
             }
         }
 
-        if (!keywords.isEmpty()) {
-            final String text = getPlainText(item.getCommentText());
-            if (!text.isEmpty()) {
-                for (final String keyword : keywords) {
-                    if (text.contains(keyword)) {
-                        return true;
-                    }
-                }
-            }
+        if (!keywords.isEmpty() && keywords.matches(getPlainText(item.getCommentText()))) {
+            return true;
         }
 
         return false;
@@ -109,6 +97,6 @@ public class CommentsFilterConfig {
         if (description.getType() == Description.HTML) {
             content = Jsoup.parse(content).text();
         }
-        return content.toLowerCase(Locale.ROOT);
+        return content;
     }
 }

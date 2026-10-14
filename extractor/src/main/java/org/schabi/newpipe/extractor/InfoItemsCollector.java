@@ -6,6 +6,7 @@ import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.utils.KeywordMatcher;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -124,12 +125,14 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
     public static class FilterConfig {
         private final ArrayList<String> keywords;
+        private final KeywordMatcher keywordMatcher;
         private final ArrayList<String> channels;
         private final boolean blockShorts;
         private final boolean blockPaidContent;
 
         public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts, boolean blockPaidContent) {
             this.keywords = keywords != null ? keywords : new ArrayList<>();
+            this.keywordMatcher = new KeywordMatcher(this.keywords);
             this.channels = channels != null ? channels : new ArrayList<>();
             this.blockShorts = blockShorts;
             this.blockPaidContent = blockPaidContent;
@@ -137,6 +140,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         
         public ArrayList<String> getKeywords() {
             return keywords;
+        }
+
+        public KeywordMatcher getKeywordMatcher() {
+            return keywordMatcher;
         }
         
         public ArrayList<String> getChannels() {
@@ -170,14 +177,8 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                 shouldRemove = true;
             }
 
-            if (!shouldRemove) {
-                // Check keywords
-                for (String keyword : filterConfig.getKeywords()) {
-                    if (item.getName().toLowerCase().contains(keyword.toLowerCase())) {
-                        shouldRemove = true;
-                        break;  // No need to check other keywords
-                    }
-                }
+            if (!shouldRemove && filterConfig.getKeywordMatcher().matches(item.getName())) {
+                shouldRemove = true;
             }
 
             // Only check channels if we haven't already marked for removal
