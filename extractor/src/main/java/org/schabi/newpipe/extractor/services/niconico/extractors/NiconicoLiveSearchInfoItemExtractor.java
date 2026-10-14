@@ -89,12 +89,18 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
         if (!data.isNull("supplier")) {
             final String providerId = data.getObject("supplier")
                     .getString("programProviderId", "");
-            return providerId.isEmpty() ? "" : NiconicoService.USER_URL + providerId;
+            if (!providerId.isEmpty()) {
+                return NiconicoService.USER_URL + providerId;
+            }
         }
 
-        final String socialGroupId = data.getObject("socialGroup").getString("id", "");
-        return socialGroupId.isEmpty()
-                ? "" : NiconicoService.CHANNEL_URL + "channel/" + socialGroupId;
+        if (!data.isNull("socialGroup")) {
+            final String socialGroupId = data.getObject("socialGroup").getString("id", "");
+            if (!socialGroupId.isEmpty()) {
+                return NiconicoService.CHANNEL_URL + socialGroupId;
+            }
+        }
+        return "";
     }
 
     @Nullable

@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
@@ -48,6 +49,11 @@ public class BilibiliSameContentInfoItemExtractor implements StreamInfoItemExtra
     @Override
     public String getUploaderId() throws ParsingException {
         return uploaderId;
+    }
+
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        return uploaderId == null ? "" : BilibiliChannelLinkHandlerFactory.baseUrl + uploaderId;
     }
 
     @Override
