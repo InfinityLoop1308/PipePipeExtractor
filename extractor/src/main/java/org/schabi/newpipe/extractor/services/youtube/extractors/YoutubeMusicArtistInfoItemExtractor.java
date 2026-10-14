@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.utils.Utils;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getImagesFromThumbnailsArray;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
@@ -56,6 +57,13 @@ public class YoutubeMusicArtistInfoItemExtractor implements ChannelInfoItemExtra
             return url;
         }
         throw new ParsingException("Could not get URL");
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        return getChannelIdFromNavigationEndpoint(
+                artistInfoItem.getObject("navigationEndpoint"));
     }
 
     @Override

@@ -5,6 +5,8 @@ import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 
+import javax.annotation.Nullable;
+
 public class NiconicoSeriesInfoItemExtractor implements PlaylistInfoItemExtractor {
     private final JsonObject itemObject;
     private final String name;
@@ -32,6 +34,12 @@ public class NiconicoSeriesInfoItemExtractor implements PlaylistInfoItemExtracto
     @Override
     public String getUploaderName() throws ParsingException {
         return name;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        return itemObject.getObject("owner").getString("id");
     }
 
     @Override

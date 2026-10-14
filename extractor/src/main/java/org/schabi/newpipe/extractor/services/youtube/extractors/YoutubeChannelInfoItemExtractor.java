@@ -10,6 +10,8 @@ import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.utils.Utils;
 
+import javax.annotation.Nullable;
+
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.fixThumbnailUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 
@@ -140,6 +142,12 @@ public class YoutubeChannelInfoItemExtractor implements ChannelInfoItemExtractor
     @Override
     public boolean isVerified() throws ParsingException {
         return YoutubeParsingHelper.isVerified(channelInfoItem.getArray("ownerBadges"));
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        return channelInfoItem.getString("channelId");
     }
 
     @Override

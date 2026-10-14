@@ -37,6 +37,11 @@ public final class ChannelInfoItemsCollector
 
         // optional information
         try {
+            resultItem.setUploaderId(extractor.getUploaderId());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
             resultItem.setSubscriberCount(extractor.getSubscriberCount());
         } catch (final Exception e) {
             addError(e);

@@ -817,7 +817,7 @@ YoutubeParsingHelper {
     }
 
     /**
-     * Extract a channel id (UCxxxx) from a navigation endpoint or a channel url.
+     * Extract a channel id (UCxxxx) from a navigation endpoint.
      */
     @Nullable
     public static String getChannelIdFromNavigationEndpoint(
@@ -850,6 +850,25 @@ YoutubeParsingHelper {
         return null;
     }
 
+    /**
+     * Extract a channel id (UCxxxx) from a text object whose first run points to a channel.
+     */
+    @Nullable
+    public static String getChannelIdFromTextObject(@Nullable final JsonObject textObject) {
+        if (textObject == null || textObject.isEmpty() || !textObject.has("runs")) {
+            return null;
+        }
+        final JsonArray runs = textObject.getArray("runs");
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        return getChannelIdFromNavigationEndpoint(
+                runs.getObject(0).getObject("navigationEndpoint"));
+    }
+
+    /**
+     * Extract a channel id (UCxxxx) from a channel url.
+     */
     @Nullable
     public static String getChannelIdFromUrl(@Nullable final String url) {
         if (url == null) {

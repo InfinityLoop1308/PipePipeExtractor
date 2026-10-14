@@ -794,7 +794,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                                     + formatParamWithPercentSpace(getUploaderAvatarUrl())
                                     + "&uploaderUrl="
                                     + formatParamWithPercentSpace(getUploaderUrl()),
-                            getThumbnailUrl(), getUploaderName(), partitions));
+                            getThumbnailUrl(), getUploaderName(),
+                            String.valueOf(watch.getObject("owner").getLong("mid")), partitions));
                 }
             }
             if (ServiceList.BiliBili.getFilterTypes().contains("related_item")) {
