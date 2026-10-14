@@ -25,6 +25,16 @@ public interface PlaylistInfoItemExtractor extends InfoItemExtractor {
     }
 
     /**
+     * Get the url of the uploader's channel.
+     *
+     * @return the uploader url or {@code null} if unavailable
+     */
+    @Nullable
+    default String getUploaderUrl() throws ParsingException {
+        return null;
+    }
+
+    /**
      * Get the number of streams
      * @return the number of streams
      */

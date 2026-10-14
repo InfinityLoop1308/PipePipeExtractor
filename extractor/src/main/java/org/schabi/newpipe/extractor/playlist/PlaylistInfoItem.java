@@ -8,6 +8,7 @@ public class PlaylistInfoItem extends InfoItem {
 
     private String uploaderName;
     private String uploaderId;
+    private String uploaderUrl;
     /**
      * How many streams this playlist have
      */
@@ -37,6 +38,18 @@ public class PlaylistInfoItem extends InfoItem {
 
     public void setUploaderId(@Nullable final String uploaderId) {
         this.uploaderId = uploaderId;
+    }
+
+    /**
+     * Get the url of the uploader's channel, if available.
+     */
+    @Nullable
+    public String getUploaderUrl() {
+        return uploaderUrl;
+    }
+
+    public void setUploaderUrl(@Nullable final String uploaderUrl) {
+        this.uploaderUrl = uploaderUrl;
     }
 
     public long getStreamCount() {

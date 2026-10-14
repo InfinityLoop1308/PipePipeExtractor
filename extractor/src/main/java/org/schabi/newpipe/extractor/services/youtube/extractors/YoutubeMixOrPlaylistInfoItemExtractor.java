@@ -105,6 +105,23 @@ public class YoutubeMixOrPlaylistInfoItemExtractor implements PlaylistInfoItemEx
         return null;
     }
 
+    @Nullable
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        if (getPlaylistType() != PlaylistInfo.PlaylistType.NORMAL) {
+            return null;
+        }
+
+        for (final String key : new String[]{"longBylineText", "shortBylineText", "ownerText"}) {
+            final String url = YoutubeParsingHelper.getChannelUrlFromTextObject(
+                    mixInfoItem.getObject(key));
+            if (url != null) {
+                return url;
+            }
+        }
+        return null;
+    }
+
     @Override
     public long getStreamCount() throws ParsingException {
         final String countString = YoutubeParsingHelper.getTextFromObject(

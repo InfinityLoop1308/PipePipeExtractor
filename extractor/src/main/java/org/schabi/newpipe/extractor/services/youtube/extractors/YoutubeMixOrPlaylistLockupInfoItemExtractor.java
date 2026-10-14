@@ -15,6 +15,7 @@ import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.extractPlaylistTypeFromPlaylistId;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromNavigationEndpoint;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getImagesFromThumbnailsArray;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.hasArtistOrVerifiedIconBadgeAttachment;
@@ -124,6 +125,23 @@ public class YoutubeMixOrPlaylistLockupInfoItemExtractor implements PlaylistInfo
         }
 
         return getChannelIdFromNavigationEndpoint(
+                firstMetadataRow.getArray("metadataParts")
+                        .getObject(0)
+                        .getObject("text")
+                        .getArray("commandRuns")
+                        .getObject(0)
+                        .getObject("onTap")
+                        .getObject("innertubeCommand"));
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        if (playlistType != PlaylistInfo.PlaylistType.NORMAL) {
+            return null;
+        }
+
+        return getUrlFromNavigationEndpoint(
                 firstMetadataRow.getArray("metadataParts")
                         .getObject(0)
                         .getObject("text")

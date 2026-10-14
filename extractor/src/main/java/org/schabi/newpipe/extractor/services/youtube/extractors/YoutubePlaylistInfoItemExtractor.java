@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.fixThumbnailUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromTextObject;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelUrlFromTextObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 
 public class YoutubePlaylistInfoItemExtractor implements PlaylistInfoItemExtractor {
@@ -71,6 +72,18 @@ public class YoutubePlaylistInfoItemExtractor implements PlaylistInfoItemExtract
             final String id = getChannelIdFromTextObject(playlistInfoItem.getObject(key));
             if (id != null) {
                 return id;
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        for (final String key : new String[]{"longBylineText", "shortBylineText", "ownerText"}) {
+            final String url = getChannelUrlFromTextObject(playlistInfoItem.getObject(key));
+            if (url != null) {
+                return url;
             }
         }
         return null;

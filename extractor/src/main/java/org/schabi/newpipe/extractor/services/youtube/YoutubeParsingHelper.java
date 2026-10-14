@@ -867,6 +867,22 @@ YoutubeParsingHelper {
     }
 
     /**
+     * Extract a channel url from a text object whose first run points to a channel.
+     */
+    @Nullable
+    public static String getChannelUrlFromTextObject(@Nullable final JsonObject textObject)
+            throws ParsingException {
+        if (textObject == null || textObject.isEmpty() || !textObject.has("runs")) {
+            return null;
+        }
+        final JsonArray runs = textObject.getArray("runs");
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        return getUrlFromNavigationEndpoint(runs.getObject(0).getObject("navigationEndpoint"));
+    }
+
+    /**
      * Extract a channel id (UCxxxx) from a channel url.
      */
     @Nullable

@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonObject;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 
 import javax.annotation.Nullable;
 
@@ -84,6 +85,17 @@ public class BilibiliPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
         }
         final long mid = itemObject.getLong("mid", -1);
         return mid > 0 ? String.valueOf(mid) : null;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderUrl() {
+        if (type == null) {
+            return uploaderId == null ? null
+                    : BilibiliChannelLinkHandlerFactory.baseUrl + uploaderId;
+        }
+        final long mid = itemObject.getLong("mid", -1);
+        return mid > 0 ? BilibiliChannelLinkHandlerFactory.baseUrl + mid : null;
     }
 
     @Override
