@@ -15,11 +15,22 @@ import java.util.Locale;
 public class CommentsFilterConfig {
     private final KeywordMatcher keywords;
     private final List<String> usernames = new ArrayList<>();
+    private final List<String> userIds = new ArrayList<>();
     private final int minLikeCount;
 
     public CommentsFilterConfig(final List<String> keywords,
                                 final List<String> usernames,
                                 final int minLikeCount) {
+        this(keywords, usernames, null, minLikeCount);
+    }
+
+    public CommentsFilterConfig(final List<String> keywords,
+                                final List<String> usernames,
+                                final List<String> userIds,
+                                final int minLikeCount) {
+        if (userIds != null) {
+            this.userIds.addAll(userIds);
+        }
         this.keywords = new KeywordMatcher(keywords);
         if (usernames != null) {
             for (final String username : usernames) {
@@ -33,7 +44,8 @@ public class CommentsFilterConfig {
     }
 
     public boolean isEmpty() {
-        return keywords.isEmpty() && usernames.isEmpty() && minLikeCount <= 0;
+        return keywords.isEmpty() && usernames.isEmpty() && userIds.isEmpty()
+                && minLikeCount <= 0;
     }
 
     public boolean shouldFilter(final CommentsInfoItem item) {
@@ -47,6 +59,11 @@ public class CommentsFilterConfig {
                 && item.getLikeCount() != CommentsInfoItem.NO_LIKE_COUNT
                 && item.getLikeCount() >= 0
                 && item.getLikeCount() < minLikeCount) {
+            return true;
+        }
+
+        if (!userIds.isEmpty() && item.getUploaderId() != null
+                && userIds.contains(item.getUploaderId())) {
             return true;
         }
 

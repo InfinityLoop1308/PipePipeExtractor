@@ -129,8 +129,14 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         private final ArrayList<String> channels;
         private final boolean blockShorts;
         private final boolean blockPaidContent;
+        private final ArrayList<String> channelIds;
 
         public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts, boolean blockPaidContent) {
+            this(keywords, channels, null, blockShorts, blockPaidContent);
+        }
+
+        public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, ArrayList<String> channelIds, boolean blockShorts, boolean blockPaidContent) {
+            this.channelIds = channelIds != null ? channelIds : new ArrayList<>();
             this.keywords = keywords != null ? keywords : new ArrayList<>();
             this.keywordMatcher = new KeywordMatcher(this.keywords);
             this.channels = channels != null ? channels : new ArrayList<>();
@@ -146,6 +152,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             return keywordMatcher;
         }
         
+        public ArrayList<String> getChannelIds() {
+            return channelIds;
+        }
+
         public ArrayList<String> getChannels() {
             return channels;
         }
@@ -179,6 +189,13 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
             if (!shouldRemove && filterConfig.getKeywordMatcher().matches(item.getName())) {
                 shouldRemove = true;
+            }
+
+            if (!shouldRemove && item instanceof StreamInfoItem && !filterConfig.getChannelIds().isEmpty()) {
+                final String uploaderId = ((StreamInfoItem) item).getUploaderId();
+                if (uploaderId != null && filterConfig.getChannelIds().contains(uploaderId)) {
+                    shouldRemove = true;
+                }
             }
 
             // Only check channels if we haven't already marked for removal
