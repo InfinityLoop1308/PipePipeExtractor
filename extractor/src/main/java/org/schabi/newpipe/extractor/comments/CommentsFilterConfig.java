@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.comments;
 import org.jsoup.Jsoup;
 import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.utils.KeywordMatcher;
+import org.schabi.newpipe.extractor.utils.ServiceScopedId;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -62,9 +63,11 @@ public class CommentsFilterConfig {
             return true;
         }
 
-        if (!userIds.isEmpty() && item.getUploaderId() != null
-                && userIds.contains(item.getUploaderId())) {
-            return true;
+        if (!userIds.isEmpty()) {
+            final String key = ServiceScopedId.of(item.getServiceId(), item.getUploaderId());
+            if (key != null && userIds.contains(key)) {
+                return true;
+            }
         }
 
         if (!usernames.isEmpty()) {

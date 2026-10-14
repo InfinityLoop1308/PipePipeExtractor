@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor;
 
+import org.schabi.newpipe.extractor.utils.ServiceScopedId;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
 import org.schabi.newpipe.extractor.exceptions.FoundAdException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -130,6 +131,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         private final boolean blockShorts;
         private final boolean blockPaidContent;
         private final ArrayList<String> channelIds;
+        private final java.util.Set<String> channelIdSet;
 
         public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts, boolean blockPaidContent) {
             this(keywords, channels, null, blockShorts, blockPaidContent);
@@ -137,6 +139,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
         public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, ArrayList<String> channelIds, boolean blockShorts, boolean blockPaidContent) {
             this.channelIds = channelIds != null ? channelIds : new ArrayList<>();
+            this.channelIdSet = new java.util.HashSet<>(this.channelIds);
             this.keywords = keywords != null ? keywords : new ArrayList<>();
             this.keywordMatcher = new KeywordMatcher(this.keywords);
             this.channels = channels != null ? channels : new ArrayList<>();
@@ -152,6 +155,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             return keywordMatcher;
         }
         
+        public java.util.Set<String> getChannelIdSet() {
+            return channelIdSet;
+        }
+
         public ArrayList<String> getChannelIds() {
             return channelIds;
         }
@@ -202,7 +209,8 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                 } else {
                     uploaderId = null;
                 }
-                if (uploaderId != null && filterConfig.getChannelIds().contains(uploaderId)) {
+                final String key = ServiceScopedId.of(item.getServiceId(), uploaderId);
+                if (key != null && filterConfig.getChannelIdSet().contains(key)) {
                     shouldRemove = true;
                 }
             }
