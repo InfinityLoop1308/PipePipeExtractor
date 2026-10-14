@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import javax.annotation.Nullable;
 import static org.schabi.newpipe.extractor.services.bilibili.utils.getDurationFromString;
 
 import com.grack.nanojson.JsonObject;
@@ -60,6 +61,13 @@ public class BilibiliChannelInfoItemClientAPIExtractor implements StreamInfoItem
     @Override
     public long getViewCount() throws ParsingException {
         return Optional.of(item.getLong("play")).orElse(item.getObject("stat").getLong("view"));
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long mid = item.getLong("mid", -1);
+        return mid > 0 ? String.valueOf(mid) : null;
     }
 
     @Override

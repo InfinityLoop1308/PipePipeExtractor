@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -64,6 +65,13 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor 
     @Override
     public long getViewCount() throws ParsingException {
         return item.getLong("play");
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long mid = item.getLong("mid", -1);
+        return mid > 0 ? String.valueOf(mid) : null;
     }
 
     @Override

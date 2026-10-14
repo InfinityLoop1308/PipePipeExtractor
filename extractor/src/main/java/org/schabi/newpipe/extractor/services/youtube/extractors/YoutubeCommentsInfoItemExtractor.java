@@ -236,6 +236,16 @@ public class YoutubeCommentsInfoItemExtractor implements CommentsInfoItemExtract
     }
 
     @Override
+    public String getUploaderId() throws ParsingException {
+        try {
+            return JsonUtils.getString(commentRenderer,
+                    "authorEndpoint.browseEndpoint.browseId");
+        } catch (final Exception e) {
+            return null;
+        }
+    }
+
+    @Override
     public String getUploaderUrl() throws ParsingException {
         try {
             return "https://www.youtube.com/channel/" + JsonUtils.getString(commentRenderer,

@@ -5,6 +5,7 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.extractPlaylistTypeFromPlaylistUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.fixThumbnailUrl;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getJsonPostResponse;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
@@ -528,6 +529,21 @@ public class YoutubePlaylistExtractor extends PlaylistExtractor {
                 } catch (final ParsingException ignored) {
                 }
                 return fallbackUrl;
+            }
+
+            @Override
+            public String getUploaderId() throws ParsingException {
+                if (fallbackUrl == null) {
+                    return super.getUploaderId();
+                }
+                try {
+                    final String uploaderId = super.getUploaderId();
+                    if (!isNullOrEmpty(uploaderId)) {
+                        return uploaderId;
+                    }
+                } catch (final ParsingException ignored) {
+                }
+                return getChannelIdFromUrl(fallbackUrl);
             }
         });
     }

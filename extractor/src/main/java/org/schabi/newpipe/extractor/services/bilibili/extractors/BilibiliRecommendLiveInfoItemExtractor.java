@@ -53,6 +53,13 @@ public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExt
         return this.data.getObject("watched_show").getLong("num");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long uid = data.getLong("uid", -1);
+        return uid > 0 ? String.valueOf(uid) : null;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return this.data.getString("uname");

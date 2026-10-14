@@ -29,6 +29,7 @@ import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.YOUTUBEI_V1_URL;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.addYoutubeHeaders;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelResponse;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getValidJsonResponseBody;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.prepareDesktopJsonBuilder;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.resolveChannelId;
@@ -487,6 +488,11 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                     public String getUploaderUrl() {
                         return channelIds.get(1);
                     }
+
+                    @Override
+                    public String getUploaderId() {
+                        return getChannelIdFromUrl(channelIds.get(1));
+                    }
                 });
 
         if (item.has("gridVideoRenderer")) {
@@ -508,6 +514,12 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                     @Override
                     public String getUploaderName() {
                         return channelIds.get(0);
+                    }
+
+                    @Nullable
+                    @Override
+                    public String getUploaderId() {
+                        return getChannelIdFromUrl(channelIds.get(1));
                     }
                 });
             } else if (richItem.has("lockupViewModel")) {
@@ -606,6 +618,12 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                 @Override
                 public String getUploaderUrl() {
                     return channelIds.get(1);
+                }
+
+                @Nullable
+                @Override
+                public String getUploaderId() {
+                    return getChannelIdFromUrl(channelIds.get(1));
                 }
             });
         }

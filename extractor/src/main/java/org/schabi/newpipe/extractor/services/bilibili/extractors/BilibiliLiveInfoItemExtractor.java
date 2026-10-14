@@ -61,6 +61,13 @@ public class BilibiliLiveInfoItemExtractor implements StreamInfoItemExtractor {
         return item.getLong("online");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long uid = item.getLong("uid", -1);
+        return uid > 0 ? String.valueOf(uid) : null;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return item.getString("uname");

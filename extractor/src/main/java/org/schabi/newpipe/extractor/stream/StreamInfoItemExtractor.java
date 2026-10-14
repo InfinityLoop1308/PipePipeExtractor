@@ -71,6 +71,16 @@ public interface StreamInfoItemExtractor extends InfoItemExtractor {
      */
     String getUploaderName() throws ParsingException;
 
+    /**
+     * Get the service-specific id of the uploader's channel (e.g. UCxxxx on YouTube)
+     *
+     * @return the uploader id or {@code null} if unavailable
+     */
+    @Nullable
+    default String getUploaderId() throws ParsingException {
+        return null;
+    }
+
     default String getUploaderUrl() throws ParsingException {
         return "";
     }

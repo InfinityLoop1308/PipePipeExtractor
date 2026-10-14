@@ -760,8 +760,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     public InfoItemsCollector<? extends InfoItem, ? extends InfoItemExtractor> getRelatedItems() throws ParsingException {
         InfoItemsCollector<InfoItem, InfoItemExtractor> collector = new MultiInfoItemsCollector(getServiceId());
         if (isPremiumContent == 1) {
+            final JsonObject upInfo = premiumData.getObject("up_info");
+            final String uploaderId = upInfo == null ? null : String.valueOf(upInfo.getLong("mid"));
             for (int i = 0; i < relatedPaidItems.size(); i++) {
-                collector.commit(new BilibiliPremiumContentInfoItemExtractor(relatedPaidItems.getObject(i)));
+                collector.commit(new BilibiliPremiumContentInfoItemExtractor(relatedPaidItems.getObject(i), uploaderId));
             }
             return collector;
         }
@@ -769,7 +771,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             if (isRoundPlay) {
                 collector.commit(new BilibiliSameContentInfoItemExtractor(getUploaderName() + "的投稿视频轮播",
                         getUrl() + "?timestamp=" + nextTimestamp, getThumbnailUrl()
-                        , getUploaderName(), getViewCount()));
+                        , getUploaderName(), String.valueOf(watch.getLong("uid")), getViewCount()));
                 return collector;
             }
             return null;

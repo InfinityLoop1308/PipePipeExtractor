@@ -11,6 +11,7 @@ import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getImagesFromThumbnailsArray;
@@ -81,6 +82,33 @@ public class YoutubeMusicSongOrVideoInfoItemExtractor implements StreamInfoItemE
             return name;
         }
         throw new ParsingException("Could not get uploader name");
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        if (searchType.equals(MUSIC_VIDEOS)) {
+            final JsonArray items = songOrVideoInfoItem.getObject("menu")
+                    .getObject("menuRenderer")
+                    .getArray("items");
+            for (final Object item : items) {
+                final JsonObject menuNavigationItemRenderer =
+                        ((JsonObject) item).getObject("menuNavigationItemRenderer");
+                if (menuNavigationItemRenderer.getObject("icon")
+                        .getString("iconType", "")
+                        .equals("ARTIST")) {
+                    return YoutubeParsingHelper.getChannelIdFromNavigationEndpoint(
+                            menuNavigationItemRenderer.getObject("navigationEndpoint"));
+                }
+            }
+            return null;
+        }
+
+        if (descriptionElements.isEmpty()) {
+            return null;
+        }
+        return YoutubeParsingHelper.getChannelIdFromNavigationEndpoint(
+                descriptionElements.getObject(0).getObject("navigationEndpoint"));
     }
 
     @Override

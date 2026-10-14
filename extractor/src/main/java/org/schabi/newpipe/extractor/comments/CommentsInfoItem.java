@@ -19,6 +19,7 @@ public class CommentsInfoItem extends InfoItem {
     private String uploaderName;
     private String uploaderAvatarUrl;
     private String uploaderUrl;
+    private String uploaderId;
     private boolean uploaderVerified;
     private String textualUploadDate;
     @Nullable
@@ -75,6 +76,15 @@ public class CommentsInfoItem extends InfoItem {
 
     public void setUploaderAvatarUrl(final String uploaderAvatarUrl) {
         this.uploaderAvatarUrl = uploaderAvatarUrl;
+    }
+
+    @Nullable
+    public String getUploaderId() {
+        return uploaderId;
+    }
+
+    public void setUploaderId(@Nullable final String uploaderId) {
+        this.uploaderId = uploaderId;
     }
 
     public String getUploaderUrl() {

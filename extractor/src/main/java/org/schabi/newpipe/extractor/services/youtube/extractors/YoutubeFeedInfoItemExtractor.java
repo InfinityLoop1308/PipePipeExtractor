@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
@@ -39,6 +40,16 @@ public class YoutubeFeedInfoItemExtractor implements StreamInfoItemExtractor {
     public long getViewCount() {
         return Long.parseLong(entryElement.getElementsByTag("media:statistics").first()
                 .attr("views"));
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        final Element channelIdElement = entryElement.getElementsByTag("yt:channelId").first();
+        if (channelIdElement != null && !channelIdElement.text().isEmpty()) {
+            return channelIdElement.text();
+        }
+        return YoutubeParsingHelper.getChannelIdFromUrl(getUploaderUrl());
     }
 
     @Override

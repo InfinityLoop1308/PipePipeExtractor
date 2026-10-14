@@ -77,6 +77,12 @@ public class BilibiliCommentsInfoItemExtractor implements CommentsInfoItemExtrac
     }
 
     @Override
+    public String getUploaderId() throws ParsingException {
+        final String mid = data.get("mid") == null ? null : String.valueOf(data.get("mid"));
+        return mid;
+    }
+
+    @Override
     public String getUploaderUrl() throws ParsingException {
         return BilibiliChannelLinkHandlerFactory.baseUrl + data.get("mid");
     }

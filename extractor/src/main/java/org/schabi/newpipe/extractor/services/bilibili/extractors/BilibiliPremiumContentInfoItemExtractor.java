@@ -6,6 +6,8 @@ import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
+import javax.annotation.Nullable;
+
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -16,9 +18,15 @@ import java.util.Objects;
 public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemExtractor {
 
     private final JsonObject data;
+    private final String uploaderId;
 
     BilibiliPremiumContentInfoItemExtractor(JsonObject json) {
+        this(json, null);
+    }
+
+    BilibiliPremiumContentInfoItemExtractor(JsonObject json, String uploaderId) {
         data = json;
+        this.uploaderId = uploaderId;
     }
 
     @Override
@@ -54,6 +62,12 @@ public class BilibiliPremiumContentInfoItemExtractor implements StreamInfoItemEx
     @Override
     public long getViewCount() throws ParsingException {
         return -1;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        return uploaderId;
     }
 
     @Override

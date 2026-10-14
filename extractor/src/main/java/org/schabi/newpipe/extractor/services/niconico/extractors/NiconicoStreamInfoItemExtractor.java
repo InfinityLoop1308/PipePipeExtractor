@@ -52,6 +52,15 @@ public class NiconicoStreamInfoItemExtractor implements StreamInfoItemExtractor 
         return item.getLong("viewCounter");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        if (isChannel()) {
+            return "ch" + item.getLong("channelId");
+        }
+        return String.valueOf(item.getLong("userId"));
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         // Snapshot search API could not get uploader name.

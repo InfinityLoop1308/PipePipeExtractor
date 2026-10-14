@@ -40,6 +40,7 @@ public class StreamInfoItem extends InfoItem {
     private long duration = -1;
 
     private String uploaderUrl = null;
+    private String uploaderId = null;
     private String uploaderAvatarUrl = null;
     private boolean uploaderVerified = false;
     private boolean isRoundPlayStream = false;
@@ -81,6 +82,15 @@ public class StreamInfoItem extends InfoItem {
 
     public void setDuration(final long duration) {
         this.duration = duration;
+    }
+
+    @Nullable
+    public String getUploaderId() {
+        return uploaderId;
+    }
+
+    public void setUploaderId(@Nullable final String uploaderId) {
+        this.uploaderId = uploaderId;
     }
 
     public String getUploaderUrl() {

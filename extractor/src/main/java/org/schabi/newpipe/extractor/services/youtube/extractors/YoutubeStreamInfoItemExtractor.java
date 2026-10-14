@@ -314,6 +314,19 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
         return name;
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        for (final String key : new String[]{"longBylineText", "ownerText", "shortBylineText"}) {
+            final String id = YoutubeParsingHelper.getChannelIdFromNavigationEndpoint(
+                    getUploaderNavigationEndpoint(videoInfo.getObject(key)));
+            if (!isNullOrEmpty(id)) {
+                return id;
+            }
+        }
+        return YoutubeParsingHelper.getChannelIdFromUrl(fallbackUploaderUrl);
+    }
+
     @Override
     public String getUploaderUrl() throws ParsingException {
         String url = getUploaderUrlFromTextObject(videoInfo.getObject("longBylineText"));

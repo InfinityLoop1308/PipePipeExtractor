@@ -129,7 +129,16 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
     }
 
     @Override
+    public String getUploaderId() throws ParsingException {
+        return getChannelId();
+    }
+
+    @Override
     public String getUploaderUrl() throws ParsingException {
+        return "https://www.youtube.com/channel/" + getChannelId();
+    }
+
+    private String getChannelId() throws ParsingException {
         final JsonObject author = commentEntityPayload.getObject(AUTHOR);
         String channelId = author.getString("channelId");
         if (isNullOrEmpty(channelId)) {
@@ -148,7 +157,7 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
                 }
             }
         }
-        return "https://www.youtube.com/channel/" + channelId;
+        return channelId;
     }
 
     @Override

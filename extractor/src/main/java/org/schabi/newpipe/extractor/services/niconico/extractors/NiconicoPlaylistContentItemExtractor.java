@@ -65,6 +65,13 @@ public class NiconicoPlaylistContentItemExtractor implements StreamInfoItemExtra
         return item.getObject("count").getLong("view");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final JsonObject owner = item.getObject("owner");
+        return owner == null ? null : owner.getString("id");
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return item.getObject("owner").getString("name");

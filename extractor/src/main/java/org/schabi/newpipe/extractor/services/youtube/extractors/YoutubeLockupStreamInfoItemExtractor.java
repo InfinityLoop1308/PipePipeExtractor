@@ -253,6 +253,13 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
         throw new ParsingException("Could not get uploader name");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        return YoutubeParsingHelper.getChannelIdFromNavigationEndpoint(
+                getUploaderNavigationEndpoint());
+    }
+
     @Override
     public String getUploaderUrl() throws ParsingException {
         final JsonObject navigationEndpoint = getUploaderNavigationEndpoint();
