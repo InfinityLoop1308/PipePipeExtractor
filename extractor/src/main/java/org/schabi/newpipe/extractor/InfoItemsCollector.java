@@ -191,8 +191,17 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                 shouldRemove = true;
             }
 
-            if (!shouldRemove && item instanceof StreamInfoItem && !filterConfig.getChannelIds().isEmpty()) {
-                final String uploaderId = ((StreamInfoItem) item).getUploaderId();
+            if (!shouldRemove && !filterConfig.getChannelIds().isEmpty()) {
+                final String uploaderId;
+                if (item instanceof StreamInfoItem) {
+                    uploaderId = ((StreamInfoItem) item).getUploaderId();
+                } else if (item instanceof ChannelInfoItem) {
+                    uploaderId = ((ChannelInfoItem) item).getUploaderId();
+                } else if (item instanceof PlaylistInfoItem) {
+                    uploaderId = ((PlaylistInfoItem) item).getUploaderId();
+                } else {
+                    uploaderId = null;
+                }
                 if (uploaderId != null && filterConfig.getChannelIds().contains(uploaderId)) {
                     shouldRemove = true;
                 }
