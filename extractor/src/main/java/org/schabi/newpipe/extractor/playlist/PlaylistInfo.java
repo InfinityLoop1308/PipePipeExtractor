@@ -71,7 +71,7 @@ public final class PlaylistInfo extends ListInfo<StreamInfoItem> {
                                                              final String url,
                                                              final Page page)
             throws IOException, ExtractionException {
-        return service.getPlaylistExtractor(url).getPage(page);
+        return ExtractorHelper.getMoreItems(service.getPlaylistExtractor(url), page);
     }
 
     /**

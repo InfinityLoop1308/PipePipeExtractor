@@ -45,6 +45,6 @@ public class ChannelTabInfo extends ListInfo<InfoItem> {
     public static ListExtractor.InfoItemsPage<InfoItem> getMoreItems(
             final StreamingService service, final ListLinkHandler linkHandler, final Page page)
             throws ExtractionException, IOException {
-        return service.getChannelTabExtractor(linkHandler).getPage(page);
+        return ExtractorHelper.getMoreItems(service.getChannelTabExtractor(linkHandler), page);
     }
 }

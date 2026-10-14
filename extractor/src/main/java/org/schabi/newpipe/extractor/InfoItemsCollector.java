@@ -35,6 +35,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
     private final List<I> itemList = new ArrayList<>();
     private final List<Throwable> errors = new ArrayList<>();
+    private int filteredCount;
     private final int serviceId;
     @Nullable
     private final Comparator<I> comparator;
@@ -73,6 +74,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
     public void reset() {
         itemList.clear();
         errors.clear();
+        filteredCount = 0;
     }
 
     /**
@@ -89,6 +91,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
      */
     protected void addItem(final I item) {
         itemList.add(item);
+    }
+
+    public int getFilteredCount() {
+        return filteredCount;
     }
 
     public void addAll(final List<I> items) {
@@ -204,6 +210,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             // Remove only once if needed
             if (shouldRemove) {
                 iterator.remove();
+                filteredCount++;
             }
         }
     }

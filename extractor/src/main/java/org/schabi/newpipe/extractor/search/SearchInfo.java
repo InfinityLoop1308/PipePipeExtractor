@@ -78,7 +78,7 @@ public class SearchInfo extends ListInfo<InfoItem> {
                                                                      final SearchQueryHandler query,
                                                                      final Page page)
             throws IOException, ExtractionException {
-        return service.getSearchExtractor(query).getPage(page);
+        return ExtractorHelper.getMoreItems(service.getSearchExtractor(query), page);
     }
 
     // Getter
