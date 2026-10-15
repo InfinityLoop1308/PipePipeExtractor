@@ -1962,6 +1962,15 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
     @Override
+    public boolean isSupportBulletComments() throws ParsingException {
+        // live chat (or its replay) only exists for streams that are or were live
+        final JsonObject liveDetails = playerMicroFormatRenderer.getObject("liveBroadcastDetails");
+        return getStreamType().equals(StreamType.LIVE_STREAM)
+                || !liveDetails.getString("endTimestamp", EMPTY_STRING).isEmpty()
+                || !liveDetails.getString("startTimestamp", EMPTY_STRING).isEmpty();
+    }
+
+    @Override
     public boolean isSupportComments() throws ParsingException {
         return !getStreamType().equals(StreamType.LIVE_STREAM);
     }
