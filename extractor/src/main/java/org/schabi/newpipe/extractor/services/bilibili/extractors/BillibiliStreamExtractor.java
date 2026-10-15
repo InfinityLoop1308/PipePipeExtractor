@@ -195,7 +195,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                                     ? audioObject.getArray("backupUrl")
                                     : audioObject.getArray("backup_url")), true).setCodec(audioObject.getString("codecs").split("\\.")[0])
                     .setBitrate(audioObject.getInt("bandwidth"))
-                    .setAverageBitrate(audioObject.getInt("bandwidth"))
+                    .setAverageBitrate(audioObject.getInt("bandwidth") / 1000)
                     .setInitStart(initialization[0]).setInitEnd(initialization[1])
                     .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
                     .setMediaFormat(MediaFormat.M4A).setQuality(getBitrate(audioObject.getInt("id"))).build());
@@ -367,7 +367,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 .setBitrate(audioObject.getInt("bandwidth"))
                 .setInitStart(initialization[0]).setInitEnd(initialization[1])
                 .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
-                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(audioObject.getInt("bandwidth") / 1000).build());
         for (int j = 0; j < backupUrls.size(); j++) {
             String backupUrl = backupUrls.getString(j);
             if (isMcdnUrl(backupUrl)) {
@@ -379,7 +379,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                     .setBitrate(audioObject.getInt("bandwidth"))
                     .setInitStart(initialization[0]).setInitEnd(initialization[1])
                     .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
-                    .setMediaFormat(MediaFormat.M4A).setAverageBitrate(192000).build());
+                    .setMediaFormat(MediaFormat.M4A).setAverageBitrate(audioObject.getInt("bandwidth") / 1000).build());
         }
     }
 
