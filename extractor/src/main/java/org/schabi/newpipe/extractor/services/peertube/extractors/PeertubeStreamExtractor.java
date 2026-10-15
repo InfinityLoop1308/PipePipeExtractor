@@ -622,8 +622,9 @@ public class PeertubeStreamExtractor extends StreamExtractor {
             }
         }
 
-        // Finally, add torrent URLs
-        final String torrentUrl = JsonUtils.getString(streamJsonObject, "torrentUrl");
+        // Finally, add torrent URLs, which files do not always have (e.g. the files of federated
+        // videos on PeerTube 8.3)
+        final String torrentUrl = streamJsonObject.getString("torrentUrl");
         if (!isNullOrEmpty(torrentUrl)) {
             audioStreams.add(new AudioStream.Builder()
                     .setId(id + "-" + idSuffix + "-" + DeliveryMethod.TORRENT)
@@ -687,8 +688,9 @@ public class PeertubeStreamExtractor extends StreamExtractor {
             }
         }
 
-        // Add finally torrent URLs
-        final String torrentUrl = JsonUtils.getString(streamJsonObject, "torrentUrl");
+        // Add finally torrent URLs, which files do not always have (e.g. the files of federated
+        // videos on PeerTube 8.3)
+        final String torrentUrl = streamJsonObject.getString("torrentUrl");
         if (!isNullOrEmpty(torrentUrl)) {
             streamList.add(new VideoStream.Builder()
                     .setId(id + "-" + idSuffix + "-" + DeliveryMethod.TORRENT)
