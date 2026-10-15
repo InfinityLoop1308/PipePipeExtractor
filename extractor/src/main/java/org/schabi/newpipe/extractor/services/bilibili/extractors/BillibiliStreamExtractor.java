@@ -50,7 +50,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
     private String liveHlsMasterUrl = "";
     private JsonObject dataObject;
     private final List<VideoStream> videoOnlyStreams = new ArrayList<>();
-    private final List<AudioStream> audioStreams = new ArrayList<>();
     private long playTime;
     private String currentRoundTitle;
     private long nextTimestamp;
@@ -176,7 +175,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if (getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay) {
             return null;
         }
-        JsonArray audioObjects = dataObject.getArray("audio");
+        JsonArray audioObjects = new JsonArray(dataObject.getArray("audio"));
         if (dataObject.getObject("dolby").getArray("audio").size() != 0) {
             audioObjects.addAll(0, dataObject.getObject("dolby").getArray("audio"));
         }
@@ -347,40 +346,6 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             return;
         }
         buildVideoOnlyStreamsArray();
-        buildAudioStreamsArray();
-    }
-
-    public void buildAudioStreamsArray() throws ExtractionException {
-        if (getStreamType() == StreamType.LIVE_STREAM && !isRoundPlay) {
-            return;
-        }
-        JsonObject audioObject = dataObject.getArray("audio").getObject(0);
-        JsonObject segmentBase = audioObject.getObject("SegmentBase");
-        int[] initialization = parseRange(segmentBase.getString("Initialization"));
-        int[] indexRange = parseRange(segmentBase.getString("indexRange"));
-        JsonArray backupUrls = audioObject.getArray("backupUrl").isEmpty()
-                ? audioObject.getArray("backup_url")
-                : audioObject.getArray("backupUrl");
-        audioStreams.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
-                .setContent(pickStableStreamUrl(audioObject.getString("baseUrl"), backupUrls), true)
-                .setCodec(audioObject.getString("codecs").split("\\.")[0])
-                .setBitrate(audioObject.getInt("bandwidth"))
-                .setInitStart(initialization[0]).setInitEnd(initialization[1])
-                .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
-                .setMediaFormat(MediaFormat.M4A).setAverageBitrate(audioObject.getInt("bandwidth") / 1000).build());
-        for (int j = 0; j < backupUrls.size(); j++) {
-            String backupUrl = backupUrls.getString(j);
-            if (isMcdnUrl(backupUrl)) {
-                continue;
-            }
-            audioStreams.add(new AudioStream.Builder().setId("bilibili-" + bvid + "-audio")
-                    .setContent(backupUrl, true)
-                    .setCodec(audioObject.getString("codecs").split("\\.")[0])
-                    .setBitrate(audioObject.getInt("bandwidth"))
-                    .setInitStart(initialization[0]).setInitEnd(initialization[1])
-                    .setIndexStart(indexRange[0]).setIndexEnd(indexRange[1])
-                    .setMediaFormat(MediaFormat.M4A).setAverageBitrate(audioObject.getInt("bandwidth") / 1000).build());
-        }
     }
 
     public void buildVideoOnlyStreamsArray() throws ExtractionException {
@@ -658,7 +623,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             } else {
                 buildStreams();
             }
-            if (isPaid == 1 && videoOnlyStreams.size() + audioStreams.size() == 0) {
+            if (isPaid == 1 && videoOnlyStreams.isEmpty() && dataObject.getArray("audio").isEmpty()) {
                 throw new PaidContentException("Paid content");
             }
         } catch (JsonParserException e) {
