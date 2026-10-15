@@ -57,8 +57,19 @@ public final class PeertubeChannelLinkHandlerFactory extends ListLinkHandlerFact
 
     @Override
     public boolean onAcceptUrl(final String url) {
-        return url.contains("/accounts/") || url.contains("/a/")
-                || url.contains("/video-channels/") || url.contains("/c/");
+        // Only the first path segment counts, otherwise e.g. https://1drv.ms/w/c/... matches
+        final String path;
+        try {
+            path = java.net.URI.create(url.trim()).getPath();
+        } catch (final IllegalArgumentException e) {
+            return false;
+        }
+        if (path == null) {
+            return false;
+        }
+        final String p = path.startsWith("/api/v1/") ? path.substring(7) : path;
+        return p.startsWith("/accounts/") || p.startsWith("/a/")
+                || p.startsWith("/video-channels/") || p.startsWith("/c/");
     }
 
     /**
