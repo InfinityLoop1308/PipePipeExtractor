@@ -1138,20 +1138,36 @@ YoutubeParsingHelper {
     public static String getThumbnailUrlFromInfoItem(final JsonObject infoItem)
             throws ParsingException {
         // TODO: Don't simply get the first item, but look at all thumbnails and their resolution
+
+        // Regular videos and most playlists use a "thumbnail" object
         try {
             JsonArray thumbnails = infoItem.getObject("thumbnail").getArray("thumbnails");
             return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
         } catch (final Exception e) {
-            // lockupViewModel format
-            try {
-                JsonArray thumbnails = infoItem.getObject("contentImage")
-                        .getObject("thumbnailViewModel")
-                        .getObject("image")
-                        .getArray("sources");
-                return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
-            } catch (final Exception e2) {
-                throw new ParsingException("Could not get thumbnail url", e2);
-            }
+            // Fall through to the other known formats
+        }
+
+        // lockupViewModel format
+        try {
+            JsonArray thumbnails = infoItem.getObject("contentImage")
+                    .getObject("thumbnailViewModel")
+                    .getObject("image")
+                    .getArray("sources");
+            return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
+        } catch (final Exception e) {
+            // Fall through to the other known formats
+        }
+
+        // Albums and playlists of channel tabs expose their cover in a
+        // playlistCustomThumbnailRenderer instead of a "thumbnail" object
+        try {
+            JsonArray thumbnails = infoItem.getObject("thumbnailRenderer")
+                    .getObject("playlistCustomThumbnailRenderer")
+                    .getObject("thumbnail")
+                    .getArray("thumbnails");
+            return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get thumbnail url", e);
         }
     }
 
