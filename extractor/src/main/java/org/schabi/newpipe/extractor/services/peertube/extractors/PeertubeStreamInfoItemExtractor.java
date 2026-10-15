@@ -61,6 +61,12 @@ public class PeertubeStreamInfoItemExtractor implements StreamInfoItemExtractor 
 
     @Nullable
     @Override
+    public String getUploaderId() {
+        return PeertubeParsingHelper.getAccountId(item.getObject("account"));
+    }
+
+    @Nullable
+    @Override
     public String getUploaderAvatarUrl() {
         return PeertubeParsingHelper.getBiggestImageUrl(
                 PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
