@@ -33,6 +33,7 @@ import org.schabi.newpipe.extractor.services.bilibili.extractors.BilibiliSuggest
 import org.schabi.newpipe.extractor.services.bilibili.extractors.BillibiliStreamExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliBulletCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelTabLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliCommentsLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliFeedLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliPlaylistLinkHandlerFactory;
@@ -441,7 +442,7 @@ public class BilibiliService extends StreamingService {
 
     @Override
     public ListLinkHandlerFactory getChannelTabLHFactory() {
-        return null;
+        return new BilibiliChannelTabLinkHandlerFactory();
     }
 
     @Override

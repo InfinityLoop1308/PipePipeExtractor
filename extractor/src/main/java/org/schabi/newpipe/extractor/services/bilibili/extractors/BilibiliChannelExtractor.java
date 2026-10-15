@@ -22,6 +22,7 @@ import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.DeviceForger;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -46,9 +47,23 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
     private final SearchUserVideoImpl searchUserVideoImpl = new SearchUserVideoImpl();
     private final WebUserVideoImpl webUserVideoImpl = new WebUserVideoImpl();
 
+    public String getSortOrder() {
+        final List<FilterItem> sortFilter = getLinkHandler().getSortFilter();
+        if (sortFilter != null && !sortFilter.isEmpty()
+                && BilibiliChannelLinkHandlerFactory.SORT_POPULAR.equals(sortFilter.get(0).getName())) {
+            return "click";
+        }
+        return "pubdate";
+    }
 
     private UserVideoImpl getVideoImpl() {
         int mode = getCurrentVideoApiMode();
+        if (mode == USER_VIDEO_API_MODE_SEARCH && "click".equals(getSortOrder())) {
+            // recArchivesByKeywords silently ignores order=click and returns latest videos, so
+            // use the client API, which supports sorting by click, for this request only.
+            // The global mode is left to rotateVideoApiMode().
+            mode = USER_VIDEO_API_MODE_CLIENT;
+        }
         switch (mode) {
             case USER_VIDEO_API_MODE_WEB:
                 return webUserVideoImpl;
@@ -72,7 +87,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         Map<String, List<String>> headers = getHeaders(getOriginalUrl());
         String id = getId();
 
-        getVideoImpl().onFetchPage(downloader, id, getUrl());
+        getVideoImpl().onFetchPage(downloader, id, getUrl(), getSortOrder());
 
         userInfoData = requestUserSpaceResponse(downloader, QUERY_USER_INFO_URL + id, headers);
 
@@ -96,9 +111,12 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         UserVideoImpl videoImpl = getVideoImpl();
         boolean hasVideos = videoImpl.getInitialPage(collector, this);
         Page nextPage = null;
-        if (hasVideos) nextPage = new Page(getNextPageFromCurrentUrl(
-                getUrl(), "pn", 1, true, "1", "?"), String.valueOf(videoImpl.lastVideo()), null, BilibiliService.getDefaultCookies(), null
-        );
+        if (hasVideos) {
+            final String sep = getUrl().contains("?") ? "&" : "?";
+            nextPage = new Page(getNextPageFromCurrentUrl(
+                    getUrl(), "pn", 1, true, "1", sep), String.valueOf(videoImpl.lastVideo()), null, BilibiliService.getDefaultCookies(), null
+            );
+        }
         if (ServiceList.BiliBili.getFilterTypes().contains("channels")) {
             collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
         }
@@ -115,7 +133,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
 
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
         UserVideoImpl videoImpl = getVideoImpl();
-        boolean hasVideos = videoImpl.getPage(page, collector, getDownloader(), this, getId());
+        boolean hasVideos = videoImpl.getPage(page, collector, getDownloader(), this, getId(), getSortOrder());
         Page nextPage = null;
         if (hasVideos) nextPage = new Page(
                 getNextPageFromCurrentUrl(page.getUrl(), "pn", 1), String.valueOf(videoImpl.lastVideo()), null, BilibiliService.getDefaultCookies(), null
@@ -187,7 +205,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         void onFetchPage(
                 @Nonnull Downloader downloader,
                 String id,
-                String url
+                String url,
+                String order
         ) throws IOException, ExtractionException;
 
         // return true if it contains videos
@@ -202,7 +221,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 @Nonnull StreamInfoItemsCollector collector,
                 @Nonnull Downloader downloader,
                 @Nonnull ChannelExtractor extractor,
-                @Nonnull String id
+                @Nonnull String id,
+                String order
         ) throws IOException, ExtractionException;
 
         /**
@@ -224,19 +244,19 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             return userVideoData.getObject("data").getArray("item");
         }
 
-        private void fetchViaAPI(Downloader downloader, String id, long lastVideoAid)
+        private void fetchViaAPI(Downloader downloader, String id, long lastVideoAid, String order)
                 throws ParsingException, IOException, ReCaptchaException {
             Map<String, List<String>> headers = getHeaders(SPACE_REFERER);
-            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid), headers);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid, order), headers);
         }
 
-        static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid) {
+        static String buildUserVideosUrlClientAPI(String mid, long lastVideoAid, String order) {
             Map<String, String> params = new LinkedHashMap<>();
             params.put("vmid", mid);
             if (lastVideoAid > 0) {
                 params.put("aid", String.valueOf(lastVideoAid));
             }
-            params.put("order", "pubdate");
+            params.put("order", order != null ? order : "pubdate");
 
             DeviceForger.Device device = DeviceForger.requireRandomDevice();
             params.put("mobi_app", APP_TYPE);
@@ -258,8 +278,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         @Override
-        public void onFetchPage(@Nonnull Downloader downloader, String id, String url) throws IOException, ExtractionException {
-            fetchViaAPI(downloader, id, 0);
+        public void onFetchPage(@Nonnull Downloader downloader, String id, String url, String order) throws IOException, ExtractionException {
+            fetchViaAPI(downloader, id, 0, order);
         }
 
         @Override
@@ -284,10 +304,11 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 @Nonnull StreamInfoItemsCollector collector,
                 @Nonnull Downloader downloader,
                 @Nonnull ChannelExtractor extractor,
-                @Nonnull String id
+                @Nonnull String id,
+                String order
         ) throws IOException, ExtractionException {
 
-            fetchViaAPI(downloader, id, Long.parseLong(page.getId()));
+            fetchViaAPI(downloader, id, Long.parseLong(page.getId()), order);
 
             JsonArray videosArray = getVideosArray();
 
@@ -328,19 +349,19 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             return userVideoData.getObject("data").getArray("archives");
         }
 
-        private void fetchViaAPI(Downloader downloader, String id, String currentUrl)
+        private void fetchViaAPI(Downloader downloader, String id, String currentUrl, String order)
                 throws ParsingException, IOException, ReCaptchaException {
             Map<String, List<String>> headers = getHeaders(currentUrl);
-            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlSearchAPI(currentUrl, id), headers);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlSearchAPI(currentUrl, id, order), headers);
         }
 
-        static String buildUserVideosUrlSearchAPI(String baseUrl, String id) {
+        static String buildUserVideosUrlSearchAPI(String baseUrl, String id, String order) {
 
             LinkedHashMap<String, String> params = new LinkedHashMap<>();
 
             params.put("mid", id);
             params.put("keywords", "");
-            params.put("order", "pubdate");
+            params.put("order", order != null ? order : "pubdate");
 
             String pn = "1";
             if (baseUrl.contains("pn=")) {
@@ -366,8 +387,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         @Override
-        public void onFetchPage(@Nonnull Downloader downloader, String id, String url) throws IOException, ExtractionException {
-            fetchViaAPI(downloader, id, url);
+        public void onFetchPage(@Nonnull Downloader downloader, String id, String url, String order) throws IOException, ExtractionException {
+            fetchViaAPI(downloader, id, url, order);
         }
 
         @Override
@@ -392,10 +413,11 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 @Nonnull StreamInfoItemsCollector collector,
                 @Nonnull Downloader downloader,
                 @Nonnull ChannelExtractor extractor,
-                @Nonnull String id
+                @Nonnull String id,
+                String order
         ) throws IOException, ExtractionException {
 
-            fetchViaAPI(downloader, id, page.getUrl());
+            fetchViaAPI(downloader, id, page.getUrl(), order);
 
             JsonArray videosArray = getVideosArray();
 
@@ -435,18 +457,18 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             return userVideoData.getObject("data").getObject("list").getArray("vlist");
         }
 
-        private void fetchViaAPI(Downloader downloader, String id, String currentUrl)
+        private void fetchViaAPI(Downloader downloader, String id, String currentUrl, String order)
                 throws ParsingException, IOException, ReCaptchaException {
             Map<String, List<String>> headers = getHeaders(currentUrl);
-            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id), headers);
+            userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id, order), headers);
         }
 
 
-        static String buildUserVideosUrlWebAPI(String baseUrl, String id) {
+        static String buildUserVideosUrlWebAPI(String baseUrl, String id, String order) {
             LinkedHashMap<String, String> params = new LinkedHashMap<>();
 
             params.put("mid", id);
-            params.put("order", "pubdate");
+            params.put("order", order != null ? order : "pubdate");
             params.put("ps", "25");
 
             String pn = "1";
@@ -461,9 +483,6 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             params.put("web_location", "333.1387");
 
             params.putAll(utils.getDmImgParams());
-
-            // no longer needed currently
-            // params.put("w_webid", webIdCache.get(id));
 
             return utils.getWbiResult(QUERY_USER_VIDEOS_WEB_API_URL, params);
         }
@@ -480,8 +499,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         @Override
-        public void onFetchPage(@Nonnull Downloader downloader, String id, String url) throws IOException, ExtractionException {
-            fetchViaAPI(downloader, id, url);
+        public void onFetchPage(@Nonnull Downloader downloader, String id, String url, String order) throws IOException, ExtractionException {
+            fetchViaAPI(downloader, id, url, order);
         }
 
         @Override
@@ -506,10 +525,11 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 @Nonnull StreamInfoItemsCollector collector,
                 @Nonnull Downloader downloader,
                 @Nonnull ChannelExtractor extractor,
-                @Nonnull String id
+                @Nonnull String id,
+                String order
         ) throws IOException, ExtractionException {
 
-            fetchViaAPI(downloader, id, page.getUrl());
+            fetchViaAPI(downloader, id, page.getUrl(), order);
 
             JsonArray videosArray = getVideosArray();
 

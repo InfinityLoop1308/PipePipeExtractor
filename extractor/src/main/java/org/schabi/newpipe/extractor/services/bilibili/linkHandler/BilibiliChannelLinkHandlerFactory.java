@@ -5,11 +5,38 @@ import java.util.regex.Pattern;
 
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandlerFactory;
+import org.schabi.newpipe.extractor.search.filter.Filter;
+import org.schabi.newpipe.extractor.search.filter.FilterGroup;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
 
-public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
+public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory {
 
     public static final String baseUrl = "https://space.bilibili.com/";
+
+    public static final String SORT_LATEST = "latest";
+    public static final String SORT_POPULAR = "popular";
+
+    private final Filter availableSortFilter;
+
+    public BilibiliChannelLinkHandlerFactory() {
+        final FilterGroup.Builder filterBuilder = new FilterGroup.Builder();
+        final int latestFilterId = filterBuilder.addSortItem(
+                new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, SORT_LATEST));
+        final int popularFilterId = filterBuilder.addSortItem(
+                new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, SORT_POPULAR));
+
+        availableSortFilter = new Filter.Builder(new FilterGroup[]{
+                filterBuilder.createSortGroup("sortby", true, new FilterItem[]{
+                        filterBuilder.getFilterForId(latestFilterId),
+                        filterBuilder.getFilterForId(popularFilterId)
+                })
+        }).build();
+    }
+
+    @Override
+    public Filter getAvailableSortFilter() {
+        return availableSortFilter;
+    }
 
     @Override
     public String getId(String url) throws ParsingException {
@@ -42,6 +69,15 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory{
     @Override
     public String getUrl(String id, final List<FilterItem> contentFilter,
                          final List<FilterItem> sortFilter) throws ParsingException {
-        return baseUrl + id;
+        String url = baseUrl + id;
+        if (sortFilter != null && !sortFilter.isEmpty()) {
+            String sort = sortFilter.get(0).getName();
+            if (SORT_POPULAR.equals(sort)) {
+                url += "?order=click";
+            } else if (SORT_LATEST.equals(sort)) {
+                url += "?order=pubdate";
+            }
+        }
+        return url;
     }
 }
