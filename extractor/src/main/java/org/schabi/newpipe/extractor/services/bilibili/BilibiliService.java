@@ -271,9 +271,18 @@ public class BilibiliService extends StreamingService {
         final LinkedHashMap<String, List<String>> headers = new LinkedHashMap<>();
         headers.put("User-Agent", Collections.singletonList(DeviceForger.requireRandomDevice().getUserAgent()));
         if (originalUrl != null) {
-            String referer = "https://" + Utils.stringToURL(originalUrl).getHost() + "/";
-            if (!Arrays.asList(WWW_REFERER, SPACE_REFERER, LIVE_REFERER).contains(referer)) {
-                referer = WWW_REFERER;
+            String referer = WWW_REFERER;
+            if (originalUrl.startsWith("http://") || originalUrl.startsWith("https://")) {
+                try {
+                    String host = Utils.stringToURL(originalUrl).getHost();
+                    if (host != null) {
+                        String testReferer = "https://" + host + "/";
+                        if (Arrays.asList(WWW_REFERER, SPACE_REFERER, LIVE_REFERER).contains(testReferer)) {
+                            referer = testReferer;
+                        }
+                    }
+                } catch (MalformedURLException ignored) {
+                }
             }
             headers.put("Referer", Collections.singletonList(referer));
         }
