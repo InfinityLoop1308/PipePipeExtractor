@@ -187,10 +187,23 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                         .getObject("playlistRenderer")));
             } else if (item.has("lockupViewModel")) {
                 final JsonObject lockupViewModel = item.getObject("lockupViewModel");
-                if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(
-                        lockupViewModel.getString("contentType"))) {
+                final String contentType = lockupViewModel.getString("contentType");
+                if ("LOCKUP_CONTENT_TYPE_PLAYLIST".equals(contentType)
+                        || "LOCKUP_CONTENT_TYPE_PODCAST".equals(contentType)) {
                     collector.commit(
                             new YoutubeMixOrPlaylistLockupInfoItemExtractor(lockupViewModel));
+                } else if ("LOCKUP_CONTENT_TYPE_VIDEO".equals(contentType)) {
+                    collector.commit(new YoutubeLockupStreamInfoItemExtractor(
+                            lockupViewModel, timeAgoParser));
+                }
+            } else if (item.has("shortsLockupViewModel")) {
+                collector.commit(new YoutubeShortsInfoItemExtractor(
+                        item.getObject("shortsLockupViewModel")));
+            } else if (item.has("gridShelfViewModel")) {
+                final JsonArray shelfContents = item.getObject("gridShelfViewModel")
+                        .getArray("contents");
+                if (shelfContents != null) {
+                    collectStreamsFrom(collector, shelfContents);
                 }
             }
         }
