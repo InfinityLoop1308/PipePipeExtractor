@@ -23,6 +23,18 @@ public class YoutubeSuperChatInfoItemExtractor extends YoutubeBulletCommentsInfo
     }
 
     @Override
+    public String getAmountText() throws ParsingException {
+        return data.getObject("purchaseAmountText").getString("simpleText");
+    }
+
+    @Override
+    public String getAuthorAvatarUrl() throws ParsingException {
+        final com.grack.nanojson.JsonArray thumbs =
+                data.getObject("authorPhoto").getArray("thumbnails");
+        return thumbs.isEmpty() ? null : thumbs.getObject(thumbs.size() - 1).getString("url");
+    }
+
+    @Override
     public int getArgbColor() throws ParsingException {
         return (int) data.getLong("bodyBackgroundColor");
     }

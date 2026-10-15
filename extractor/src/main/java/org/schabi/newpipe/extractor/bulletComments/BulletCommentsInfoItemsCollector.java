@@ -41,6 +41,21 @@ public class BulletCommentsInfoItemsCollector
         } catch (final Exception e) {
             addError(e);
         }
+        try {
+            resultItem.setAuthorName(extractor.getAuthorName());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
+            resultItem.setAuthorAvatarUrl(extractor.getAuthorAvatarUrl());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
+            resultItem.setAmountText(extractor.getAmountText());
+        } catch (final Exception e) {
+            addError(e);
+        }
         try{
             resultItem.setLastingTime(extractor.getLastingTime());
         } catch (final Exception e) {

@@ -24,6 +24,21 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
     }
 
     @Override
+    public String getAuthorName() throws ParsingException {
+        return data.getObject("user_info").getString("uname");
+    }
+
+    @Override
+    public String getAuthorAvatarUrl() throws ParsingException {
+        return data.getObject("user_info").getString("face");
+    }
+
+    @Override
+    public String getAmountText() throws ParsingException {
+        return String.format("¥%s", data.getInt("price"));
+    }
+
+    @Override
     public int getArgbColor() throws ParsingException {
         return 0xFF000000 + Integer.parseInt(data.getString("background_bottom_color").split("#")[1], 16);
     }

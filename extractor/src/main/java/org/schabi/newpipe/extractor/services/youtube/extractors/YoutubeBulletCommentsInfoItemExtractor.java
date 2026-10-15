@@ -32,6 +32,11 @@ public class YoutubeBulletCommentsInfoItemExtractor implements BulletCommentsInf
     }
 
     @Override
+    public String getAuthorName() throws ParsingException {
+        return data.getObject("authorName").getString("simpleText");
+    }
+
+    @Override
     public int getArgbColor() throws ParsingException {
         return BulletCommentsInfoItemExtractor.super.getArgbColor();
     }
