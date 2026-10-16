@@ -47,7 +47,7 @@ public final class NewPipe {
     private static Downloader downloader;
     private static Localization preferredLocalization;
     private static ContentCountry preferredContentCountry;
-    private static String youtubePlayerClient = "tv_samsung";
+    private static String youtubePlayerClient = "visionos";
     @Nullable
     private static volatile Function<String, YoutubePoTokenResult> youtubePoTokenResolver;
     @Nullable
@@ -179,7 +179,7 @@ public final class NewPipe {
                 || "tv_samsung".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {
-            NewPipe.youtubePlayerClient = "tv_samsung";
+            NewPipe.youtubePlayerClient = "visionos";
         }
     }
 
