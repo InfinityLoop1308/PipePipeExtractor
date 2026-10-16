@@ -58,6 +58,7 @@ public class BulletCommentsInfoItemsCollector
         }
         try{
             resultItem.setLastingTime(extractor.getLastingTime());
+            resultItem.setPinnedTimeMillis(extractor.getPinnedTimeMillis());
         } catch (final Exception e) {
             addError(e);
         }

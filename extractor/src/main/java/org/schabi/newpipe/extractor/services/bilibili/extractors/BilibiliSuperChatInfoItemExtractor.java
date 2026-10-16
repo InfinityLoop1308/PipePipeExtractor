@@ -63,14 +63,8 @@ public class BilibiliSuperChatInfoItemExtractor implements BulletCommentsInfoIte
         return true;
     }
 
-    //    @Override
-//    public int getLastingTime() {
-//        int price = data.getInt("price");
-//        if(price > 700){
-//            return 60000;
-//        } else if () {
-//
-//        }
-//        return data.getInt("ti")
-//    }
+    @Override
+    public long getPinnedTimeMillis() {
+        return data.getLong("time")*1000;
+    }
 }

@@ -61,6 +61,13 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
         return -1;
     }
 
+    /**
+     * @return how long a super chat stays pinned, in milliseconds. 0 if it is not pinned.
+     */
+    default long getPinnedTimeMillis() {
+        return 0;
+    }
+
     default boolean isLive() throws ParsingException {
         return false;
     }

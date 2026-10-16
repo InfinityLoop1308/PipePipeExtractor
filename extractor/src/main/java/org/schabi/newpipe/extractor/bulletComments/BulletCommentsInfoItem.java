@@ -26,6 +26,7 @@ public class BulletCommentsInfoItem extends InfoItem implements Comparable<Bulle
     /* It really should be named as timePosition or some other thing*/
     private Duration duration;
     private int lastingTime;
+    private long pinnedTimeMillis;
     private boolean isLive;
     private String authorName;
     private String authorAvatarUrl;
@@ -105,6 +106,14 @@ public class BulletCommentsInfoItem extends InfoItem implements Comparable<Bulle
 
     public void setLastingTime(int lastingTime) {
         this.lastingTime = lastingTime;
+    }
+
+    public long getPinnedTimeMillis() {
+        return pinnedTimeMillis;
+    }
+
+    public void setPinnedTimeMillis(final long pinnedTimeMillis) {
+        this.pinnedTimeMillis = pinnedTimeMillis;
     }
 
     public boolean isLive() {
