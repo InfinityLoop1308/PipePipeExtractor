@@ -13,6 +13,8 @@ import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import java.util.Objects;
 
+import javax.annotation.Nullable;
+
 import static org.schabi.newpipe.extractor.utils.Utils.EMPTY_STRING;
 
 public class PeertubeCommentsInfoItemExtractor implements CommentsInfoItemExtractor {
@@ -92,5 +94,11 @@ public class PeertubeCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         final String host = JsonUtils.getString(item, "account.host");
         return ServiceList.PeerTube.getChannelLHFactory()
                 .fromId("accounts/" + name + "@" + host, baseUrl).getUrl();
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        return PeertubeParsingHelper.getAccountId(item.getObject("account"));
     }
 }
