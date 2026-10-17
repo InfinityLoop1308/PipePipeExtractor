@@ -8,6 +8,7 @@ import org.schabi.newpipe.extractor.services.peertube.PeertubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class PeertubePlaylistInfoItemExtractor implements PlaylistInfoItemExtractor {
 
@@ -40,6 +41,12 @@ public class PeertubePlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
     public String getUploaderName() throws ParsingException {
         final JsonObject owner = JsonUtils.getObject(item, "ownerAccount");
         return JsonUtils.getString(owner, "displayName");
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() {
+        return PeertubeParsingHelper.getAccountId(item.getObject("ownerAccount"));
     }
 
     @Override
