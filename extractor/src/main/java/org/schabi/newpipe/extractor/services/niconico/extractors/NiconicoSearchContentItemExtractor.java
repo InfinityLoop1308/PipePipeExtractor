@@ -80,6 +80,13 @@ public class NiconicoSearchContentItemExtractor implements StreamInfoItemExtract
         return 0;
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final JsonObject owner = item.getObject("owner");
+        return owner == null ? null : owner.getString("id");
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         JsonObject owner = item.getObject("owner");

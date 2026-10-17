@@ -651,6 +651,14 @@ public abstract class StreamExtractor extends Extractor {
         return true;
     }
 
+    /**
+     * Whether the stream may have bullet comments / live chat. Only a hint to decide whether to
+     * show the chat tab before the bullet comments are actually loaded.
+     */
+    public boolean isSupportBulletComments() throws ParsingException {
+        return true;
+    }
+
     public boolean isSupportRelatedItems() throws ParsingException {
         return true;
     }

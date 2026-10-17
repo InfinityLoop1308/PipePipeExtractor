@@ -816,6 +816,85 @@ YoutubeParsingHelper {
         return youtubeMusicClientVersion;
     }
 
+    /**
+     * Extract a channel id (UCxxxx) from a navigation endpoint.
+     */
+    @Nullable
+    public static String getChannelIdFromNavigationEndpoint(
+            @Nullable final JsonObject navigationEndpoint) {
+        if (navigationEndpoint == null) {
+            return null;
+        }
+        final String direct = navigationEndpoint.getObject("browseEndpoint").getString("browseId");
+        if (direct != null && direct.startsWith("UC")) {
+            return direct;
+        }
+        final JsonObject listItem = navigationEndpoint.getObject("showDialogCommand")
+                .getObject("panelLoadingStrategy").getObject("inlineContent")
+                .getObject("dialogViewModel").getObject("customContent")
+                .getObject("listViewModel").getArray("listItems").getObject(0)
+                .getObject("listItemViewModel");
+        final String[] candidates = {
+                listItem.getObject("title").getArray("commandRuns").getObject(0)
+                        .getObject("onTap").getObject("innertubeCommand")
+                        .getObject("browseEndpoint").getString("browseId"),
+                listItem.getObject("rendererContext").getObject("commandContext")
+                        .getObject("onTap").getObject("innertubeCommand")
+                        .getObject("browseEndpoint").getString("browseId")
+        };
+        for (final String c : candidates) {
+            if (c != null && c.startsWith("UC")) {
+                return c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract a channel id (UCxxxx) from a text object whose first run points to a channel.
+     */
+    @Nullable
+    public static String getChannelIdFromTextObject(@Nullable final JsonObject textObject) {
+        if (textObject == null || textObject.isEmpty() || !textObject.has("runs")) {
+            return null;
+        }
+        final JsonArray runs = textObject.getArray("runs");
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        return getChannelIdFromNavigationEndpoint(
+                runs.getObject(0).getObject("navigationEndpoint"));
+    }
+
+    /**
+     * Extract a channel url from a text object whose first run points to a channel.
+     */
+    @Nullable
+    public static String getChannelUrlFromTextObject(@Nullable final JsonObject textObject)
+            throws ParsingException {
+        if (textObject == null || textObject.isEmpty() || !textObject.has("runs")) {
+            return null;
+        }
+        final JsonArray runs = textObject.getArray("runs");
+        if (runs == null || runs.isEmpty()) {
+            return null;
+        }
+        return getUrlFromNavigationEndpoint(runs.getObject(0).getObject("navigationEndpoint"));
+    }
+
+    /**
+     * Extract a channel id (UCxxxx) from a channel url.
+     */
+    @Nullable
+    public static String getChannelIdFromUrl(@Nullable final String url) {
+        if (url == null) {
+            return null;
+        }
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("/channel/(UC[\\w-]+)").matcher(url);
+        return m.find() ? m.group(1) : null;
+    }
+
     @Nullable
     public static String getUrlFromNavigationEndpoint(@Nonnull final JsonObject navigationEndpoint)
             throws ParsingException {
@@ -1059,20 +1138,36 @@ YoutubeParsingHelper {
     public static String getThumbnailUrlFromInfoItem(final JsonObject infoItem)
             throws ParsingException {
         // TODO: Don't simply get the first item, but look at all thumbnails and their resolution
+
+        // Regular videos and most playlists use a "thumbnail" object
         try {
             JsonArray thumbnails = infoItem.getObject("thumbnail").getArray("thumbnails");
             return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
         } catch (final Exception e) {
-            // lockupViewModel format
-            try {
-                JsonArray thumbnails = infoItem.getObject("contentImage")
-                        .getObject("thumbnailViewModel")
-                        .getObject("image")
-                        .getArray("sources");
-                return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
-            } catch (final Exception e2) {
-                throw new ParsingException("Could not get thumbnail url", e2);
-            }
+            // Fall through to the other known formats
+        }
+
+        // lockupViewModel format
+        try {
+            JsonArray thumbnails = infoItem.getObject("contentImage")
+                    .getObject("thumbnailViewModel")
+                    .getObject("image")
+                    .getArray("sources");
+            return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
+        } catch (final Exception e) {
+            // Fall through to the other known formats
+        }
+
+        // Albums and playlists of channel tabs expose their cover in a
+        // playlistCustomThumbnailRenderer instead of a "thumbnail" object
+        try {
+            JsonArray thumbnails = infoItem.getObject("thumbnailRenderer")
+                    .getObject("playlistCustomThumbnailRenderer")
+                    .getObject("thumbnail")
+                    .getArray("thumbnails");
+            return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
+        } catch (final Exception e) {
+            throw new ParsingException("Could not get thumbnail url", e);
         }
     }
 
@@ -1167,6 +1262,32 @@ YoutubeParsingHelper {
         return JsonUtils.toJsonObject(getValidJsonResponseBody(
                 getDownloader().post(YOUTUBEI_V1_URL + endpoint
                         + queryParametersString, headers, body, localization)));
+    }
+
+    /**
+     * Posts a player request synchronously, using the same client headers as
+     * {@link #getJsonPlayerResponseAsync} (client name/version, user agent and logged-in
+     * credentials). Needed by callers that cannot await a {@link Downloader.AsyncCallback}, such
+     * as the SABR player reload path.
+     */
+    @Nonnull
+    public static JsonObject getJsonPlayerResponse(
+            @Nonnull final String endpoint,
+            @Nonnull final byte[] body,
+            @Nonnull final Localization localization,
+            @Nonnull final String clientId,
+            @Nonnull final String clientVersion,
+            @Nonnull final String userAgent)
+            throws IOException, ExtractionException {
+        final Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", singletonList("application/json"));
+        headers.put("User-Agent", singletonList(userAgent));
+        headers.put("X-YouTube-Client-Name", singletonList(clientId));
+        headers.put("X-Youtube-Client-Version", singletonList(clientVersion));
+        addLoggedInHeaders(headers);
+        return JsonUtils.toJsonObject(getValidJsonResponseBody(
+                getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?"
+                        + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization)));
     }
 
     public static CancellableCall getJsonPostResponseAsync(final String endpoint,
@@ -1502,21 +1623,56 @@ YoutubeParsingHelper {
             @Nonnull final String clientName,
             @Nonnull final String userAgent)
             throws IOException, ExtractionException {
-        return JsonWriter.string(
-                        prepareJsonPlayerBuilder(localization, contentCountry,
-                                clientName, userAgent)
-                                .object("playbackContext")
-                                    .object("contentPlaybackContext")
-                                        .value("html5Preference", "HTML5_PREF_WANTS")
-                                        .value("signatureTimestamp", sts)
-                                    .end()
-                                .end()
-                                .value(CPN, contentPlaybackNonce)
-                                .value(VIDEO_ID, videoId)
-                                .value(CONTENT_CHECK_OK, true)
-                                .value(RACY_CHECK_OK, true)
-                                .done())
+        return createJsonPlayerBody(localization, contentCountry, videoId, sts,
+                contentPlaybackNonce, clientName, userAgent, null);
+    }
+
+    @Nonnull
+    public static byte[] createJsonPlayerBody(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce,
+            @Nonnull final String clientName,
+            @Nonnull final String userAgent,
+            @Nullable final String reloadPlaybackToken)
+            throws IOException, ExtractionException {
+        JsonBuilder<JsonObject> playbackContext = prepareJsonPlayerBuilder(localization,
+                contentCountry, clientName, userAgent)
+                        .object("playbackContext")
+                            .object("contentPlaybackContext")
+                                .value("html5Preference", "HTML5_PREF_WANTS")
+                                .value("signatureTimestamp", sts)
+                            .end();
+        playbackContext = appendReloadPlaybackContext(playbackContext, reloadPlaybackToken);
+        return JsonWriter.string(playbackContext
+                        .end()
+                        .value(CPN, contentPlaybackNonce)
+                        .value(VIDEO_ID, videoId)
+                        .value(CONTENT_CHECK_OK, true)
+                        .value(RACY_CHECK_OK, true)
+                        .done())
                 .getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Adds the {@code reloadPlaybackContext} that carries the token of a server-requested player
+     * reload into an open {@code playbackContext} builder.
+     */
+    @Nonnull
+    private static JsonBuilder<JsonObject> appendReloadPlaybackContext(
+            @Nonnull final JsonBuilder<JsonObject> playbackContext,
+            @Nullable final String reloadPlaybackToken) {
+        if (reloadPlaybackToken == null || reloadPlaybackToken.isEmpty()) {
+            return playbackContext;
+        }
+        return playbackContext
+                .object("reloadPlaybackContext")
+                    .object("reloadPlaybackParams")
+                        .value("token", reloadPlaybackToken)
+                    .end()
+                .end();
     }
 
     @Nonnull
@@ -1528,7 +1684,21 @@ YoutubeParsingHelper {
             @Nonnull final String contentPlaybackNonce,
             @Nonnull final String userAgent,
             @Nonnull final YoutubePoTokenResult poTokenResult) {
-        final byte[] body = JsonWriter.string(JsonObject.builder()
+        return createMwebPlayerRequest(localization, contentCountry, videoId, sts,
+                contentPlaybackNonce, userAgent, poTokenResult, null);
+    }
+
+    @Nonnull
+    public static YoutubePlayerRequest createMwebPlayerRequest(
+            @Nonnull final Localization localization,
+            @Nonnull final ContentCountry contentCountry,
+            @Nonnull final String videoId,
+            @Nonnull final Integer sts,
+            @Nonnull final String contentPlaybackNonce,
+            @Nonnull final String userAgent,
+            @Nonnull final YoutubePoTokenResult poTokenResult,
+            @Nullable final String reloadPlaybackToken) {
+        JsonBuilder<JsonObject> playbackContext = JsonObject.builder()
                 .object("context")
                     .object("client")
                         .value("utcOffsetMinutes", 0)
@@ -1545,7 +1715,9 @@ YoutubeParsingHelper {
                     .object("contentPlaybackContext")
                         .value("html5Preference", "HTML5_PREF_WANTS")
                         .value("signatureTimestamp", sts)
-                    .end()
+                    .end();
+        playbackContext = appendReloadPlaybackContext(playbackContext, reloadPlaybackToken);
+        final byte[] body = JsonWriter.string(playbackContext
                 .end()
                 .object("serviceIntegrityDimensions")
                     .value("poToken", poTokenResult.getPlayerPoToken())

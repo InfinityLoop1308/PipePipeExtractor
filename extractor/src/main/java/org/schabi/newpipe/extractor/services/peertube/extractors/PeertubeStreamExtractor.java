@@ -8,6 +8,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -37,7 +38,6 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -54,6 +54,8 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     private static final String FILES = "files";
     private static final String FILE_DOWNLOAD_URL = "fileDownloadUrl";
     private static final String FILE_URL = "fileUrl";
+    private static final String HAS_AUDIO = "hasAudio";
+    private static final String HAS_VIDEO = "hasVideo";
     private static final String PLAYLIST_URL = "playlistUrl";
     private static final String RESOLUTION_ID = "resolution.id";
     private static final String STREAMING_PLAYLISTS = "streamingPlaylists";
@@ -64,6 +66,8 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     private final List<SubtitlesStream> subtitles = new ArrayList<>();
     private final List<AudioStream> audioStreams = new ArrayList<>();
     private final List<VideoStream> videoStreams = new ArrayList<>();
+    private final List<VideoStream> videoOnlyStreams = new ArrayList<>();
+    private boolean streamsExtracted;
 
     public PeertubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler)
             throws ParsingException {
@@ -89,8 +93,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
 
     @Nonnull
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        return baseUrl + JsonUtils.getString(json, "previewPath");
+    public String getThumbnailUrl() {
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getThumbnails());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() {
+        return PeertubeParsingHelper.getThumbnailsFromPlaylistOrVideoItem(baseUrl, json);
     }
 
     @Nonnull
@@ -179,13 +190,15 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getUploaderAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "account.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getUploaderAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getUploaderAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("account"));
     }
 
     @Nonnull
@@ -203,13 +216,20 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     @Override
     public String getSubChannelAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "channel.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        final String url = PeertubeParsingHelper.getBiggestImageUrl(getSubChannelAvatars());
+        return url == null ? EMPTY_STRING : url;
+    }
+
+    /**
+     * The default implementation of {@link StreamExtractor#getSubChannelAvatars()} wraps the
+     * sub-channel <i>page</i> URL in an {@link Image}, which is an HTML document, so it has to be
+     * overridden here.
+     */
+    @Nonnull
+    @Override
+    public List<Image> getSubChannelAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                baseUrl, json.getObject("channel"));
     }
 
     @Nonnull
@@ -237,8 +257,7 @@ public class PeertubeStreamExtractor extends StreamExtractor {
         That's why the extraction of audio streams is only run when there are video streams
         extracted and when the content is not a livestream.
          */
-        if (audioStreams.isEmpty() && videoStreams.isEmpty()
-                && getStreamType() == StreamType.VIDEO_STREAM) {
+        if (!streamsExtracted && getStreamType() == StreamType.VIDEO_STREAM) {
             getStreams();
         }
 
@@ -249,20 +268,27 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     public List<VideoStream> getVideoStreams() throws ExtractionException {
         assertPageFetched();
 
-        if (videoStreams.isEmpty()) {
-            if (getStreamType() == StreamType.VIDEO_STREAM) {
+        if (getStreamType() == StreamType.VIDEO_STREAM) {
+            if (!streamsExtracted) {
                 getStreams();
-            } else {
-                extractLiveVideoStreams();
             }
+        } else if (videoStreams.isEmpty()) {
+            extractLiveVideoStreams();
         }
 
         return videoStreams;
     }
 
     @Override
-    public List<VideoStream> getVideoOnlyStreams() {
-        return Collections.emptyList();
+    public List<VideoStream> getVideoOnlyStreams() throws ExtractionException {
+        assertPageFetched();
+
+        // Livestreams are never split into separated audio and video streams
+        if (!streamsExtracted && getStreamType() == StreamType.VIDEO_STREAM) {
+            getStreams();
+        }
+
+        return videoOnlyStreams;
     }
 
     @Nonnull
@@ -326,7 +352,7 @@ public class PeertubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getRelatedItemsUrl(@Nonnull final List<String> tags)
             throws UnsupportedEncodingException {
-        final String url = baseUrl + PeertubeSearchQueryHandlerFactory.SEARCH_ENDPOINT;
+        final String url = baseUrl + PeertubeSearchQueryHandlerFactory.SEARCH_ENDPOINT_VIDEOS;
         final StringBuilder params = new StringBuilder();
         params.append("start=0&count=8&sort=-createdAt");
         for (final String tag : tags) {
@@ -412,7 +438,13 @@ public class PeertubeStreamExtractor extends StreamExtractor {
                 for (final Object c : captions) {
                     if (c instanceof JsonObject) {
                         final JsonObject caption = (JsonObject) c;
-                        final String url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        // PeerTube 8.0 deprecated captionPath in favour of an absolute fileUrl,
+                        // which is also the only correct one when captions are stored on an
+                        // external object storage
+                        String url = caption.getString("fileUrl");
+                        if (Utils.isBlank(url)) {
+                            url = baseUrl + JsonUtils.getString(caption, "captionPath");
+                        }
                         final String languageCode = JsonUtils.getString(caption, "language.id");
                         final String ext = url.substring(url.lastIndexOf(".") + 1);
                         final MediaFormat fmt = MediaFormat.getFromSuffix(ext);
@@ -470,6 +502,8 @@ public class PeertubeStreamExtractor extends StreamExtractor {
         } catch (final Exception e) {
             throw new ParsingException("Could not get streams", e);
         }
+
+        streamsExtracted = true;
     }
 
     private void getStreamsFromArray(@Nonnull final JsonArray streams,
@@ -501,7 +535,18 @@ public class PeertubeStreamExtractor extends StreamExtractor {
                 final String resolution = JsonUtils.getString(stream, "resolution.label");
                 final String idSuffix = stream.has(FILE_URL) ? FILE_URL : FILE_DOWNLOAD_URL;
 
-                if (resolution.toLowerCase().contains("audio")) {
+                /*
+                Since PeerTube 6.3, instances can store the audio track of a video in a separate
+                file, which is exposed as a file without a video track. Its resolution label is
+                usually "Audio only", but that is a localised/legacy label, so the hasVideo
+                property is checked first and the label is only used as a fallback for instances
+                which do not return the property.
+                */
+                final boolean isAudioOnly = (stream.has(HAS_VIDEO)
+                        && !stream.getBoolean(HAS_VIDEO))
+                        || resolution.toLowerCase().contains("audio");
+
+                if (isAudioOnly) {
                     // An audio stream
                     addNewAudioStream(stream, isInstanceUsingRandomUuidsForHlsStreams, resolution,
                             idSuffix, url, playlistUrl);
@@ -600,11 +645,23 @@ public class PeertubeStreamExtractor extends StreamExtractor {
         final MediaFormat format = MediaFormat.getFromSuffix(extension);
         final String id = resolution + "-" + extension;
 
+        /*
+        Check that the hasAudio property is present to stay compatible with instances running a
+        version older than 6.3.0, otherwise every video stream of these instances would be marked
+        as video-only. Instances which separate audio and video (PeerTube 6.3 and newer) return
+        hasAudio: false on every video file and expose the audio track as an extra file.
+        */
+        final boolean isVideoOnly = streamJsonObject.has(HAS_AUDIO)
+                && !streamJsonObject.getBoolean(HAS_AUDIO);
+        // Video-only streams have to be returned by getVideoOnlyStreams(), so that the client
+        // knows it has to play them together with an audio stream
+        final List<VideoStream> streamList = isVideoOnly ? videoOnlyStreams : videoStreams;
+
         // Add progressive HTTP streams first
-        videoStreams.add(new VideoStream.Builder()
+        streamList.add(new VideoStream.Builder()
                 .setId(id + "-" + idSuffix + "-" + DeliveryMethod.PROGRESSIVE_HTTP)
                 .setContent(url, true)
-                .setIsVideoOnly(false)
+                .setIsVideoOnly(isVideoOnly)
                 .setResolution(resolution)
                 .setMediaFormat(format)
                 .build());
@@ -619,24 +676,24 @@ public class PeertubeStreamExtractor extends StreamExtractor {
             final VideoStream videoStream = new VideoStream.Builder()
                     .setId(id + "-" + DeliveryMethod.HLS)
                     .setContent(hlsStreamUrl, true)
-                    .setIsVideoOnly(false)
+                    .setIsVideoOnly(isVideoOnly)
                     .setDeliveryMethod(DeliveryMethod.HLS)
                     .setResolution(resolution)
                     .setMediaFormat(format)
                     .setManifestUrl(playlistUrl)
                     .build();
-            if (!Stream.containSimilarStream(videoStream, videoStreams)) {
-                videoStreams.add(videoStream);
+            if (!Stream.containSimilarStream(videoStream, streamList)) {
+                streamList.add(videoStream);
             }
         }
 
         // Add finally torrent URLs
         final String torrentUrl = JsonUtils.getString(streamJsonObject, "torrentUrl");
         if (!isNullOrEmpty(torrentUrl)) {
-            videoStreams.add(new VideoStream.Builder()
+            streamList.add(new VideoStream.Builder()
                     .setId(id + "-" + idSuffix + "-" + DeliveryMethod.TORRENT)
                     .setContent(torrentUrl, true)
-                    .setIsVideoOnly(false)
+                    .setIsVideoOnly(isVideoOnly)
                     .setDeliveryMethod(DeliveryMethod.TORRENT)
                     .setResolution(resolution)
                     .setMediaFormat(format)

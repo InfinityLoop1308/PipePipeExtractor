@@ -66,6 +66,22 @@ public class NiconicoLiveHistoryInfoItemExtractor implements StreamInfoItemExtra
         return data.getObject("statistics").getObject("viewers").getLong("value");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final JsonObject programProvider = data.getObject("programProvider");
+        final String providerId = programProvider.getObject("programProviderId")
+                .getString("value", "");
+        if (!providerId.isEmpty()) {
+            return providerId;
+        }
+        final String profileUrl = programProvider.getString("profileUrl", "");
+        if (profileUrl.isEmpty()) {
+            return null;
+        }
+        return profileUrl.substring(profileUrl.lastIndexOf('/') + 1);
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return data.getObject("programProvider").getString("name", "");

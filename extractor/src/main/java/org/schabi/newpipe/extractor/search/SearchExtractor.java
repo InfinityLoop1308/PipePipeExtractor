@@ -93,78 +93,28 @@ public abstract class SearchExtractor extends ListExtractor<InfoItem> {
      */
     protected abstract InfoItemsPage<InfoItem> getPageInternal(final Page page) throws IOException, ExtractionException;
 
-    public static final int MAX_SEQUENTIAL_EMPTY_PAGE_FETCHES = 3;
-
     @Override
     public final InfoItemsPage<InfoItem> getInitialPage() throws IOException, ExtractionException {
-        InfoItemsPage<InfoItem> currentPageResult = getInitialPageInternal();
-        int attempts = 0;
-
-        while (attempts < MAX_SEQUENTIAL_EMPTY_PAGE_FETCHES) {
-            if (getService().getFilterTypes().contains("search_result")) {
-                final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-                collector.addAll(currentPageResult.getItems());
-                collector.applyBlocking(getService().getFilterConfig());
-
-                // If we have items after filtering, we are done. Return this page.
-                if (!collector.getItems().isEmpty()) {
-                    return new InfoItemsPage<>(collector, currentPageResult.getNextPage());
-                }
-            } else {
-                // If no filtering is configured, and the page has items, we are done.
-                if (!currentPageResult.getItems().isEmpty()) {
-                    return currentPageResult;
-                }
-            }
-
-            // If we are here, the page was empty (either originally or after filtering).
-            // Check if there is a next page to try.
-            if (currentPageResult.hasNextPage()) {
-                attempts++;
-                // Fetch the next page to continue the loop
-                currentPageResult = getPageInternal(currentPageResult.getNextPage());
-            } else {
-                // No more pages, break the loop
-                break;
-            }
-        }
-
-        // If we exit the loop, it means we tried enough times or there are no more pages.
-        // Return an empty page with no "next page" marker.
-        return InfoItemsPage.emptyPage();
+        return filterPage(getInitialPageInternal());
     }
 
     @Override
-    public final InfoItemsPage<InfoItem> getPage(final Page page) throws IOException, ExtractionException {
+    public final InfoItemsPage<InfoItem> getPage(final Page page)
+            throws IOException, ExtractionException {
         if (page == null || isNullOrEmpty(page.getUrl())) {
             throw new IllegalArgumentException("Page doesn't contain an URL");
         }
-
-        // The logic is nearly identical to getInitialPage, but starts with a given page
-        InfoItemsPage<InfoItem> currentPageResult = getPageInternal(page);
-        int attempts = 0;
-
-        // We start with 1 attempt since the first getPageInternal is one try
-        while (attempts < MAX_SEQUENTIAL_EMPTY_PAGE_FETCHES) {
-            final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-            collector.addAll(currentPageResult.getItems());
-            if (getService().getFilterTypes().contains("search_result")) {
-                collector.applyBlocking(getService().getFilterConfig());
-            }
-
-            if (!collector.getItems().isEmpty()) {
-                return new InfoItemsPage<>(collector, currentPageResult.getNextPage());
-            }
-
-            if (currentPageResult.hasNextPage()) {
-                attempts++;
-                currentPageResult = getPageInternal(currentPageResult.getNextPage());
-            } else {
-                break;
-            }
-        }
-
-        return InfoItemsPage.emptyPage();
+        return filterPage(getPageInternal(page));
     }
 
+    private InfoItemsPage<InfoItem> filterPage(final InfoItemsPage<InfoItem> page) {
+        if (!getService().getFilterTypes().contains("search_result")) {
+            return page;
+        }
+        final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
+        collector.addAll(page.getItems());
+        collector.applyBlocking(getService().getFilterConfig());
+        return new InfoItemsPage<>(collector.getItems(), page.getNextPage(), page.getErrors(),
+                page.getFilteredCount() + collector.getFilteredCount());
+    }
 }

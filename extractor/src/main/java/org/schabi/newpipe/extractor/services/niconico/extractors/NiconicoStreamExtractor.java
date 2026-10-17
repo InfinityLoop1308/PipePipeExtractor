@@ -226,9 +226,16 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         ArrayList<String> audios = (ArrayList<String>) streamSources.get("audio");
         for (String audio : audios) {
             String id = RegexUtils.extract(audio, "audio-(.*?)-\\d+kbps");
+            final String kbps = id.split("-")[2].split("kbps")[0];
+            int averageBitrate = -1;
+            try {
+                averageBitrate = Integer.parseInt(kbps);
+            } catch (final NumberFormatException ignored) {
+            }
             audioStreams.add(new AudioStream.Builder().setId("Niconico-" + getId() + "-audio")
                     .setContent(audio, true)
-                    .setMediaFormat(MediaFormat.M4A).setQuality(id.split("-")[2].split("kbps")[0]).build());
+                    .setMediaFormat(MediaFormat.M4A).setQuality(kbps)
+                    .setAverageBitrate(averageBitrate).build());
         }
         return audioStreams;
     }

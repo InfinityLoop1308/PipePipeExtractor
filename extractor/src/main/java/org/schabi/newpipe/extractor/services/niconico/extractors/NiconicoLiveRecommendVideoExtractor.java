@@ -78,6 +78,18 @@ public class NiconicoLiveRecommendVideoExtractor implements StreamInfoItemExtrac
         return data.getObject("content_meta").getLong("view_count");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final JsonObject contentMeta = data.getObject("content_meta");
+        final long channelId = contentMeta.getLong("channel_id");
+        if (channelId > 0) {
+            return "ch" + channelId;
+        }
+        final long userId = contentMeta.getLong("user_id");
+        return userId > 0 ? String.valueOf(userId) : null;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         if(getStreamType() == StreamType.LIVE_STREAM){

@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import com.grack.nanojson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
@@ -51,6 +52,19 @@ public class BilibiliRecommendLiveInfoItemExtractor implements StreamInfoItemExt
     @Override
     public long getViewCount() throws ParsingException {
         return this.data.getObject("watched_show").getLong("num");
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long uid = data.getLong("uid", -1);
+        return uid > 0 ? String.valueOf(uid) : null;
+    }
+
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        final String id = getUploaderId();
+        return id == null ? "" : BilibiliChannelLinkHandlerFactory.baseUrl + id;
     }
 
     @Override

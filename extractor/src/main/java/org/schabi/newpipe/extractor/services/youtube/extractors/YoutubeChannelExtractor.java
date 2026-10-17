@@ -593,6 +593,12 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                     public String getUploaderUrl() {
                         return uploaderUrl;
                     }
+
+                    @Nullable
+                    @Override
+                    public String getUploaderId() {
+                        return getChannelIdFromUrl(uploaderUrl);
+                    }
                 });
             } else if (video.has("richItemRenderer")) {
                 final JsonObject content = video.getObject("richItemRenderer").getObject("content");
@@ -610,6 +616,12 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                         public String getUploaderUrl() {
                             return uploaderUrl;
                         }
+
+                        @Nullable
+                        @Override
+                        public String getUploaderId() {
+                            return getChannelIdFromUrl(uploaderUrl);
+                        }
                     });
                 } else if (content.has("lockupViewModel")) {
                     collector.commit(new YoutubeStreamInfoItemExtractor(
@@ -623,6 +635,12 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                         @Override
                         public String getUploaderUrl() {
                             return uploaderUrl;
+                        }
+
+                        @Nullable
+                        @Override
+                        public String getUploaderId() {
+                            return getChannelIdFromUrl(uploaderUrl);
                         }
                     });
                 }
@@ -679,6 +697,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                             break;
                         case "streams":
                             addTab.accept(ChannelTabs.LIVESTREAMS);
+                            break;
+                        case "releases":
+                            addTab.accept(ChannelTabs.ALBUMS);
                             break;
                         case "shorts":
                             addTab.accept(ChannelTabs.SHORTS);

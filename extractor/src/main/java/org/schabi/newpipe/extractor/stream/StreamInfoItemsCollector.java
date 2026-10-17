@@ -84,6 +84,11 @@ public class StreamInfoItemsCollector
             addError(e);
         }
         try {
+            resultItem.setUploaderId(extractor.getUploaderId());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
             resultItem.setUploaderAvatarUrl(extractor.getUploaderAvatarUrl());
         } catch (final Exception e) {
             addError(e);

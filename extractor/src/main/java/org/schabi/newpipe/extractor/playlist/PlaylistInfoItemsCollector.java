@@ -22,6 +22,16 @@ public class PlaylistInfoItemsCollector
             addError(e);
         }
         try {
+            resultItem.setUploaderId(extractor.getUploaderId());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
+            resultItem.setUploaderUrl(extractor.getUploaderUrl());
+        } catch (final Exception e) {
+            addError(e);
+        }
+        try {
             resultItem.setThumbnailUrl(extractor.getThumbnailUrl());
         } catch (final Exception e) {
             addError(e);

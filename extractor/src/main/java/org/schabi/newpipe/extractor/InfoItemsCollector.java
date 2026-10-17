@@ -1,11 +1,13 @@
 package org.schabi.newpipe.extractor;
 
+import org.schabi.newpipe.extractor.utils.ServiceScopedId;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
 import org.schabi.newpipe.extractor.exceptions.FoundAdException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.utils.KeywordMatcher;
 
 import javax.annotation.Nullable;
 import java.util.*;
@@ -35,6 +37,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
     private final List<I> itemList = new ArrayList<>();
     private final List<Throwable> errors = new ArrayList<>();
+    private int filteredCount;
     private final int serviceId;
     @Nullable
     private final Comparator<I> comparator;
@@ -73,6 +76,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
     public void reset() {
         itemList.clear();
         errors.clear();
+        filteredCount = 0;
     }
 
     /**
@@ -89,6 +93,10 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
      */
     protected void addItem(final I item) {
         itemList.add(item);
+    }
+
+    public int getFilteredCount() {
+        return filteredCount;
     }
 
     public void addAll(final List<I> items) {
@@ -118,12 +126,22 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
 
     public static class FilterConfig {
         private final ArrayList<String> keywords;
+        private final KeywordMatcher keywordMatcher;
         private final ArrayList<String> channels;
         private final boolean blockShorts;
         private final boolean blockPaidContent;
+        private final ArrayList<String> channelIds;
+        private final java.util.Set<String> channelIdSet;
 
         public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, boolean blockShorts, boolean blockPaidContent) {
+            this(keywords, channels, null, blockShorts, blockPaidContent);
+        }
+
+        public FilterConfig(ArrayList<String> keywords, ArrayList<String> channels, ArrayList<String> channelIds, boolean blockShorts, boolean blockPaidContent) {
+            this.channelIds = channelIds != null ? channelIds : new ArrayList<>();
+            this.channelIdSet = new java.util.HashSet<>(this.channelIds);
             this.keywords = keywords != null ? keywords : new ArrayList<>();
+            this.keywordMatcher = new KeywordMatcher(this.keywords);
             this.channels = channels != null ? channels : new ArrayList<>();
             this.blockShorts = blockShorts;
             this.blockPaidContent = blockPaidContent;
@@ -132,7 +150,19 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
         public ArrayList<String> getKeywords() {
             return keywords;
         }
+
+        public KeywordMatcher getKeywordMatcher() {
+            return keywordMatcher;
+        }
         
+        public java.util.Set<String> getChannelIdSet() {
+            return channelIdSet;
+        }
+
+        public ArrayList<String> getChannelIds() {
+            return channelIds;
+        }
+
         public ArrayList<String> getChannels() {
             return channels;
         }
@@ -164,13 +194,24 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                 shouldRemove = true;
             }
 
-            if (!shouldRemove) {
-                // Check keywords
-                for (String keyword : filterConfig.getKeywords()) {
-                    if (item.getName().toLowerCase().contains(keyword.toLowerCase())) {
-                        shouldRemove = true;
-                        break;  // No need to check other keywords
-                    }
+            if (!shouldRemove && filterConfig.getKeywordMatcher().matches(item.getName())) {
+                shouldRemove = true;
+            }
+
+            if (!shouldRemove && !filterConfig.getChannelIds().isEmpty()) {
+                final String uploaderId;
+                if (item instanceof StreamInfoItem) {
+                    uploaderId = ((StreamInfoItem) item).getUploaderId();
+                } else if (item instanceof ChannelInfoItem) {
+                    uploaderId = ((ChannelInfoItem) item).getUploaderId();
+                } else if (item instanceof PlaylistInfoItem) {
+                    uploaderId = ((PlaylistInfoItem) item).getUploaderId();
+                } else {
+                    uploaderId = null;
+                }
+                final String key = ServiceScopedId.of(item.getServiceId(), uploaderId);
+                if (key != null && filterConfig.getChannelIdSet().contains(key)) {
+                    shouldRemove = true;
                 }
             }
 
@@ -204,6 +245,7 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
             // Remove only once if needed
             if (shouldRemove) {
                 iterator.remove();
+                filteredCount++;
             }
         }
     }

@@ -76,6 +76,13 @@ public class NiconicoCommentsInfoItemExtractor implements CommentsInfoItemExtrac
         return null;
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final String userId = json.getString("userId");
+        return userId == null || userId.isEmpty() ? null : userId;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return null; // json.getString("user_id");

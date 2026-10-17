@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.search.filter.FilterItem;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
+import org.schabi.newpipe.extractor.comments.CommentsFilterConfig;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.feed.FeedExtractor;
@@ -109,6 +110,7 @@ public abstract class StreamingService {
 
     public Set<String> filterTypes = new HashSet<>();
     public InfoItemsCollector.FilterConfig filterConfig = null;
+    private CommentsFilterConfig commentsFilterConfig = null;
 
     public SponsorBlockApiSettings sponsorBlockApiSettings = null;
     
@@ -570,6 +572,15 @@ public abstract class StreamingService {
 
     public void setFilterConfig(InfoItemsCollector.FilterConfig filterConfig) {
         this.filterConfig = filterConfig;
+    }
+
+    @Nullable
+    public CommentsFilterConfig getCommentsFilterConfig() {
+        return commentsFilterConfig;
+    }
+
+    public void setCommentsFilterConfig(@Nullable final CommentsFilterConfig commentsFilterConfig) {
+        this.commentsFilterConfig = commentsFilterConfig;
     }
 
     public String getProxyToken() {

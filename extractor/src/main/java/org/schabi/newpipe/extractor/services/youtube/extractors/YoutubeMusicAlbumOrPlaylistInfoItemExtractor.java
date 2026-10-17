@@ -11,6 +11,8 @@ import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.ListExtractor.ITEM_COUNT_MORE_THAN_100;
 import static org.schabi.newpipe.extractor.ListExtractor.ITEM_COUNT_UNKNOWN;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getChannelIdFromNavigationEndpoint;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getImagesFromThumbnailsArray;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getUrlFromNavigationEndpoint;
@@ -132,6 +134,53 @@ public class YoutubeMusicAlbumOrPlaylistInfoItemExtractor implements PlaylistInf
 //    public boolean isUploaderVerified() throws ParsingException {
 //        return false;
 //    }
+
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        if (!searchType.equals(MUSIC_ALBUMS)) {
+            // Music playlists do not have a single uploader channel
+            return null;
+        }
+
+        final JsonArray items = albumOrPlaylistInfoItem.getObject("menu")
+                .getObject("menuRenderer")
+                .getArray("items");
+        for (final Object item : items) {
+            final JsonObject menuNavigationItemRenderer =
+                    ((JsonObject) item).getObject("menuNavigationItemRenderer");
+            if (menuNavigationItemRenderer.getObject("icon")
+                    .getString("iconType", "")
+                    .equals("ARTIST")) {
+                return getChannelIdFromNavigationEndpoint(
+                        menuNavigationItemRenderer.getObject("navigationEndpoint"));
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        if (!searchType.equals(MUSIC_ALBUMS)) {
+            return null;
+        }
+
+        final JsonArray items = albumOrPlaylistInfoItem.getObject("menu")
+                .getObject("menuRenderer")
+                .getArray("items");
+        for (final Object item : items) {
+            final JsonObject menuNavigationItemRenderer =
+                    ((JsonObject) item).getObject("menuNavigationItemRenderer");
+            if (menuNavigationItemRenderer.getObject("icon")
+                    .getString("iconType", "")
+                    .equals("ARTIST")) {
+                return getUrlFromNavigationEndpoint(
+                        menuNavigationItemRenderer.getObject("navigationEndpoint"));
+            }
+        }
+        return null;
+    }
 
     @Override
     public long getStreamCount() throws ParsingException {

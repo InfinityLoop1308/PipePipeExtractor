@@ -89,6 +89,15 @@ public class NiconicoTrendRSSExtractor implements StreamInfoItemExtractor {
         return Long.parseLong(count.replaceAll(",", ""));
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        if (uploaderUrl == null || uploaderUrl.isEmpty()) {
+            return null;
+        }
+        return uploaderUrl.substring(uploaderUrl.lastIndexOf('/') + 1);
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         if (uploaderName == null || uploaderName.isEmpty()) {

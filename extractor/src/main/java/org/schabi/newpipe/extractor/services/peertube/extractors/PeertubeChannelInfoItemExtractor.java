@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.services.peertube.PeertubeParsingHelper;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 
 public class PeertubeChannelInfoItemExtractor implements ChannelInfoItemExtractor {
@@ -22,9 +23,10 @@ public class PeertubeChannelInfoItemExtractor implements ChannelInfoItemExtracto
     }
 
     @Override
-    public String getThumbnailUrl() throws ParsingException {
-        final JsonObject avatar = JsonUtils.getObject(item, "avatar");
-        return baseUrl + JsonUtils.getString(avatar, "path");
+    public String getThumbnailUrl() {
+        return PeertubeParsingHelper.getBiggestImageUrl(
+                PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                        baseUrl, item));
     }
 
     @Override

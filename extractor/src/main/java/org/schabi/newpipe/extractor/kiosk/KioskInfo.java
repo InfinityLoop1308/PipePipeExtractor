@@ -40,7 +40,7 @@ public final class KioskInfo extends ListInfo<StreamInfoItem> {
     public static ListExtractor.InfoItemsPage<StreamInfoItem> getMoreItems(
             final StreamingService service, final String url, final Page page)
             throws IOException, ExtractionException {
-        return service.getKioskList().getExtractorByUrl(url, page).getPage(page);
+        return ExtractorHelper.getMoreItems(service.getKioskList().getExtractorByUrl(url, page), page);
     }
 
     public static KioskInfo getInfo(final String url) throws IOException, ExtractionException {

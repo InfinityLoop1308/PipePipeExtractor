@@ -61,6 +61,12 @@ public class NiconicoSeriesContentItemExtractor implements StreamInfoItemExtract
         return data.getObject("count").getLong("view");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        return data.getObject("owner").getString("id");
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return data.getObject("owner").getString("name");

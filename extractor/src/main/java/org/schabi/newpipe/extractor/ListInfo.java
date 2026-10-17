@@ -9,6 +9,15 @@ import java.util.List;
 public abstract class ListInfo<T extends InfoItem> extends Info {
     private List<T> relatedItems;
     private Page nextPage = null;
+    private int filteredCount;
+
+    public int getFilteredCount() {
+        return filteredCount;
+    }
+
+    public void setFilteredCount(final int filteredCount) {
+        this.filteredCount = filteredCount;
+    }
     private final List<FilterItem> contentFilters;
     private final List<FilterItem> sortFilter;
 

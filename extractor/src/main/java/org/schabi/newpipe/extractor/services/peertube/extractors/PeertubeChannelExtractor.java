@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.peertube.extractors;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
@@ -46,18 +47,24 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
 
     @Override
     public String getAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        return PeertubeParsingHelper.getBiggestImageUrl(getAvatars());
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getAvatars() {
+        return PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(baseUrl, json);
     }
 
     @Override
     public String getBannerUrl() {
-        return null;
+        return PeertubeParsingHelper.getBiggestImageUrl(getBanners());
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getBanners() {
+        return PeertubeParsingHelper.getBannersFromAccountOrVideoChannelObject(baseUrl, json);
     }
 
     @Override
@@ -86,13 +93,9 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
 
     @Override
     public String getParentChannelAvatarUrl() {
-        String value;
-        try {
-            value = JsonUtils.getString(json, "ownerAccount.avatar.path");
-        } catch (final Exception e) {
-            value = "/client/assets/images/default-avatar.png";
-        }
-        return baseUrl + value;
+        return PeertubeParsingHelper.getBiggestImageUrl(
+                PeertubeParsingHelper.getAvatarsFromOwnerAccountOrVideoChannelObject(
+                        baseUrl, json.getObject("ownerAccount")));
     }
 
     @Override
@@ -107,7 +110,7 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
                 PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null, getBaseUrl()),
                 PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
-                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.CHANNELS)), null, getBaseUrl())
+                        Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null, getBaseUrl())
         );
     }
 

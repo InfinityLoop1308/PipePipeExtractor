@@ -2,20 +2,29 @@ package org.schabi.newpipe.extractor.services.peertube;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeChannelInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubePlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeSepiaStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.peertube.extractors.PeertubeStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.utils.JsonUtils;
 import org.schabi.newpipe.extractor.utils.Parser;
 import org.schabi.newpipe.extractor.utils.Utils;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public final class PeertubeParsingHelper {
     public static final String START_KEY = "start";
@@ -68,6 +77,147 @@ public final class PeertubeParsingHelper {
         }
     }
 
+    /**
+     * Get the avatars of an owner account or a video channel.
+     *
+     * <p>
+     * PeerTube 6.0 removed the singular {@code avatar} object every extractor used to read and
+     * only serves an {@code avatars} array since then.
+     * </p>
+     *
+     * @param baseUrl                          the base URL of the instance
+     * @param ownerAccountOrVideoChannelObject an {@code account}, {@code ownerAccount} or
+     *                                         {@code channel}/{@code videoChannel} object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getAvatarsFromOwnerAccountOrVideoChannelObject(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject ownerAccountOrVideoChannelObject) {
+        return getImagesFromAvatarOrBannerArray(baseUrl,
+                ownerAccountOrVideoChannelObject.getArray("avatars"));
+    }
+
+    /**
+     * Get the banners of an account or a video channel.
+     *
+     * @param baseUrl                     the base URL of the instance
+     * @param accountOrVideoChannelObject an account or video channel object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getBannersFromAccountOrVideoChannelObject(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject accountOrVideoChannelObject) {
+        return getImagesFromAvatarOrBannerArray(baseUrl,
+                accountOrVideoChannelObject.getArray("banners"));
+    }
+
+    /**
+     * Convert an {@code avatars} or {@code banners} array into {@link Image}s.
+     *
+     * <p>
+     * Every element carries an instance-relative {@code path} and, since PeerTube 8.0, an
+     * absolute {@code fileUrl}, which is preferred because it also resolves for images stored on
+     * an external object storage. The estimated resolution level is derived from the width.
+     * </p>
+     *
+     * @param baseUrl              the base URL of the instance
+     * @param avatarsOrBannersArray an {@code avatars} or {@code banners} array
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getImagesFromAvatarOrBannerArray(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonArray avatarsOrBannersArray) {
+        final List<Image> images = new ArrayList<>(avatarsOrBannersArray.size());
+        for (final Object o : avatarsOrBannersArray) {
+            if (!(o instanceof JsonObject)) {
+                continue;
+            }
+            final JsonObject avatarOrBanner = (JsonObject) o;
+
+            String url = avatarOrBanner.getString("fileUrl");
+            if (Utils.isBlank(url)) {
+                final String path = avatarOrBanner.getString("path");
+                if (Utils.isBlank(path)) {
+                    continue;
+                }
+                url = baseUrl + path;
+            }
+
+            final int width = avatarOrBanner.getInt("width", Image.WIDTH_UNKNOWN);
+            images.add(new Image(url, avatarOrBanner.getInt("height", Image.HEIGHT_UNKNOWN), width,
+                    Image.ResolutionLevel.fromHeight(width)));
+        }
+        return Collections.unmodifiableList(images);
+    }
+
+    /**
+     * Get the thumbnails of a playlist or of a video object.
+     *
+     * <p>
+     * A video carries a small {@code thumbnailPath} and a bigger {@code previewPath}; a playlist
+     * only carries a {@code thumbnailPath}, and even that one is absent while the playlist has no
+     * video yet. Both are returned when present, smallest first, so that a caller can pick the
+     * size it needs and still get something when the other one is missing.
+     * </p>
+     *
+     * @param baseUrl                    the base URL of the instance
+     * @param playlistOrVideoItemObject  a playlist or video object
+     * @return an unmodifiable list of {@link Image}s, which may be empty
+     */
+    @Nonnull
+    public static List<Image> getThumbnailsFromPlaylistOrVideoItem(
+            @Nonnull final String baseUrl,
+            @Nonnull final JsonObject playlistOrVideoItemObject) {
+        final List<Image> images = new ArrayList<>(2);
+
+        final String thumbnailPath = playlistOrVideoItemObject.getString("thumbnailPath");
+        if (!Utils.isBlank(thumbnailPath)) {
+            images.add(new Image(baseUrl + thumbnailPath, Image.HEIGHT_UNKNOWN,
+                    Image.WIDTH_UNKNOWN, Image.ResolutionLevel.LOW));
+        }
+
+        final String previewPath = playlistOrVideoItemObject.getString("previewPath");
+        if (!Utils.isBlank(previewPath)) {
+            images.add(new Image(baseUrl + previewPath, Image.HEIGHT_UNKNOWN,
+                    Image.WIDTH_UNKNOWN, Image.ResolutionLevel.MEDIUM));
+        }
+
+        return Collections.unmodifiableList(images);
+    }
+
+    /**
+     * Get the URL of the first image of a list, to be returned by the {@code String} image
+     * getters which want the smallest known image.
+     *
+     * @param images a list of {@link Image}s, which may be empty
+     * @return the URL of the first image, or {@code null} if the list is empty
+     */
+    @Nullable
+    public static String getFirstImageUrl(@Nonnull final List<Image> images) {
+        return images.isEmpty() ? null : images.get(0).getUrl();
+    }
+
+    /**
+     * Get the URL of the biggest image of a list, to be returned by the {@code String} image
+     * getters of the extractors.
+     *
+     * @param images a list of {@link Image}s, which may be empty
+     * @return the URL of the widest image, or {@code null} if the list is empty
+     */
+    @Nullable
+    public static String getBiggestImageUrl(@Nonnull final List<Image> images) {
+        // Widths are unknown for thumbnails, so fall back on the estimated resolution level,
+        // whose ordinals run from the highest quality to the lowest one
+        return images.stream()
+                .max(Comparator.comparingInt(Image::getWidth)
+                        .thenComparing(image -> -image.getEstimatedResolutionLevel().ordinal()))
+                .map(Image::getUrl)
+                .orElse(null);
+    }
+
     public static void collectStreamsFrom(final InfoItemsCollector collector,
                                           final JsonObject json,
                                           final String baseUrl) throws ParsingException {
@@ -109,6 +259,59 @@ public final class PeertubeParsingHelper {
                     extractor = new PeertubeStreamInfoItemExtractor(item, baseUrl);
                 }
                 collector.commit(extractor);
+            }
+        }
+    }
+
+    public static void collectItemsFrom(final InfoItemsCollector collector,
+                                        final JsonObject json,
+                                        final String baseUrl) throws ParsingException {
+        collectItemsFrom(collector, json, baseUrl, false);
+    }
+
+    /**
+     * Collect items which may be streams, playlists or channels from a JSON response.
+     *
+     * <p>
+     * PeerTube answers with the same {@code data} envelope whatever is being listed, so the type
+     * of every element is derived from its shape: playlists carry {@code videosLength} and
+     * channels carry {@code followingCount}, videos carry neither.
+     * </p>
+     *
+     * @param collector the collector used to collect information
+     * @param json      the JSON response to retrieve data from
+     * @param baseUrl   the base URL of the instance
+     * @param sepia     if we should use {@link PeertubeSepiaStreamInfoItemExtractor} for streams
+     */
+    public static void collectItemsFrom(final InfoItemsCollector collector,
+                                        final JsonObject json,
+                                        final String baseUrl,
+                                        final boolean sepia) throws ParsingException {
+        final JsonArray contents;
+        try {
+            contents = (JsonArray) JsonUtils.getValue(json, "data");
+        } catch (final Exception e) {
+            throw new ParsingException("Unable to extract list info", e);
+        }
+
+        for (final Object c : contents) {
+            if (c instanceof JsonObject) {
+                JsonObject item = (JsonObject) c;
+
+                // PeerTube playlists have the stream info encapsulated in an "video" object
+                if (item.has("video")) {
+                    item = item.getObject("video");
+                }
+
+                if (item.has("videosLength")) {
+                    collector.commit(new PeertubePlaylistInfoItemExtractor(item, baseUrl));
+                } else if (item.has("followingCount")) {
+                    collector.commit(new PeertubeChannelInfoItemExtractor(item, baseUrl));
+                } else if (sepia) {
+                    collector.commit(new PeertubeSepiaStreamInfoItemExtractor(item, baseUrl));
+                } else {
+                    collector.commit(new PeertubeStreamInfoItemExtractor(item, baseUrl));
+                }
             }
         }
     }

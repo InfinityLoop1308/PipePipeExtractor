@@ -63,7 +63,7 @@ public class ChannelInfo extends ListInfo<StreamInfoItem> {
                                                              final String url,
                                                              final Page page)
             throws IOException, ExtractionException {
-        return service.getChannelExtractor(url).getPage(page);
+        return ExtractorHelper.getMoreItems(service.getChannelExtractor(url), page);
     }
 
     public static ChannelInfo getInfo(final ChannelExtractor extractor)

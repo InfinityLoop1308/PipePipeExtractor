@@ -25,6 +25,11 @@ public class BilibiliLiveBulletCommentsInfoItemExtractor implements BulletCommen
     }
 
     @Override
+    public String getAuthorName() throws ParsingException {
+        return data.getArray(2).getString(1);
+    }
+
+    @Override
     public int getArgbColor() throws ParsingException {
         return 0xFF000000 + data.getArray(0).getInt(3);
     }

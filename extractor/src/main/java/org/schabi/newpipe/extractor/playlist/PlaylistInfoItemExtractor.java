@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public interface PlaylistInfoItemExtractor extends InfoItemExtractor {
 
@@ -12,6 +13,26 @@ public interface PlaylistInfoItemExtractor extends InfoItemExtractor {
      * @return the uploader name
      */
     String getUploaderName() throws ParsingException;
+
+    /**
+     * Get the service-specific id of the uploader's channel (e.g. UCxxxx on YouTube).
+     *
+     * @return the uploader id or {@code null} if unavailable
+     */
+    @Nullable
+    default String getUploaderId() throws ParsingException {
+        return null;
+    }
+
+    /**
+     * Get the url of the uploader's channel.
+     *
+     * @return the uploader url or {@code null} if unavailable
+     */
+    @Nullable
+    default String getUploaderUrl() throws ParsingException {
+        return null;
+    }
 
     /**
      * Get the number of streams

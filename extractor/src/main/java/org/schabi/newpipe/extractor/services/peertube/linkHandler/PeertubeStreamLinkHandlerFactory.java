@@ -62,8 +62,12 @@ public final class PeertubeStreamLinkHandlerFactory extends LinkHandlerFactory {
                     && !path.startsWith("/api/v1/videos/")) {
                 return false;
             }
-            getId(url);
-            return true;
+            // The id must be the last path segment: https://1drv.ms/w/c/<a>/<b> must not
+            // be read as id "c". PeerTube ids are UUIDs, short UUIDs or numbers.
+            final String id = getId(url);
+            return id.matches("[A-Za-z0-9_-]+")
+                    && path.matches("/(w|videos/watch|videos/embed|videos|api/v1/videos)/"
+                    + java.util.regex.Pattern.quote(id) + "/?");
         } catch (final ParsingException | IllegalArgumentException
                 | java.net.MalformedURLException e) {
             return false;

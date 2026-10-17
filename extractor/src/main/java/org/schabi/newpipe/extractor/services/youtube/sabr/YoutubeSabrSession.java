@@ -3,17 +3,21 @@ package org.schabi.newpipe.extractor.services.youtube.sabr;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocolException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrAttestationException;
+import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrReloadException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
 
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import okhttp3.HttpUrl;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.net.ConnectException;
+import java.net.NoRouteToHostException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +27,8 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
@@ -32,17 +38,34 @@ public final class YoutubeSabrSession {
     private static final int MAX_REDIRECTS_PER_SESSION = 3;
     private static final int MAX_INCOMPLETE_MEDIA_RESPONSES = 3;
     private static final int MAX_CONSECUTIVE_ATTESTATION_PENDING_RESPONSES = 3;
+    private static final int MAX_RELOADS_PER_SESSION = 2;
     private static final int MAX_BACKOFF_MS = 30_000;
+    /**
+     * A googlevideo node host, such as {@code rr2---sn-qja5m5-5v.googlevideo.com}. The captured
+     * group is the {@code rr} index, which is also advertised by the streaming URL as {@code mvi}.
+     */
+    private static final Pattern GOOGLEVIDEO_HOST_PATTERN =
+            Pattern.compile("^rr(\\d+)---[^/]+\\.googlevideo\\.com$");
     @Nonnull
-    private final YoutubeSabrInfo info;
+    private YoutubeSabrInfo info;
+    @Nullable
+    private volatile SabrInfoReloader infoReloader;
     @Nullable
     private final File segmentSpoolDirectory;
     @Nonnull
     private String serverAbrStreamingUrl;
+    /**
+     * Candidate streaming URLs, in preference order, built from the {@code mn} node list and the
+     * {@code mvi} index of the current URL. Index 0 is always the URL the server handed us.
+     */
+    @Nonnull
+    private List<String> hostCandidates = Collections.emptyList();
+    private int hostCandidateIndex;
     private int requestNumber;
     private int redirectCount;
     private int consecutiveIntegrityFailures;
     private int consecutiveAttestationPendingResponses;
+    private int reloads;
     @Nullable
     private byte[] playbackCookie;
     private final Map<Integer, byte[]> sabrContexts = new LinkedHashMap<>();
@@ -71,6 +94,7 @@ public final class YoutubeSabrSession {
         this.info = info;
         this.segmentSpoolDirectory = segmentSpoolDirectory;
         this.serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
+        updateHostCandidates(this.serverAbrStreamingUrl);
     }
 
     // -------------------------------------------------------------------------
@@ -95,9 +119,7 @@ public final class YoutubeSabrSession {
         final SabrStreamingResponseReader.SegmentConsumer startedConsumer = segment -> { };
         final YoutubeSabrResponse result;
         try {
-            result = YoutubeSabrRequestHelper.post(info, request, this,
-                    serverAbrStreamingUrl, requestNumber, timedConsumer,
-                    startedConsumer, segmentSpoolDirectory);
+            result = postWithHostRotation(request, timedConsumer, startedConsumer);
         } catch (final IOException | ExtractionException e) {
             addDiagnosticEvent("request_failed n=" + requestNumber
                     + " type=" + e.getClass().getSimpleName()
@@ -119,6 +141,105 @@ public final class YoutubeSabrSession {
         updateBandwidthEstimate(result.getResponseBytes(), result.getRequestElapsedMs());
         requestNumber++;
         return result;
+    }
+
+    /**
+     * Posts a SABR request, rotating to another {@code googlevideo} node advertised by the
+     * streaming URL's {@code mn} parameter when the current host cannot be reached.
+     *
+     * <p>A transport-level failure such as {@link UnknownHostException} (Android reports DNS
+     * {@code EAI_NODATA} this way) means the current hostname could not be resolved on this
+     * network. Rotating to a sibling node changes the DNS cache key, which bypasses a negative
+     * cache entry for the previous host and any filtering that only affects that node.
+     *</p>
+     *
+     * <p>The SABR protocol state is not advanced here: {@code rn} stays at the current request
+     * number because no response was received, so a rotated retry is the same logical request.
+     *</p>
+     */
+    @Nonnull
+    private YoutubeSabrResponse postWithHostRotation(
+            @Nonnull final YoutubeSabrRequest request,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer segmentConsumer,
+            @Nullable final SabrStreamingResponseReader.SegmentConsumer startedConsumer)
+            throws IOException, ExtractionException {
+        while (true) {
+            try {
+                return YoutubeSabrRequestHelper.post(info, request, this,
+                        serverAbrStreamingUrl, requestNumber, segmentConsumer,
+                        startedConsumer, segmentSpoolDirectory);
+            } catch (final UnknownHostException | ConnectException | NoRouteToHostException e) {
+                addDiagnosticEvent("host_unreachable n=" + requestNumber
+                        + " host=" + hostOf(serverAbrStreamingUrl)
+                        + " type=" + e.getClass().getSimpleName());
+                if (!rotateHost()) {
+                    throw e;
+                }
+                addDiagnosticEvent("host_rotate n=" + requestNumber
+                        + " host=" + hostOf(serverAbrStreamingUrl));
+            }
+        }
+    }
+
+    private void updateHostCandidates(@Nonnull final String url) {
+        hostCandidates = buildHostCandidates(url);
+        hostCandidateIndex = 0;
+    }
+
+    /**
+     * Advances to the next candidate host, if any, and returns whether one was available.
+     */
+    private boolean rotateHost() {
+        if (hostCandidateIndex + 1 >= hostCandidates.size()) {
+            return false;
+        }
+        hostCandidateIndex++;
+        serverAbrStreamingUrl = hostCandidates.get(hostCandidateIndex);
+        return true;
+    }
+
+    /**
+     * Builds the list of equivalent streaming URLs by rewriting the host to every node advertised
+     * under the {@code mn} parameter, keeping the current URL first and preserving all other
+     * parameters (including the signature, which is not bound to the host).
+     */
+    @Nonnull
+    private static List<String> buildHostCandidates(@Nonnull final String url) {
+        final HttpUrl parsed = HttpUrl.parse(url);
+        if (parsed == null) {
+            return Collections.singletonList(url);
+        }
+        final String host = parsed.host();
+        final Matcher hostMatcher = GOOGLEVIDEO_HOST_PATTERN.matcher(host);
+        final String mn = parsed.queryParameter("mn");
+        if (!hostMatcher.matches() || mn == null || mn.isEmpty()) {
+            return Collections.singletonList(url);
+        }
+        final String mvi = parsed.queryParameter("mvi");
+        final String rrIndex = mvi != null && mvi.matches("\\d+") ? mvi : hostMatcher.group(1);
+        final List<String> candidates = new ArrayList<>();
+        candidates.add(url);
+        for (final String node : mn.split(",")) {
+            final String trimmedNode = node.trim();
+            if (trimmedNode.isEmpty()) {
+                continue;
+            }
+            final String candidateHost = "rr" + rrIndex + "---" + trimmedNode + ".googlevideo.com";
+            if (candidateHost.equals(host)) {
+                continue;
+            }
+            final String candidateUrl = parsed.newBuilder().host(candidateHost).build().toString();
+            if (!candidates.contains(candidateUrl)) {
+                candidates.add(candidateUrl);
+            }
+        }
+        return candidates;
+    }
+
+    @Nullable
+    private static String hostOf(@Nonnull final String url) {
+        final HttpUrl parsed = HttpUrl.parse(url);
+        return parsed == null ? null : parsed.host();
     }
 
     public synchronized RequestResult requestOnce(
@@ -202,7 +323,7 @@ public final class YoutubeSabrSession {
     // -------------------------------------------------------------------------
 
     private void handleControlResponse(@Nonnull final YoutubeSabrResponse result)
-            throws SabrProtocolException {
+            throws IOException, ExtractionException {
         final YoutubeSabrResponse decoded = result;
         if (decoded.isAttestationPending() && decoded.isNoMediaResponse()) {
             consecutiveAttestationPendingResponses++;
@@ -227,8 +348,8 @@ public final class YoutubeSabrSession {
                 throw new SabrProtocolException(
                         "SABR redirect limit exceeded: redirects=" + redirectCount);
             }
-            validateRedirectUrl(redirectUrl);
             serverAbrStreamingUrl = redirectUrl;
+            updateHostCandidates(redirectUrl);
         }
 
         if (decoded.getSabrError() != null) {
@@ -239,12 +360,62 @@ public final class YoutubeSabrSession {
                     + decoded.summarizeNoMediaResponse());
         }
         if (decoded.isReloadRequested()) {
-            throw new SabrProtocolException("SABR requested player reload: "
-                    + decoded.summarizeNoMediaResponse());
+            if (tryReload(decoded.getReloadToken())) {
+                return;
+            }
+            throw new SabrReloadException("SABR requested player reload: "
+                    + decoded.summarizeNoMediaResponse(), decoded.getReloadToken());
         }
 
         if (result.getSegmentCount() > 0) {
             redirectCount = 0;
+            reloads = 0;
+        }
+    }
+
+    /** Installs the callback used to fetch a fresh player response on a reload request. */
+    public void setInfoReloader(@Nullable final SabrInfoReloader reloader) {
+        infoReloader = reloader;
+    }
+
+    /**
+     * Handles a server-requested player reload: fetches a fresh info through the installed
+     * reloader and hot-swaps the streaming URL, ustreamer config and PO token, keeping the
+     * playback state (request number, playback cookie, live head) so the session resumes in place.
+     *
+     * @return {@code true} when a fresh info was applied and the caller should retry
+     */
+    private boolean tryReload(@Nullable final String token) throws IOException, ExtractionException {
+        if (infoReloader == null || reloads >= MAX_RELOADS_PER_SESSION) {
+            return false;
+        }
+        reloads++;
+        addDiagnosticEvent("reload_requested n=" + requestNumber + " attempt=" + reloads
+                + " token=" + (token == null || token.isEmpty() ? "absent" : "present"));
+        final YoutubeSabrInfo fresh = infoReloader.reload(info.getVideoId(),
+                token == null ? "" : token);
+        if (fresh == null || fresh.getServerAbrStreamingUrl() == null
+                || fresh.getServerAbrStreamingUrl().isEmpty()) {
+            addDiagnosticEvent("reload_failed n=" + requestNumber);
+            return false;
+        }
+        applyReload(fresh);
+        addDiagnosticEvent("reload_applied n=" + requestNumber
+                + " url=" + hostOf(fresh.getServerAbrStreamingUrl()));
+        return true;
+    }
+
+    private synchronized void applyReload(@Nonnull final YoutubeSabrInfo fresh) {
+        info = fresh;
+        serverAbrStreamingUrl = fresh.getServerAbrStreamingUrl();
+        updateHostCandidates(serverAbrStreamingUrl);
+        redirectCount = 0;
+        consecutiveIntegrityFailures = 0;
+        sabrContexts.clear();
+        activeSabrContextTypes.clear();
+        final byte[] freshPoToken = fresh.getPoToken();
+        if (freshPoToken != null && freshPoToken.length > 0) {
+            poToken = freshPoToken;
         }
     }
 
@@ -376,20 +547,6 @@ public final class YoutubeSabrSession {
             if (!activeSabrContextTypes.contains(type)) unsent.add(type);
         }
         return unsent;
-    }
-
-    private static void validateRedirectUrl(@Nonnull final String redirectUrl)
-            throws SabrProtocolException {
-        try {
-            final URI uri = URI.create(redirectUrl);
-            final String host = uri.getHost();
-            if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null
-                    || !(host.equals("googlevideo.com") || host.endsWith(".googlevideo.com"))) {
-                throw new SabrProtocolException("SABR redirect escaped the GoogleVideo Host");
-            }
-        } catch (final IllegalArgumentException error) {
-            throw new SabrProtocolException("Malformed SABR redirect URL", error);
-        }
     }
 
     // -------------------------------------------------------------------------

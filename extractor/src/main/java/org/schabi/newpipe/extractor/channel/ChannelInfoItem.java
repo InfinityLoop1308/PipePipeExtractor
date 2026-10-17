@@ -2,6 +2,8 @@ package org.schabi.newpipe.extractor.channel;
 
 import org.schabi.newpipe.extractor.InfoItem;
 
+import javax.annotation.Nullable;
+
 /*
  * Created by Christian Schabesberger on 11.02.17.
  *
@@ -25,6 +27,7 @@ import org.schabi.newpipe.extractor.InfoItem;
 public class ChannelInfoItem extends InfoItem {
 
     private String description;
+    private String uploaderId;
     private long subscriberCount = -1;
     private long streamCount = -1;
     private boolean verified = false;
@@ -35,6 +38,19 @@ public class ChannelInfoItem extends InfoItem {
 
     public String getDescription() {
         return description;
+    }
+
+    /**
+     * Get the service-specific id of this channel
+     * (e.g. UCxxxx on YouTube), if available.
+     */
+    @Nullable
+    public String getUploaderId() {
+        return uploaderId;
+    }
+
+    public void setUploaderId(@Nullable final String uploaderId) {
+        this.uploaderId = uploaderId;
     }
 
     public void setDescription(final String description) {

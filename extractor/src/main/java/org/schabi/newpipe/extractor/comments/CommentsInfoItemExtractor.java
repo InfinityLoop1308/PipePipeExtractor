@@ -79,6 +79,14 @@ public interface CommentsInfoItemExtractor extends InfoItemExtractor {
         return Utils.EMPTY_STRING;
     }
 
+    /**
+     * The service-specific id of the commenter's channel (e.g. UCxxxx on YouTube)
+     */
+    @Nullable
+    default String getUploaderId() throws ParsingException {
+        return null;
+    }
+
     default String getUploaderName() throws ParsingException {
         return Utils.EMPTY_STRING;
     }

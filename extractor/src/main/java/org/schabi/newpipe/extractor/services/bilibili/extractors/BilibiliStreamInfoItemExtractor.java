@@ -1,5 +1,6 @@
 package org.schabi.newpipe.extractor.services.bilibili.extractors;
 
+import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -17,6 +18,7 @@ import org.apache.commons.lang3.StringEscapeUtils;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
+import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliStreamLinkHandlerFactory;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
@@ -65,9 +67,22 @@ public class BilibiliStreamInfoItemExtractor implements StreamInfoItemExtractor 
         return item.getLong("play");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        final long mid = item.getLong("mid", -1);
+        return mid > 0 ? String.valueOf(mid) : null;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         return item.getString("author");
+    }
+
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        final long mid = item.getLong("mid", -1);
+        return mid > 0 ? BilibiliChannelLinkHandlerFactory.baseUrl + mid : "";
     }
 
     @Override

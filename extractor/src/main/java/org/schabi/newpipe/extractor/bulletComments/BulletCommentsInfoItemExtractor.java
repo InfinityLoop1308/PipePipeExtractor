@@ -42,8 +42,30 @@ public interface BulletCommentsInfoItemExtractor extends InfoItemExtractor {
         return 0.7;
     }
 
+    /** Author name, null if unknown. */
+    default String getAuthorName() throws ParsingException {
+        return null;
+    }
+
+    /** Author avatar url, only provided for super chats. Null if unknown. */
+    default String getAuthorAvatarUrl() throws ParsingException {
+        return null;
+    }
+
+    /** Paid amount text of a super chat, null for normal comments. */
+    default String getAmountText() throws ParsingException {
+        return null;
+    }
+
     default int getLastingTime() {
         return -1;
+    }
+
+    /**
+     * @return how long a super chat stays pinned, in milliseconds. 0 if it is not pinned.
+     */
+    default long getPinnedTimeMillis() {
+        return 0;
     }
 
     default boolean isLive() throws ParsingException {

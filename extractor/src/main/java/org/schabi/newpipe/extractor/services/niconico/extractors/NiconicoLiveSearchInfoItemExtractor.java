@@ -55,6 +55,27 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
         return data.getObject("statistics").getLong("watchCount");
     }
 
+    @Nullable
+    @Override
+    public String getUploaderId() throws ParsingException {
+        // programmes may have a supplier (user), a social group (channel), or a supplier without
+        // a programme provider id together with a social group
+        if (!data.isNull("supplier")) {
+            final String providerId = data.getObject("supplier")
+                    .getString("programProviderId", "");
+            if (!providerId.isEmpty()) {
+                return providerId;
+            }
+        }
+        if (!data.isNull("socialGroup")) {
+            final String socialGroupId = data.getObject("socialGroup").getString("id", "");
+            if (!socialGroupId.isEmpty()) {
+                return socialGroupId;
+            }
+        }
+        return null;
+    }
+
     @Override
     public String getUploaderName() throws ParsingException {
         if (!data.isNull("supplier")) {
@@ -68,12 +89,18 @@ public class NiconicoLiveSearchInfoItemExtractor implements StreamInfoItemExtrac
         if (!data.isNull("supplier")) {
             final String providerId = data.getObject("supplier")
                     .getString("programProviderId", "");
-            return providerId.isEmpty() ? "" : NiconicoService.USER_URL + providerId;
+            if (!providerId.isEmpty()) {
+                return NiconicoService.USER_URL + providerId;
+            }
         }
 
-        final String socialGroupId = data.getObject("socialGroup").getString("id", "");
-        return socialGroupId.isEmpty()
-                ? "" : NiconicoService.CHANNEL_URL + "channel/" + socialGroupId;
+        if (!data.isNull("socialGroup")) {
+            final String socialGroupId = data.getObject("socialGroup").getString("id", "");
+            if (!socialGroupId.isEmpty()) {
+                return NiconicoService.CHANNEL_URL + socialGroupId;
+            }
+        }
+        return "";
     }
 
     @Nullable

@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(rm:*)",
+      "Bash(./gradlew test:*)",
+      "Bash(../gradlew test:*)",
+      "Bash(./gradlew:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(mkdir:*)",
+      "Read(/home/il/code/PipePipe/**)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/home/il/code/PipePipe/shared/"
+    ]
+  }
+}
