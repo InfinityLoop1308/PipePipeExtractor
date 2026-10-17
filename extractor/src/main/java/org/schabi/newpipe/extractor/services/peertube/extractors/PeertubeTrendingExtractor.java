@@ -4,6 +4,7 @@ import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
 
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -70,6 +71,10 @@ public class PeertubeTrendingExtractor extends KioskExtractor<StreamInfoItem> {
 
             final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
             collectStreamsFrom(collector, json, getBaseUrl());
+
+            if (ServiceList.PeerTube.getFilterTypes().contains("recommendations")) {
+                collector.applyBlocking(ServiceList.PeerTube.getFilterConfig());
+            }
 
             return new InfoItemsPage<>(collector,
                     PeertubeParsingHelper.getNextPage(page.getUrl(), total));

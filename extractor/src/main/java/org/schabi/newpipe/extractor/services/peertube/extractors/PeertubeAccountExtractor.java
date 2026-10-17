@@ -6,6 +6,7 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -171,6 +172,10 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
 
             final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
             collectStreamsFrom(collector, pageJson, getBaseUrl());
+
+            if (ServiceList.PeerTube.getFilterTypes().contains("channels")) {
+                collector.applyBlocking(ServiceList.PeerTube.getFilterConfig());
+            }
 
             return new InfoItemsPage<>(collector,
                     PeertubeParsingHelper.getNextPage(page.getUrl(), total));
