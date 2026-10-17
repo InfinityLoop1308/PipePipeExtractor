@@ -11,6 +11,7 @@ import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
@@ -329,6 +330,9 @@ public class PeertubeStreamExtractor extends StreamExtractor {
             final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(
                     getServiceId());
             getStreamsFromApi(collector, apiUrl);
+            if (ServiceList.PeerTube.getFilterTypes().contains("related_item")) {
+                collector.applyBlocking(ServiceList.PeerTube.getFilterConfig());
+            }
             return collector;
         }
     }

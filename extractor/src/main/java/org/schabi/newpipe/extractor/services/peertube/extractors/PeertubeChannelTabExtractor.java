@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonParser;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.MultiInfoItemsCollector;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
@@ -75,6 +76,10 @@ public class PeertubeChannelTabExtractor extends ChannelTabExtractor {
 
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
         PeertubeParsingHelper.collectItemsFrom(collector, pageJson, baseUrl);
+
+        if (ServiceList.PeerTube.getFilterTypes().contains("channels")) {
+            collector.applyBlocking(ServiceList.PeerTube.getFilterConfig());
+        }
 
         return new InfoItemsPage<>(
                 collector, PeertubeParsingHelper.getNextPage(page.getUrl(),
