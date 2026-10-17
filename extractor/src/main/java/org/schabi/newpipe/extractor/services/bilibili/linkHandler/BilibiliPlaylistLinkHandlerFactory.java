@@ -129,9 +129,17 @@ public class BilibiliPlaylistLinkHandlerFactory extends ListLinkHandlerFactory {
             if (businessId == null) businessId = getParam(trimmed, "series_id");
 
             if ("space_series".equalsIgnoreCase(business)) {
-                return new PlaylistTarget("series", mid, businessId != null ? businessId : "");
+                if (businessId == null || businessId.trim().isEmpty()) {
+                    throw new ParsingException("Missing business_id in series medialist URL: " + url);
+                }
+                return new PlaylistTarget("series", mid, businessId.trim());
+            } else if ("space_collection".equalsIgnoreCase(business)) {
+                if (businessId == null || businessId.trim().isEmpty()) {
+                    throw new ParsingException("Missing business_id in collection medialist URL: " + url);
+                }
+                return new PlaylistTarget("seasons_archives", mid, businessId.trim());
             } else {
-                return new PlaylistTarget("seasons_archives", mid, businessId != null ? businessId : "");
+                throw new ParsingException("Unsupported medialist business type: " + business);
             }
         }
 

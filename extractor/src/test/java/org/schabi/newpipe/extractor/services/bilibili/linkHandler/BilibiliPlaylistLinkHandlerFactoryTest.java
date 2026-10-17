@@ -87,6 +87,24 @@ class BilibiliPlaylistLinkHandlerFactoryTest {
     }
 
     @Test
+    void rejectsUnsupportedMedialistBusinessUrl() throws ParsingException {
+        // Favorites (business=fav) should not be claimed as season/series playlist
+        String favUrl = "https://www.bilibili.com/medialist/play/11545648?business=fav&business_id=99999";
+        assertFalse(factory.onAcceptUrl(favUrl));
+        assertThrows(ParsingException.class, () -> factory.getId(favUrl));
+
+        // Missing business param
+        String noBusinessUrl = "https://www.bilibili.com/medialist/play/11545648?business_id=649231";
+        assertFalse(factory.onAcceptUrl(noBusinessUrl));
+        assertThrows(ParsingException.class, () -> factory.getId(noBusinessUrl));
+
+        // Missing business_id param
+        String noIdUrl = "https://www.bilibili.com/medialist/play/11545648?business=space_collection";
+        assertFalse(factory.onAcceptUrl(noIdUrl));
+        assertThrows(ParsingException.class, () -> factory.getId(noIdUrl));
+    }
+
+    @Test
     void testGetUrl() throws ParsingException {
         assertEquals("https://www.bilibili.com/medialist/play/11545648?business=space_collection&business_id=649231",
                 factory.getUrl("season:11545648:649231", null, null));
