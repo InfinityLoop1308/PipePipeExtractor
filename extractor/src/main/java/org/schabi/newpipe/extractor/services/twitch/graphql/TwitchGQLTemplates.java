@@ -192,8 +192,6 @@ public final class TwitchGQLTemplates {
                         "FilterableVideoTower_Videos"
                 )
                         .withVariable("includePreviewBlur", false)
-                        // TODO This can actually be increase beyond this value (tested with 50).
-                //  Might therefore be useful for unauthenticated pagination
                         .withVariable("limit", count)
                         .withVariable("channelOwnerLogin", channelName)
                         .withVariable("broadcastType", null)
@@ -208,8 +206,6 @@ public final class TwitchGQLTemplates {
                         "ClipsCards__User"
                 )
                         .withVariable("login", channelName)
-                        // TODO This can actually be increase beyond this value (tested with 50).
-                //  Might therefore be useful for unauthenticated pagination
                         .withVariable("limit", limit)
                         .withVariable("criteria", new JsonObject(TwitchUtils.mapOfNullables(
                                 "filter", "ALL_TIME",
@@ -254,8 +250,6 @@ public final class TwitchGQLTemplates {
                         .withVariable("imageWidth", 50)
                         .withVariable("slug", directorySlug)
                         .withVariable("sortTypeIsRecency", false)
-                        // TODO This can actually be increase beyond this value (tested with 50).
-                //  Might therefore be useful for unauthenticated pagination
                         .withVariable("limit", count)
                         .withVariable("includeCostreaming", false)
                         .withVariable("options", new JsonObject(TwitchUtils.mapOfNullables(

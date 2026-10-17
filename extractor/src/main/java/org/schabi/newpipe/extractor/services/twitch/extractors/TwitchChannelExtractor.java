@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.search.filter.Filter;
 import org.schabi.newpipe.extractor.search.filter.FilterItem;
+import org.schabi.newpipe.extractor.services.twitch.TwitchDurationExtractor;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
 import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
 import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
@@ -84,55 +85,109 @@ public class TwitchChannelExtractor extends ChannelExtractor {
         }
 
         final var collector = new StreamInfoItemsCollector(getServiceId());
-        for (final var vod : gqlResponse) {
-            collector.commit(new StreamInfoItemExtractor() {
-                @Override
-                public StreamType getStreamType() throws ParsingException {
-                    return StreamType.POST_LIVE_STREAM;
-                }
+        if(apiClient.getApiSettings().shouldUseHelixForVods()) {
+            for(final var vod : helixResponse.entries()) {
+                collector.commit(new StreamInfoItemExtractor() {
+                    @Override
+                    public StreamType getStreamType() throws ParsingException {
+                        return StreamType.POST_LIVE_STREAM;
+                    }
 
-                @Override
-                public long getDuration() throws ParsingException {
-                    return vod.getVodLength();
-                }
+                    @Override
+                    public long getDuration() throws ParsingException {
+                        return TwitchDurationExtractor.parseDurationFromString(vod.durationString());
+                    }
 
-                @Override
-                public long getViewCount() throws ParsingException {
-                    return vod.getVodViewerCount();
-                }
+                    @Override
+                    public long getViewCount() throws ParsingException {
+                        return vod.views();
+                    }
 
-                @Override
-                public String getUploaderName() throws ParsingException {
-                    return "";
-                }
+                    @Override
+                    public String getUploaderName() throws ParsingException {
+                        return vod.userName();
+                    }
 
-                @Nullable
-                @Override
-                public String getTextualUploadDate() throws ParsingException {
-                    return null;
-                }
+                    @Nullable
+                    @Override
+                    public String getTextualUploadDate() throws ParsingException {
+                        return null;
+                    }
 
-                @Nullable
-                @Override
-                public DateWrapper getUploadDate() throws ParsingException {
-                    return new DateWrapper(OffsetDateTime.parse(vod.getUploadDateTimeString()));
-                }
+                    @Nullable
+                    @Override
+                    public DateWrapper getUploadDate() throws ParsingException {
+                        return new DateWrapper(OffsetDateTime.parse(vod.createDateString()));
+                    }
 
-                @Override
-                public String getName() throws ParsingException {
-                    return vod.getVodTitle();
-                }
+                    @Override
+                    public String getName() throws ParsingException {
+                        return vod.title();
+                    }
 
-                @Override
-                public String getUrl() throws ParsingException {
-                    return TwitchUrlBuilder.buildVodUrlFromVodId(vod.getVodId());
-                }
+                    @Override
+                    public String getUrl() throws ParsingException {
+                        return TwitchUrlBuilder.buildVodUrlFromVodId(vod.vodId());
+                    }
 
-                @Override
-                public String getThumbnailUrl() throws ParsingException {
-                    return vod.getVodThumbnailUrl();
-                }
-            });
+                    @Override
+                    public String getThumbnailUrl() throws ParsingException {
+                        return vod.thumbnailUrl();
+                    }
+                });
+            }
+        }
+        else {
+            for (final var vod : gqlResponse) {
+                collector.commit(new StreamInfoItemExtractor() {
+                    @Override
+                    public StreamType getStreamType() throws ParsingException {
+                        return StreamType.POST_LIVE_STREAM;
+                    }
+
+                    @Override
+                    public long getDuration() throws ParsingException {
+                        return vod.getVodLength();
+                    }
+
+                    @Override
+                    public long getViewCount() throws ParsingException {
+                        return vod.getVodViewerCount();
+                    }
+
+                    @Override
+                    public String getUploaderName() throws ParsingException {
+                        return "";
+                    }
+
+                    @Nullable
+                    @Override
+                    public String getTextualUploadDate() throws ParsingException {
+                        return null;
+                    }
+
+                    @Nullable
+                    @Override
+                    public DateWrapper getUploadDate() throws ParsingException {
+                        return new DateWrapper(OffsetDateTime.parse(vod.getUploadDateTimeString()));
+                    }
+
+                    @Override
+                    public String getName() throws ParsingException {
+                        return vod.getVodTitle();
+                    }
+
+                    @Override
+                    public String getUrl() throws ParsingException {
+                        return TwitchUrlBuilder.buildVodUrlFromVodId(vod.getVodId());
+                    }
+
+                    @Override
+                    public String getThumbnailUrl() throws ParsingException {
+                        return vod.getVodThumbnailUrl();
+                    }
+                });
+            }
         }
 
         return new InfoItemsPage<>(collector,

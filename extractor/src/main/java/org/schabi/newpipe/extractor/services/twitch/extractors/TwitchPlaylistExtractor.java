@@ -80,7 +80,7 @@ public class TwitchPlaylistExtractor extends PlaylistExtractor {
             final var categoryUrl = TwitchUrlParser.parseCategoryUrl(url);
             pagination = categoryUrl.pagination();
             if (apiClient.getApiSettings().shouldUseHelixForCategories()) {
-                response = apiClient.getAuthorized().GetDirectoryInformation(
+                response = apiClient.getAuthorized().getDirectoryInformation(
                         downloader,
                         categoryUrl.categoryName(),
                         categoryUrl.categoryId(),

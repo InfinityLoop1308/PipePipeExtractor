@@ -130,7 +130,9 @@ public class TwitchLiveKiosk extends KioskExtractor<StreamInfoItem> {
                             infoItem.setUploaderUrl(TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
                                     liveEntry.streamerLoginName(),
                                     liveEntry.streamerId(),
-                                    PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+                                    apiClient.getApiSettings().shouldUseHelixForVods()
+                                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
                             ));
                             infoItem.setShortDescription(liveEntry.gameName());
                             infoItem.setUploaderAvatarUrl(liveEntry.thumbnailUrl());

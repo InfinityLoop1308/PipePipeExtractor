@@ -48,23 +48,23 @@ public final class TwitchPaginationHelper {
         );
     }
 
-    public static <T> T[] paginateArray(T[] toPaginate, Class<T> clazz,
-                                        PositionBasedPagination pagination) {
-        final var targetArraySize = Math.clamp(toPaginate.length - pagination.offset(), 0,
-                pagination.size());
+    public static <T> T[] paginateArray(@Nonnull final T[] toPaginate,
+                                        @Nonnull final Class<T> clazz,
+                                        @Nonnull final PositionBasedPagination pagination) {
+        final var targetArraySize = Math.clamp(toPaginate.length - pagination.offset(), 0, pagination.size());
         if (targetArraySize == 0)
             //noinspection unchecked
             return (T[]) Array.newInstance(clazz, 0);
         @SuppressWarnings("unchecked") final var targetArray = (T[]) Array.newInstance(
                 clazz,
-                Math.min(toPaginate.length - pagination.offset(), pagination.size())
+                targetArraySize
         );
         System.arraycopy(
                 toPaginate,
                 pagination.offset(),
                 targetArray,
                 0,
-                Math.min(toPaginate.length - pagination.offset(), pagination.size())
+                targetArraySize
         );
         return targetArray;
     }

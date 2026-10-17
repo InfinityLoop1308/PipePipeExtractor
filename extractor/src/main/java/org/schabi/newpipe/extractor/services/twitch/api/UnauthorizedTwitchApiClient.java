@@ -78,8 +78,10 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
         if (apiDataStore.sessionId == null)
             prepareDataStore(apiDataStore);
 
+        // FIXME
         if (apiDataStore.deviceId == null)
-            fetchDeviceId(downloader);
+            //fetchDeviceId(downloader);
+            apiDataStore.deviceId = TwitchApiHelper.generateRandomRequestId().toLowerCase();
 
         if (requiresAuthentication &&
                 (apiDataStore.integrityToken == null || TwitchApiHelper.isIntegrityTokenExpired(apiDataStore.integrityToken))) {
@@ -106,7 +108,7 @@ public final class UnauthorizedTwitchApiClient extends TwitchBaseApiClient {
 
     private void fetchDeviceId(@Nonnull final Downloader downloader) throws IOException,
             ReCaptchaException {
-        final var response = downloader.get(TwitchService.BaseUrl);
+        final var response = downloader.get("https://twitch.tv");
         if (!TwitchUtils.isSuccessfulResponseCode(response.responseCode()))
             throw new IOException(response.responseBody());
 

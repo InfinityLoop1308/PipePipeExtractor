@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.twitch.data.api.responses.vod;
 import javax.annotation.Nonnull;
 
 public record TwitchHelixVodResponseEntry(
+        @Nonnull String title,
         @Nonnull String vodId,
         @Nonnull String userName,
         @Nonnull String userLoginName,

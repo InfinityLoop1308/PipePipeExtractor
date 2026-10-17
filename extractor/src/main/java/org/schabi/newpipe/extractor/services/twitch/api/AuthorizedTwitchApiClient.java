@@ -67,7 +67,7 @@ public final class AuthorizedTwitchApiClient extends TwitchBaseApiClient {
         );
     }
 
-    public TwitchHelixDirectoryResponseInner GetDirectoryInformation(@Nonnull final Downloader downloader, @Nonnull final String directoryName, @Nonnull final String categoryId, @Nullable final String cursor) throws JsonParserException, IOException, ReCaptchaException {
+    public TwitchHelixDirectoryResponseInner getDirectoryInformation(@Nonnull final Downloader downloader, @Nonnull final String directoryName, @Nonnull final String categoryId, @Nullable final String cursor) throws JsonParserException, IOException, ReCaptchaException {
         return performRawRequest(downloader, HttpRequestType.GET,
                 _ -> {
                     var url =
@@ -112,7 +112,7 @@ public final class AuthorizedTwitchApiClient extends TwitchBaseApiClient {
         );
     }
 
-    public TwitchHelixClipResponseInner GetClips(@Nonnull final Downloader downloader,
+    public TwitchHelixClipResponseInner getClips(@Nonnull final Downloader downloader,
                                                  @Nonnull final String channelId,
                                                  @Nullable final String cursor) throws JsonParserException, IOException, ReCaptchaException {
         return performRawRequest(downloader, HttpRequestType.GET,
@@ -177,14 +177,15 @@ public final class AuthorizedTwitchApiClient extends TwitchBaseApiClient {
                             data.stream().map(o -> {
                                 final var innerObj = (JsonObject) o;
                                 return new TwitchHelixVodResponseEntry(
+                                        innerObj.getString("title"),
                                         innerObj.getString("id"),
                                         innerObj.getString("user_name"),
                                         innerObj.getString("user_login"),
                                         innerObj.getString("user_id"),
                                         innerObj.getString("created_at"),
                                         innerObj.getString("thumbnail_url")
-                                                .replace("{width}", "440")
-                                                .replace("{height}", "248"),
+                                                .replace("%{width}", "440")
+                                                .replace("%{height}", "248"),
                                         innerObj.getInt("view_count"),
                                         innerObj.getString("duration")
                                 );

@@ -49,7 +49,8 @@ public final class TwitchClipExtractor extends StreamExtractor {
     @NotNull
     @Override
     public String getThumbnailUrl() throws ParsingException {
-        // FIXME
+        // The thumbnail URL is not available here. To get it we would need another expensive API call.
+        // I don't really see the benefit here to get the thumbnail
         return TwitchThumbnailURLGenerator.NO_THUMBNAIL_URL;
     }
 
@@ -84,8 +85,7 @@ public final class TwitchClipExtractor extends StreamExtractor {
     public String getUploaderUrl() throws ParsingException {
         return TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
                 response.ownerLoginName(),
-                // FIXME
-                "",
+                response.ownerId(),
                 apiClient.getApiSettings().shouldUseHelixForVods()
                         ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
                         : PositionBasedPagination.DEFAULT_POSITION_PAGINATION

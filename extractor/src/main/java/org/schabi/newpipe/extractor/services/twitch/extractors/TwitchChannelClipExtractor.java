@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.Paginati
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
 import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.TwitchPaginationHelper;
 import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchClipResponseInner;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchHelixClipResponseInner;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
@@ -35,7 +36,8 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
 
     @Nonnull
     private final TwitchApiClient apiClient;
-    private TwitchClipResponseInner[] response;
+    private TwitchClipResponseInner[] gqlResponse;
+    private TwitchHelixClipResponseInner helixResponse;
     private Pagination pagination;
     private String channelName;
     private String channelId;
@@ -54,7 +56,7 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
 
         if (pagination instanceof PositionBasedPagination positionBasedPagination) {
             if (positionBasedPagination.offset() + positionBasedPagination.size() < 100
-                    && response.length != 0)
+                    && gqlResponse.length != 0)
                 nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
                         channelName,
                         channelId,
@@ -63,11 +65,34 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
                 ));
         }
 
-        if (pagination instanceof CursorBasedPagination cursorBasedPagination) {
-            // TODO
+        if (pagination instanceof CursorBasedPagination) {
+            if(helixResponse.hasMoreEntries())
+                nextPage = new Page(TwitchUrlBuilder.buildChannelTabUrl(
+                        channelName,
+                        channelId,
+                        TwitchChannelTabLinkType.CLIPS,
+                        new CursorBasedPagination(helixResponse.cursor())
+                ));
         }
 
-        return new InfoItemsPage<>(Arrays.stream(response).map(res -> {
+        if(apiClient.getApiSettings().shouldUseHelixForClips()) {
+            return new InfoItemsPage<>(Arrays.stream(helixResponse.entries()).map(res -> {
+                final var item = new StreamInfoItem(getServiceId(),
+                        TwitchUrlBuilder.buildClipUrlFromClipId(res.clipId()), res.clipTitle(),
+                        StreamType.NONE);
+                item.setThumbnailUrl(res.clipThumbnailUrl());
+                item.setUploaderName(res.clipperName());
+                item.setDuration(res.clipLength());
+                item.setViewCount(res.clipViewerCount());
+                item.setShortFormContent(true);
+                item.setShortDescription("(" + res.clipperName() + ")");
+                item.setUploadDate(new DateWrapper(OffsetDateTime.parse(res.uploadDateTimeString())));
+                return item;
+            }).collect(Collectors.toList()),
+                    nextPage,
+                    Collections.emptyList());
+        }
+        return new InfoItemsPage<>(Arrays.stream(gqlResponse).map(res -> {
             final var item = new StreamInfoItem(getServiceId(),
                     TwitchUrlBuilder.buildClipUrlFromClipId(res.clipId()), res.clipTitle(),
                     StreamType.NONE);
@@ -97,13 +122,22 @@ public final class TwitchChannelClipExtractor extends ChannelTabExtractor {
             channelName = channelUrl.channelLoginName();
             channelId = channelUrl.channelId();
             pagination = channelUrl.pagination();
-            response = TwitchPaginationHelper.paginateArray(
-                    apiClient.getUnauthorized().getTwitchClips(
-                            downloader,
-                            channelName,
-                            ((PositionBasedPagination) pagination).offset() + ((PositionBasedPagination) pagination).size()
-                    ).getData(), TwitchClipResponseInner.class, (PositionBasedPagination) pagination
-            );
+            if(apiClient.getApiSettings().shouldUseHelixForClips()) {
+                helixResponse = apiClient.getAuthorized().getClips(
+                        downloader,
+                        channelId,
+                        ((CursorBasedPagination)pagination).cursor()
+                );
+            }
+            else {
+                gqlResponse = TwitchPaginationHelper.paginateArray(
+                        apiClient.getUnauthorized().getTwitchClips(
+                                downloader,
+                                channelName,
+                                ((PositionBasedPagination) pagination).offset() + ((PositionBasedPagination) pagination).size()
+                        ).getData(), TwitchClipResponseInner.class, (PositionBasedPagination) pagination
+                );
+            }
         } catch (JsonParserException e) {
             throw new IOException(e);
         }
