@@ -17,7 +17,6 @@ import org.schabi.newpipe.extractor.services.bilibili.WatchDataCache;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.*;
-import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -511,12 +510,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         "Could not get Bilibili video metadata");
             }
 
-            String pageNumString = Utils.getQueryValue(Utils.stringToURL(getLinkHandler().getUrl()), "p");
-            int pageNum = 1;
-            if (pageNumString != null) {
-                pageNum = Integer.parseInt(pageNumString);
-            }
-            page = watch.getArray("pages").getObject(pageNum - 1);
+            page = BilibiliStreamPageParser.pageForUrl(watch, getLinkHandler().getUrl());
             cid = page.getLong("cid");
             watchDataCache.setCid(getId(), cid);
             watchDataCache.setBvid(getId(), bvid);
@@ -743,25 +737,24 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         waitForCall(relatedCall);
         try {
+            waitForCall(partitionCall);
+            partitions = partitionData == null ? 0 : partitionData.size();
+            if (partitions > 1) {
+                collector.commit(new BilibiliPlaylistInfoItemExtractor(watch.getString("title"),
+                        GET_PARTITION_URL
+                                + bvid
+                                + "&name=" + formatParamWithPercentSpace(watch.getString("title"))
+                                + "&thumbnail=" + formatParamWithPercentSpace(getThumbnailUrl())
+                                + "&uploaderName=" + formatParamWithPercentSpace(getUploaderName())
+                                + "&uploaderAvatar=" + formatParamWithPercentSpace(getUploaderAvatarUrl())
+                                + "&uploaderUrl=" + formatParamWithPercentSpace(getUploaderUrl()),
+                        getThumbnailUrl(), getUploaderName(),
+                        String.valueOf(watch.getObject("owner").getLong("mid")), partitions));
+            }
+            addCollectionPlaylistItems(collector);
+
             for (int i = 0; i < relatedData.size(); i++) {
                 collector.commit(new BilibiliRelatedInfoItemExtractor(relatedData.getObject(i)));
-                if (i == 0 && partitions > 1) {
-                    collector.commit(new BilibiliPlaylistInfoItemExtractor(watch.getString("title"),
-                            GET_PARTITION_URL
-                                    + bvid
-                                    + "&name="
-                                    + watch.getString("title")
-                                    + "&thumbnail="
-                                    + formatParamWithPercentSpace(getThumbnailUrl())
-                                    + "&uploaderName="
-                                    + getUploaderName()
-                                    + "&uploaderAvatar="
-                                    + formatParamWithPercentSpace(getUploaderAvatarUrl())
-                                    + "&uploaderUrl="
-                                    + formatParamWithPercentSpace(getUploaderUrl()),
-                            getThumbnailUrl(), getUploaderName(),
-                            String.valueOf(watch.getObject("owner").getLong("mid")), partitions));
-                }
             }
             if (ServiceList.BiliBili.getFilterTypes().contains("related_item")) {
                 collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
@@ -771,6 +764,46 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+
+    private void addCollectionPlaylistItems(
+            final InfoItemsCollector<InfoItem, InfoItemExtractor> collector)
+            throws ParsingException {
+        final JsonObject season = watch.getObject("ugc_season");
+        if (season == null) {
+            return;
+        }
+
+        final long seasonId = season.getLong("id", -1);
+        final JsonObject owner = watch.getObject("owner");
+        final long uploaderId = season.getLong("mid", owner == null ? -1 : owner.getLong("mid", -1));
+        final List<StreamCollectionInfo> collections = BilibiliCollectionParser.parse(watch);
+        if (seasonId < 0 || uploaderId < 0 || collections.isEmpty()) {
+            return;
+        }
+
+        for (final StreamCollectionInfo collection : collections) {
+            long episodeCount = 0;
+            for (final StreamCollectionInfo.Section section : collection.getSections()) {
+                episodeCount += section.getEpisodes().size();
+            }
+            if (episodeCount == 0) {
+                episodeCount = season.getLong("total", 0);
+            }
+
+            final String collectionUrl = String.format(GET_SEASON_ARCHIVES_LIST_RAW_URL,
+                    uploaderId, seasonId, formatParamWithPercentSpace(collection.getTitle()))
+                    + "&source_bvid=" + bvid;
+            String thumbnailUrl = season.getString("cover");
+            if (thumbnailUrl == null || thumbnailUrl.isEmpty()) {
+                thumbnailUrl = getThumbnailUrl();
+            } else {
+                thumbnailUrl = thumbnailUrl.replace("http:", "https:");
+            }
+            collector.commit(new BilibiliPlaylistInfoItemExtractor(collection.getTitle(),
+                    collectionUrl, thumbnailUrl, getUploaderName(), String.valueOf(uploaderId),
+                    episodeCount));
+        }
     }
 
     @SuppressWarnings("SimpleDateFormat")
@@ -861,8 +894,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         InfoItemsCollector<StreamInfoItem, StreamInfoItemExtractor> collector = new StreamInfoItemsCollector(getServiceId());
         try {
             waitForCall(partitionCall);
-            partitions = partitionData.size();
-            for (int i = 0; i < partitionData.size(); i++) {
+            partitions = partitionData == null ? 0 : partitionData.size();
+            for (int i = 0; partitionData != null && i < partitionData.size(); i++) {
                 collector.commit(
                         new BilibiliRelatedInfoItemExtractor(
                                 partitionData.getObject(i), bvid, getThumbnailUrl(), String.valueOf(i + 1), getUploaderName(), watch.getLong("pubdate")));
@@ -871,6 +904,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+
+    @Override
+    public List<StreamCollectionInfo> getCollections() {
+        return BilibiliCollectionParser.parse(watch);
     }
 
     private void waitForCall(CancellableCall call) {
