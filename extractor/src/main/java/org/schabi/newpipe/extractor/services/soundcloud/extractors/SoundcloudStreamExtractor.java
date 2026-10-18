@@ -208,7 +208,13 @@ public class SoundcloudStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getTranscodingUrl(final String endpointUrl)
             throws IOException, ExtractionException {
-        final String apiStreamUrl = endpointUrl + "?client_id=" + clientId();
+        String apiStreamUrl = endpointUrl + "?client_id=" + clientId();
+
+        final String trackAuthorization = track.getString("track_authorization");
+        if (!isNullOrEmpty(trackAuthorization)) {
+            apiStreamUrl += "&track_authorization=" + trackAuthorization;
+        }
+
         final String response = NewPipe.getDownloader().get(apiStreamUrl).responseBody();
         final JsonObject urlObject;
         try {
@@ -255,6 +261,13 @@ public class SoundcloudStreamExtractor extends StreamExtractor {
                         final String preset = transcoding.getString("preset", ID_UNKNOWN);
                         final String protocol = transcoding.getObject("format")
                                 .getString("protocol");
+
+                        if (protocol.contains("encrypted")) {
+                            // Skip DRM-protected streams, which have encrypted in their protocol
+                            // name
+                            return;
+                        }
+
                         final AudioStream.Builder builder = new AudioStream.Builder()
                                 .setId(preset);
 
@@ -279,6 +292,9 @@ public class SoundcloudStreamExtractor extends StreamExtractor {
                             builder.setMediaFormat(MediaFormat.OPUS);
                             builder.setAverageBitrate(64);
                             builder.setDeliveryMethod(DeliveryMethod.HLS);
+                        } else if (preset.startsWith("aac_")) {
+                            builder.setMediaFormat(MediaFormat.M4A);
+                            builder.setAverageBitrate(parseAacBitrate(preset));
                         } else {
                             // Unknown format, skip to the next audio stream
                             return;
@@ -293,6 +309,14 @@ public class SoundcloudStreamExtractor extends StreamExtractor {
                         // skip to the next one
                     }
                 });
+    }
+
+    private static int parseAacBitrate(final String preset) {
+        try {
+            return Integer.parseInt(preset.replaceAll("[^0-9]", ""));
+        } catch (final NumberFormatException e) {
+            return UNKNOWN_BITRATE;
+        }
     }
 
     /**
