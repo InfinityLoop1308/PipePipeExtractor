@@ -78,10 +78,10 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
         // plus the sum of all sub channels subscriptions.
         long subscribersCount = json.getLong("followersCount");
         String accountVideoChannelUrl = baseUrl + PeertubeChannelLinkHandlerFactory.API_ENDPOINT;
-        if (getId().contains(ACCOUNTS)) {
-            accountVideoChannelUrl += getId();
+        if (getLinkHandler().getId().contains(ACCOUNTS)) {
+            accountVideoChannelUrl += getLinkHandler().getId();
         } else {
-            accountVideoChannelUrl += ACCOUNTS + getId();
+            accountVideoChannelUrl += ACCOUNTS + getLinkHandler().getId();
         }
         accountVideoChannelUrl += "/video-channels";
 
@@ -133,19 +133,19 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
         return Arrays.asList(
-                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null, getBaseUrl()),
-                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.CHANNELS)), null, getBaseUrl()),
-                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null, getBaseUrl())
         );
     }
     @Nonnull
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
-        return getPage(new Page(baseUrl + "/api/v1/" + getId() + "/videos?" + START_KEY + "=0&"
-                + COUNT_KEY + "=" + ITEMS_PER_PAGE));
+        return getPage(new Page(baseUrl + "/api/v1/" + getLinkHandler().getId() + "/videos?"
+                + START_KEY + "=0&" + COUNT_KEY + "=" + ITEMS_PER_PAGE));
     }
 
     @Override
@@ -188,10 +188,10 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
         String accountUrl = baseUrl + PeertubeChannelLinkHandlerFactory.API_ENDPOINT;
-        if (getId().contains(ACCOUNTS)) {
-            accountUrl += getId();
+        if (getLinkHandler().getId().contains(ACCOUNTS)) {
+            accountUrl += getLinkHandler().getId();
         } else {
-            accountUrl += ACCOUNTS + getId();
+            accountUrl += ACCOUNTS + getLinkHandler().getId();
         }
 
         final Response response = downloader.get(accountUrl);
@@ -211,6 +211,18 @@ public class PeertubeAccountExtractor extends ChannelExtractor {
         if (json == null) {
             throw new ExtractionException("Unable to extract PeerTube account data");
         }
+    }
+
+    /**
+     * The id of this account as items report it as their uploader id,
+     * {@code accounts/<name>@<host>}, whatever URL the page was opened from, so that block rules
+     * by channel id recognise it. The link handler id, which may lack the host, still addresses
+     * the API.
+     */
+    @Override
+    public String getId() throws ParsingException {
+        final String accountId = PeertubeParsingHelper.getAccountId(json);
+        return accountId != null ? accountId : super.getId();
     }
 
     @Nonnull
