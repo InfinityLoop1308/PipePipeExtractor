@@ -348,14 +348,14 @@ public final class PeertubeParsingHelper {
      *
      * <p>
      * SepiaSearch only indexes content: the result's own instance is its embed URL without the
-     * embed path, as for {@link PeertubeSepiaStreamInfoItemExtractor}.
+     * embed path. Used for every kind of SepiaSearch result, so the rule exists only once.
      * </p>
      *
      * @param item     a SepiaSearch result
      * @param fallback the base URL to use if the result has no usable embed URL
      * @return the base URL of the result's instance
      */
-    private static String getSepiaResultBaseUrl(final JsonObject item, final String fallback) {
+    public static String getSepiaResultBaseUrl(final JsonObject item, final String fallback) {
         final String embedUrl = item.getString("embedUrl");
         final String embedPath = item.getString("embedPath");
         if (Utils.isNullOrEmpty(embedUrl) || Utils.isNullOrEmpty(embedPath)
