@@ -108,9 +108,9 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
     @Override
     public List<ListLinkHandler> getTabs() throws ParsingException {
         return Arrays.asList(
-                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.VIDEOS)), null, getBaseUrl()),
-                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getId(),
+                PeertubeChannelTabLinkHandlerFactory.getInstance().fromQuery(getLinkHandler().getId(),
                         Collections.singletonList(new FilterItem(Filter.ITEM_IDENTIFIER_UNKNOWN, ChannelTabs.PLAYLISTS)), null, getBaseUrl())
         );
     }
@@ -118,8 +118,8 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
     @Nonnull
     @Override
     public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
-        return getPage(new Page(baseUrl + "/api/v1/" + getId() + "/videos?" + START_KEY + "=0&"
-                + COUNT_KEY + "=" + ITEMS_PER_PAGE));
+        return getPage(new Page(baseUrl + "/api/v1/" + getLinkHandler().getId() + "/videos?"
+                + START_KEY + "=0&" + COUNT_KEY + "=" + ITEMS_PER_PAGE));
     }
 
     @Override
@@ -162,7 +162,7 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
     public void onFetchPage(@Nonnull final Downloader downloader)
             throws IOException, ExtractionException {
         final Response response = downloader.get(
-                baseUrl + PeertubeChannelLinkHandlerFactory.API_ENDPOINT + getId());
+                baseUrl + PeertubeChannelLinkHandlerFactory.API_ENDPOINT + getLinkHandler().getId());
         if (response != null) {
             setInitialData(response.responseBody());
         } else {
@@ -179,6 +179,19 @@ public class PeertubeChannelExtractor extends ChannelExtractor {
         if (json == null) {
             throw new ExtractionException("Unable to extract PeerTube channel data");
         }
+    }
+
+    /**
+     * The id of the account owning this video channel, {@code accounts/<name>@<host>}: items report
+     * their account as uploader id, so only this id lets a block rule by channel id recognise the
+     * channel page, and an id taken from the page match its videos. The link handler id
+     * ({@code video-channels/<name>}) still addresses the API.
+     */
+    @Override
+    public String getId() throws ParsingException {
+        final String ownerId = json == null ? null
+                : PeertubeParsingHelper.getAccountId(json.getObject("ownerAccount"));
+        return ownerId != null ? ownerId : super.getId();
     }
 
     @Nonnull
