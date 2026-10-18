@@ -17,13 +17,16 @@ import org.schabi.newpipe.extractor.playlist.PlaylistExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliPlaylistLinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
+import org.schabi.newpipe.extractor.stream.StreamCollectionInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
+import org.schabi.newpipe.extractor.utils.Utils;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
+import java.net.MalformedURLException;
+import java.util.Collections;
+import java.util.List;
 
 import javax.annotation.Nonnull;
 
@@ -35,6 +38,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     private String currentMid = "";
     private String firstPageApiUrl = "";
     private JsonObject userData;
+    private List<StreamCollectionInfo> sourceCollections = Collections.emptyList();
 
     public BilibiliPlaylistExtractor(StreamingService service, ListLinkHandler linkHandler) {
         super(service, linkHandler);
@@ -42,59 +46,89 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
 
     private String getRefererUrl() {
         try {
-            String orig = getOriginalUrl();
-            if (orig != null && (orig.startsWith("http://") || orig.startsWith("https://"))) {
-                return orig;
+            final String originalUrl = getOriginalUrl();
+            if (originalUrl != null && (originalUrl.startsWith("http://")
+                    || originalUrl.startsWith("https://"))) {
+                return originalUrl;
             }
-        } catch (ParsingException ignored) {}
+        } catch (ParsingException ignored) {
+            // Use the canonical URL below when the original one is not a network URL.
+        }
         try {
-            String current = getUrl();
-            if (current != null && (current.startsWith("http://") || current.startsWith("https://"))) {
-                return current;
+            final String currentUrl = getUrl();
+            if (currentUrl != null && (currentUrl.startsWith("http://")
+                    || currentUrl.startsWith("https://"))) {
+                return currentUrl;
             }
-        } catch (ParsingException ignored) {}
+        } catch (ParsingException ignored) {
+            // Fall back to Bilibili's public landing page.
+        }
         return WWW_REFERER;
     }
 
     @Override
-    public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+    public void onFetchPage(@Nonnull final Downloader downloader)
+            throws IOException, ExtractionException {
+        final String originalUrl = getLinkHandler().getOriginalUrl();
         BilibiliPlaylistLinkHandlerFactory.PlaylistTarget target;
         try {
             target = BilibiliPlaylistLinkHandlerFactory.parseTarget(getLinkHandler().getUrl());
         } catch (ParsingException e) {
-            target = BilibiliPlaylistLinkHandlerFactory.parseTarget(getOriginalUrl());
+            target = BilibiliPlaylistLinkHandlerFactory.parseTarget(originalUrl);
         }
         type = target.type;
         currentMid = target.mid;
 
         if ("partition".equals(type)) {
             try {
-                data = JsonParser.object().from(downloader.get(getLinkHandler().getUrl(), getHeaders(getRefererUrl())).responseBody());
+                data = JsonParser.object().from(downloader.get(getLinkHandler().getUrl(),
+                        getHeaders(getRefererUrl())).responseBody());
             } catch (JsonParserException e) {
                 throw new ExtractionException("Failed to parse partition response", e);
             }
             return;
         }
 
-        String midParam = (!currentMid.isEmpty()) ? "mid=" + currentMid + "&" : "";
+        final String midParam = currentMid.isEmpty() ? "" : "mid=" + currentMid + "&";
         if ("seasons_archives".equals(type)) {
             firstPageApiUrl = "https://api.bilibili.com/x/polymer/web-space/seasons_archives_list?"
-                    + midParam + "season_id=" + target.id + "&sort_reverse=false&page_num=1&page_size=30";
+                    + midParam + "season_id=" + target.id
+                    + "&sort_reverse=false&page_num=1&page_size=30";
         } else {
             firstPageApiUrl = "https://api.bilibili.com/x/series/archives?"
-                    + midParam + "series_id=" + target.id + "&only_normal=true&sort=desc&pn=1&ps=30";
+                    + midParam + "series_id=" + target.id
+                    + "&only_normal=true&sort=desc&pn=1&ps=30";
         }
 
         try {
-            String responseBody = downloader.get(firstPageApiUrl, getHeaders(getRefererUrl())).responseBody();
-            JsonObject root = JsonParser.object().from(responseBody);
+            final String responseBody = downloader.get(firstPageApiUrl,
+                    getHeaders(getRefererUrl())).responseBody();
+            final JsonObject root = JsonParser.object().from(responseBody);
             data = root.getObject("data");
             if (data != null && data.has("meta") && data.getObject("meta") != null) {
-                long m = data.getObject("meta").getLong("mid");
-                if (m > 0) currentMid = String.valueOf(m);
+                final long mid = data.getObject("meta").getLong("mid");
+                if (mid > 0) {
+                    currentMid = String.valueOf(mid);
+                }
             }
         } catch (JsonParserException e) {
             throw new ExtractionException("Failed to parse playlist response", e);
+        }
+
+        // The playlist link generated from a stream keeps source_bvid only in its original URL.
+        final String sourceBvid = getQueryParameter("source_bvid");
+        if ("seasons_archives".equals(type) && sourceBvid != null
+                && sourceBvid.matches("BV[0-9A-Za-z]+")) {
+            try {
+                final String watchResponse = downloader.get(
+                        "https://api.bilibili.com/x/web-interface/wbi/view?bvid=" + sourceBvid,
+                        getHeaders(getRefererUrl())).responseBody();
+                final JsonObject watch = JsonParser.object().from(watchResponse)
+                        .getObject("data");
+                sourceCollections = BilibiliCollectionParser.parse(watch);
+            } catch (IOException | JsonParserException ignored) {
+                sourceCollections = Collections.emptyList();
+            }
         }
     }
 
@@ -102,17 +136,11 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public String getName() throws ParsingException {
         if ("partition".equals(type)) {
-            if (getLinkHandler().getUrl().contains("name=")) {
-                try {
-                    return URLDecoder.decode(getLinkHandler().getUrl().split("name=")[1].split("&")[0], "UTF-8");
-                } catch (Exception e) {
-                    return "Partition";
-                }
-            }
-            return "Partition";
+            final String name = getQueryParameter("name");
+            return name == null || name.isEmpty() ? "Partition" : name;
         }
         if (data != null && data.has("meta") && data.getObject("meta") != null) {
-            JsonObject meta = data.getObject("meta");
+            final JsonObject meta = data.getObject("meta");
             if (meta.has("name") && !meta.getString("name", "").isEmpty()) {
                 return meta.getString("name");
             }
@@ -120,41 +148,62 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                 return meta.getString("title");
             }
         }
-        if (getLinkHandler().getUrl().contains("name=")) {
-            try {
-                return URLDecoder.decode(getLinkHandler().getUrl().split("name=")[1].split("&")[0], "UTF-8");
-            } catch (Exception ignored) {}
-        }
-        return "Bilibili Playlist";
+        final String name = getQueryParameter("name");
+        return name == null || name.isEmpty() ? "Bilibili Playlist" : name;
     }
 
     @Nonnull
     @Override
-    public InfoItemsPage<StreamInfoItem> getInitialPage() throws IOException, ExtractionException {
+    public InfoItemsPage<StreamInfoItem> getInitialPage()
+            throws IOException, ExtractionException {
         if ("partition".equals(type)) {
-            InfoItemsCollector<StreamInfoItem, StreamInfoItemExtractor> collector = new StreamInfoItemsCollector(getServiceId());
-            JsonArray relatedArray = data.getArray("data");
-            for (int i = 0; i < relatedArray.size(); i++) {
-                collector.commit(
-                        new BilibiliRelatedInfoItemExtractor(
-                                relatedArray.getObject(i), getLinkHandler().getUrl().split("bvid=")[1].split("&")[0],
-                                URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8"),
-                                String.valueOf(i + 1), getUploaderName(), null));
+            final InfoItemsCollector<StreamInfoItem, StreamInfoItemExtractor> collector =
+                    new StreamInfoItemsCollector(getServiceId());
+            final JsonArray relatedArray = data == null ? null : data.getArray("data");
+            for (int i = 0; relatedArray != null && i < relatedArray.size(); i++) {
+                collector.commit(new BilibiliRelatedInfoItemExtractor(
+                        relatedArray.getObject(i), getQueryParameter("bvid"),
+                        getQueryParameter("thumbnail"), String.valueOf(i + 1),
+                        getUploaderName(), null));
             }
             if (ServiceList.BiliBili.getFilterTypes().contains("playlists")) {
                 collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
             }
             return new InfoItemsPage<>(collector, null);
         }
+
+        if (!sourceCollections.isEmpty()) {
+            final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
+            final String uploaderName = getUploaderName();
+            final String uploaderId = currentMid.isEmpty()
+                    ? utils.getMidFromRecordApiUrl(getLinkHandler().getOriginalUrl())
+                    : currentMid;
+            final String uploaderAvatarUrl = getUploaderAvatarUrl();
+            for (final StreamCollectionInfo collection : sourceCollections) {
+                for (final StreamCollectionInfo.Section section : collection.getSections()) {
+                    for (final StreamCollectionInfo.Episode episode : section.getEpisodes()) {
+                        collector.commit(new BilibiliCollectionEpisodeInfoItemExtractor(episode,
+                                section.getTitle(), uploaderName, uploaderId, uploaderAvatarUrl));
+                    }
+                }
+            }
+            if (ServiceList.BiliBili.getFilterTypes().contains("playlists")) {
+                collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
+            }
+            return new InfoItemsPage<>(collector, null);
+        }
+
         return getPage(new Page(firstPageApiUrl, getDefaultCookies()));
     }
 
     @Override
-    public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
-        JsonObject pageData = this.data;
+    public InfoItemsPage<StreamInfoItem> getPage(final Page page)
+            throws IOException, ExtractionException {
+        JsonObject pageData = data;
         if (!"partition".equals(type) && !page.getUrl().equals(firstPageApiUrl)) {
             try {
-                pageData = JsonParser.object().from(getDownloader().get(page.getUrl(), getHeaders(getRefererUrl())).responseBody()).getObject("data");
+                pageData = JsonParser.object().from(getDownloader().get(page.getUrl(),
+                        getHeaders(getRefererUrl())).responseBody()).getObject("data");
             } catch (JsonParserException e) {
                 throw new ExtractionException("Failed to parse playlist page response", e);
             }
@@ -162,87 +211,88 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         if (pageData == null) {
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
         }
-        JsonArray results = pageData.getArray("archives");
+
+        final JsonArray results = pageData.getArray("archives");
         if (results == null || results.isEmpty()) {
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
         }
         final StreamInfoItemsCollector collector = new StreamInfoItemsCollector(getServiceId());
-        String uploaderName = getUploaderName();
-        String uploaderAvatar = getUploaderAvatarUrl();
+        final String uploaderName = getUploaderName();
+        final String uploaderAvatar = getUploaderAvatarUrl();
         for (int i = 0; i < results.size(); i++) {
-            collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(results.getObject(i), uploaderName, uploaderAvatar));
+            collector.commit(new BilibiliChannelInfoItemWebAPIExtractor(
+                    results.getObject(i), uploaderName, uploaderAvatar));
         }
         if (ServiceList.BiliBili.getFilterTypes().contains("playlists")) {
             collector.applyBlocking(ServiceList.BiliBili.getFilterConfig());
         }
 
-        Page nextPage = null;
-        long total = getStreamCount();
-        String pageParam = "seasons_archives".equals(type) ? "page_num" : "pn";
+        final String pageParam = "seasons_archives".equals(type) ? "page_num" : "pn";
         int currentPageNum = 1;
         if (page.getUrl().contains(pageParam + "=")) {
             try {
-                currentPageNum = Integer.parseInt(page.getUrl().split(pageParam + "=")[1].split("&")[0]);
-            } catch (Exception ignored) {}
+                currentPageNum = Integer.parseInt(
+                        page.getUrl().split(pageParam + "=")[1].split("&")[0]);
+            } catch (NumberFormatException ignored) {
+                // Keep the first-page default for malformed pagination links.
+            }
         }
-        int pageSize = 30;
+        final int pageSize = 30;
         boolean hasMore = results.size() >= pageSize;
+        final long total = getStreamCount();
         if (total > 0) {
             hasMore = (long) currentPageNum * pageSize < total;
         }
-        if (hasMore) {
-            nextPage = new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), pageParam, 1), getDefaultCookies());
-        }
+        final Page nextPage = hasMore
+                ? new Page(utils.getNextPageFromCurrentUrl(page.getUrl(), pageParam, 1),
+                getDefaultCookies())
+                : null;
         return new InfoItemsPage<>(collector, nextPage);
     }
 
     @Override
     public String getUploaderUrl() throws ParsingException {
         if ("partition".equals(type)) {
-            if (getLinkHandler().getUrl().contains("uploaderUrl=")) {
-                try {
-                    return URLDecoder.decode(getLinkHandler().getUrl().split("uploaderUrl=")[1].split("&")[0], "UTF-8");
-                } catch (Exception e) {
-                    return null;
-                }
-            }
-            return null;
+            return getQueryParameter("uploaderUrl");
         }
         String uid = null;
         if (data != null && data.has("meta") && data.getObject("meta") != null) {
-            long midLong = data.getObject("meta").getLong("mid");
-            if (midLong > 0) uid = String.valueOf(midLong);
-            else uid = data.getObject("meta").getString("mid");
+            final JsonObject meta = data.getObject("meta");
+            final long mid = meta.getLong("mid");
+            uid = mid > 0 ? String.valueOf(mid) : meta.getString("mid");
         }
         if (uid == null || uid.isEmpty()) {
             uid = currentMid;
         }
         if (uid == null || uid.isEmpty()) {
-            uid = utils.getMidFromRecordApiUrl(getLinkHandler().getUrl());
+            try {
+                uid = BilibiliPlaylistLinkHandlerFactory.parseTarget(
+                        getLinkHandler().getUrl()).mid;
+            } catch (ParsingException ignored) {
+                // Fall back to an API URL containing the uploader ID.
+            }
         }
-        return BilibiliChannelLinkHandlerFactory.baseUrl + (uid != null ? uid : "");
+        if (uid == null || uid.isEmpty()) {
+            uid = getQueryParameter("mid");
+        }
+        if (uid == null) {
+            uid = "";
+        }
+        return BilibiliChannelLinkHandlerFactory.baseUrl + uid;
     }
 
     @Override
     public String getUploaderName() throws ParsingException {
         if ("partition".equals(type)) {
-            if (getLinkHandler().getUrl().contains("uploaderName=")) {
-                try {
-                    return URLDecoder.decode(getLinkHandler().getUrl().split("uploaderName=")[1].split("&")[0], "UTF-8");
-                } catch (Exception e) {
-                    return "[Unknown]";
-                }
-            }
-            return "[Unknown]";
+            final String name = getQueryParameter("uploaderName");
+            return name == null || name.isEmpty() ? "[Unknown]" : name;
         }
-        JsonObject uData = getUserInfoLazily();
-        if (uData != null && uData.has("data") && uData.getObject("data") != null) {
-            JsonObject dataObj = uData.getObject("data");
-            if (dataObj.has("card") && dataObj.getObject("card") != null) {
-                JsonObject card = dataObj.getObject("card");
-                if (card.has("name") && card.getString("name") != null) {
-                    return card.getString("name");
-                }
+        final JsonObject userInfo = getUserInfoLazily();
+        if (userInfo != null && userInfo.has("data")
+                && userInfo.getObject("data") != null) {
+            final JsonObject userData = userInfo.getObject("data");
+            if (userData.has("card") && userData.getObject("card") != null) {
+                return userData.getObject("card").getString("name", "[Unknown]");
             }
         }
         return "[Unknown]";
@@ -251,22 +301,16 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public String getUploaderAvatarUrl() throws ParsingException {
         if ("partition".equals(type)) {
-            if (getLinkHandler().getUrl().contains("uploaderAvatar=")) {
-                try {
-                    return URLDecoder.decode(getLinkHandler().getUrl().split("uploaderAvatar=")[1].split("&")[0], "UTF-8");
-                } catch (Exception e) {
-                    return null;
-                }
-            }
-            return null;
+            return getQueryParameter("uploaderAvatar");
         }
-        JsonObject uData = getUserInfoLazily();
-        if (uData != null && uData.has("data") && uData.getObject("data") != null) {
-            JsonObject dataObj = uData.getObject("data");
-            if (dataObj.has("card") && dataObj.getObject("card") != null) {
-                JsonObject card = dataObj.getObject("card");
-                if (card.has("face") && card.getString("face") != null) {
-                    return card.getString("face").replace("http:", "https:");
+        final JsonObject userInfo = getUserInfoLazily();
+        if (userInfo != null && userInfo.has("data")
+                && userInfo.getObject("data") != null) {
+            final JsonObject userData = userInfo.getObject("data");
+            if (userData.has("card") && userData.getObject("card") != null) {
+                final String face = userData.getObject("card").getString("face");
+                if (face != null) {
+                    return face.replace("http:", "https:");
                 }
             }
         }
@@ -274,21 +318,27 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     }
 
     @Override
-    public boolean isUploaderVerified() throws ParsingException {
+    public boolean isUploaderVerified() {
         return false;
     }
 
     @Override
     public long getStreamCount() throws ParsingException {
         if ("partition".equals(type)) {
-            if (data != null && data.has("data") && data.getArray("data") != null) {
-                return data.getArray("data").size();
-            }
-            return 0;
+            final JsonArray dataArray = data == null ? null : data.getArray("data");
+            return dataArray == null ? 0 : dataArray.size();
+        }
+        if (!sourceCollections.isEmpty()) {
+            return sourceCollections.stream()
+                    .flatMap(collection -> collection.getSections().stream())
+                    .mapToLong(section -> section.getEpisodes().size())
+                    .sum();
         }
         if (data != null && data.has("page") && data.getObject("page") != null) {
-            long total = data.getObject("page").getLong("total");
-            if (total > 0) return total;
+            final long total = data.getObject("page").getLong("total");
+            if (total > 0) {
+                return total;
+            }
         }
         if (data != null && data.has("meta") && data.getObject("meta") != null) {
             return data.getObject("meta").getLong("total");
@@ -300,25 +350,19 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public String getThumbnailUrl() throws ParsingException {
         if ("partition".equals(type)) {
-            if (getLinkHandler().getUrl().contains("thumbnail=")) {
-                try {
-                    return URLDecoder.decode(getLinkHandler().getUrl().split("thumbnail=")[1].split("&")[0], "UTF-8");
-                } catch (Exception e) {
-                    return "";
-                }
-            }
-            return "";
+            final String thumbnail = getQueryParameter("thumbnail");
+            return thumbnail == null ? "" : thumbnail;
         }
         if (data != null && data.has("meta") && data.getObject("meta") != null) {
-            String cover = data.getObject("meta").getString("cover");
+            final String cover = data.getObject("meta").getString("cover");
             if (cover != null && !cover.isEmpty()) {
                 return cover.replace("http:", "https:");
             }
         }
         if (data != null && data.has("archives")) {
-            JsonArray archives = data.getArray("archives");
+            final JsonArray archives = data.getArray("archives");
             if (archives != null && !archives.isEmpty()) {
-                String pic = archives.getObject(0).getString("pic");
+                final String pic = archives.getObject(0).getString("pic");
                 if (pic != null && !pic.isEmpty()) {
                     return pic.replace("http:", "https:");
                 }
@@ -327,12 +371,14 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         return "";
     }
 
-    // Get user metadata JSON lazily, without possible NPE.
     private JsonObject getUserInfoLazily() {
-        if (userData != null) return userData;
+        if (userData != null) {
+            return userData;
+        }
         try {
-            userData = JsonParser.object().from(getDownloader().get(getUserInfoRequestUrl(), getHeaders(getRefererUrl())).responseBody());
-        } catch (Exception e) {
+            userData = JsonParser.object().from(getDownloader().get(getUserInfoRequestUrl(),
+                    getHeaders(getRefererUrl())).responseBody());
+        } catch (Exception ignored) {
             userData = new JsonObject();
         }
         return userData;
@@ -341,16 +387,42 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     private String getUserInfoRequestUrl() {
         String uid = null;
         if (data != null && data.has("meta") && data.getObject("meta") != null) {
-            long midLong = data.getObject("meta").getLong("mid");
-            if (midLong > 0) uid = String.valueOf(midLong);
-            else uid = data.getObject("meta").getString("mid");
+            final JsonObject meta = data.getObject("meta");
+            final long mid = meta.getLong("mid");
+            uid = mid > 0 ? String.valueOf(mid) : meta.getString("mid");
         }
         if (uid == null || uid.isEmpty()) {
             uid = currentMid;
         }
         if (uid == null || uid.isEmpty()) {
-            uid = utils.getMidFromRecordApiUrl(getLinkHandler().getUrl());
+            try {
+                uid = BilibiliPlaylistLinkHandlerFactory.parseTarget(
+                        getLinkHandler().getUrl()).mid;
+            } catch (ParsingException ignored) {
+                uid = "";
+            }
         }
-        return QUERY_USER_INFO_URL + (uid != null ? uid : "");
+        return QUERY_USER_INFO_URL + (uid == null ? "" : uid);
+    }
+
+    private String getQueryParameter(final String name) throws ParsingException {
+        final String originalUrl = getLinkHandler().getOriginalUrl();
+        if (originalUrl != null && originalUrl.contains("?")) {
+            try {
+                return parseQueryParameter(originalUrl, name);
+            } catch (ParsingException ignored) {
+                // Try the normalized URL below.
+            }
+        }
+        return parseQueryParameter(getLinkHandler().getUrl(), name);
+    }
+
+    static String parseQueryParameter(final String url, final String name)
+            throws ParsingException {
+        try {
+            return Utils.getQueryValue(Utils.stringToURL(url), name);
+        } catch (MalformedURLException e) {
+            throw new ParsingException("Could not parse BiliBili playlist URL", e);
+        }
     }
 }

@@ -690,6 +690,13 @@ public abstract class StreamExtractor extends Extractor {
     }
 
     /**
+     * Get collections containing the current stream, including their sections and episodes.
+     */
+    public List<StreamCollectionInfo> getCollections() throws ParsingException {
+        return Collections.emptyList();
+    }
+
+    /**
      * Whether the stream is a short-form content.
      *
      * <p>
