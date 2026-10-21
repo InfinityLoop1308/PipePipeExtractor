@@ -91,8 +91,12 @@ public class NiconicoWatchDataCache {
                         page.getElementsByClass("content WatchAppContainer")
                                 .attr("data-video"));
             } else {
-                watchData = JsonParser.object().from(
+                final JsonObject responseData = JsonParser.object().from(
                         element.attr("content")).getObject("data").getObject("response");
+                // the watch data is nested in a $watchV4 object since NicoNico's October 2026 change
+                watchData = responseData.has("$watchV4")
+                        ? responseData.getObject("$watchV4").getObject("data")
+                        : responseData;
             }
         } catch (JsonParserException e) {
             throw new ParsingException("Failed to parse content");
@@ -107,10 +111,15 @@ public class NiconicoWatchDataCache {
                 default:
                     throw new ContentNotAvailableException(watchData.getString("reasonCode"));
             }
-        } else if (watchData.getString("okReason") != null && watchData.getString("okReason").equals("PAYMENT_PREVIEW_SUPPORTED")) {
-            if (watchData.getObject("payment").getObject("video").getBoolean("isPremium") == true) {
+        } else if ("PAYMENT_PREVIEW_SUPPORTED".equals(watchData.getString("okReason"))) {
+            final JsonObject payment = watchData.getObject("payment");
+            final JsonObject videoPayment = payment.getObject("video");
+            final String billingType = videoPayment.getString("billingType",
+                    payment.getString("billingType", ""));
+            if (videoPayment.getBoolean("isPremium")
+                    || "premium_only".equals(payment.getString("watchableUserType", ""))) {
                 throw new PaidContentException("This content is limited to premium users");
-            } else if (watchData.getObject("payment").getObject("video").getString("billingType").equals("member_only")) {
+            } else if ("member_only".equals(billingType)) {
                 throw new PaidContentException("This content is limited to channel members");
             }
         }
