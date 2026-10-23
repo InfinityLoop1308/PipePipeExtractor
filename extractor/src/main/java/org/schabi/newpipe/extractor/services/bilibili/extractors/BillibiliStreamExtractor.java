@@ -501,8 +501,12 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             bvid = utils.getPureBV(getId());
             final String metadataUrl =
                     "https://api.bilibili.com/x/web-interface/wbi/view?bvid=" + bvid;
-            final Map<String, List<String>> metadataHeaders = new LinkedHashMap<>();
-            metadataHeaders.put("Cookie", Collections.singletonList(""));
+            // Visitor cookies (buvid3/buvid4/...) are mandatory here: Bilibili's WAF answers
+            // HTTP 412 with an HTML risk-control page when a browser User-Agent requests this
+            // endpoint without a buvid3 cookie from a non-mainland IP. Sending the anonymous
+            // generated cookies is safe even when the user is logged in (unlike the account
+            // tokens, which used to trigger risk control here).
+            final Map<String, List<String>> metadataHeaders = getHeaders(getOriginalUrl());
             final String response = downloader.get(metadataUrl, metadataHeaders).responseBody();
             watch = parseVideoMetadata(response);
 
