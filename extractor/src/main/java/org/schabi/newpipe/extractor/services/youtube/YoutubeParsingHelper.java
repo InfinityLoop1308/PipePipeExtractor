@@ -2161,6 +2161,10 @@ YoutubeParsingHelper {
                     throw new ContentNotAvailableException(
                             "Got error: \"This channel is unavailable.\"");
                 }
+                if (alertText != null && alertText.contains("siteshi asikho")) {
+                    throw new ContentNotAvailableException(
+                            "Got error: \"This channel does not exist.\"");
+                }
                 if (alertText != null
                         && (alertText.contains("This account has been terminated")
                         || alertText.contains("This channel was removed"))) {
