@@ -152,6 +152,16 @@ public abstract class StreamingService {
 
     public abstract String getBaseUrl();
 
+    /**
+     * How long extracted infos of this service may be reused from the client cache.
+     * Override for services whose stream urls expire quickly.
+     *
+     * @return the cache lifetime in milliseconds
+     */
+    public long getInfoCacheExpirationMillis() {
+        return 60 * 60 * 1000L;
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
     // Url Id handler
     //////////////////////////////////////////////////////////////////////////*/

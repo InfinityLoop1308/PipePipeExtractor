@@ -86,11 +86,12 @@ public final class NewPipe {
     }
 
     public static StreamingService getService(final int serviceId) throws ExtractionException {
-        return ServiceList.all().stream()
-                .filter(service -> service.getServiceId() == serviceId)
-                .findFirst()
-                .orElseThrow(() -> new ExtractionException(
-                        "There's no service with the id = \"" + serviceId + "\""));
+        final StreamingService service = ServiceList.getById(serviceId);
+        if (service == null) {
+            throw new ExtractionException(
+                    "There's no service with the id = \"" + serviceId + "\"");
+        }
+        return service;
     }
 
     public static StreamingService getService(final String serviceName) throws ExtractionException {
