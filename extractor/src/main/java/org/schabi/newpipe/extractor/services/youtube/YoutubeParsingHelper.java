@@ -700,8 +700,17 @@ YoutubeParsingHelper {
         // fingerprinting based on the client version used
         try {
             extractClientVersionFromSwJs();
-        } catch (final Exception e) {
-            extractClientVersionFromHtmlSearchResultsPage();
+        } catch (final Exception swJsException) {
+            try {
+                extractClientVersionFromHtmlSearchResultsPage();
+            } catch (final Exception htmlException) {
+                // e.g. a redirect loop ("Too many follow-up requests") on the search page must
+                // not prevent falling back to the hardcoded client version below
+                htmlException.addSuppressed(swJsException);
+                if (!isHardcodedClientVersionValid()) {
+                    throw htmlException;
+                }
+            }
         }
 
         if (clientVersionExtracted) {
