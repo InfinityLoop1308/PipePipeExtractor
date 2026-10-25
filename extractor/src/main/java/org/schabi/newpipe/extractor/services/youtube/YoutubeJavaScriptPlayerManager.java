@@ -203,9 +203,16 @@ public final class YoutubeJavaScriptPlayerManager {
     }
 
     /**
-     * Load player metadata from memory or refresh it from the decoder API.
+     * Load player metadata from memory or refresh it from the local decoder or the decoder API.
      *
-     * @param videoId unused, kept to avoid changing public call sites
+     * <p>
+     * The local decoder resolves the hash of the current player from one of YouTube's web pages,
+     * which YouTube answers with a bot check page when it considers the address to be too busy.
+     * The metadata served by the decoder API is used then, so that a limited address only loses
+     * local decoding instead of losing every video.
+     * </p>
+     *
+     * @param videoId used to resolve the player of the current video on the local decoder
      * @throws ParsingException if loading the player metadata failed
      */
     @Nonnull
@@ -219,11 +226,16 @@ public final class YoutubeJavaScriptPlayerManager {
         final long startedAtNanos = System.nanoTime();
         final YoutubeJavaScriptDecoder decoder = YoutubeApiDecoder.getLocalDecoder();
         if (decoder != null) {
-            final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
-            playerMetadata = new PlayerMetadata(data.getPlayerId(), data.getSignatureTimestamp(),
-                    System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
-            logPerformance(videoId, "ejs.playerMetadata.local", startedAtNanos);
-            return playerMetadata;
+            try {
+                final YoutubeJavaScriptDecoder.PlayerData data = decoder.getPlayerData(videoId);
+                playerMetadata = new PlayerMetadata(data.getPlayerId(),
+                        data.getSignatureTimestamp(),
+                        System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
+                logPerformance(videoId, "ejs.playerMetadata.local", startedAtNanos);
+                return playerMetadata;
+            } catch (final ParsingException e) {
+                logPerformance(videoId, "ejs.playerMetadata.localFailed", startedAtNanos);
+            }
         }
 
         playerMetadata = fetchLatestPlayerMetadata();
