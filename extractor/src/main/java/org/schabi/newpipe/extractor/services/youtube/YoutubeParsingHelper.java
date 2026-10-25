@@ -580,7 +580,8 @@ YoutubeParsingHelper {
                 .end().done().getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
-        final Map<String, List<String>> headers = getClientHeaders(WEB_CLIENT_ID, WEB_HARDCODED_CLIENT_VERSION);
+        final Map<String, List<String>> headers = new HashMap<>(
+                getClientHeaders(WEB_CLIENT_ID, WEB_HARDCODED_CLIENT_VERSION));
         headers.put("Content-Type", singletonList("application/json"));
 
         // This endpoint is fetched by the YouTube website to get the items of its main menu and is
