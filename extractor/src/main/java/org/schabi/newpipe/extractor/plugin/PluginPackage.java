@@ -18,6 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A plugin package ({@code .ppp}) is a zip file that is at the same time:
@@ -37,6 +38,7 @@ public final class PluginPackage {
     public static final String FILE_EXTENSION = ".ppp";
     public static final String DEX_ENTRY = "classes.dex";
     private static final int MAX_MANIFEST_SIZE = 64 * 1024;
+    private static final int MAX_ICON_SIZE = 256 * 1024;
 
     private PluginPackage() {
     }
@@ -54,6 +56,32 @@ public final class PluginPackage {
             }
             try (InputStream in = zip.getInputStream(entry)) {
                 return PluginManifest.parse(readLimited(in, MAX_MANIFEST_SIZE));
+            }
+        } catch (final IOException e) {
+            throw new PluginException("Cannot read plugin package", e);
+        }
+    }
+
+    /**
+     * Read the icon declared by {@link PluginManifest#getIcon()}.
+     *
+     * @return the encoded image, or null if the manifest declares no icon
+     */
+    @Nullable
+    public static byte[] readIcon(@Nonnull final File packageFile,
+                                  @Nonnull final PluginManifest manifest)
+            throws PluginException {
+        final String icon = manifest.getIcon();
+        if (icon == null) {
+            return null;
+        }
+        try (ZipFile zip = new ZipFile(packageFile)) {
+            final ZipEntry entry = zip.getEntry(icon);
+            if (entry == null) {
+                throw new PluginException("Package has no " + icon);
+            }
+            try (InputStream in = zip.getInputStream(entry)) {
+                return readBytesLimited(in, MAX_ICON_SIZE, icon);
             }
         } catch (final IOException e) {
             throw new PluginException("Cannot read plugin package", e);
@@ -145,15 +173,23 @@ public final class PluginPackage {
     @Nonnull
     private static String readLimited(@Nonnull final InputStream in, final int limit)
             throws IOException, PluginException {
+        return new String(readBytesLimited(in, limit, PluginManifest.FILE_NAME),
+                StandardCharsets.UTF_8);
+    }
+
+    @Nonnull
+    private static byte[] readBytesLimited(@Nonnull final InputStream in, final int limit,
+                                           @Nonnull final String name)
+            throws IOException, PluginException {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         final byte[] buffer = new byte[4096];
         int read;
         while ((read = in.read(buffer)) != -1) {
             out.write(buffer, 0, read);
             if (out.size() > limit) {
-                throw new PluginException(PluginManifest.FILE_NAME + " is too large");
+                throw new PluginException(name + " is too large");
             }
         }
-        return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        return out.toByteArray();
     }
 }

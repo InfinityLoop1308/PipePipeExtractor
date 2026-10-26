@@ -27,17 +27,26 @@ import javax.annotation.Nullable;
  *   "entryClass": "org.example.myservice.MyServicePlugin",
  *   "legacyServiceId": 1,                     // optional, only for ex built-in services
  *   "description": "...",                     // optional
+ *   "icon": "icon.png",                       // optional, path of a PNG/WebP in the package
  *   "settings": [                             // optional
  *     {"key": "instance", "type": "string", "title": "Instance", "default": "https://..."}
  *   ]
  * }
  * </pre>
+ *
+ * <p>The icon should be a square, single color image on a transparent background (at most
+ * {@value #ICON_MAX_DIMENSION} px per side): hosts tint it like other icons.</p>
  */
 public final class PluginManifest {
 
     public static final String FILE_NAME = "plugin.json";
     private static final Pattern ID_PATTERN = Pattern.compile("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)+$");
     private static final Pattern API_PATTERN = Pattern.compile("^(\\d+)\\.(\\d+)$");
+    private static final Pattern ICON_PATTERN =
+            Pattern.compile("^[A-Za-z0-9_][A-Za-z0-9_./-]{0,127}$");
+
+    /** Largest width or height, in pixels, hosts accept for {@code icon}. */
+    public static final int ICON_MAX_DIMENSION = 512;
 
     @Nonnull
     private final String pluginId;
@@ -53,6 +62,8 @@ public final class PluginManifest {
     private final int legacyServiceId;
     @Nullable
     private final String description;
+    @Nullable
+    private final String icon;
     @Nonnull
     private final List<PluginSetting> settings;
 
@@ -65,6 +76,7 @@ public final class PluginManifest {
                            @Nonnull final String entryClass,
                            final int legacyServiceId,
                            @Nullable final String description,
+                           @Nullable final String icon,
                            @Nonnull final List<PluginSetting> settings) {
         this.pluginId = pluginId;
         this.name = name;
@@ -75,6 +87,7 @@ public final class PluginManifest {
         this.entryClass = entryClass;
         this.legacyServiceId = legacyServiceId;
         this.description = description;
+        this.icon = icon;
         this.settings = settings;
     }
 
@@ -98,6 +111,11 @@ public final class PluginManifest {
         }
         if (!o.has("versionCode") || !(o.get("versionCode") instanceof Number)) {
             throw new PluginException("Missing versionCode");
+        }
+
+        final String icon = o.getString("icon", null);
+        if (icon != null && (!ICON_PATTERN.matcher(icon).matches() || icon.contains(".."))) {
+            throw new PluginException("Invalid icon path: " + icon);
         }
 
         final List<PluginSetting> settings = new ArrayList<>();
@@ -127,6 +145,7 @@ public final class PluginManifest {
                 requireString(o, "entryClass"),
                 o.getInt("legacyServiceId", -1),
                 o.getString("description", null),
+                icon,
                 Collections.unmodifiableList(settings));
     }
 
@@ -205,6 +224,14 @@ public final class PluginManifest {
     @Nullable
     public String getDescription() {
         return description;
+    }
+
+    /**
+     * @return the path of the icon inside the package, or null if the plugin has none
+     */
+    @Nullable
+    public String getIcon() {
+        return icon;
     }
 
     @Nonnull
