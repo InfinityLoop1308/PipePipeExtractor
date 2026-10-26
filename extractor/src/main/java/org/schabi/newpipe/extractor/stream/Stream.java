@@ -39,6 +39,7 @@ public abstract class Stream implements Serializable {
     private final long availableAt;
     @Nullable private final Serializable deliveryMethodInfo;
     @Nullable private LinkedHashMap<String, String> requestHeaders;
+    @Nullable private Boolean cacheable;
 
     /**
      * Instantiates a new {@code Stream} object.
@@ -164,6 +165,22 @@ public abstract class Stream implements Serializable {
     public void setRequestHeaders(@Nullable final Map<String, String> headers) {
         this.requestHeaders = headers == null || headers.isEmpty()
                 ? null : new LinkedHashMap<>(headers);
+    }
+
+    /**
+     * Whether the player may keep this stream in its media cache, or {@code null} to let the
+     * client decide from the delivery method. Declare {@code false} for content that must not
+     * be reused, e.g. URLs whose response changes over time.
+     *
+     * @return the declared cache policy, or {@code null}
+     */
+    @Nullable
+    public Boolean getCacheable() {
+        return cacheable;
+    }
+
+    public void setCacheable(@Nullable final Boolean cacheable) {
+        this.cacheable = cacheable;
     }
 
     /**

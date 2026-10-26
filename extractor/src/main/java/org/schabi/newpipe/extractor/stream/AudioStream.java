@@ -80,6 +80,8 @@ public final class AudioStream extends Stream {
         private Serializable deliveryMethodInfo;
         @Nullable
         private java.util.Map<String, String> requestHeaders;
+        @Nullable
+        private Boolean cacheable;
         /**
          * Create a new {@link Builder} instance with its default values.
          */
@@ -273,6 +275,12 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        /** @see Stream#getCacheable() */
+        public Builder setCacheable(@Nullable final Boolean cacheable) {
+            this.cacheable = cacheable;
+            return this;
+        }
+
         public Builder setDeliveryMethodInfo(@Nullable final Serializable deliveryMethodInfo) {
             this.deliveryMethodInfo = deliveryMethodInfo;
             return this;
@@ -315,6 +323,7 @@ public final class AudioStream extends Stream {
                     quality, audioTrackId, audioTrackName, audioLocale, availableAt,
                     deliveryMethodInfo);
             stream.setRequestHeaders(requestHeaders);
+            stream.setCacheable(cacheable);
             return stream;
         }
     }

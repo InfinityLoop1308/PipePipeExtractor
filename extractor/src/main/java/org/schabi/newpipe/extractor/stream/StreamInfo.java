@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -212,6 +213,12 @@ public class StreamInfo extends Info {
             streamInfo.addError(new ExtractionException("Couldn't get HLS manifest", e));
         }
         logPerformance(streamInfo.getId(), "streams.hls", stageStartedAt);
+
+        try {
+            streamInfo.setManifestRequestHeaders(extractor.getManifestRequestHeaders());
+        } catch (final Exception e) {
+            streamInfo.addError(new ExtractionException("Couldn't get manifest request headers", e));
+        }
 
         /* Load and extract audio */
         stageStartedAt = System.nanoTime();
@@ -557,6 +564,8 @@ public class StreamInfo extends Info {
 
     private String dashMpdUrl = "";
     private String hlsUrl = "";
+    @Nullable
+    private Map<String, String> manifestRequestHeaders;
     private List<InfoItem> relatedItems = new ArrayList<>();
 
     private long startPosition = 0;
@@ -842,6 +851,17 @@ public class StreamInfo extends Info {
 
     public void setHlsUrl(final String hlsUrl) {
         this.hlsUrl = hlsUrl;
+    }
+
+    /** @see StreamExtractor#getManifestRequestHeaders() */
+    @Nullable
+    public Map<String, String> getManifestRequestHeaders() {
+        return manifestRequestHeaders;
+    }
+
+    public void setManifestRequestHeaders(@Nullable final Map<String, String> headers) {
+        this.manifestRequestHeaders = headers == null || headers.isEmpty()
+                ? null : new java.util.LinkedHashMap<>(headers);
     }
 
     public List<InfoItem> getRelatedItems() {
