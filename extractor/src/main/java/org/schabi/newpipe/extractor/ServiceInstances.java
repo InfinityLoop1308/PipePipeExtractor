@@ -32,12 +32,14 @@ public interface ServiceInstances {
     ServiceInstance getCurrentInstance();
 
     /**
-     * Validate an instance url and add it to the saved instances.
+     * Validate an instance url and add it to the saved instances. The implementation
+     * normalizes the url, for example by adding a missing {@code https://}, and decides which
+     * forms it accepts, so hosts can pass the user input as is.
      *
      * <p>Validation usually needs the network, so hosts must call this method from a
      * background thread.</p>
      *
-     * @param url the base url of the instance
+     * @param url the url of the instance as entered by the user
      * @return the added instance, with the name reported by the instance itself; if an
      * instance with the same url is already saved, that instance is returned unchanged
      * @throws ExtractionException if the url is invalid or the instance cannot be reached
