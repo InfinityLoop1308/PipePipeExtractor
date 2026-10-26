@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
  *     "versionCode": 3,
  *     "versionName": "1.2.0",
  *     "apiVersion": "1.0",
+ *     "author": "Jane Doe",
  *     "package": "myservice-3.ppp",           // absolute or relative to the index url
  *     "sha256": "hex",
  *     "signature": "base64 Ed25519 signature of the raw sha256 digest",
@@ -116,6 +117,8 @@ public final class PluginRepository {
         private final String versionName;
         private final int apiMajor;
         private final int apiMinor;
+        @Nullable
+        private final String author;
         @Nonnull
         private final String packageUrl;
         @Nonnull
@@ -132,6 +135,7 @@ public final class PluginRepository {
         private Entry(@Nonnull final String pluginId, @Nonnull final String name,
                       final int versionCode, @Nonnull final String versionName,
                       final int apiMajor, final int apiMinor,
+                      @Nullable final String author,
                       @Nonnull final String packageUrl, @Nonnull final String sha256,
                       @Nonnull final String signature, @Nonnull final String publicKey,
                       @Nullable final String description, final boolean nsfw) {
@@ -141,6 +145,7 @@ public final class PluginRepository {
             this.versionName = versionName;
             this.apiMajor = apiMajor;
             this.apiMinor = apiMinor;
+            this.author = author;
             this.packageUrl = packageUrl;
             this.sha256 = sha256;
             this.signature = signature;
@@ -185,7 +190,7 @@ public final class PluginRepository {
             final int versionCode = o.getInt("versionCode");
             return new Entry(pluginId, name, versionCode,
                     o.getString("versionName", String.valueOf(versionCode)), major, minor,
-                    packageUrl, sha256, signature, publicKey,
+                    o.getString("author", null), packageUrl, sha256, signature, publicKey,
                     o.getString("description", null), o.getBoolean("nsfw", false));
         }
 
@@ -229,6 +234,15 @@ public final class PluginRepository {
         @Nonnull
         public String getApiVersion() {
             return apiMajor + "." + apiMinor;
+        }
+
+        /**
+         * @return the author as declared by the repository, or null. The installed package
+         * declares its own author in {@code plugin.json}.
+         */
+        @Nullable
+        public String getAuthor() {
+            return author;
         }
 
         @Nonnull

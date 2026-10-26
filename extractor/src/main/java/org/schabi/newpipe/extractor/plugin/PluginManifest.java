@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
  *   "versionCode": 3,
  *   "versionName": "1.2.0",
  *   "apiVersion": "1.0",                      // major.minor of PipePipePlugin API
+ *   "author": "Jane Doe",                     // shown as "by Jane Doe" in the plugin settings
  *   "entryClass": "org.example.myservice.MyServicePlugin",
  *   "legacyServiceId": 1,                     // optional, only for ex built-in services
  *   "description": "...",                     // optional
@@ -58,6 +59,8 @@ public final class PluginManifest {
     private final int apiMajor;
     private final int apiMinor;
     @Nonnull
+    private final String author;
+    @Nonnull
     private final String entryClass;
     private final int legacyServiceId;
     @Nullable
@@ -73,6 +76,7 @@ public final class PluginManifest {
                            @Nonnull final String versionName,
                            final int apiMajor,
                            final int apiMinor,
+                           @Nonnull final String author,
                            @Nonnull final String entryClass,
                            final int legacyServiceId,
                            @Nullable final String description,
@@ -84,6 +88,7 @@ public final class PluginManifest {
         this.versionName = versionName;
         this.apiMajor = apiMajor;
         this.apiMinor = apiMinor;
+        this.author = author;
         this.entryClass = entryClass;
         this.legacyServiceId = legacyServiceId;
         this.description = description;
@@ -142,6 +147,7 @@ public final class PluginManifest {
                 o.getString("versionName", String.valueOf(o.getInt("versionCode"))),
                 Integer.parseInt(m.group(1)),
                 Integer.parseInt(m.group(2)),
+                requireString(o, "author").trim(),
                 requireString(o, "entryClass"),
                 o.getInt("legacyServiceId", -1),
                 o.getString("description", null),
@@ -206,6 +212,14 @@ public final class PluginManifest {
     @Nonnull
     public String getApiVersion() {
         return apiMajor + "." + apiMinor;
+    }
+
+    /**
+     * @return the name of the plugin's author, hosts show it as "by author"
+     */
+    @Nonnull
+    public String getAuthor() {
+        return author;
     }
 
     @Nonnull
