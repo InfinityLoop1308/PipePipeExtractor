@@ -6,7 +6,9 @@ import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -36,6 +38,7 @@ public abstract class Stream implements Serializable {
     @Nullable private final String manifestUrl;
     private final long availableAt;
     @Nullable private final Serializable deliveryMethodInfo;
+    @Nullable private LinkedHashMap<String, String> requestHeaders;
 
     /**
      * Instantiates a new {@code Stream} object.
@@ -144,6 +147,23 @@ public abstract class Stream implements Serializable {
      */
     public String getId() {
         return id;
+    }
+
+    /**
+     * HTTP headers the player must send when fetching this stream (e.g. {@code Referer},
+     * {@code User-Agent}), or {@code null} if none are required. Only applied to progressive
+     * and HLS streams of services that are not handled specially by the client.
+     *
+     * @return an unmodifiable view of the headers, or {@code null}
+     */
+    @Nullable
+    public Map<String, String> getRequestHeaders() {
+        return requestHeaders == null ? null : java.util.Collections.unmodifiableMap(requestHeaders);
+    }
+
+    public void setRequestHeaders(@Nullable final Map<String, String> headers) {
+        this.requestHeaders = headers == null || headers.isEmpty()
+                ? null : new LinkedHashMap<>(headers);
     }
 
     /**

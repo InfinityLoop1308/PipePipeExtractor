@@ -78,6 +78,8 @@ public final class AudioStream extends Stream {
         private long availableAt = AVAILABLE_AT_UNKNOWN;
         @Nullable
         private Serializable deliveryMethodInfo;
+        @Nullable
+        private java.util.Map<String, String> requestHeaders;
         /**
          * Create a new {@link Builder} instance with its default values.
          */
@@ -266,6 +268,11 @@ public final class AudioStream extends Stream {
             return this;
         }
 
+        public Builder setRequestHeaders(@Nullable final java.util.Map<String, String> headers) {
+            this.requestHeaders = headers;
+            return this;
+        }
+
         public Builder setDeliveryMethodInfo(@Nullable final Serializable deliveryMethodInfo) {
             this.deliveryMethodInfo = deliveryMethodInfo;
             return this;
@@ -303,10 +310,12 @@ public final class AudioStream extends Stream {
                                 + "not allowed. Pass a valid one instead with setDeliveryMethod.");
             }
 
-            return new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate, codec,
+            final AudioStream stream = new AudioStream(id, content, isUrl, mediaFormat, deliveryMethod, averageBitrate, codec,
                     bitrate, initStart, initEnd, indexStart, indexEnd, manifestUrl, itagItem,
                     quality, audioTrackId, audioTrackName, audioLocale, availableAt,
                     deliveryMethodInfo);
+            stream.setRequestHeaders(requestHeaders);
+            return stream;
         }
     }
 
