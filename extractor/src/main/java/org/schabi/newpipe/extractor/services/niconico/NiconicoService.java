@@ -107,6 +107,11 @@ public class NiconicoService extends StreamingService {
         return BASE_URL;
     }
 
+    @Override
+    public long getInfoCacheExpirationMillis() {
+        return 2 * 60 * 1000L;
+    }
+
     static public Map<String, List<String>> getMylistHeaders(){
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("X-Frontend-Id", Collections.singletonList("6"));

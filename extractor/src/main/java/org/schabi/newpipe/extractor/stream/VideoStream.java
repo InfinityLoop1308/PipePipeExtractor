@@ -91,6 +91,10 @@ public final class VideoStream extends Stream {
         private long availableAt = AVAILABLE_AT_UNKNOWN;
         @Nullable
         private Serializable deliveryMethodInfo;
+        @Nullable
+        private java.util.Map<String, String> requestHeaders;
+        @Nullable
+        private Boolean cacheable;
 
         /**
          * Create a new {@link Builder} instance with its default values.
@@ -312,6 +316,17 @@ public final class VideoStream extends Stream {
             return this;
         }
 
+        public Builder setRequestHeaders(@Nullable final java.util.Map<String, String> headers) {
+            this.requestHeaders = headers;
+            return this;
+        }
+
+        /** @see Stream#getCacheable() */
+        public Builder setCacheable(@Nullable final Boolean cacheable) {
+            this.cacheable = cacheable;
+            return this;
+        }
+
         public Builder setDeliveryMethodInfo(@Nullable final Serializable deliveryMethodInfo) {
             this.deliveryMethodInfo = deliveryMethodInfo;
             return this;
@@ -363,10 +378,13 @@ public final class VideoStream extends Stream {
                                 + "get it).");
             }
 
-            return new VideoStream(id, content, isUrl, mediaFormat, deliveryMethod, resolution, codec,
+            final VideoStream stream = new VideoStream(id, content, isUrl, mediaFormat, deliveryMethod, resolution, codec,
                     bitrate, initStart, initEnd, indexStart, indexEnd, width, height, fps,
                     isVideoOnly, manifestUrl, itagItem, audioTrackId, audioTrackName, audioLocale,
                     availableAt, deliveryMethodInfo);
+            stream.setRequestHeaders(requestHeaders);
+            stream.setCacheable(cacheable);
+            return stream;
         }
     }
 

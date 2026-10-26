@@ -352,6 +352,18 @@ public abstract class StreamExtractor extends Extractor {
     }
 
     /**
+     * HTTP headers the player must send when fetching {@link #getDashMpdUrl()} or
+     * {@link #getHlsUrl()} and their segments (e.g. {@code Referer}, {@code User-Agent}).
+     * The per-stream equivalent is {@link Stream#getRequestHeaders()}.
+     *
+     * @return the headers, or {@code null} if none are required
+     */
+    @Nullable
+    public Map<String, String> getManifestRequestHeaders() throws ParsingException {
+        return null;
+    }
+
+    /**
      * This should return a list of available {@link AudioStream}s.
      * You can also return null or an empty list, however be aware that if you don't return anything
      * in getVideoStreams(), getVideoOnlyStreams() and getDashMpdUrl() either the Collector will

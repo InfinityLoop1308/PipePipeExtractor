@@ -6,7 +6,9 @@ import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.Serializable;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
 
@@ -36,6 +38,8 @@ public abstract class Stream implements Serializable {
     @Nullable private final String manifestUrl;
     private final long availableAt;
     @Nullable private final Serializable deliveryMethodInfo;
+    @Nullable private LinkedHashMap<String, String> requestHeaders;
+    @Nullable private Boolean cacheable;
 
     /**
      * Instantiates a new {@code Stream} object.
@@ -144,6 +148,39 @@ public abstract class Stream implements Serializable {
      */
     public String getId() {
         return id;
+    }
+
+    /**
+     * HTTP headers the player must send when fetching this stream (e.g. {@code Referer},
+     * {@code User-Agent}), or {@code null} if none are required. Sent on every media request
+     * of the stream, on top of (and overriding) the headers the client uses for its service.
+     *
+     * @return an unmodifiable view of the headers, or {@code null}
+     */
+    @Nullable
+    public Map<String, String> getRequestHeaders() {
+        return requestHeaders == null ? null : java.util.Collections.unmodifiableMap(requestHeaders);
+    }
+
+    public void setRequestHeaders(@Nullable final Map<String, String> headers) {
+        this.requestHeaders = headers == null || headers.isEmpty()
+                ? null : new LinkedHashMap<>(headers);
+    }
+
+    /**
+     * Whether the player may keep this stream in its media cache, or {@code null} to let the
+     * client decide from the delivery method. Declare {@code false} for content that must not
+     * be reused, e.g. URLs whose response changes over time.
+     *
+     * @return the declared cache policy, or {@code null}
+     */
+    @Nullable
+    public Boolean getCacheable() {
+        return cacheable;
+    }
+
+    public void setCacheable(@Nullable final Boolean cacheable) {
+        this.cacheable = cacheable;
     }
 
     /**
