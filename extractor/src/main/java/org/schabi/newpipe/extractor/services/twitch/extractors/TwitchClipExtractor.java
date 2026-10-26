@@ -1,0 +1,135 @@
+package org.schabi.newpipe.extractor.services.twitch.extractors;
+
+import com.grack.nanojson.JsonParserException;
+
+import org.jetbrains.annotations.NotNull;
+import org.schabi.newpipe.extractor.Image;
+import org.schabi.newpipe.extractor.MediaFormat;
+import org.schabi.newpipe.extractor.StreamingService;
+import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
+import org.schabi.newpipe.extractor.services.twitch.TwitchUrlBuilder;
+import org.schabi.newpipe.extractor.services.twitch.TwitchUrlParser;
+import org.schabi.newpipe.extractor.services.twitch.api.TwitchApiClient;
+import org.schabi.newpipe.extractor.services.twitch.api.TwitchThumbnailURLGenerator;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.CursorBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.pagination.PositionBasedPagination;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchClipPlaybackResponseInner;
+import org.schabi.newpipe.extractor.services.twitch.data.api.responses.clip.TwitchVideoPlayerMediaSessionManagerResponseInner;
+import org.schabi.newpipe.extractor.stream.AudioStream;
+import org.schabi.newpipe.extractor.stream.DeliveryMethod;
+import org.schabi.newpipe.extractor.stream.StreamExtractor;
+import org.schabi.newpipe.extractor.stream.StreamType;
+import org.schabi.newpipe.extractor.stream.VideoStream;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import javax.annotation.Nonnull;
+
+public final class TwitchClipExtractor extends StreamExtractor {
+
+    @Nonnull
+    private final TwitchApiClient apiClient;
+    private TwitchClipPlaybackResponseInner[] clipResponse;
+    private TwitchVideoPlayerMediaSessionManagerResponseInner response;
+
+    public TwitchClipExtractor(final @Nonnull StreamingService service,
+                               final @Nonnull LinkHandler linkHandler,
+                               final @Nonnull TwitchApiClient apiClient) {
+        super(service, linkHandler);
+        this.apiClient = apiClient;
+    }
+
+    @NotNull
+    @Override
+    public String getThumbnailUrl() throws ParsingException {
+        // The thumbnail URL is not available here. To get it we would need another expensive API call.
+        // I don't really see the benefit here to get the thumbnail
+        return TwitchThumbnailURLGenerator.NO_THUMBNAIL_URL;
+    }
+
+    @Override
+    public void onFetchPage(@Nonnull Downloader downloader) throws IOException,
+            ExtractionException {
+        try {
+            final var clipSlug = TwitchUrlParser.parseClipIdFromClipUrl(getUrl());
+            clipResponse =
+                    apiClient.getUnauthorized().getClipPlaybackToken(downloader, clipSlug).getData();
+            response =
+                    apiClient.getUnauthorized().getTwitchVideoPlayerMediaSessionClipManager(downloader, clipSlug).getData();
+        } catch (JsonParserException e) {
+            throw new IOException(e);
+        }
+    }
+
+    @Nonnull
+    @Override
+    public String getName() throws ParsingException {
+        return response.clipTitle();
+    }
+
+    @Nonnull
+    @Override
+    public List<Image> getThumbnails() throws ParsingException {
+        return Collections.emptyList();
+    }
+
+    @Nonnull
+    @Override
+    public String getUploaderUrl() throws ParsingException {
+        return TwitchUrlBuilder.buildChannelUrlFromChannelNameAndPagination(
+                response.ownerLoginName(),
+                response.ownerId(),
+                apiClient.getApiSettings().shouldUseHelixForVods()
+                        ? CursorBasedPagination.DEFAULT_CURSOR_PAGINATION
+                        : PositionBasedPagination.DEFAULT_POSITION_PAGINATION
+        );
+    }
+
+    @Nonnull
+    @Override
+    public String getUploaderName() throws ParsingException {
+        return response.ownerDisplayName();
+    }
+
+    @NotNull
+    @Override
+    public String getUploaderAvatarUrl() throws ParsingException {
+        return response.ownerProfileImageUrl();
+    }
+
+    @Override
+    public List<VideoStream> getVideoStreams() throws IOException, ExtractionException {
+        return Arrays.stream(clipResponse).map(res ->
+                new VideoStream.Builder()
+                        .setId(VideoStream.ID_UNKNOWN)
+                        .setContent(res.clipUrl(), true)
+                        .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
+                        .setResolution(res.clipWidth() + "x" + res.clipHeight())
+                        .setIsVideoOnly(false)
+                        .setMediaFormat(MediaFormat.MPEG_4)
+                        .build()
+        ).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<AudioStream> getAudioStreams() throws IOException, ExtractionException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public List<VideoStream> getVideoOnlyStreams() throws IOException, ExtractionException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public StreamType getStreamType() throws ParsingException {
+        return StreamType.POST_LIVE_STREAM;
+    }
+}
