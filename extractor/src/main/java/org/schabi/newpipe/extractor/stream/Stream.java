@@ -151,8 +151,8 @@ public abstract class Stream implements Serializable {
 
     /**
      * HTTP headers the player must send when fetching this stream (e.g. {@code Referer},
-     * {@code User-Agent}), or {@code null} if none are required. Only applied to progressive
-     * and HLS streams of services that are not handled specially by the client.
+     * {@code User-Agent}), or {@code null} if none are required. Sent on every media request
+     * of the stream, on top of (and overriding) the headers the client uses for its service.
      *
      * @return an unmodifiable view of the headers, or {@code null}
      */
