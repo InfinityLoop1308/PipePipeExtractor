@@ -162,6 +162,24 @@ public abstract class StreamingService {
         return 60 * 60 * 1000L;
     }
 
+    /**
+     * HTTP headers the client must send when loading an image (thumbnail, avatar, banner...)
+     * returned by this service, e.g. {@code Referer} for hosts that block hotlinking.
+     *
+     * <p>Image urls are stored as plain strings (history, subscriptions, playlists), so the
+     * client asks every service for each image it loads and uses the headers of the first one
+     * that returns non-null. Return {@code null} for urls the service does not own, usually by
+     * checking the host. This is called for every image request, keep it cheap and do not
+     * touch the network.</p>
+     *
+     * @param imageUrl the url of the image about to be loaded
+     * @return the headers to send, or {@code null} if this service has no requirement for it
+     */
+    @Nullable
+    public Map<String, String> getImageRequestHeaders(final String imageUrl) {
+        return null;
+    }
+
     /*//////////////////////////////////////////////////////////////////////////
     // Url Id handler
     //////////////////////////////////////////////////////////////////////////*/
