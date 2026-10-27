@@ -747,6 +747,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         waitForCall(relatedCall);
         try {
+            addCollectionPlaylistItems(collector);
             for (int i = 0; i < relatedData.size(); i++) {
                 collector.commit(new BilibiliRelatedInfoItemExtractor(relatedData.getObject(i)));
                 if (i == 0 && partitions > 1) {
@@ -775,6 +776,45 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+
+    private void addCollectionPlaylistItems(
+            final InfoItemsCollector<InfoItem, InfoItemExtractor> collector)
+            throws ParsingException {
+        final JsonObject season = watch.getObject("ugc_season");
+        if (season == null) {
+            return;
+        }
+
+        final long seasonId = season.getLong("id", -1);
+        final JsonObject owner = watch.getObject("owner");
+        final long uploaderId = season.getLong("mid", owner == null ? -1 : owner.getLong("mid", -1));
+        final List<StreamCollectionInfo> collections = BilibiliCollectionParser.parse(watch);
+        if (seasonId < 0 || uploaderId < 0 || collections.isEmpty()) {
+            return;
+        }
+
+        for (final StreamCollectionInfo collection : collections) {
+            long episodeCount = 0;
+            for (final StreamCollectionInfo.Section section : collection.getSections()) {
+                episodeCount += section.getEpisodes().size();
+            }
+            if (episodeCount == 0) {
+                episodeCount = season.getLong("total", 0);
+            }
+
+            final String collectionUrl = String.format(GET_SEASON_ARCHIVES_LIST_RAW_URL,
+                    uploaderId, seasonId, formatParamWithPercentSpace(collection.getTitle()));
+            String thumbnailUrl = season.getString("cover");
+            if (thumbnailUrl == null || thumbnailUrl.isEmpty()) {
+                thumbnailUrl = getThumbnailUrl();
+            } else {
+                thumbnailUrl = thumbnailUrl.replace("http:", "https:");
+            }
+            collector.commit(new BilibiliPlaylistInfoItemExtractor(collection.getTitle(),
+                    collectionUrl, thumbnailUrl, getUploaderName(), String.valueOf(uploaderId),
+                    episodeCount));
+        }
     }
 
     @SuppressWarnings("SimpleDateFormat")
@@ -875,6 +915,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+
+    @Override
+    public List<StreamCollectionInfo> getCollections() {
+        return BilibiliCollectionParser.parse(watch);
     }
 
     private void waitForCall(CancellableCall call) {
