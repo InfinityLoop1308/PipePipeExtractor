@@ -28,7 +28,7 @@ public interface PipePipePlugin {
      * Minor version of the plugin API. Minor bumps only add API; a plugin compiled against
      * minor {@code n} can be loaded by any host with minor {@code >= n}.
      */
-    int API_VERSION_MINOR = 1;
+    int API_VERSION_MINOR = 0;
 
     /**
      * @param serviceId the numeric id assigned by the host. It must be passed to the
