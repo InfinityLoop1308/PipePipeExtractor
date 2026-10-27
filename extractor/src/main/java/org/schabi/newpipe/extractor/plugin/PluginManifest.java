@@ -31,7 +31,12 @@ import javax.annotation.Nullable;
  *   "icon": "icon.png",                       // optional, path of a PNG/WebP in the package
  *   "settings": [                             // optional
  *     {"key": "instance", "type": "string", "title": "Instance", "default": "https://..."}
- *   ]
+ *   ],
+ *   "login": {                                // optional, cookie based web login
+ *     "url": "https://example.org/login",     // https page opened in a web view
+ *     "cookie": "session",                    // cookie whose presence means logged in
+ *     "key": "login_cookies"                  // optional, preference key of the cookie header
+ *   }
  * }
  * </pre>
  *
@@ -69,6 +74,8 @@ public final class PluginManifest {
     private final String icon;
     @Nonnull
     private final List<PluginSetting> settings;
+    @Nullable
+    private final PluginLogin login;
 
     private PluginManifest(@Nonnull final String pluginId,
                            @Nonnull final String name,
@@ -81,7 +88,8 @@ public final class PluginManifest {
                            final int legacyServiceId,
                            @Nullable final String description,
                            @Nullable final String icon,
-                           @Nonnull final List<PluginSetting> settings) {
+                           @Nonnull final List<PluginSetting> settings,
+                           @Nullable final PluginLogin login) {
         this.pluginId = pluginId;
         this.name = name;
         this.versionCode = versionCode;
@@ -94,6 +102,7 @@ public final class PluginManifest {
         this.description = description;
         this.icon = icon;
         this.settings = settings;
+        this.login = login;
     }
 
     @Nonnull
@@ -140,6 +149,20 @@ public final class PluginManifest {
                     s.getString("summary", null), def == null ? null : String.valueOf(def)));
         }
 
+        PluginLogin login = null;
+        if (o.has("login")) {
+            final JsonObject l = o.getObject("login");
+            final String url = requireString(l, "url");
+            if (!url.startsWith("https://")) {
+                throw new PluginException("login.url must be https");
+            }
+            final String key = l.getString("key", PluginLogin.DEFAULT_KEY);
+            if (key.trim().isEmpty()) {
+                throw new PluginException("Invalid login.key");
+            }
+            login = new PluginLogin(url, requireString(l, "cookie"), key);
+        }
+
         return new PluginManifest(
                 pluginId,
                 requireString(o, "name"),
@@ -152,7 +175,8 @@ public final class PluginManifest {
                 o.getInt("legacyServiceId", -1),
                 o.getString("description", null),
                 icon,
-                Collections.unmodifiableList(settings));
+                Collections.unmodifiableList(settings),
+                login);
     }
 
     public static boolean isValidPluginId(@Nullable final String pluginId) {
@@ -251,5 +275,13 @@ public final class PluginManifest {
     @Nonnull
     public List<PluginSetting> getSettings() {
         return settings;
+    }
+
+    /**
+     * @return the web login of the plugin, or null if it has none
+     */
+    @Nullable
+    public PluginLogin getLogin() {
+        return login;
     }
 }
