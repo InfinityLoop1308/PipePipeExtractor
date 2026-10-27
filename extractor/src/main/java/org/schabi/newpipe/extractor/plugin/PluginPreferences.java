@@ -9,10 +9,18 @@ import javax.annotation.Nullable;
  */
 public interface PluginPreferences {
 
+    /**
+     * @return the stored value, or the default declared for this key in {@code plugin.json};
+     * {@code null} if neither exists
+     */
     @Nullable
-    String getString(@Nonnull String key, @Nullable String defaultValue);
+    String getString(@Nonnull String key);
 
-    boolean getBoolean(@Nonnull String key, boolean defaultValue);
+    /**
+     * @return the stored value, or the default declared for this key in {@code plugin.json};
+     * {@code false} if neither exists
+     */
+    boolean getBoolean(@Nonnull String key);
 
     void putString(@Nonnull String key, @Nullable String value);
 
