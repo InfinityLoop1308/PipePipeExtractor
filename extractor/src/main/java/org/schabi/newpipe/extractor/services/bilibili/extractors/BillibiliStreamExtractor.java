@@ -741,6 +741,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         }
         waitForCall(relatedCall);
         try {
+            addCollectionPlaylistItems(collector);
             for (int i = 0; i < relatedData.size(); i++) {
                 collector.commit(new BilibiliRelatedInfoItemExtractor(relatedData.getObject(i)));
                 if (i == 0 && partitions > 1) {
@@ -769,6 +770,38 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             e.printStackTrace();
         }
         return collector;
+    }
+
+    private void addCollectionPlaylistItems(
+            final InfoItemsCollector<InfoItem, InfoItemExtractor> collector)
+            throws ParsingException {
+        final JsonObject season = watch.getObject("ugc_season");
+        if (season == null) {
+            return;
+        }
+
+        final long seasonId = season.getLong("id", -1);
+        final JsonObject owner = watch.getObject("owner");
+        long uploaderId = season.getLong("mid", -1);
+        if (uploaderId <= 0 && owner != null) {
+            uploaderId = owner.getLong("mid", -1);
+        }
+        final String title = season.getString("title");
+        if (seasonId <= 0 || uploaderId <= 0 || title == null || title.isEmpty()) {
+            return;
+        }
+
+        final String collectionUrl = String.format(GET_SEASON_ARCHIVES_LIST_RAW_URL,
+                uploaderId, seasonId, formatParamWithPercentSpace(title));
+        String thumbnailUrl = season.getString("cover");
+        if (thumbnailUrl == null || thumbnailUrl.isEmpty()) {
+            thumbnailUrl = watch.getString("pic", "");
+        }
+        thumbnailUrl = thumbnailUrl.replace("http:", "https:");
+        final String uploaderName = owner == null ? "" : owner.getString("name", "");
+        collector.commit(new BilibiliPlaylistInfoItemExtractor(title, collectionUrl,
+                thumbnailUrl, uploaderName, String.valueOf(uploaderId),
+                season.getLong("total", 0)));
     }
 
     @SuppressWarnings("SimpleDateFormat")

@@ -58,7 +58,18 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Nonnull
     @Override
     public String getName() throws ParsingException {
-        return getLinkHandler().getUrl().split("name=")[1].split("&")[0];
+        if ("seasons_archives".equals(type) && data != null) {
+            final JsonObject meta = data.getObject("meta");
+            if (meta != null && !meta.getString("name", "").isEmpty()) {
+                return meta.getString("name");
+            }
+        }
+        final String name = getLinkHandler().getUrl().split("name=")[1].split("&")[0];
+        try {
+            return URLDecoder.decode(name, "UTF-8");
+        } catch (UnsupportedEncodingException | IllegalArgumentException ignored) {
+            return name;
+        }
     }
 
     @Nonnull
