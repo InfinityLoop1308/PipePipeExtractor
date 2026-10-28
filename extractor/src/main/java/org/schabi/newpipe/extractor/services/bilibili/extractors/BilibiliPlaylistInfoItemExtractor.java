@@ -5,6 +5,7 @@ import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.linkHandler.BilibiliChannelLinkHandlerFactory;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 
 import javax.annotation.Nullable;
 
@@ -70,8 +71,9 @@ public class BilibiliPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
             return String.format("https://www.bilibili.com/medialist/play/%d?business=space_collection&business_id=%d",
                     itemObject.getLong("mid"), itemObject.getLong("season_id"));
         } else if ("archives".equals(type) || "series".equals(type)) {
-            return String.format("https://www.bilibili.com/medialist/play/%d?business=space_series&business_id=%d",
-                    itemObject.getLong("mid"), itemObject.getLong("series_id"));
+            return String.format("https://www.bilibili.com/medialist/play/%d?business=space_series&business_id=%d&name=%s",
+                    itemObject.getLong("mid"), itemObject.getLong("series_id"),
+                    utils.formatParamWithPercentSpace(getName()));
         }
         return null;
     }

@@ -120,12 +120,25 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
                 return meta.getString("title");
             }
         }
-        if (getLinkHandler().getUrl().contains("name=")) {
-            try {
-                return URLDecoder.decode(getLinkHandler().getUrl().split("name=")[1].split("&")[0], "UTF-8");
-            } catch (Exception ignored) {}
+        String name = getNameFromUrl(getLinkHandler().getUrl());
+        if (name == null) {
+            name = getNameFromUrl(getOriginalUrl());
         }
-        return "Bilibili Playlist";
+        return name == null || name.isEmpty() ? "Bilibili Playlist" : name;
+    }
+
+    private String getNameFromUrl(String url) {
+        if (url == null) return null;
+        for (String parameter : url.split("[?&]")) {
+            if (parameter.startsWith("name=")) {
+                try {
+                    return URLDecoder.decode(parameter.substring(5).split("#", 2)[0], "UTF-8");
+                } catch (IllegalArgumentException | UnsupportedEncodingException ignored) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 
     @Nonnull
