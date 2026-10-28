@@ -511,11 +511,6 @@ public class StreamInfo extends Info {
             streamInfo.addError(e);
         }
         try {
-            streamInfo.setCollections(extractor.getCollections());
-        } catch (final Exception e) {
-            streamInfo.addError(e);
-        }
-        try {
             streamInfo.setRequiresMembership(extractor.requiresMembership());
         } catch (final Exception e) {
             streamInfo.addError(e);
@@ -591,7 +586,6 @@ public class StreamInfo extends Info {
     private boolean isRoundPlayStream;
     private long startAt = -1;
     private List<StreamInfoItem> partitions = new ArrayList<>();
-    private List<StreamCollectionInfo> collections = Collections.emptyList();
     private boolean shortFormContent = false;
     private List<SponsorBlockSegment> sponsorBlockSegments = new ArrayList<>();
     private boolean fetchSponsorBlockFinished = false;
@@ -1037,14 +1031,6 @@ public class StreamInfo extends Info {
 
     public void setPartitions(List<StreamInfoItem> partitions) {
         this.partitions = partitions;
-    }
-
-    public List<StreamCollectionInfo> getCollections() {
-        return collections;
-    }
-
-    public void setCollections(final List<StreamCollectionInfo> collections) {
-        this.collections = collections == null ? Collections.emptyList() : collections;
     }
 
     public int getStreamsLength(){
