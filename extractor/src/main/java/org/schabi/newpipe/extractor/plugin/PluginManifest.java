@@ -36,6 +36,10 @@ import javax.annotation.Nullable;
  *     "url": "https://example.org/login",     // https page opened in a web view
  *     "cookie": "session",                    // cookie whose presence means logged in
  *     "key": "login_cookies"                  // optional, preference key of the cookie header
+ *   },
+ *   "theme": {                                // optional, primary colors as #RRGGBB
+ *     "light": "#F57C00",
+ *     "dark": "#A35300"
  *   }
  * }
  * </pre>
@@ -76,6 +80,8 @@ public final class PluginManifest {
     private final List<PluginSetting> settings;
     @Nullable
     private final PluginLogin login;
+    @Nullable
+    private final PluginTheme theme;
 
     private PluginManifest(@Nonnull final String pluginId,
                            @Nonnull final String name,
@@ -89,7 +95,8 @@ public final class PluginManifest {
                            @Nullable final String description,
                            @Nullable final String icon,
                            @Nonnull final List<PluginSetting> settings,
-                           @Nullable final PluginLogin login) {
+                           @Nullable final PluginLogin login,
+                           @Nullable final PluginTheme theme) {
         this.pluginId = pluginId;
         this.name = name;
         this.versionCode = versionCode;
@@ -103,6 +110,7 @@ public final class PluginManifest {
         this.icon = icon;
         this.settings = settings;
         this.login = login;
+        this.theme = theme;
     }
 
     @Nonnull
@@ -163,6 +171,8 @@ public final class PluginManifest {
             login = new PluginLogin(url, requireString(l, "cookie"), key);
         }
 
+        final PluginTheme theme = o.has("theme") ? PluginTheme.parse(o.getObject("theme")) : null;
+
         return new PluginManifest(
                 pluginId,
                 requireString(o, "name"),
@@ -176,7 +186,8 @@ public final class PluginManifest {
                 o.getString("description", null),
                 icon,
                 Collections.unmodifiableList(settings),
-                login);
+                login,
+                theme);
     }
 
     public static boolean isValidPluginId(@Nullable final String pluginId) {
@@ -283,5 +294,13 @@ public final class PluginManifest {
     @Nullable
     public PluginLogin getLogin() {
         return login;
+    }
+
+    /**
+     * @return the theme colors declared by the plugin, or null if it declares none
+     */
+    @Nullable
+    public PluginTheme getTheme() {
+        return theme;
     }
 }
