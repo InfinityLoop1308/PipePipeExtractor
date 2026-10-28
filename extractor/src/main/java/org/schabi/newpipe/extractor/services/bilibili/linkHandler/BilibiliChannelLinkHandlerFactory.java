@@ -58,6 +58,10 @@ public class BilibiliChannelLinkHandlerFactory extends ListLinkHandlerFactory {
 
     @Override
     public boolean onAcceptUrl(final String url) throws ParsingException {
+        if (url.contains("/channel/collectiondetail")
+                || url.contains("/channel/seriesdetail")) {
+            return false;
+        }
         try {
             getId(url);
             return true;
