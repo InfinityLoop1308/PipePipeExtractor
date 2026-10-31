@@ -579,6 +579,22 @@ public final class YoutubeSabrSession {
         poToken = value == null ? null : value.clone();
     }
 
+    /**
+     * Drops the protocol state accumulated from server responses (playback cookie, SABR contexts,
+     * redirected host) so the next request is sent like the first request of a new session.
+     * Playback position and the PO token are kept.
+     */
+    public synchronized void resetProtocolState() {
+        playbackCookie = null;
+        sabrContexts.clear();
+        activeSabrContextTypes.clear();
+        serverAbrStreamingUrl = info.getServerAbrStreamingUrl();
+        updateHostCandidates(serverAbrStreamingUrl);
+        redirectCount = 0;
+        consecutiveIntegrityFailures = 0;
+        consecutiveAttestationPendingResponses = 0;
+    }
+
     @Nullable
     byte[] getRawPoToken() {
         return poToken;
