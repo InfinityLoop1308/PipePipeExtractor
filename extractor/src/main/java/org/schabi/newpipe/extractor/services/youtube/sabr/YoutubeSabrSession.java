@@ -579,6 +579,36 @@ public final class YoutubeSabrSession {
         poToken = value == null ? null : value.clone();
     }
 
+    /** Keeps a renewed token paired with the identity that obtained the player response. */
+    public synchronized void refreshPoToken(@Nonnull final byte[] token,
+                                           @Nullable final String visitorData,
+                                           @Nonnull final String clientVersion)
+            throws IOException, ExtractionException {
+        if (Objects.equals(info.getVisitorData(), visitorData)
+                && Objects.equals(info.getClientVersion(), clientVersion)) {
+            setPoToken(token);
+            return;
+        }
+        if (infoReloader == null) {
+            throw new SabrAttestationException("No player reloader for changed PO token identity");
+        }
+        final YoutubeSabrInfo fresh = infoReloader.reload(info.getVideoId(), "");
+        if (fresh == null || !info.getVideoId().equals(fresh.getVideoId())
+                || fresh.getServerAbrStreamingUrl() == null
+                || fresh.getServerAbrStreamingUrl().isEmpty()
+                || fresh.getVideoPlaybackUstreamerConfig() == null
+                || fresh.getVideoPlaybackUstreamerConfig().isEmpty()
+                || fresh.getPoToken() == null || fresh.getPoToken().length == 0) {
+            throw new SabrAttestationException("Could not refresh player for changed PO token identity");
+        }
+        applyReload(fresh);
+        // The old cookie and request counter belong to the previous player identity.
+        playbackCookie = null;
+        requestNumber = 0;
+        consecutiveAttestationPendingResponses = 0;
+        addDiagnosticEvent("attestation_identity_refreshed");
+    }
+
     /**
      * Drops the protocol state accumulated from server responses (playback cookie, SABR contexts,
      * redirected host) so the next request is sent like the first request of a new session.
