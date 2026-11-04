@@ -83,6 +83,34 @@ public final class SabrMediaHeader {
     }
 
     @Nonnull
+    public static SabrMediaHeader initializationFrom(@Nonnull final SabrMediaHeader source,
+                                                     final int contentLength) {
+        return new SabrMediaHeader(source.headerId, source.videoId, source.itag,
+                source.lastModified, source.xtags, source.startRange,
+                source.compressionAlgorithm, true, -1, source.bitrateBps, 0, 0,
+                contentLength, 0, 0, source.timeRangeTimescale, source.sequenceLastModified);
+    }
+
+    @Nonnull
+    public static SabrMediaHeader mediaFrom(@Nonnull final SabrMediaHeader source,
+                                            final int contentLength) {
+        return mediaFrom(source, contentLength, source.sequenceNumber, source.startMs);
+    }
+
+    @Nonnull
+    public static SabrMediaHeader mediaFrom(@Nonnull final SabrMediaHeader source,
+                                            final int contentLength,
+                                            final int sequenceNumber,
+                                            final long startMs) {
+        return new SabrMediaHeader(source.headerId, source.videoId, source.itag,
+                source.lastModified, source.xtags, source.startRange,
+                source.compressionAlgorithm, false, sequenceNumber, source.bitrateBps,
+                startMs, source.durationMs, contentLength, source.timeRangeStartTicks,
+                source.timeRangeDurationTicks, source.timeRangeTimescale,
+                source.sequenceLastModified);
+    }
+
+    @Nonnull
     public static SabrMediaHeader decode(@Nonnull final byte[] data) throws SabrProtocolException {
         int headerId = -1;
         String videoId = null;

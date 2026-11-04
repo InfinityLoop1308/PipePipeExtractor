@@ -26,6 +26,16 @@ public final class SabrMediaSegment {
     @Nullable
     private final ProgressiveFileState progressiveState;
 
+    /**
+     * Creates a segment from bytes that are not owned by the session (e.g. a split
+     * self-initializing live payload). The array is treated as immutable.
+     */
+    @Nonnull
+    public static SabrMediaSegment of(@Nonnull final SabrMediaHeader header,
+                                      @Nonnull final byte[] data) {
+        return new SabrMediaSegment(header, data);
+    }
+
     SabrMediaSegment(@Nonnull final SabrMediaHeader header, @Nonnull final byte[] data) {
         this.header = header;
         // No defensive copy: the collector hands over a freshly built array it does not retain.

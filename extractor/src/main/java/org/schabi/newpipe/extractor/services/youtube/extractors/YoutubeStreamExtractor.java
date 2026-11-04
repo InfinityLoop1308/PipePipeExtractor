@@ -91,6 +91,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
+    private JsonObject mwebPlayerResponse;
+    @Nullable
     private JsonObject configuredStreamingData;
     private String mwebHlsManifestUrl = EMPTY_STRING;
     @Nullable
@@ -850,18 +852,22 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         Exception extractionError = primaryPlayerError;
         try {
             final String selectedClient = NewPipe.getYoutubePlayerClient();
-            if ("mweb".equals(selectedClient)
+            // SABR carries the post-live DVR window directly, so an ended livestream no longer
+            // needs its finite HLS manifest (which can contain thousands of segments) or the
+            // OTF DASH fallback. Active livestreams keep their existing path.
+            final boolean useSabr = ("mweb".equals(selectedClient)
+                    || "web".equals(selectedClient))
                     && streamType != StreamType.LIVE_STREAM
-                    && streamType != StreamType.POST_LIVE_STREAM
-                    && hasSabrStreamingUrl()) {
+                    && hasSabrStreamingUrl();
+            if (useSabr) {
                 buildSabrStreams(videoId);
             } else if (!(isTvClient(selectedClient)
                     && streamType == StreamType.LIVE_STREAM)) {
                 extractDirectFormats(videoId);
             }
-            if (streamType == StreamType.POST_LIVE_STREAM
+            if (!useSabr && (streamType == StreamType.POST_LIVE_STREAM
                     || (streamType == StreamType.LIVE_STREAM
-                        && isTvClient(selectedClient))) {
+                        && isTvClient(selectedClient)))) {
                 tryExtractHlsStreams(videoId);
             }
         } catch (final Exception e) {
@@ -1210,21 +1216,33 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Nullable
     private JsonObject getSabrStreamingData() {
-        if (configuredStreamingData == null
-                || configuredStreamingData.getArray(ADAPTIVE_FORMATS) == null
-                || configuredStreamingData.getArray(ADAPTIVE_FORMATS).isEmpty()) {
-            return null;
+        // The logged-in WEB response can overwrite configuredStreamingData after the MWEB request
+        // completed, but only MWEB reliably carries serverAbrStreamingUrl. Prefer it explicitly.
+        if (hasSabrUrl(mwebStreamingData)) {
+            return mwebStreamingData;
         }
-        return configuredStreamingData;
+        if (hasSabrUrl(configuredStreamingData)) {
+            return configuredStreamingData;
+        }
+        return null;
+    }
+
+    private static boolean hasSabrUrl(@Nullable final JsonObject streamingData) {
+        return streamingData != null
+                && streamingData.getArray(ADAPTIVE_FORMATS) != null
+                && !streamingData.getArray(ADAPTIVE_FORMATS).isEmpty()
+                && !streamingData.getString("serverAbrStreamingUrl", EMPTY_STRING).isEmpty();
     }
 
     @Nullable
     private YoutubeSabrInfo buildSabrInfo(@Nonnull final String videoId) {
-        if (playerResponse == null) {
+        final JsonObject sabrResponse = mwebPlayerResponse != null
+                ? mwebPlayerResponse : playerResponse;
+        if (sabrResponse == null) {
             return null;
         }
         try {
-            return buildSabrInfoFromPlayerResponse(videoId, getSabrCpn(), playerResponse,
+            return buildSabrInfoFromPlayerResponse(videoId, getSabrCpn(), sabrResponse,
                     playerResponseVisitorData, playerResponseClientVersion,
                     playerResponsePoToken);
         } catch (final Exception e) {
@@ -1620,6 +1638,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 String.valueOf(CONTENT_LENGTH_UNKNOWN))));
         itagItem.setApproxDurationMs(Long.parseLong(formatData.getString("approxDurationMs",
                 String.valueOf(APPROX_DURATION_MS_UNKNOWN))));
+        final int targetDurationSec = formatData.getInt("targetDurationSec", -1);
+        if (targetDurationSec > 0) {
+            itagItem.setTargetDurationSec(targetDurationSec);
+        }
     }
 
     private void tryExtractHlsStreams(final String videoId) throws ExtractionException {
@@ -2179,6 +2201,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         playerResponseVisitorData = null;
         playerResponseClientVersion = null;
         playerResponsePoToken = null;
+        mwebPlayerResponse = null;
         primaryPlayerError = null;
         androidReelFormats = null;
         androidReelCpn = null;
@@ -2574,6 +2597,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     playerResponseClientVersion = requestClientVersion;
                     playerResponsePoToken = requestPoToken;
                     YoutubeStreamExtractor.this.playerResponse = mwebPlayerResponse;
+                    YoutubeStreamExtractor.this.mwebPlayerResponse = mwebPlayerResponse;
                     updateAvailableAt(mwebPlayerResponse);
 
                     final JsonObject streamingData = mwebPlayerResponse.getObject(STREAMING_DATA);

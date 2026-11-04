@@ -227,6 +227,15 @@ public final class YoutubeSabrInfo implements Serializable {
             return parsedFormat.getApproxDurationMs();
         }
 
+        /**
+         * Average duration of one live/DVR sequence, or -1 when the player response did not
+         * declare a {@code targetDurationSec}.
+         */
+        public long getTargetDurationMs() {
+            final int seconds = parsedFormat.getTargetDurationSec();
+            return seconds > 0 ? seconds * 1000L : -1;
+        }
+
         @Nullable
         public String getInitializationUrl() {
             return initializationUrl;

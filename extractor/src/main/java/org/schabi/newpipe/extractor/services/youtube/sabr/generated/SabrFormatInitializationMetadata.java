@@ -185,6 +185,10 @@ public final class SabrFormatInitializationMetadata {
         return endSegmentNumber;
     }
 
+    public long getEndTimeMs() {
+        return endTimeMs;
+    }
+
     @Nullable
     public String getMimeType() {
         return mimeType;
