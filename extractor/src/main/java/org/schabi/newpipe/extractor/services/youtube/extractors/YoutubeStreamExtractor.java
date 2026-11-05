@@ -87,7 +87,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private byte[] playerResponsePoToken;
     private JsonObject nextResponse;
 
-    private JsonObject webStreamingData;
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
@@ -114,7 +113,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // URLs (with the cpn parameter).
     // Also because a nonce should be unique, it should be different between clients used, so
     // two different strings are used.
-    private String webCpn;
     private String mwebCpn;
     private String configuredCpn;
 
@@ -321,7 +319,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    configuredStreamingData, webStreamingData, mwebStreamingData));
+                    configuredStreamingData, mwebStreamingData));
         }
     }
 
@@ -776,7 +774,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String hlsUrl = getManifestUrl(
                 "hls",
-                Arrays.asList(configuredStreamingData, webStreamingData, mwebStreamingData));
+                Arrays.asList(configuredStreamingData, mwebStreamingData));
         if (hlsUrl.isEmpty() && streamType == StreamType.LIVE_STREAM
                 && !mwebHlsManifestUrl.isEmpty()) {
             hlsUrl = mwebHlsManifestUrl + "?mpd_version=7";
@@ -855,8 +853,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             // SABR carries the post-live DVR window directly, so an ended livestream no longer
             // needs its finite HLS manifest (which can contain thousands of segments) or the
             // OTF DASH fallback. Active livestreams keep their existing path.
-            final boolean useSabr = ("mweb".equals(selectedClient)
-                    || "web".equals(selectedClient))
+            final boolean useSabr = "mweb".equals(selectedClient)
                     && streamType != StreamType.LIVE_STREAM
                     && hasSabrStreamingUrl();
             if (useSabr) {
@@ -1216,8 +1213,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Nullable
     private JsonObject getSabrStreamingData() {
-        // The logged-in WEB response can overwrite configuredStreamingData after the MWEB request
-        // completed, but only MWEB reliably carries serverAbrStreamingUrl. Prefer it explicitly.
+        // MWEB is the only SABR client; prefer its streaming data when present.
         if (hasSabrUrl(mwebStreamingData)) {
             return mwebStreamingData;
         }
@@ -1663,7 +1659,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getHlsManifestUrlFromStreamingData() {
         for (final JsonObject sd : Arrays.asList(
-                configuredStreamingData, webStreamingData, mwebStreamingData)) {
+                configuredStreamingData, mwebStreamingData)) {
             if (sd != null) {
                 final String url = sd.getString("hlsManifestUrl");
                 if (url != null && !url.isEmpty()) {
@@ -2271,10 +2267,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                         contentCountry, localization, videoId,
                         NewPipe.getYoutubePlayerClient());
                 break;
-            case "web":
-                jsonPlayerCall = fetchWebJsonPlayer(
-                        contentCountry, localization, videoId);
-                break;
             default:
                 jsonPlayerCall = fetchMwebJsonPlayer(
                         contentCountry, localization, videoId);
@@ -2330,7 +2322,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             throwIfErrors();
         }
         if (configuredStreamingData == null
-                && webStreamingData == null && mwebStreamingData == null
+                && mwebStreamingData == null
                 && primaryPlayerError == null) {
             throw new ExtractionException("YouTube streaming data is missing");
         }
@@ -2484,60 +2476,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
 
         throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
-    }
-
-    private CancellableCall fetchWebJsonPlayer(@Nonnull final ContentCountry contentCountry,
-                                             @Nonnull final Localization localization,
-                                             @Nonnull final String videoId)
-            throws IOException, ExtractionException {
-        webCpn = generateContentPlaybackNonce();
-        final byte[] body = createJsonPlayerBody(localization,
-                contentCountry,
-                videoId,
-                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                webCpn,
-                "WEB", WEB_USER_AGENT);
-
-        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                JsonObject webPlayerResponse = null;
-                try {
-                    webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                    if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
-                        if (webPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new AntiBotException("Web player response is not valid");
-                        }
-                        throw new ExtractionException("Web player response is not valid");
-                    }
-
-                    playerResponseVisitorData = null;
-                    playerResponseClientVersion = getClientVersion();
-                    playerResponsePoToken = null;
-                    YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
-                    updateAvailableAt(webPlayerResponse);
-
-                    final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
-                    if (!isNullOrEmpty(streamingData)) {
-                        webStreamingData = streamingData;
-                        configuredStreamingData = streamingData;
-                        playerCaptionsTracklistRenderer = webPlayerResponse.getObject("captions")
-                                .getObject("playerCaptionsTracklistRenderer");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addError(e);
-                }
-            }
-
-            @Override
-            public void onError(final Exception error) {
-                addError(error);
-            }
-        };
-
-        return getJsonPlayerResponseAsync(
-                PLAYER, body, localization, "1", WEB_USER_AGENT, callback);
     }
 
     private CancellableCall fetchMwebJsonPlayer(@Nonnull final ContentCountry contentCountry,
