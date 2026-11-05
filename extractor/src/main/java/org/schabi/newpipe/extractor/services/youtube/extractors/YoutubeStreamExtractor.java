@@ -2260,7 +2260,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
             case "visionos":
-            case "tv_simply":
             case "tv_downgraded":
             case "tv_samsung":
                 jsonPlayerCall = fetchConfiguredJsonPlayer(
@@ -2795,11 +2794,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                             "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
                                     + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
                             "Samsung", "UKS9800", "Tizen", "2.4.0");
-                case "tv_simply":
-                    return new PlayerClient("TVHTML5_SIMPLY", "1.0", "75", WEB_USER_AGENT);
                 case "tv_downgraded":
-                    return new PlayerClient("TVHTML5", "5.20260114", "7",
-                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
                 default:
                     return new PlayerClient("TVHTML5", "5.20260114", "7",
                             "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
