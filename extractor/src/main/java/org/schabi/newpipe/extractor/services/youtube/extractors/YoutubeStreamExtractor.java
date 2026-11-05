@@ -563,7 +563,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return uploaderName;
         }
 
-        // Player clients such as TV downgraded can omit videoDetails.author. The parallel WEB
+        // Player clients such as TV can omit videoDetails.author. The parallel WEB
         // player response retains the equivalent canonical channel name in its microformat.
         if (webMicroformat != null) {
             uploaderName = webMicroformat.getString("ownerChannelName");
@@ -2260,7 +2260,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
             case "visionos":
-            case "tv_downgraded":
             case "tv_samsung":
                 jsonPlayerCall = fetchConfiguredJsonPlayer(
                         contentCountry, localization, videoId,
@@ -2747,7 +2746,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * TVHTML5 clients do not return usable live formats, so live streams use MWEB HLS instead.
      */
     private static boolean isTvClient(final String client) {
-        return "tv_downgraded".equals(client) || "tv_samsung".equals(client);
+        return "tv_samsung".equals(client);
     }
 
     private static final class PlayerClient {
@@ -2763,11 +2762,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         private final String osName;
         @Nullable
         private final String osVersion;
-
-        private PlayerClient(final String clientName, final String clientVersion,
-                             final String clientId, final String userAgent) {
-            this(clientName, clientVersion, clientId, userAgent, null, null, null, null);
-        }
 
         @SuppressWarnings("checkstyle:ParameterNumber")
         private PlayerClient(final String clientName, final String clientVersion,
@@ -2789,15 +2783,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         private static PlayerClient forName(final String name) {
             switch (name) {
                 case "tv_samsung":
+                default:
                     // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
                     return new PlayerClient("TVHTML5", "5.20260707", "7",
                             "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
                                     + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
                             "Samsung", "UKS9800", "Tizen", "2.4.0");
-                case "tv_downgraded":
-                default:
-                    return new PlayerClient("TVHTML5", "5.20260114", "7",
-                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
             }
         }
     }
