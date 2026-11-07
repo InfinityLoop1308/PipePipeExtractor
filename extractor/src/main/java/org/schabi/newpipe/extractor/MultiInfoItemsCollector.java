@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor;
 
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItemsCollector;
+import org.schabi.newpipe.extractor.community.CommunityPostInfoItem;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemsCollector;
@@ -42,10 +43,27 @@ import java.util.List;
  *     <li>{@link ChannelInfoItemExtractor}</li>
  *     <li>{@link PlaylistInfoItemExtractor}</li>
  * </ul>
+ * Community posts are already materialized items and can be added with
+ * {@link #commitCommunityPost(CommunityPostParser)}.
+ *
  * Calling {@link #extract(InfoItemExtractor)} or {@link #commit(InfoItemExtractor)} with any
  * other extractor type will raise an exception.
  */
 public class MultiInfoItemsCollector extends InfoItemsCollector<InfoItem, InfoItemExtractor> {
+    @FunctionalInterface
+    public interface CommunityPostParser {
+        CommunityPostInfoItem parse() throws ParsingException;
+    }
+
+    /** Parse one post without preventing other items on the page from being extracted. */
+    public void commitCommunityPost(final CommunityPostParser parser) {
+        try {
+            addItem(parser.parse());
+        } catch (final ParsingException error) {
+            addError(error);
+        }
+    }
+
     private final StreamInfoItemsCollector streamCollector;
     private final ChannelInfoItemsCollector userCollector;
     private final PlaylistInfoItemsCollector playlistCollector;

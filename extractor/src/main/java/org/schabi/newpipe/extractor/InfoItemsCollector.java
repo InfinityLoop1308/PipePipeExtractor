@@ -2,6 +2,7 @@ package org.schabi.newpipe.extractor;
 
 import org.schabi.newpipe.extractor.utils.ServiceScopedId;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
+import org.schabi.newpipe.extractor.community.CommunityPostInfoItem;
 import org.schabi.newpipe.extractor.exceptions.FoundAdException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem;
@@ -206,6 +207,8 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                     uploaderId = ((ChannelInfoItem) item).getUploaderId();
                 } else if (item instanceof PlaylistInfoItem) {
                     uploaderId = ((PlaylistInfoItem) item).getUploaderId();
+                } else if (item instanceof CommunityPostInfoItem) {
+                    uploaderId = ((CommunityPostInfoItem) item).getAuthorId();
                 } else {
                     uploaderId = null;
                 }
@@ -236,6 +239,11 @@ public abstract class InfoItemsCollector<I extends InfoItem, E extends InfoItemE
                     if (item instanceof PlaylistInfoItem
                             && ((PlaylistInfoItem) item).getUploaderName() != null
                             && ((PlaylistInfoItem) item).getUploaderName().equals(channel)) {
+                        shouldRemove = true;
+                        break;
+                    }
+                    if (item instanceof CommunityPostInfoItem
+                            && ((CommunityPostInfoItem) item).getAuthorName().equals(channel)) {
                         shouldRemove = true;
                         break;
                     }

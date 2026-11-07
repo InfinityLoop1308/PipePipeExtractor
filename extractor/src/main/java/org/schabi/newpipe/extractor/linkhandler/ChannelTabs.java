@@ -10,6 +10,7 @@ public final class ChannelTabs {
     public static final String PODCASTS = "podcasts";
     public static final String ALBUMS = "albums";
     public static final String SEARCH = "search";
+    public static final String POSTS = "posts";
 
     private ChannelTabs() {
     }

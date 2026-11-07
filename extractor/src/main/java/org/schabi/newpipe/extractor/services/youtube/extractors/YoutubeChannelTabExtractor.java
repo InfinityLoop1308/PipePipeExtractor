@@ -75,6 +75,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                 return "Eghwb2RjYXN0c_IGBQoDugEA";
             case ChannelTabs.SEARCH:
                 return "EgZzZWFyY2jyBgQKAloA";
+            case ChannelTabs.POSTS:
+                return "EgVwb3N0c_IGBAoCSgA%3D";
             default:
                 throw new ParsingException("Unsupported channel tab: " + name);
         }
@@ -400,7 +402,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             final String tabUrl = tabRenderer.getObject("endpoint")
                     .getObject("commandMetadata").getObject("webCommandMetadata")
                     .getString("url");
-            if (tabUrl != null && normalizeTabUrl(tabUrl).endsWith(urlSuffix)) {
+            if (tabUrl != null && (normalizeTabUrl(tabUrl).endsWith(urlSuffix)
+                    || (ChannelTabs.POSTS.equals(getTab())
+                    && normalizeTabUrl(tabUrl).endsWith("/community")))) {
                 foundTab = tabRenderer;
                 break;
             }
@@ -463,6 +467,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         JsonObject continuation = null;
 
         for (final Object object : items) {
+            if (!(object instanceof JsonObject)) {
+                continue;
+            }
             final JsonObject item = (JsonObject) object;
             final JsonObject optContinuation = collectItem(
                     collector, item, channelIds);
@@ -495,7 +502,18 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                     }
                 });
 
-        if (item.has("gridVideoRenderer")) {
+        if (item.has("backstagePostThreadRenderer")) {
+            return collectItem(collector, item.getObject("backstagePostThreadRenderer")
+                    .getObject("post"), channelIds);
+        } else if (item.has("sharedPostRenderer")) {
+            collector.commitCommunityPost(() -> YoutubeCommunityPostParser.parseShared(getServiceId(),
+                    item.getObject("sharedPostRenderer"), getTimeAgoParser()));
+        } else if (item.has("backstagePostRenderer") || item.has("postRenderer")) {
+            final JsonObject post = item.has("backstagePostRenderer")
+                    ? item.getObject("backstagePostRenderer") : item.getObject("postRenderer");
+            collector.commitCommunityPost(() -> YoutubeCommunityPostParser.parse(getServiceId(), post,
+                    getTimeAgoParser()));
+        } else if (item.has("gridVideoRenderer")) {
             commitVideo.accept(item.getObject("gridVideoRenderer"));
         } else if (item.has("videoRenderer")) {
             commitVideo.accept(item.getObject("videoRenderer"));
@@ -660,6 +678,9 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
         final JsonObject continuationEndpoint = continuations.getObject("continuationEndpoint");
         final String continuation = continuationEndpoint.getObject("continuationCommand")
                 .getString("token");
+        if (isNullOrEmpty(continuation)) {
+            return null;
+        }
 
         final byte[] body = JsonWriter.string(prepareDesktopJsonBuilder(getExtractorLocalization(),
                         getExtractorContentCountry())

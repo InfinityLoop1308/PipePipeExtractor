@@ -70,6 +70,8 @@ public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFa
                 return "/channels";
             case ChannelTabs.SEARCH:
                 return "/search";
+            case ChannelTabs.POSTS:
+                return "/posts";
         }
         throw new ParsingException("tab " + tab + " not supported");
     }
@@ -197,6 +199,9 @@ public final class YoutubeChannelTabLinkHandlerFactory extends ListLinkHandlerFa
                         return ChannelTabs.CHANNELS;
                     case "search":
                         return ChannelTabs.SEARCH;
+                    case "community":
+                    case "posts":
+                        return ChannelTabs.POSTS;
                 }
             }
         } catch (final Exception e) {

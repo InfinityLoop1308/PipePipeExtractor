@@ -74,6 +74,7 @@ public abstract class InfoItem implements Serializable {
         CHANNEL,
         STAFF,
         COMMENT,
-        BULLET_COMMENT
+        BULLET_COMMENT,
+        COMMUNITY_POST
     }
 }
