@@ -3,7 +3,6 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.comments.CommentAudioAttachment;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
@@ -137,51 +136,6 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
         final JsonObject attachment = commentSurface.getObject("imageAttachmentViewModel");
         return attachment.has("commentImageAttachmentViewModel")
                 ? attachment.getObject("commentImageAttachmentViewModel") : attachment;
-    }
-
-    @Nullable
-    @Override
-    public CommentAudioAttachment getAudioAttachment() {
-        final JsonObject wrapper = commentSurface.getObject("voiceReplyContainerViewModel");
-        final JsonObject voiceReply = wrapper.has("voiceReplyContainerViewModel")
-                ? wrapper.getObject("voiceReplyContainerViewModel") : wrapper;
-        if (voiceReply.isEmpty()) {
-            return null;
-        }
-
-        String mediaId = voiceReply.getString("videoId", "");
-        if (mediaId.isEmpty()) {
-            final JsonObject endpoint = voiceReply.getObject("voiceReplyPlayCommand")
-                    .getObject("watchEndpoint");
-            mediaId = endpoint.getString("videoId",
-                    endpoint.getObject("watchEndpoint").getString("videoId", ""));
-        }
-
-        final String url = mediaId.isEmpty() ? ""
-                : "https://www.youtube.com/watch?v=" + mediaId;
-        final String transcript = voiceReply.getObject("transcriptText")
-                .getString("content", "");
-        final String unavailableText = voiceReply.getObject("voiceReplyUnavailableText")
-                .getString("content", "");
-        final long durationMillis = parseDurationMillis(
-                voiceReply.get("totalMediaTimeMs"));
-        return new CommentAudioAttachment(mediaId, url, durationMillis, transcript,
-                voiceReply.getBoolean("isPlayable", false) && !mediaId.isEmpty(),
-                unavailableText);
-    }
-
-    private static long parseDurationMillis(@Nullable final Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        if (value instanceof String) {
-            try {
-                return Long.parseLong((String) value);
-            } catch (final NumberFormatException ignored) {
-                // Fall through to the unknown value below.
-            }
-        }
-        return -1;
     }
 
     @Override

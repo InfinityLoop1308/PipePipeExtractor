@@ -34,18 +34,6 @@ public class CommentsInfoItem extends InfoItem {
     private Page replies;
     @Nonnull
     private Collection<Image> pictures = Collections.emptyList();
-    @Nullable
-    private CommentAudioAttachment audioAttachment;
-
-    /** A voice/audio attachment, or null when this is a regular comment. */
-    @Nullable
-    public CommentAudioAttachment getAudioAttachment() {
-        return audioAttachment;
-    }
-
-    public void setAudioAttachment(@Nullable final CommentAudioAttachment attachment) {
-        audioAttachment = attachment;
-    }
 
     public static final int NO_LIKE_COUNT = -1;
     public static final int NO_STREAM_POSITION = -1;
