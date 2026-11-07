@@ -3,6 +3,7 @@ package org.schabi.newpipe.extractor.services.youtube.extractors;
 import com.grack.nanojson.JsonObject;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.comments.CommentAudioAttachment;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
@@ -12,6 +13,8 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -39,6 +42,8 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
     @Nonnull
     private final JsonObject engagementToolbarStateEntityPayload;
     @Nonnull
+    private final JsonObject commentSurface;
+    @Nonnull
     private final String videoUrl;
     @Nonnull
     private final TimeAgoParser timeAgoParser;
@@ -50,10 +55,23 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
             @Nonnull final JsonObject engagementToolbarStateEntityPayload,
             @Nonnull final String videoUrl,
             @Nonnull final TimeAgoParser timeAgoParser) {
+        this(commentViewModel, commentRepliesRenderer, commentEntityPayload,
+                engagementToolbarStateEntityPayload, new JsonObject(), videoUrl, timeAgoParser);
+    }
+
+    YoutubeCommentsEUVMInfoItemExtractor(
+            @Nonnull final JsonObject commentViewModel,
+            @Nullable final JsonObject commentRepliesRenderer,
+            @Nonnull final JsonObject commentEntityPayload,
+            @Nonnull final JsonObject engagementToolbarStateEntityPayload,
+            @Nonnull final JsonObject commentSurface,
+            @Nonnull final String videoUrl,
+            @Nonnull final TimeAgoParser timeAgoParser) {
         this.commentViewModel = commentViewModel;
         this.commentRepliesRenderer = commentRepliesRenderer;
         this.commentEntityPayload = commentEntityPayload;
         this.engagementToolbarStateEntityPayload = engagementToolbarStateEntityPayload;
+        this.commentSurface = commentSurface;
         this.videoUrl = videoUrl;
         this.timeAgoParser = timeAgoParser;
     }
@@ -96,6 +114,74 @@ class YoutubeCommentsEUVMInfoItemExtractor implements CommentsInfoItemExtractor 
         return new Description(
                 attributedDescriptionToHtml(commentEntityPayload.getObject(PROPERTIES)
                         .getObject("content")), Description.HTML);
+    }
+
+    @Nonnull
+    @Override
+    public Collection<Image> getPictures() throws ParsingException {
+        final JsonObject image = getAttachedImage();
+        if (!image.getArray("sources").isEmpty()) {
+            return getImagesFromThumbnailsArray(image.getArray("sources"));
+        }
+        if (!image.getArray("thumbnails").isEmpty()) {
+            return getImagesFromThumbnailsArray(image.getArray("thumbnails"));
+        }
+        return Collections.emptyList();
+    }
+
+    private JsonObject getAttachedImage() {
+        return getImageAttachmentViewModel().getObject("image");
+    }
+
+    private JsonObject getImageAttachmentViewModel() {
+        final JsonObject attachment = commentSurface.getObject("imageAttachmentViewModel");
+        return attachment.has("commentImageAttachmentViewModel")
+                ? attachment.getObject("commentImageAttachmentViewModel") : attachment;
+    }
+
+    @Nullable
+    @Override
+    public CommentAudioAttachment getAudioAttachment() {
+        final JsonObject wrapper = commentSurface.getObject("voiceReplyContainerViewModel");
+        final JsonObject voiceReply = wrapper.has("voiceReplyContainerViewModel")
+                ? wrapper.getObject("voiceReplyContainerViewModel") : wrapper;
+        if (voiceReply.isEmpty()) {
+            return null;
+        }
+
+        String mediaId = voiceReply.getString("videoId", "");
+        if (mediaId.isEmpty()) {
+            final JsonObject endpoint = voiceReply.getObject("voiceReplyPlayCommand")
+                    .getObject("watchEndpoint");
+            mediaId = endpoint.getString("videoId",
+                    endpoint.getObject("watchEndpoint").getString("videoId", ""));
+        }
+
+        final String url = mediaId.isEmpty() ? ""
+                : "https://www.youtube.com/watch?v=" + mediaId;
+        final String transcript = voiceReply.getObject("transcriptText")
+                .getString("content", "");
+        final String unavailableText = voiceReply.getObject("voiceReplyUnavailableText")
+                .getString("content", "");
+        final long durationMillis = parseDurationMillis(
+                voiceReply.get("totalMediaTimeMs"));
+        return new CommentAudioAttachment(mediaId, url, durationMillis, transcript,
+                voiceReply.getBoolean("isPlayable", false) && !mediaId.isEmpty(),
+                unavailableText);
+    }
+
+    private static long parseDurationMillis(@Nullable final Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value instanceof String) {
+            try {
+                return Long.parseLong((String) value);
+            } catch (final NumberFormatException ignored) {
+                // Fall through to the unknown value below.
+            }
+        }
+        return -1;
     }
 
     @Override

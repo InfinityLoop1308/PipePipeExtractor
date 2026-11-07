@@ -25,6 +25,8 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
@@ -137,6 +139,95 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .orElseThrow(() -> new ParsingException(
                         "Could not get comment entity payload mutation"))
                 .getObject("payload");
+    }
+
+    @Nonnull
+    private JsonObject getOptionalCommentSurface(@Nonnull final JsonArray mutations,
+                                                  @Nonnull final JsonObject viewModel) {
+        final String key = viewModel.getString("commentSurfaceKey", "");
+        if (key.isEmpty()) {
+            return new JsonObject();
+        }
+        return mutations.stream()
+                .filter(JsonObject.class::isInstance)
+                .map(JsonObject.class::cast)
+                .filter(mutation -> key.equals(mutation.getString("entityKey"))
+                        || key.equals(mutation.getObject("payload")
+                        .getObject("commentSurfaceEntityPayload").getString("key")))
+                .findFirst()
+                .map(mutation -> mutation.getObject("payload")
+                        .getObject("commentSurfaceEntityPayload"))
+                .orElseGet(JsonObject::new);
+    }
+
+    /**
+     * The WEB comments response exposes a voice-reply transcript but deliberately omits its media
+     * id. Android returns the playable media metadata for the same comment surface key. Only make
+     * the additional request when the WEB page actually contains a voice reply.
+     */
+    private void enrichVoiceReplySurfaces(@Nonnull final JsonObject webResponse,
+                                          @Nonnull final String continuation,
+                                          @Nonnull final Localization localization) {
+        final JsonArray webMutations = webResponse.getObject("frameworkUpdates")
+                .getObject("entityBatchUpdate").getArray("mutations");
+        final boolean containsVoiceReply = webMutations.stream()
+                .filter(JsonObject.class::isInstance)
+                .map(JsonObject.class::cast)
+                .map(YoutubeCommentsExtractor::getCommentSurface)
+                .anyMatch(surface -> surface.has("voiceReplyContainerViewModel"));
+        if (!containsVoiceReply) {
+            return;
+        }
+
+        try {
+            final String visitorData = webResponse.getObject("responseContext")
+                    .getString("visitorData", "");
+            // @formatter:off
+            final byte[] androidBody = JsonWriter.string(
+                            prepareAndroidMobileJsonBuilder(localization,
+                                    getExtractorContentCountry(), visitorData)
+                                    .value("continuation", continuation)
+                                    .done())
+                    .getBytes(StandardCharsets.UTF_8);
+            // @formatter:on
+            final JsonObject androidResponse = getJsonAndroidPostResponse(
+                    "next", androidBody, localization, null);
+            final Map<String, JsonObject> androidSurfaces = new HashMap<>();
+            for (final Object mutation : androidResponse.getObject("frameworkUpdates")
+                    .getObject("entityBatchUpdate").getArray("mutations")) {
+                if (!(mutation instanceof JsonObject)) {
+                    continue;
+                }
+                final JsonObject surface = getCommentSurface((JsonObject) mutation);
+                final String key = surface.getString("key", "");
+                if (!key.isEmpty() && surface.has("voiceReplyContainerViewModel")) {
+                    androidSurfaces.put(key, surface);
+                }
+            }
+
+            for (final Object mutation : webMutations) {
+                if (!(mutation instanceof JsonObject)) {
+                    continue;
+                }
+                final JsonObject webSurface = getCommentSurface((JsonObject) mutation);
+                if (!webSurface.has("voiceReplyContainerViewModel")) {
+                    continue;
+                }
+                final JsonObject androidSurface = androidSurfaces.get(
+                        webSurface.getString("key", ""));
+                if (androidSurface != null) {
+                    webSurface.put("voiceReplyContainerViewModel",
+                            androidSurface.getObject("voiceReplyContainerViewModel"));
+                }
+            }
+        } catch (final Exception ignored) {
+            // Keep the WEB transcript/unavailable state instead of dropping the comment page.
+        }
+    }
+
+    @Nonnull
+    private static JsonObject getCommentSurface(@Nonnull final JsonObject mutation) {
+        return mutation.getObject("payload").getObject("commentSurfaceEntityPayload");
     }
 
     @Nonnull
@@ -259,8 +350,9 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
-        String resp = getJsonPostResponseRaw("next", body, localization);
+        final String resp = getJsonPostResponseRaw("next", body, localization);
         final JsonObject jsonObject = JsonUtils.toJsonObject(resp);
+        enrichVoiceReplySurfaces(jsonObject, page.getId(), localization);
         final JSONObject jsonObjectSafe;
         try {
             jsonObjectSafe = new JSONObject(resp);
@@ -358,6 +450,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                         getMutationPayloadFromEntityKey(mutations,
                                 commentViewModel.getString("toolbarStateKey", ""))
                                 .getObject("engagementToolbarStateEntityPayload"),
+                        getOptionalCommentSurface(mutations, commentViewModel),
                         videoUrl,
                         timeAgoParser));
             } else if (commentThreadRenderer.has("comment")) {
@@ -380,6 +473,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                     getMutationPayloadFromEntityKey(mutations,
                             commentViewModel.getString("toolbarStateKey", ""))
                             .getObject("engagementToolbarStateEntityPayload"),
+                    getOptionalCommentSurface(mutations, commentViewModel),
                     videoUrl,
                     timeAgoParser));
         } else if (content.has(COMMENT_RENDERER_KEY)) {
@@ -421,8 +515,9 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
-        String resp = getJsonPostResponseRaw("next", ajaxBody, localization);
+        final String resp = getJsonPostResponseRaw("next", ajaxBody, localization);
         ajaxJson = JsonUtils.toJsonObject(resp);
+        enrichVoiceReplySurfaces(ajaxJson, initialToken, localization);
         try {
             ajaxJsonSafe = new JSONObject(resp);
         } catch (JSONException e) {

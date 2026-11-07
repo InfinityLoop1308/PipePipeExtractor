@@ -111,6 +111,11 @@ public final class CommentsInfoItemsCollector
         } catch (final Exception e) {
             addError(e);
         }
+        try {
+            resultItem.setAudioAttachment(extractor.getAudioAttachment());
+        } catch (final Exception e) {
+            addError(e);
+        }
 
         return resultItem;
     }
