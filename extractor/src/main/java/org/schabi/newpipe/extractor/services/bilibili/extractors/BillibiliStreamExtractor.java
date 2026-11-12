@@ -616,6 +616,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             JsonObject dataParentObject = (isPremiumContent == 1 ? playData.getObject("result").getObject("video_info") : playData.getObject("data"));
             dataObject = dataParentObject.getObject("dash");
             if (dataObject.size() == 0) {
+                // Risk control answers code 0 with only a captcha voucher and no stream.
+                if (!dataParentObject.getString("v_voucher", "").isEmpty()) {
+                    throw new ContentNotAvailableException("BiliBili blocked us and asked for a captcha");
+                }
                 throw new PaidContentException("Paid content");
                 //dataArray = dataParentObject.getArray("durl");
             } else {
