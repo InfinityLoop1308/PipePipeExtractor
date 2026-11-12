@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.InfoItemExtractor;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /*
@@ -66,9 +67,14 @@ public interface StreamInfoItemExtractor extends InfoItemExtractor {
     /**
      * Get the uploader name
      *
-     * @return the uploader name
+     * <p>The uploader name is never {@code null}: return an empty string when the uploader is
+     * unknown. Consumers of the item rely on this and treat a {@code null} uploader name as a
+     * bug of the extractor.</p>
+     *
+     * @return the uploader name, or an empty string if it is unknown
      * @throws ParsingException if parsing fails
      */
+    @Nonnull
     String getUploaderName() throws ParsingException;
 
     /**

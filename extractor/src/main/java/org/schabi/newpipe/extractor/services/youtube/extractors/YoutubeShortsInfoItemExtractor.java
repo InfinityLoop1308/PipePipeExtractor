@@ -64,7 +64,9 @@ public class YoutubeShortsInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return null;
+        // The shorts lockup does not publish the channel name; extractors which know it from the
+        // context they parse override this method with the real name.
+        return "";
     }
 
     @Nullable

@@ -85,7 +85,7 @@ public class NiconicoCommentsInfoItemExtractor implements CommentsInfoItemExtrac
 
     @Override
     public String getUploaderName() throws ParsingException {
-        return null; // json.getString("user_id");
+        return ""; // json.getString("user_id");
     }
 
     @Override

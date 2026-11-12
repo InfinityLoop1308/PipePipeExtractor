@@ -9,9 +9,14 @@ import javax.annotation.Nullable;
 public interface PlaylistInfoItemExtractor extends InfoItemExtractor {
 
     /**
-     * Get the uploader name
-     * @return the uploader name
+     * Get the uploader name.
+     *
+     * <p>The uploader name is never {@code null}: return an empty string when the uploader is
+     * unknown.</p>
+     *
+     * @return the uploader name, or an empty string if it is unknown
      */
+    @Nonnull
     String getUploaderName() throws ParsingException;
 
     /**

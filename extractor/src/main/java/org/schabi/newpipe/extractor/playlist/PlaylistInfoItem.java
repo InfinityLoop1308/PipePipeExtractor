@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 
 public class PlaylistInfoItem extends InfoItem {
 
-    private String uploaderName;
+    private String uploaderName = "";
     private String uploaderId;
     private String uploaderUrl;
     /**
@@ -23,8 +23,16 @@ public class PlaylistInfoItem extends InfoItem {
         return uploaderName;
     }
 
+    /**
+     * Sets the name of the uploader.
+     *
+     * <p>The uploader name is never {@code null}: a playlist whose uploader is unknown has an
+     * empty uploader name.</p>
+     *
+     * @param uploaderName the uploader name, {@code null} is stored as an empty string
+     */
     public void setUploaderName(final String uploaderName) {
-        this.uploaderName = uploaderName;
+        this.uploaderName = uploaderName == null ? "" : uploaderName;
     }
 
     /**

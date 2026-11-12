@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 public class StreamInfoItem extends InfoItem {
     private final StreamType streamType;
 
-    private String uploaderName;
+    private String uploaderName = "";
     private String shortDescription;
     private String textualUploadDate;
     @Nullable
@@ -64,8 +64,17 @@ public class StreamInfoItem extends InfoItem {
         return uploaderName;
     }
 
+    /**
+     * Sets the name of the uploader.
+     *
+     * <p>The uploader name is never {@code null}: a stream whose uploader is unknown has an
+     * empty uploader name. Consumers rely on this, so extractors must not read a missing
+     * uploader as {@code null}.</p>
+     *
+     * @param uploaderName the uploader name, {@code null} is stored as an empty string
+     */
     public void setUploaderName(final String uploaderName) {
-        this.uploaderName = uploaderName;
+        this.uploaderName = uploaderName == null ? "" : uploaderName;
     }
 
     public long getViewCount() {

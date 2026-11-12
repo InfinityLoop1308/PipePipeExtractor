@@ -93,9 +93,9 @@ public class BilibiliPlaylistInfoItemExtractor implements PlaylistInfoItemExtrac
     @Override
     public String getUploaderName() throws ParsingException {
         if (type == null) {
-            return uploader;
+            return uploader == null ? "" : uploader;
         }
-        return null;
+        return "";
     }
 
     @Nullable
