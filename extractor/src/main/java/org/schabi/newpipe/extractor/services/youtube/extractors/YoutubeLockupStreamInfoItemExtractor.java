@@ -566,7 +566,22 @@ public class YoutubeLockupStreamInfoItemExtractor implements StreamInfoItemExtra
 
     @Override
     public boolean isShortFormContent() throws ParsingException {
-        return false;
+        // A video lockup has no flag telling whether the item is a Short. What it does have is the
+        // target of its tap, which points to the Shorts player for Shorts, exactly like the
+        // rendererContext of a lockup formatted videoRenderer.
+        final JsonObject onTapCommand = lockupViewModel.getObject("rendererContext")
+                .getObject("commandContext")
+                .getObject("onTap")
+                .getObject("innertubeCommand");
+
+        if (onTapCommand.has("reelWatchEndpoint")) {
+            return true;
+        }
+
+        final String webPageType = onTapCommand.getObject("commandMetadata")
+                .getObject("webCommandMetadata")
+                .getString("webPageType");
+        return "WEB_PAGE_TYPE_SHORTS".equals(webPageType);
     }
 
     @Override
