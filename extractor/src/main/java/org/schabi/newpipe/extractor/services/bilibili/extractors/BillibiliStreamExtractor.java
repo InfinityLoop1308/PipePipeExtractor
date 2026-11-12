@@ -407,7 +407,11 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                 final JsonObject rooms = responseData == null
                         ? null
                         : responseData.getObject("by_room_ids");
-                final JsonObject roomData = rooms == null ? null : rooms.getObject(getId());
+                JsonObject roomData = rooms == null ? null : rooms.getObject(getId());
+                // A short room id (live.bilibili.com/6) comes back keyed by the real room id.
+                if ((roomData == null || roomData.isEmpty()) && rooms != null && rooms.size() == 1) {
+                    roomData = rooms.getObject(rooms.keySet().iterator().next());
+                }
                 if (responseJson.getInt("code") != 0 || roomData == null || roomData.size() == 0) {
                     throw new ExtractionException("Can not get live room info. Error message: "
                             + responseJson.getString("message"));
