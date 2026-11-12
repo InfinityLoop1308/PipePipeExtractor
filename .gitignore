@@ -25,3 +25,4 @@ gradle-app.setting
 **.vscode
 *.code-workspace
 /local-pr-desc/
+.claude/settings.local.json
