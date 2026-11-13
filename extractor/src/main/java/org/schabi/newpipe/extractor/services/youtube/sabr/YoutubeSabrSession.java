@@ -680,17 +680,19 @@ public final class YoutubeSabrSession {
      */
     public long getLiveStartSegmentNumber(@Nonnull final YoutubeSabrInfo.Format format) {
         final long endSegment = getLiveEndSegmentNumber(format);
-        if (endSegment <= 0) {
+        if (endSegment < 0) {
             return -1;
         }
         final long endTime = getLiveEndTimeMs(format);
         final long duration = getLiveSegmentDurationMs(format);
-        final long windowStart = liveSeekableStartTimeMs >= 0 ? liveSeekableStartTimeMs : 0;
-        if (endTime <= 0 || endTime <= windowStart || duration <= 0) {
-            return 1;
+        // Live sequences start at 0. A window starting at the broadcast start keeps all of them;
+        // estimating from the duration would drop sequence 0 because real segments are slightly
+        // shorter than the target duration.
+        if (liveSeekableStartTimeMs <= 0 || endTime <= liveSeekableStartTimeMs || duration <= 0) {
+            return 0;
         }
-        final long count = (endTime - windowStart + duration - 1) / duration;
-        return Math.max(1, endSegment - count + 1);
+        final long count = (endTime - liveSeekableStartTimeMs + duration - 1) / duration;
+        return Math.max(0, endSegment - count + 1);
     }
 
     public int getRequestNumber() {

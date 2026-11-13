@@ -62,7 +62,8 @@ public final class YoutubeSabrFormatTimeline {
     /**
      * Builds a finite timeline for an ended live stream.
      *
-     * @param startSequence first sequence retained by the DVR window, inclusive
+     * @param startSequence first sequence retained by the DVR window, inclusive; live
+     *                      sequences start at 0
      * @param endSequence   last sequence of the stream, inclusive
      * @param startTimeMs   absolute broadcast time of {@code startSequence}
      * @param segmentDurationMs target duration of one sequence, used while no exact index exists
@@ -73,7 +74,7 @@ public final class YoutubeSabrFormatTimeline {
                                                  final long startTimeMs,
                                                  final long segmentDurationMs)
             throws SabrProtocolException {
-        if (startSequence <= 0 || endSequence < startSequence
+        if (startSequence < 0 || endSequence < startSequence
                 || startTimeMs < 0 || segmentDurationMs <= 0) {
             throw new SabrProtocolException("Invalid post-live SABR timeline: start="
                     + startSequence + ", end=" + endSequence + ", time=" + startTimeMs
