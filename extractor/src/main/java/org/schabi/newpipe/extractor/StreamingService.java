@@ -100,7 +100,6 @@ public abstract class StreamingService {
     public final int serviceId;
     private final ServiceInfo serviceInfo;
     private String tokens = null;
-    private String additionalTokens = null;
     private String proxyToken = null;
     private Boolean proxyEnabled = false;
     private Set<String> cookieFunctions = null;
@@ -541,14 +540,6 @@ public abstract class StreamingService {
 
     public boolean hasTokens() {
         return StringUtils.isNotBlank(this.tokens);
-    }
-
-    public String getAdditionalTokens() {
-        return additionalTokens;
-    }
-
-    public void setAdditionalTokens(String additionalTokens) {
-        this.additionalTokens = additionalTokens;
     }
 
     public Set<String> getCookieFunctions() {
