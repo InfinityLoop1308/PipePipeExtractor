@@ -93,12 +93,6 @@ public final class SabrMediaHeader {
 
     @Nonnull
     public static SabrMediaHeader mediaFrom(@Nonnull final SabrMediaHeader source,
-                                            final int contentLength) {
-        return mediaFrom(source, contentLength, source.sequenceNumber, source.startMs);
-    }
-
-    @Nonnull
-    public static SabrMediaHeader mediaFrom(@Nonnull final SabrMediaHeader source,
                                             final int contentLength,
                                             final int sequenceNumber,
                                             final long startMs) {

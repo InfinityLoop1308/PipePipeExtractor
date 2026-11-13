@@ -90,8 +90,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
-    private JsonObject mwebPlayerResponse;
-    @Nullable
     private JsonObject configuredStreamingData;
     private String mwebHlsManifestUrl = EMPTY_STRING;
     @Nullable
@@ -1213,32 +1211,21 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
     @Nullable
     private JsonObject getSabrStreamingData() {
-        // MWEB is the only SABR client; prefer its streaming data when present.
-        if (hasSabrUrl(mwebStreamingData)) {
-            return mwebStreamingData;
+        if (configuredStreamingData == null
+                || configuredStreamingData.getArray(ADAPTIVE_FORMATS) == null
+                || configuredStreamingData.getArray(ADAPTIVE_FORMATS).isEmpty()) {
+            return null;
         }
-        if (hasSabrUrl(configuredStreamingData)) {
-            return configuredStreamingData;
-        }
-        return null;
-    }
-
-    private static boolean hasSabrUrl(@Nullable final JsonObject streamingData) {
-        return streamingData != null
-                && streamingData.getArray(ADAPTIVE_FORMATS) != null
-                && !streamingData.getArray(ADAPTIVE_FORMATS).isEmpty()
-                && !streamingData.getString("serverAbrStreamingUrl", EMPTY_STRING).isEmpty();
+        return configuredStreamingData;
     }
 
     @Nullable
     private YoutubeSabrInfo buildSabrInfo(@Nonnull final String videoId) {
-        final JsonObject sabrResponse = mwebPlayerResponse != null
-                ? mwebPlayerResponse : playerResponse;
-        if (sabrResponse == null) {
+        if (playerResponse == null) {
             return null;
         }
         try {
-            return buildSabrInfoFromPlayerResponse(videoId, getSabrCpn(), sabrResponse,
+            return buildSabrInfoFromPlayerResponse(videoId, getSabrCpn(), playerResponse,
                     playerResponseVisitorData, playerResponseClientVersion,
                     playerResponsePoToken);
         } catch (final Exception e) {
@@ -2197,7 +2184,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         playerResponseVisitorData = null;
         playerResponseClientVersion = null;
         playerResponsePoToken = null;
-        mwebPlayerResponse = null;
         primaryPlayerError = null;
         androidReelFormats = null;
         androidReelCpn = null;
@@ -2533,7 +2519,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     playerResponseClientVersion = requestClientVersion;
                     playerResponsePoToken = requestPoToken;
                     YoutubeStreamExtractor.this.playerResponse = mwebPlayerResponse;
-                    YoutubeStreamExtractor.this.mwebPlayerResponse = mwebPlayerResponse;
                     updateAvailableAt(mwebPlayerResponse);
 
                     final JsonObject streamingData = mwebPlayerResponse.getObject(STREAMING_DATA);
@@ -2606,7 +2591,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return fetchVisionOsJsonPlayer(contentCountry, localization, videoId);
         }
 
-        final PlayerClient client = PlayerClient.forName(selectedClient);
+        final PlayerClient client = PlayerClient.tvSamsung();
         configuredCpn = generateContentPlaybackNonce();
         final JsonBuilder<JsonObject> clientBuilder = JsonObject.builder()
                 .value("utcOffsetMinutes", 0)
@@ -2780,16 +2765,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             this.osVersion = osVersion;
         }
 
-        private static PlayerClient forName(final String name) {
-            switch (name) {
-                case "tv_samsung":
-                default:
-                    // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
-                    return new PlayerClient("TVHTML5", "5.20260707", "7",
-                            "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
-                                    + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
-                            "Samsung", "UKS9800", "Tizen", "2.4.0");
-            }
+        private static PlayerClient tvSamsung() {
+            // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
+            return new PlayerClient("TVHTML5", "5.20260707", "7",
+                    "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
+                            + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
+                    "Samsung", "UKS9800", "Tizen", "2.4.0");
         }
     }
 

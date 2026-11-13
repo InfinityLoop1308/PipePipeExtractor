@@ -666,7 +666,8 @@ public final class YoutubeSabrSession {
             return targetDurationMs;
         }
         // Some post-live responses omit both FORMAT_INITIALIZATION_METADATA duration fields and
-        // targetDurationSec. The head's sequence/time ratio is still an exact average duration.
+        // targetDurationSec. The head time is measured from the broadcast start, so its
+        // sequence/time ratio is the average sequence duration.
         if (liveHeadSequenceNumber > 0 && liveHeadTimeMs > 0) {
             return Math.max(1, liveHeadTimeMs / liveHeadSequenceNumber);
         }
