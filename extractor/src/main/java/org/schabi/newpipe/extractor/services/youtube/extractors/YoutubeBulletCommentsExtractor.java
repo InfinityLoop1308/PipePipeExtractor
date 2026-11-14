@@ -71,8 +71,13 @@ public class YoutubeBulletCommentsExtractor extends BulletCommentsExtractor {
 
     @Override
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
+        if (!shoudldBeLive && !isLiveStream) {
+            // never live, no chat
+            disabled = true;
+            return;
+        }
         String response = downloader.get(getUrl()).responseBody();
-        if(response.contains("Live chat replay is not available") || response.contains("is disabled") || (!shoudldBeLive && !isLiveStream) ) {
+        if(response.contains("Live chat replay is not available") || response.contains("is disabled")) {
             disabled = true;
             return ;
         }
