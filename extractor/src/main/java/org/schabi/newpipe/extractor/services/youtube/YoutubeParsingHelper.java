@@ -1137,13 +1137,14 @@ YoutubeParsingHelper {
             // Fall through to the other known formats
         }
 
-        // Albums and playlists of channel tabs expose their cover in a
-        // playlistCustomThumbnailRenderer instead of a "thumbnail" object
+        // Albums and playlists of channel tabs expose their cover in a thumbnail renderer
+        // instead of a "thumbnail" object: a custom cover, or the first video for courses
+        final JsonObject thumbnailRenderer = infoItem.getObject("thumbnailRenderer");
+        final JsonObject cover = thumbnailRenderer.has("playlistCustomThumbnailRenderer")
+                ? thumbnailRenderer.getObject("playlistCustomThumbnailRenderer")
+                : thumbnailRenderer.getObject("playlistVideoThumbnailRenderer");
         try {
-            JsonArray thumbnails = infoItem.getObject("thumbnailRenderer")
-                    .getObject("playlistCustomThumbnailRenderer")
-                    .getObject("thumbnail")
-                    .getArray("thumbnails");
+            JsonArray thumbnails = cover.getObject("thumbnail").getArray("thumbnails");
             return fixThumbnailUrl(thumbnails.getObject(thumbnails.size() - 1).getString("url"));
         } catch (final Exception e) {
             throw new ParsingException("Could not get thumbnail url", e);
