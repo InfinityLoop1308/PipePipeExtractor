@@ -47,6 +47,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -928,6 +929,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         }
         final String serverAbrStreamingUrl = Objects.toString(
                 sabrInfo.getServerAbrStreamingUrl(), EMPTY_STRING);
+        preconnectTo(serverAbrStreamingUrl);
 
         for (final YoutubeSabrInfo.Format format : sabrInfo.getFormats()) {
             try {
@@ -2321,6 +2323,27 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         // SABR-only responses are no longer a hard failure: ensureStreamsAreCached() builds
         // session-based SABR streams (DeliveryMethod.SABR) from the adaptiveFormats instead.
+    }
+
+    // opens the connection to the media host while the player starts
+    private void preconnectTo(@Nonnull final String streamingUrl) {
+        try {
+            final URL url = new URL(streamingUrl);
+            getDownloader().getAsync(url.getProtocol() + "://" + url.getHost() + "/generate_204",
+                    new Downloader.AsyncCallback() {
+                        @Override
+                        public void onSuccess(final Response response) {
+                            // nothing to do
+                        }
+
+                        @Override
+                        public void onError(final Exception error) {
+                            // nothing to do
+                        }
+                    });
+        } catch (final Exception ignored) {
+            // the media request will fail by itself
+        }
     }
 
     private static void logCallPerformance(@Nonnull final String videoId,
