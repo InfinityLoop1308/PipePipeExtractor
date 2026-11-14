@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
  *   "author": "Jane Doe",                     // shown as "by Jane Doe" in the plugin settings
  *   "entryClass": "org.example.myservice.MyServicePlugin",
  *   "legacyServiceId": 1,                     // optional, only for ex built-in services
+ *   "issueUrl": "https://example.org/issues", // optional, where users report bugs of this plugin
  *   "description": "...",                     // optional
  *   "icon": "icon.png",                       // optional, path of a PNG/WebP in the package
  *   "settings": [                             // optional
@@ -58,6 +59,9 @@ public final class PluginManifest {
     /** Largest width or height, in pixels, hosts accept for {@code icon}. */
     public static final int ICON_MAX_DIMENSION = 512;
 
+    /** Longest url hosts accept for {@code issueUrl}. */
+    private static final int URL_MAX_LENGTH = 512;
+
     @Nonnull
     private final String pluginId;
     @Nonnull
@@ -72,6 +76,8 @@ public final class PluginManifest {
     @Nonnull
     private final String entryClass;
     private final int legacyServiceId;
+    @Nullable
+    private final String issueUrl;
     @Nullable
     private final String description;
     @Nullable
@@ -92,6 +98,7 @@ public final class PluginManifest {
                            @Nonnull final String author,
                            @Nonnull final String entryClass,
                            final int legacyServiceId,
+                           @Nullable final String issueUrl,
                            @Nullable final String description,
                            @Nullable final String icon,
                            @Nonnull final List<PluginSetting> settings,
@@ -106,6 +113,7 @@ public final class PluginManifest {
         this.author = author;
         this.entryClass = entryClass;
         this.legacyServiceId = legacyServiceId;
+        this.issueUrl = issueUrl;
         this.description = description;
         this.icon = icon;
         this.settings = settings;
@@ -138,6 +146,12 @@ public final class PluginManifest {
         final String icon = o.getString("icon", null);
         if (icon != null && (!ICON_PATTERN.matcher(icon).matches() || icon.contains(".."))) {
             throw new PluginException("Invalid icon path: " + icon);
+        }
+
+        final String issueUrl = o.getString("issueUrl", null);
+        if (issueUrl != null
+                && (!issueUrl.startsWith("https://") || issueUrl.length() > URL_MAX_LENGTH)) {
+            throw new PluginException("issueUrl must be https");
         }
 
         final List<PluginSetting> settings = new ArrayList<>();
@@ -183,6 +197,7 @@ public final class PluginManifest {
                 requireString(o, "author").trim(),
                 requireString(o, "entryClass"),
                 o.getInt("legacyServiceId", -1),
+                issueUrl,
                 o.getString("description", null),
                 icon,
                 Collections.unmodifiableList(settings),
@@ -268,6 +283,16 @@ public final class PluginManifest {
      */
     public int getLegacyServiceId() {
         return legacyServiceId;
+    }
+
+    /**
+     * @return where bugs of this plugin are reported, or null if it declares no tracker.
+     * Hosts send users there instead of their own tracker when a failure comes from this
+     * plugin's code.
+     */
+    @Nullable
+    public String getIssueUrl() {
+        return issueUrl;
     }
 
     @Nullable
