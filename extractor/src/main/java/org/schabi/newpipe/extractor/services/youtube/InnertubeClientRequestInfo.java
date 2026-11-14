@@ -3,13 +3,6 @@ package org.schabi.newpipe.extractor.services.youtube;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.ANDROID_CLIENT_ID;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.ANDROID_CLIENT_NAME;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.ANDROID_CLIENT_VERSION;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.DESKTOP_CLIENT_PLATFORM;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.EMBED_CLIENT_SCREEN;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_CLIENT_ID;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_CLIENT_NAME;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_CLIENT_VERSION;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_DEVICE_MODEL;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.IOS_OS_VERSION;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.MOBILE_CLIENT_PLATFORM;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_CLIENT_ID;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_CLIENT_NAME;
@@ -17,12 +10,6 @@ import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VIS
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_DEVICE_MODEL;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.VISIONOS_VERSION;
 import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WATCH_CLIENT_SCREEN;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_CLIENT_ID;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_CLIENT_NAME;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_EMBEDDED_CLIENT_ID;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_EMBEDDED_CLIENT_NAME;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_HARDCODED_CLIENT_VERSION;
-import static org.schabi.newpipe.extractor.services.youtube.ClientsConstants.WEB_REMIX_HARDCODED_CLIENT_VERSION;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -98,26 +85,6 @@ public final class InnertubeClientRequestInfo {
     }
 
     @Nonnull
-    public static InnertubeClientRequestInfo ofWebClient() {
-        return new InnertubeClientRequestInfo(
-                new InnertubeClientRequestInfo.ClientInfo(
-                        WEB_CLIENT_NAME, WEB_HARDCODED_CLIENT_VERSION, WATCH_CLIENT_SCREEN,
-                        WEB_CLIENT_ID, null),
-                new InnertubeClientRequestInfo.DeviceInfo(DESKTOP_CLIENT_PLATFORM, null, null,
-                        null, null, -1));
-    }
-
-    @Nonnull
-    public static InnertubeClientRequestInfo ofWebEmbeddedPlayerClient() {
-        return new InnertubeClientRequestInfo(
-                new InnertubeClientRequestInfo.ClientInfo(WEB_EMBEDDED_CLIENT_NAME,
-                        WEB_REMIX_HARDCODED_CLIENT_VERSION, EMBED_CLIENT_SCREEN,
-                        WEB_EMBEDDED_CLIENT_ID, null),
-                new InnertubeClientRequestInfo.DeviceInfo(DESKTOP_CLIENT_PLATFORM, null, null,
-                        null, null, -1));
-    }
-
-    @Nonnull
     public static InnertubeClientRequestInfo ofAndroidClient() {
         return new InnertubeClientRequestInfo(
                 new InnertubeClientRequestInfo.ClientInfo(ANDROID_CLIENT_NAME,
@@ -135,12 +102,4 @@ public final class InnertubeClientRequestInfo {
                         VISIONOS_DEVICE_MODEL, "visionOS", VISIONOS_VERSION, -1));
     }
 
-    @Nonnull
-    public static InnertubeClientRequestInfo ofIosClient() {
-        return new InnertubeClientRequestInfo(
-                new InnertubeClientRequestInfo.ClientInfo(IOS_CLIENT_NAME, IOS_CLIENT_VERSION,
-                        WATCH_CLIENT_SCREEN, IOS_CLIENT_ID, null),
-                new InnertubeClientRequestInfo.DeviceInfo(MOBILE_CLIENT_PLATFORM, "Apple",
-                        IOS_DEVICE_MODEL, "iOS", IOS_OS_VERSION, -1));
-    }
 }

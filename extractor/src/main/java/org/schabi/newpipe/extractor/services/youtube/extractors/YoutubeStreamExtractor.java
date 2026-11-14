@@ -87,7 +87,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private byte[] playerResponsePoToken;
     private JsonObject nextResponse;
 
-    private JsonObject webStreamingData;
     @Nullable
     private JsonObject mwebStreamingData;
     @Nullable
@@ -112,7 +111,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // URLs (with the cpn parameter).
     // Also because a nonce should be unique, it should be different between clients used, so
     // two different strings are used.
-    private String webCpn;
     private String mwebCpn;
     private String configuredCpn;
 
@@ -319,7 +317,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return Long.parseLong(duration);
         } catch (final Exception e) {
             return getDurationFromFirstAdaptiveFormat(Arrays.asList(
-                    configuredStreamingData, webStreamingData, mwebStreamingData));
+                    configuredStreamingData, mwebStreamingData));
         }
     }
 
@@ -563,7 +561,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return uploaderName;
         }
 
-        // Player clients such as TV downgraded can omit videoDetails.author. The parallel WEB
+        // Player clients such as TV can omit videoDetails.author. The parallel WEB
         // player response retains the equivalent canonical channel name in its microformat.
         if (webMicroformat != null) {
             uploaderName = webMicroformat.getString("ownerChannelName");
@@ -774,7 +772,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         String hlsUrl = getManifestUrl(
                 "hls",
-                Arrays.asList(configuredStreamingData, webStreamingData, mwebStreamingData));
+                Arrays.asList(configuredStreamingData, mwebStreamingData));
         if (hlsUrl.isEmpty() && streamType == StreamType.LIVE_STREAM
                 && !mwebHlsManifestUrl.isEmpty()) {
             hlsUrl = mwebHlsManifestUrl + "?mpd_version=7";
@@ -850,18 +848,21 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         Exception extractionError = primaryPlayerError;
         try {
             final String selectedClient = NewPipe.getYoutubePlayerClient();
-            if ("mweb".equals(selectedClient)
+            // SABR carries the post-live DVR window directly, so an ended livestream no longer
+            // needs its finite HLS manifest (which can contain thousands of segments) or the
+            // OTF DASH fallback. Active livestreams keep their existing path.
+            final boolean useSabr = "mweb".equals(selectedClient)
                     && streamType != StreamType.LIVE_STREAM
-                    && streamType != StreamType.POST_LIVE_STREAM
-                    && hasSabrStreamingUrl()) {
+                    && hasSabrStreamingUrl();
+            if (useSabr) {
                 buildSabrStreams(videoId);
             } else if (!(isTvClient(selectedClient)
                     && streamType == StreamType.LIVE_STREAM)) {
                 extractDirectFormats(videoId);
             }
-            if (streamType == StreamType.POST_LIVE_STREAM
+            if (!useSabr && (streamType == StreamType.POST_LIVE_STREAM
                     || (streamType == StreamType.LIVE_STREAM
-                        && isTvClient(selectedClient))) {
+                        && isTvClient(selectedClient)))) {
                 tryExtractHlsStreams(videoId);
             }
         } catch (final Exception e) {
@@ -1339,8 +1340,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     decoded);
         }
         final List<YoutubeSabrInfo.Format> formats = parseSabrFormats(adaptiveFormats, decoded);
+        // Same classification as POST_LIVE_STREAM in setStreamType().
+        final JsonObject videoDetails = response.getObject("videoDetails");
+        final boolean postLive = !videoDetails.getBoolean("isLive", false)
+                && videoDetails.getBoolean("isPostLiveDvr", false);
         return new YoutubeSabrInfo(videoId, cpn, clientVersion, visitorData,
-                serverAbrStreamingUrl, ustreamerConfig, formats, poToken);
+                serverAbrStreamingUrl, ustreamerConfig, formats, poToken, postLive);
     }
 
     private static void collectSabrDecodeParameters(
@@ -1620,6 +1625,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 String.valueOf(CONTENT_LENGTH_UNKNOWN))));
         itagItem.setApproxDurationMs(Long.parseLong(formatData.getString("approxDurationMs",
                 String.valueOf(APPROX_DURATION_MS_UNKNOWN))));
+        final int targetDurationSec = formatData.getInt("targetDurationSec", -1);
+        if (targetDurationSec > 0) {
+            itagItem.setTargetDurationSec(targetDurationSec);
+        }
     }
 
     private void tryExtractHlsStreams(final String videoId) throws ExtractionException {
@@ -1641,7 +1650,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Nonnull
     private String getHlsManifestUrlFromStreamingData() {
         for (final JsonObject sd : Arrays.asList(
-                configuredStreamingData, webStreamingData, mwebStreamingData)) {
+                configuredStreamingData, mwebStreamingData)) {
             if (sd != null) {
                 final String url = sd.getString("hlsManifestUrl");
                 if (url != null && !url.isEmpty()) {
@@ -2241,16 +2250,10 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         stageStartedAt = System.nanoTime();
         switch (NewPipe.getYoutubePlayerClient()) {
             case "visionos":
-            case "tv_simply":
-            case "tv_downgraded":
             case "tv_samsung":
                 jsonPlayerCall = fetchConfiguredJsonPlayer(
                         contentCountry, localization, videoId,
                         NewPipe.getYoutubePlayerClient());
-                break;
-            case "web":
-                jsonPlayerCall = fetchWebJsonPlayer(
-                        contentCountry, localization, videoId);
                 break;
             default:
                 jsonPlayerCall = fetchMwebJsonPlayer(
@@ -2307,7 +2310,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             throwIfErrors();
         }
         if (configuredStreamingData == null
-                && webStreamingData == null && mwebStreamingData == null
+                && mwebStreamingData == null
                 && primaryPlayerError == null) {
             throw new ExtractionException("YouTube streaming data is missing");
         }
@@ -2463,60 +2466,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         throw new ContentNotAvailableException("Got error: \"" + reason + "\"");
     }
 
-    private CancellableCall fetchWebJsonPlayer(@Nonnull final ContentCountry contentCountry,
-                                             @Nonnull final Localization localization,
-                                             @Nonnull final String videoId)
-            throws IOException, ExtractionException {
-        webCpn = generateContentPlaybackNonce();
-        final byte[] body = createJsonPlayerBody(localization,
-                contentCountry,
-                videoId,
-                YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId),
-                webCpn,
-                "WEB", WEB_USER_AGENT);
-
-        final Downloader.AsyncCallback callback = new Downloader.AsyncCallback() {
-            @Override
-            public void onSuccess(Response response) {
-                JsonObject webPlayerResponse = null;
-                try {
-                    webPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-                    if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
-                        if (webPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new AntiBotException("Web player response is not valid");
-                        }
-                        throw new ExtractionException("Web player response is not valid");
-                    }
-
-                    playerResponseVisitorData = null;
-                    playerResponseClientVersion = getClientVersion();
-                    playerResponsePoToken = null;
-                    YoutubeStreamExtractor.this.playerResponse = webPlayerResponse;
-                    updateAvailableAt(webPlayerResponse);
-
-                    final JsonObject streamingData = webPlayerResponse.getObject(STREAMING_DATA);
-                    if (!isNullOrEmpty(streamingData)) {
-                        webStreamingData = streamingData;
-                        configuredStreamingData = streamingData;
-                        playerCaptionsTracklistRenderer = webPlayerResponse.getObject("captions")
-                                .getObject("playerCaptionsTracklistRenderer");
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    addError(e);
-                }
-            }
-
-            @Override
-            public void onError(final Exception error) {
-                addError(error);
-            }
-        };
-
-        return getJsonPlayerResponseAsync(
-                PLAYER, body, localization, "1", WEB_USER_AGENT, callback);
-    }
-
     private CancellableCall fetchMwebJsonPlayer(@Nonnull final ContentCountry contentCountry,
                                                   @Nonnull final Localization localization,
                                                   @Nonnull final String videoId)
@@ -2646,7 +2595,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return fetchVisionOsJsonPlayer(contentCountry, localization, videoId);
         }
 
-        final PlayerClient client = PlayerClient.forName(selectedClient);
+        final PlayerClient client = PlayerClient.tvSamsung();
         configuredCpn = generateContentPlaybackNonce();
         final JsonBuilder<JsonObject> clientBuilder = JsonObject.builder()
                 .value("utcOffsetMinutes", 0)
@@ -2786,7 +2735,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * TVHTML5 clients do not return usable live formats, so live streams use MWEB HLS instead.
      */
     private static boolean isTvClient(final String client) {
-        return "tv_downgraded".equals(client) || "tv_samsung".equals(client);
+        return "tv_samsung".equals(client);
     }
 
     private static final class PlayerClient {
@@ -2802,11 +2751,6 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         private final String osName;
         @Nullable
         private final String osVersion;
-
-        private PlayerClient(final String clientName, final String clientVersion,
-                             final String clientId, final String userAgent) {
-            this(clientName, clientVersion, clientId, userAgent, null, null, null, null);
-        }
 
         @SuppressWarnings("checkstyle:ParameterNumber")
         private PlayerClient(final String clientName, final String clientVersion,
@@ -2825,23 +2769,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             this.osVersion = osVersion;
         }
 
-        private static PlayerClient forName(final String name) {
-            switch (name) {
-                case "tv_samsung":
-                    // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
-                    return new PlayerClient("TVHTML5", "5.20260707", "7",
-                            "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
-                                    + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
-                            "Samsung", "UKS9800", "Tizen", "2.4.0");
-                case "tv_simply":
-                    return new PlayerClient("TVHTML5_SIMPLY", "1.0", "75", WEB_USER_AGENT);
-                case "tv_downgraded":
-                    return new PlayerClient("TVHTML5", "5.20260114", "7",
-                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
-                default:
-                    return new PlayerClient("TVHTML5", "5.20260114", "7",
-                            "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version");
-            }
+        private static PlayerClient tvSamsung() {
+            // Mirrors yt-dlp's tv_samsung client (yt-dlp 817450d)
+            return new PlayerClient("TVHTML5", "5.20260707", "7",
+                    "Mozilla/5.0 (SMART-TV; Linux; Tizen 2.4.0) AppleWebKit/538.1 "
+                            + "(KHTML, like Gecko) Version/2.4.0 TV Safari/538.1",
+                    "Samsung", "UKS9800", "Tizen", "2.4.0");
         }
     }
 

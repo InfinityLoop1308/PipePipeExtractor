@@ -4,6 +4,7 @@ import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrProtocol
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrRecoverableException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrAttestationException;
 import org.schabi.newpipe.extractor.services.youtube.sabr.exception.SabrReloadException;
+import org.schabi.newpipe.extractor.services.youtube.sabr.generated.SabrFormatInitializationMetadata;
 import org.schabi.newpipe.extractor.services.youtube.sabr.media.SabrMediaSegment;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrStreamingResponseReader;
 import org.schabi.newpipe.extractor.services.youtube.sabr.protocol.SabrProto;
@@ -74,6 +75,10 @@ public final class YoutubeSabrSession {
     private boolean postLiveDvr;
     private long liveHeadSequenceNumber = -1;
     private long liveHeadTimeMs = -1;
+    private long liveSeekableStartTimeMs = -1;
+    private long liveSeekableEndTimeMs = -1;
+    private final Map<String, SabrFormatInitializationMetadata> liveFormatMetadata =
+            new LinkedHashMap<>();
     private long bandwidthEstimate = -1;
     private volatile long backoffDeadlineNs;
     @Nullable private byte[] poToken;
@@ -434,6 +439,11 @@ public final class YoutubeSabrSession {
         for (final byte[] metadata : response.getLiveMetadata()) {
             ingestLiveMetadata(metadata);
         }
+        for (final SabrFormatInitializationMetadata metadata
+                : response.getFormatInitializationMetadata()) {
+            liveFormatMetadata.put(formatKey(metadata.getItag(), metadata.getLastModified(),
+                    metadata.getXtags()), metadata);
+        }
     }
 
     private void ingestNextRequestPolicy(@Nonnull final byte[] data) {
@@ -449,26 +459,66 @@ public final class YoutubeSabrSession {
     }
 
     private void ingestLiveMetadata(@Nonnull final byte[] data) {
-        boolean live = true;
         boolean postLiveDvr = false;
         long liveHeadSequenceNumber = -1;
         long liveHeadTimeMs = -1;
+        long minSeekableTimeTicks = -1;
+        int minSeekableTimescale = -1;
+        long maxSeekableTimeTicks = -1;
+        int maxSeekableTimescale = -1;
         try {
             for (final SabrProto.Field field : SabrProto.readFields(data)) {
                 switch (field.getNumber()) {
                     case 3: liveHeadSequenceNumber = field.getVarint(); break;
                     case 4: liveHeadTimeMs = field.getVarint(); break;
                     case 8: postLiveDvr = field.getVarint() != 0; break;
+                    case 12: minSeekableTimeTicks = field.getVarint(); break;
+                    case 13: minSeekableTimescale = (int) field.getVarint(); break;
+                    case 14: maxSeekableTimeTicks = field.getVarint(); break;
+                    case 15: maxSeekableTimescale = (int) field.getVarint(); break;
                     default: break;
                 }
             }
         } catch (final SabrProtocolException ignored) {
             return;
         }
-        this.live = live;
-        this.postLiveDvr = postLiveDvr;
-        if (liveHeadSequenceNumber >= 0) this.liveHeadSequenceNumber = liveHeadSequenceNumber;
-        if (liveHeadTimeMs >= 0) this.liveHeadTimeMs = liveHeadTimeMs;
+        this.live = true;
+        this.postLiveDvr = this.postLiveDvr || postLiveDvr;
+        if (liveHeadSequenceNumber >= 0) {
+            this.liveHeadSequenceNumber = Math.max(this.liveHeadSequenceNumber,
+                    liveHeadSequenceNumber);
+        }
+        if (liveHeadTimeMs >= 0) {
+            this.liveHeadTimeMs = Math.max(this.liveHeadTimeMs, liveHeadTimeMs);
+        }
+        this.liveSeekableStartTimeMs = advanceTime(this.liveSeekableStartTimeMs,
+                scaleToMilliseconds(minSeekableTimeTicks, minSeekableTimescale));
+        this.liveSeekableEndTimeMs = advanceTime(this.liveSeekableEndTimeMs,
+                scaleToMilliseconds(maxSeekableTimeTicks, maxSeekableTimescale));
+    }
+
+    private static long advanceTime(final long current, final long candidate) {
+        return candidate < 0 ? current : Math.max(current, candidate);
+    }
+
+    private static long scaleToMilliseconds(final long ticks, final int timescale) {
+        if (ticks < 0 || timescale <= 0) {
+            return -1;
+        }
+        final long seconds = ticks / timescale;
+        if (seconds > Long.MAX_VALUE / 1000L) {
+            return Long.MAX_VALUE;
+        }
+        return seconds * 1000L + ticks % timescale * 1000L / timescale;
+    }
+
+    private static String formatKey(final int itag, final long lastModified,
+                                    @Nullable final String xtags) {
+        return itag + ":" + lastModified + ":" + (xtags == null ? "" : xtags);
+    }
+
+    private static String formatKey(@Nonnull final YoutubeSabrInfo.Format format) {
+        return formatKey(format.getItag(), format.getLastModified(), format.getXtags());
     }
 
     private void ingestContextUpdate(@Nonnull final byte[] data) {
@@ -569,6 +619,80 @@ public final class YoutubeSabrSession {
 
     public long getLiveHeadTimeMs() {
         return liveHeadTimeMs;
+    }
+
+    public long getLiveSeekableStartTimeMs() {
+        return liveSeekableStartTimeMs;
+    }
+
+    public long getLiveSeekableEndTimeMs() {
+        return liveSeekableEndTimeMs;
+    }
+
+    /**
+     * Last sequence of {@code format} in the DVR window, or the live head when the response did
+     * not carry format initialization metadata yet.
+     */
+    public long getLiveEndSegmentNumber(@Nonnull final YoutubeSabrInfo.Format format) {
+        final SabrFormatInitializationMetadata metadata =
+                liveFormatMetadata.get(formatKey(format));
+        if (metadata != null && metadata.getEndSegmentNumber() > 0) {
+            return metadata.getEndSegmentNumber();
+        }
+        return liveHeadSequenceNumber;
+    }
+
+    /** Absolute end time of {@code format}, or the live head time when unknown. */
+    public long getLiveEndTimeMs(@Nonnull final YoutubeSabrInfo.Format format) {
+        final SabrFormatInitializationMetadata metadata =
+                liveFormatMetadata.get(formatKey(format));
+        if (metadata != null && metadata.getEndTimeMs() > 0) {
+            return metadata.getEndTimeMs();
+        }
+        return liveHeadTimeMs > 0 ? liveHeadTimeMs : liveSeekableEndTimeMs;
+    }
+
+    /** Duration of one sequence of {@code format}, or -1 when no duration is known yet. */
+    public long getLiveSegmentDurationMs(@Nonnull final YoutubeSabrInfo.Format format) {
+        final SabrFormatInitializationMetadata metadata =
+                liveFormatMetadata.get(formatKey(format));
+        if (metadata != null && metadata.getDurationUnits() > 0
+                && metadata.getDurationTimescale() > 0) {
+            return Math.max(1, metadata.getDurationUnits() * 1000L
+                    / metadata.getDurationTimescale());
+        }
+        final long targetDurationMs = format.getTargetDurationMs();
+        if (targetDurationMs > 0) {
+            return targetDurationMs;
+        }
+        // Some post-live responses omit both FORMAT_INITIALIZATION_METADATA duration fields and
+        // targetDurationSec. The head time is measured from the broadcast start, so its
+        // sequence/time ratio is the average sequence duration.
+        if (liveHeadSequenceNumber > 0 && liveHeadTimeMs > 0) {
+            return Math.max(1, liveHeadTimeMs / liveHeadSequenceNumber);
+        }
+        return -1;
+    }
+
+    /**
+     * First sequence of {@code format} retained by the DVR window, or -1 when the window is not
+     * known yet. The out-of-window part of a long broadcast is dropped by the player.
+     */
+    public long getLiveStartSegmentNumber(@Nonnull final YoutubeSabrInfo.Format format) {
+        final long endSegment = getLiveEndSegmentNumber(format);
+        if (endSegment < 0) {
+            return -1;
+        }
+        final long endTime = getLiveEndTimeMs(format);
+        final long duration = getLiveSegmentDurationMs(format);
+        // Live sequences start at 0. A window starting at the broadcast start keeps all of them;
+        // estimating from the duration would drop sequence 0 because real segments are slightly
+        // shorter than the target duration.
+        if (liveSeekableStartTimeMs <= 0 || endTime <= liveSeekableStartTimeMs || duration <= 0) {
+            return 0;
+        }
+        final long count = (endTime - liveSeekableStartTimeMs + duration - 1) / duration;
+        return Math.max(0, endSegment - count + 1);
     }
 
     public int getRequestNumber() {

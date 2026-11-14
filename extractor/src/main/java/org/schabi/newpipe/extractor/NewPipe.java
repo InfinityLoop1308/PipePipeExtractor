@@ -176,7 +176,6 @@ public final class NewPipe {
     public static void setYoutubePlayerClient(final String youtubePlayerClient) {
         if ("mweb".equals(youtubePlayerClient)
                 || "visionos".equals(youtubePlayerClient)
-                || "tv_downgraded".equals(youtubePlayerClient)
                 || "tv_samsung".equals(youtubePlayerClient)) {
             NewPipe.youtubePlayerClient = youtubePlayerClient;
         } else {

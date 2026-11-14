@@ -132,9 +132,9 @@ public final class YoutubeSabrRequest {
         private Track(@Nonnull final YoutubeSabrInfo.Format format,
                       @Nullable final YoutubeSabrFormatTimeline timeline,
                       final int bufferedThrough) {
-            if (bufferedThrough < 0) {
+            if (bufferedThrough < -1) {
                 throw new IllegalArgumentException(
-                        "SABR buffered-through sequence must not be negative");
+                        "SABR buffered-through sequence must not be below -1");
             }
             this.format = Objects.requireNonNull(format, "format");
             this.timeline = timeline;

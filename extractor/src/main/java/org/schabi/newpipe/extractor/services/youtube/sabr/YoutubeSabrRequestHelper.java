@@ -143,7 +143,11 @@ public final class YoutubeSabrRequestHelper {
                 audioTrack == null ? null : audioTrack.getFormat();
         final YoutubeSabrInfo.Format videoFormat =
                 videoTrack == null ? null : videoTrack.getFormat();
-        final long playerTimeMs = playbackState.getPlayerTimeMs();
+        // A zero player time makes a live/DVR playback request look like the initial preparation
+        // request, which does not select tracks. Use 1 ms so the selected formats are sent.
+        final long playerTimeMs = session.isLive() && sabrRequest.hasSelectedTracks()
+                ? Math.max(1, playbackState.getPlayerTimeMs())
+                : playbackState.getPlayerTimeMs();
         final float playbackRate = playbackState.getPlaybackRate();
         final List<byte[]> bufferedRanges = new ArrayList<>();
         if (sabrRequest.hasSelectedTracks()) {
@@ -273,17 +277,20 @@ public final class YoutubeSabrRequestHelper {
                                          @Nonnull final YoutubeSabrRequest.Track track) {
         final YoutubeSabrFormatTimeline timeline = track.getTimeline();
         final int bufferedThrough = track.getBufferedThrough();
-        if (timeline == null || bufferedThrough <= 0) {
+        if (timeline == null) {
             return;
         }
+        final int startSequence = timeline.getStartSequence();
         final int endSequence = Math.min(bufferedThrough, timeline.getEndSequence());
-        if (endSequence <= 0) {
+        if (endSequence < startSequence) {
             return;
         }
         final YoutubeSabrInfo.Format format = track.getFormat();
+        final long startMs = Math.max(0, timeline.getStartMs(startSequence));
         ranges.add(buildBufferedRange(format.getItag(), format.getLastModified(),
-                format.getXtags(), 0, Math.max(0, timeline.getEndMs(endSequence)),
-                1, endSequence, 1000));
+                format.getXtags(), startMs,
+                Math.max(0, timeline.getEndMs(endSequence) - startMs),
+                startSequence, endSequence, 1000));
     }
 
     @Nonnull

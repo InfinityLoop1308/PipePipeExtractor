@@ -186,14 +186,12 @@ YoutubeParsingHelper {
      * The InnerTube API key used by the {@code iOS} client. Found with the help of
      * reverse-engineering app network requests.
      */
-    private static final String IOS_YOUTUBE_KEY = "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc";
 
     /**
      * The hardcoded client version used for InnerTube requests with the TV HTML5 embed client.
      */
     private static final String TVHTML5_SIMPLY_EMBED_CLIENT_VERSION = "7.20250923.13.00";
     private static final String WEB_CLIENT_VERSION = "2.20241126.01.00";
-    public static final String WEB_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36,gzip(gfe)";
     public static final String MWEB_USER_AGENT = "Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)";
 
     private static String clientVersion;
@@ -725,35 +723,6 @@ YoutubeParsingHelper {
         }
 
         throw new ExtractionException("Could not get YouTube WEB client version");
-    }
-
-    /**
-     * <p>
-     * <b>Only used in tests.</b>
-     * </p>
-     *
-     * <p>
-     * Quick-and-dirty solution to reset global state in between test classes.
-     * </p>
-     * <p>
-     * This is needed for the mocks because in order to reach that state a network request has to
-     * be made. If the global state is not reset and the RecordingDownloader is used,
-     * then only the first test class has that request recorded. Meaning running the other
-     * tests with mocks will fail, because the mock is missing.
-     * </p>
-     */
-    public static synchronized void resetClientVersion() {
-        clientVersion = null;
-        clientVersionExtracted = false;
-    }
-
-    /**
-     * <p>
-     * <b>Only used in tests.</b>
-     * </p>
-     */
-    public static void setNumberGenerator(final Random random) {
-        numberGenerator = random;
     }
 
     public static boolean isHardcodedYoutubeMusicClientVersionValid() throws IOException,
@@ -1312,37 +1281,6 @@ YoutubeParsingHelper {
         return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
     }
 
-    public static JsonObject getLoggedJsonPostResponse(final String endpoint,
-                                                 final byte[] body,
-                                                 final Localization localization)
-            throws IOException, ExtractionException {
-        final Map<String, List<String>> headers = new HashMap<>();
-        addYoutubeHeaders(headers);
-        headers.put("Content-Type", singletonList("application/json"));
-
-        addLoggedInHeaders(headers);
-
-        final Response response = getDownloader().post(YOUTUBEI_V1_URL + endpoint + "?" +
-                DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization);
-
-        return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
-    }
-
-    public static CancellableCall getLoggedJsonPostResponseAsync(final String endpoint,
-                                                                 final byte[] body,
-                                                                 final Localization localization,
-                                                                 final Downloader.AsyncCallback callback)
-            throws IOException, ExtractionException {
-        final Map<String, List<String>> headers = new HashMap<>();
-        addYoutubeHeaders(headers);
-        headers.put("Content-Type", singletonList("application/json"));
-        headers.put("User-Agent", singletonList("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36"));
-
-        addLoggedInHeaders(headers);
-
-        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" +  DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
-    }
-
 
     public static String getJsonPostResponseRaw(final String endpoint,
                                                  final byte[] body,
@@ -1359,15 +1297,6 @@ YoutubeParsingHelper {
     }
 
 
-    public static JsonObject getJsonAndroidPostResponse(
-            final String endpoint,
-            final byte[] body,
-            @Nonnull final Localization localization,
-            @Nullable final String endPartOfUrlRequest) throws IOException, ExtractionException {
-        return getMobilePostResponse(endpoint, body, localization,
-                getAndroidUserAgent(localization), ANDROID_YOUTUBE_KEY, endPartOfUrlRequest);
-    }
-
     public static CancellableCall getJsonAndroidPostResponseAsync(
             final String endpoint,
             final byte[] body,
@@ -1376,25 +1305,6 @@ YoutubeParsingHelper {
             final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
         return getMobilePostResponseAsync(endpoint, body, localization,
                 getAndroidUserAgent(localization), ANDROID_YOUTUBE_KEY, endPartOfUrlRequest, callback);
-    }
-
-    public static JsonObject getJsonIosPostResponse(
-            final String endpoint,
-            final byte[] body,
-            @Nonnull final Localization localization,
-            @Nullable final String endPartOfUrlRequest) throws IOException, ExtractionException {
-        return getMobilePostResponse(endpoint, body, localization, getIosUserAgent(localization),
-                IOS_YOUTUBE_KEY, endPartOfUrlRequest);
-    }
-
-    public static CancellableCall getJsonIosPostResponseAsync(
-            final String endpoint,
-            final byte[] body,
-            @Nonnull final Localization localization,
-            @Nullable final String endPartOfUrlRequest,
-            final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
-        return getMobilePostResponseAsync(endpoint, body, localization, getIosUserAgent(localization),
-                IOS_YOUTUBE_KEY, endPartOfUrlRequest, callback);
     }
 
     public static CancellableCall getJsonMobilePostResponseAsync(
@@ -1406,26 +1316,6 @@ YoutubeParsingHelper {
             final Downloader.AsyncCallback callback) throws IOException, ExtractionException {
         return getMobilePostResponseAsync(endpoint, body, localization, userAgent, "",
                 endPartOfUrlRequest, callback);
-    }
-
-    private static JsonObject getMobilePostResponse(
-            final String endpoint,
-            final byte[] body,
-            @Nonnull final Localization localization,
-            @Nonnull final String userAgent,
-            @Nonnull final String innerTubeApiKey,
-            @Nullable final String endPartOfUrlRequest) throws IOException, ExtractionException {
-        final Map<String, List<String>> headers = new HashMap<>();
-        headers.put("Content-Type", singletonList("application/json"));
-        headers.put("User-Agent", singletonList(userAgent));
-        headers.put("X-Goog-Api-Format-Version", singletonList("2"));
-
-        final String baseEndpointUrl = YOUTUBEI_V1_GAPIS_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER;
-
-        final Response response = getDownloader().post(isNullOrEmpty(endPartOfUrlRequest)
-                        ? baseEndpointUrl : baseEndpointUrl + endPartOfUrlRequest,
-                headers, body, localization);
-        return JsonUtils.toJsonObject(getValidJsonResponseBody(response));
     }
 
     private static CancellableCall getMobilePostResponseAsync(
@@ -1462,93 +1352,6 @@ YoutubeParsingHelper {
                 .value("clientVersion", getClientVersion())
                 .value("originalUrl", "https://www.youtube.com")
                 .value("platform", DESKTOP_CLIENT_PLATFORM)
-                .value("utcOffsetMinutes", 0)
-                .end()
-                .object("request")
-                .array("internalExperimentFlags")
-                .end()
-                .value("useSsl", true)
-                .end()
-                .object("user")
-                // TODO: provide a way to enable restricted mode with:
-                //  .value("enableSafetyMode", boolean)
-                .value("lockedSafetyMode", false)
-                .end()
-                .end();
-        // @formatter:on
-    }
-
-    @Nonnull
-    public static JsonBuilder<JsonObject> prepareAndroidMobileJsonBuilder(
-            @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry,
-            @Nonnull final String visitorData) {
-        // @formatter:off
-        return JsonObject.builder()
-                .object("context")
-                .object("client")
-                .value("clientName", "ANDROID")
-                .value("clientVersion", ANDROID_YOUTUBE_CLIENT_VERSION)
-                .value("clientScreen", "WATCH")
-                .value("platform", "MOBILE")
-                .value("osName", "Android")
-                .value("osVersion", "16")
-                .value("visitorData", visitorData)
-                /*
-                A valid Android SDK version is required to be sure to get a valid player
-                response
-                If this parameter is not provided, the player response is replaced by an
-                error saying the message "The following content is not available on this
-                app. Watch this content on the latest version on YouTube" (it was
-                previously a 5-minute video with this message)
-                See https://github.com/TeamNewPipe/NewPipe/issues/8713
-                The Android SDK version corresponding to the Android version used in
-                requests is sent
-                */
-                .value("androidSdkVersion", 36)
-                .value("hl", localization.getLocalizationCode())
-                .value("gl", contentCountry.getCountryCode())
-                .value("utcOffsetMinutes", 0)
-                .end()
-                .object("request")
-                .array("internalExperimentFlags")
-                .end()
-                .value("useSsl", true)
-                .end()
-                .object("user")
-                // TODO: provide a way to enable restricted mode with:
-                //  .value("enableSafetyMode", boolean)
-                .value("lockedSafetyMode", false)
-                .end()
-                .end();
-        // @formatter:on
-    }
-
-    @Nonnull
-    public static JsonBuilder<JsonObject> prepareIosMobileJsonBuilder(
-            @Nonnull final Localization localization,
-            @Nonnull final ContentCountry contentCountry) {
-        // @formatter:off
-        return JsonObject.builder()
-                .object("context")
-                .object("client")
-                .value("clientName", "IOS")
-                .value("clientVersion", IOS_YOUTUBE_CLIENT_VERSION)
-                .value("deviceMake",  "Apple")
-                // Device model is required to get 60fps streams
-                .value("deviceModel", IOS_DEVICE_MODEL)
-                .value("platform", "MOBILE")
-                .value("osName", "iOS")
-                /*
-                The value of this field seems to use the following structure:
-                "iOS major version.minor version.patch version.build version", where
-                "patch version" is equal to 0 if it isn't set
-                The build version corresponding to the iOS version used can be found on
-                https://theapplewiki.com/wiki/Firmware/iPhone/17.x#iPhone_15
-                 */
-                .value("osVersion", IOS_OS_VERSION)
-                .value("hl", localization.getLocalizationCode())
-                .value("gl", contentCountry.getCountryCode())
                 .value("utcOffsetMinutes", 0)
                 .end()
                 .object("request")

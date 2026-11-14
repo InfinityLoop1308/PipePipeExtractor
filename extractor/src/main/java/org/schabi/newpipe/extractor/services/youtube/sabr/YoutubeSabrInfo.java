@@ -27,6 +27,8 @@ public final class YoutubeSabrInfo implements Serializable {
     private final byte[] poToken;
     @Nonnull
     private final List<Format> formats;
+    /** Missing in missions serialized before it existed, which then read as not post-live. */
+    private final boolean postLive;
 
     public YoutubeSabrInfo(@Nonnull final String videoId,
                     @Nonnull final String cpn,
@@ -47,6 +49,19 @@ public final class YoutubeSabrInfo implements Serializable {
                     @Nullable final String videoPlaybackUstreamerConfig,
                     @Nonnull final List<Format> formats,
                     @Nullable final byte[] poToken) {
+        this(videoId, cpn, clientVersion, visitorData, serverAbrStreamingUrl,
+                videoPlaybackUstreamerConfig, formats, poToken, false);
+    }
+
+    public YoutubeSabrInfo(@Nonnull final String videoId,
+                    @Nonnull final String cpn,
+                    @Nonnull final String clientVersion,
+                    @Nullable final String visitorData,
+                    @Nullable final String serverAbrStreamingUrl,
+                    @Nullable final String videoPlaybackUstreamerConfig,
+                    @Nonnull final List<Format> formats,
+                    @Nullable final byte[] poToken,
+                    final boolean postLive) {
         this.videoId = videoId;
         this.cpn = cpn;
         this.clientVersion = clientVersion;
@@ -55,6 +70,16 @@ public final class YoutubeSabrInfo implements Serializable {
         this.videoPlaybackUstreamerConfig = videoPlaybackUstreamerConfig;
         this.formats = formats;
         this.poToken = poToken == null ? null : poToken.clone();
+        this.postLive = postLive;
+    }
+
+    /**
+     * Whether this is an ended livestream served from its DVR window. Post-live SABR has no
+     * segment index: sequences are the broadcast's, starting at 0, the timeline comes from the
+     * live metadata and every media segment carries its own initialization.
+     */
+    public boolean isPostLive() {
+        return postLive;
     }
 
     @Nonnull
@@ -225,6 +250,15 @@ public final class YoutubeSabrInfo implements Serializable {
 
         public long getApproxDurationMs() {
             return parsedFormat.getApproxDurationMs();
+        }
+
+        /**
+         * Average duration of one live/DVR sequence, or -1 when the player response did not
+         * declare a {@code targetDurationSec}.
+         */
+        public long getTargetDurationMs() {
+            final int seconds = parsedFormat.getTargetDurationSec();
+            return seconds > 0 ? seconds * 1000L : -1;
         }
 
         @Nullable
