@@ -143,7 +143,11 @@ public final class YoutubeSabrRequestHelper {
                 audioTrack == null ? null : audioTrack.getFormat();
         final YoutubeSabrInfo.Format videoFormat =
                 videoTrack == null ? null : videoTrack.getFormat();
-        final long playerTimeMs = playbackState.getPlayerTimeMs();
+        // A zero player time makes a live/DVR playback request look like the initial preparation
+        // request, which does not select tracks. Use 1 ms so the selected formats are sent.
+        final long playerTimeMs = session.isLive() && sabrRequest.hasSelectedTracks()
+                ? Math.max(1, playbackState.getPlayerTimeMs())
+                : playbackState.getPlayerTimeMs();
         final float playbackRate = playbackState.getPlaybackRate();
         final List<byte[]> bufferedRanges = new ArrayList<>();
         if (sabrRequest.hasSelectedTracks()) {

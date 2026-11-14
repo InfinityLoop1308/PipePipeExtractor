@@ -84,6 +84,39 @@ public final class YoutubeSabrFormatTimeline {
                 segmentDurationMs);
     }
 
+    /**
+     * Builds the post-live DVR timeline of {@code format} from the live metadata received so far.
+     *
+     * <p>Post-live SABR has no {@code sidx}/{@code Cues}: the window comes from
+     * {@code LIVE_METADATA} and {@code FORMAT_INITIALIZATION_METADATA}. The
+     * {@code LIVE_METADATA} post-live flag is not repeated in every response, so any live window
+     * is accepted; callers decide whether the stream is post-live.</p>
+     *
+     * @return the timeline, or {@code null} while the window is not known yet
+     */
+    @Nullable
+    public static YoutubeSabrFormatTimeline fromLiveMetadata(
+            @Nonnull final YoutubeSabrSession session,
+            @Nonnull final YoutubeSabrInfo.Format format) {
+        if (!session.isLive()) {
+            return null;
+        }
+        final long start = session.getLiveStartSegmentNumber(format);
+        final long end = session.getLiveEndSegmentNumber(format);
+        final long duration = session.getLiveSegmentDurationMs(format);
+        if (start < 0 || end < start || end > Integer.MAX_VALUE || duration <= 0) {
+            return null;
+        }
+        try {
+            return live((int) start, (int) end,
+                    Math.max(0, session.getLiveSeekableStartTimeMs()), duration);
+        } catch (final SabrProtocolException error) {
+            session.addDiagnosticEvent("post_live_timeline_invalid itag=" + format.getItag()
+                    + " message=" + error.getMessage());
+            return null;
+        }
+    }
+
     public int getStartSequence() {
         return startSequence;
     }
