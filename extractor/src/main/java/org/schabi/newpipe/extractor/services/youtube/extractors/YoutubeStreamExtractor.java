@@ -1340,8 +1340,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     decoded);
         }
         final List<YoutubeSabrInfo.Format> formats = parseSabrFormats(adaptiveFormats, decoded);
+        // Same classification as POST_LIVE_STREAM in setStreamType().
+        final JsonObject videoDetails = response.getObject("videoDetails");
+        final boolean postLive = !videoDetails.getBoolean("isLive", false)
+                && videoDetails.getBoolean("isPostLiveDvr", false);
         return new YoutubeSabrInfo(videoId, cpn, clientVersion, visitorData,
-                serverAbrStreamingUrl, ustreamerConfig, formats, poToken);
+                serverAbrStreamingUrl, ustreamerConfig, formats, poToken, postLive);
     }
 
     private static void collectSabrDecodeParameters(
