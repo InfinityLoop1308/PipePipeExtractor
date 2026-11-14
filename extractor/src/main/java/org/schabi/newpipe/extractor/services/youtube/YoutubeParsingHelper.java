@@ -206,6 +206,8 @@ YoutubeParsingHelper {
             {"INNERTUBE_CONTEXT_CLIENT_VERSION\":\"([0-9\\.]+?)\"",
                     "innertube_context_client_version\":\"([0-9\\.]+?)\"",
                     "client.version=([0-9\\.]+)"};
+    private static final String[] SW_JS_DATA_CLIENT_VERSION_REGEXES =
+            {"\"([0-9]\\.[0-9]{8}\\.[0-9]{2}\\.[0-9]{2})\""};
     private static final String[] INITIAL_DATA_REGEXES =
             {"window\\[\"ytInitialData\"\\]\\s*=\\s*(\\{.*?\\});",
                     "var\\s*ytInitialData\\s*=\\s*(\\{.*?\\});"};
@@ -601,15 +603,16 @@ YoutubeParsingHelper {
         if (clientVersionExtracted) {
             return;
         }
-        final String url = "https://www.youtube.com/sw.js";
+        // sw.js is an empty stub without a consent cookie, sw.js_data still has the version
+        final String url = "https://www.youtube.com/sw.js_data";
         final Map<String, List<String>> headers = getOriginReferrerHeaders("https://www.youtube.com");
         final String response = getDownloader().get(url, headers).responseBody();
         try {
             clientVersion = getStringResultFromRegexArray(response,
-                    INNERTUBE_CONTEXT_CLIENT_VERSION_REGEXES, 1);
+                    SW_JS_DATA_CLIENT_VERSION_REGEXES, 1);
         } catch (final Parser.RegexException e) {
             throw new ParsingException("Could not extract YouTube WEB InnerTube client version "
-                    + "from sw.js", e);
+                    + "from sw.js_data", e);
         }
         clientVersionExtracted = true;
     }
