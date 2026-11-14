@@ -695,6 +695,9 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                         case "podcasts":
                             addTab.accept(ChannelTabs.PODCASTS);
                             break;
+                        case "courses":
+                            addTab.accept(ChannelTabs.COURSES);
+                            break;
                         case "streams":
                             addTab.accept(ChannelTabs.LIVESTREAMS);
                             break;

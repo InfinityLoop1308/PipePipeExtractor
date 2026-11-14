@@ -73,6 +73,8 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
                 return "EglwbGF5bGlzdHPyBgQKAkIA";
             case ChannelTabs.PODCASTS:
                 return "Eghwb2RjYXN0c_IGBQoDugEA";
+            case ChannelTabs.COURSES:
+                return "Egdjb3Vyc2Vz8gYFCgPCAQA%3D";
             case ChannelTabs.SEARCH:
                 return "EgZzZWFyY2jyBgQKAloA";
             default:
@@ -538,7 +540,14 @@ public class YoutubeChannelTabExtractor extends ChannelTabExtractor {
             });
         } else if (item.has("playlistRenderer")) {
             collector.commit(new YoutubeMixOrPlaylistInfoItemExtractor(
-                    item.getObject("playlistRenderer")));
+                    item.getObject("playlistRenderer")) {
+                @Override
+                public String getUploaderName() throws ParsingException {
+                    // Courses carry no byline: they belong to the channel being browsed
+                    final String name = super.getUploaderName();
+                    return isNullOrEmpty(name) ? channelIds.get(0) : name;
+                }
+            });
         } else if (item.has("radioRenderer")) {
             collector.commit(new YoutubeMixOrPlaylistInfoItemExtractor(
                     item.getObject("radioRenderer")));
