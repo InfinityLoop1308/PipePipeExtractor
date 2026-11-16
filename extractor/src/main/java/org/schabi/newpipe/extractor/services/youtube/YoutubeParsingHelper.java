@@ -1207,8 +1207,12 @@ YoutubeParsingHelper {
         final String responseContentType = response.getHeader("Content-Type");
         if (responseContentType != null
                 && responseContentType.toLowerCase().contains("text/html")) {
+            final String snippet = responseBody.substring(0, Math.min(500, responseBody.length()))
+                    .replaceAll("\\s+", " ");
             throw new ParsingException("Got HTML document, expected JSON response"
-                    + " (latest url was: \"" + response.latestUrl() + "\")");
+                    + " (latest url was: \"" + response.latestUrl() + "\", code: "
+                    + response.responseCode() + " " + response.responseMessage()
+                    + ", body: \"" + snippet + "\")");
         }
 
         return responseBody;
