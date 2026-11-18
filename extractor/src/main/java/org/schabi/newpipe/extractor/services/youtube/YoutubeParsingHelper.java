@@ -62,6 +62,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -1207,15 +1208,60 @@ YoutubeParsingHelper {
         final String responseContentType = response.getHeader("Content-Type");
         if (responseContentType != null
                 && responseContentType.toLowerCase().contains("text/html")) {
-            final String snippet = responseBody.substring(0, Math.min(500, responseBody.length()))
-                    .replaceAll("\\s+", " ");
-            throw new ParsingException("Got HTML document, expected JSON response"
-                    + " (latest url was: \"" + response.latestUrl() + "\", code: "
-                    + response.responseCode() + " " + response.responseMessage()
-                    + ", body: \"" + snippet + "\")");
+            throw new ParsingException("Got HTML document, expected JSON response "
+                    + describeHtmlResponse(response));
         }
 
         return responseBody;
+    }
+
+    @Nullable
+    private static String stripQuery(@Nullable final String url) {
+        return url == null ? null : url.split("\\?", 2)[0];
+    }
+
+    private static final Pattern IPV4_PATTERN = Pattern.compile("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b");
+    private static final Pattern IPV6_PATTERN = Pattern.compile(
+            "\\b(?=[0-9a-fA-F:]*(::|[a-fA-F]))[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{0,4}){2,7}\\b");
+    private static final Pattern FORM_ACTION_PATTERN = Pattern.compile(
+            "<form[^>]*action=\"([^\"?]*)", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * Summarizes an unexpected HTML answer (usually a Google block page) for error reports.
+     * Addresses and query strings are left out because block pages print the user's IP.
+     */
+    private static String describeHtmlResponse(@Nonnull final Response response) {
+        final String body = response.responseBody();
+        final String lowerBody = body.toLowerCase();
+        final Matcher title = Pattern.compile("<title>([^<]*)</title>",
+                Pattern.CASE_INSENSITIVE).matcher(body);
+        final Matcher formAction = FORM_ACTION_PATTERN.matcher(body);
+        String text = body.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                .replaceAll("<[^>]+>", " ").replaceAll("&nbsp;|\\s+", " ").trim();
+        text = IPV6_PATTERN.matcher(IPV4_PATTERN.matcher(text).replaceAll("<ip>"))
+                .replaceAll("<ip>").replaceAll("\\?\\S*", "");
+        final List<String> cookieNames = new ArrayList<>();
+        for (final Map.Entry<String, List<String>> header
+                : response.responseHeaders().entrySet()) {
+            if ("Set-Cookie".equalsIgnoreCase(header.getKey())) {
+                for (final String cookie : header.getValue()) {
+                    cookieNames.add(cookie.split("=", 2)[0]);
+                }
+            }
+        }
+        return "(latest url: \"" + stripQuery(response.latestUrl())
+                + "\", code: " + response.responseCode() + " " + response.responseMessage()
+                + ", net: " + response.getHeader("X-PipePipe-Net")
+                + ", server: " + response.getHeader("Server")
+                + ", retry-after: " + response.getHeader("Retry-After")
+                + ", location: " + stripQuery(response.getHeader("Location"))
+                + ", set-cookie: " + cookieNames
+                + ", length: " + body.length()
+                + ", title: \"" + (title.find() ? title.group(1).trim() : "") + "\""
+                + ", recaptcha: " + lowerBody.contains("recaptcha")
+                + ", captcha: " + lowerBody.contains("captcha")
+                + ", form: " + (formAction.find() ? "\"" + formAction.group(1) + "\"" : "none")
+                + ", text: \"" + text.substring(0, Math.min(800, text.length())) + "\")";
     }
 
     public static JsonObject getJsonPostResponse(@Nonnull final String endpoint,
