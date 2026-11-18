@@ -254,32 +254,37 @@ public final class YoutubeSabrSession {
         final long backoffRemainingMs = getBackoffRemainingMs();
         if (backoffRemainingMs > 0) {
             return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
-                    backoffRemainingMs), true);
+                    backoffRemainingMs), true, -1);
         }
         final YoutubeSabrResponse result = fetchAndProcessResponse(request, consumer);
         if (result == null) {
             return new RequestResult(0, (int) Math.min(Integer.MAX_VALUE,
-                    getBackoffRemainingMs()), false);
+                    getBackoffRemainingMs()), false, -1);
         }
-        return new RequestResult(result.getSegmentCount(), result.getBackoffTimeMs(), false);
+        return new RequestResult(result.getSegmentCount(), result.getBackoffTimeMs(), false,
+                result.getStreamProtectionStatus());
     }
 
     public static final class RequestResult {
         private final int segmentCount;
         private final int backoffMs;
         private final boolean deferred;
+        private final int protectionStatus;
 
         private RequestResult(final int segmentCount, final int backoffMs,
-                              final boolean deferred) {
+                              final boolean deferred, final int protectionStatus) {
             this.segmentCount = segmentCount;
             this.backoffMs = backoffMs;
             this.deferred = deferred;
+            this.protectionStatus = protectionStatus;
         }
 
         public int getSegmentCount() { return segmentCount; }
         public int getBackoffMs() { return backoffMs; }
         /** True when no HTTP request was sent because this session is still backing off. */
         public boolean isDeferred() { return deferred; }
+        /** Stream protection status of the response, or -1 if it had no protection part. */
+        public int getProtectionStatus() { return protectionStatus; }
     }
 
     /** Remaining server-requested delay before another transaction may start. */
