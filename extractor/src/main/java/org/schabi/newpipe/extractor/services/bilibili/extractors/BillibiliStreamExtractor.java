@@ -815,7 +815,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         final String uploaderName = owner == null ? "" : owner.getString("name", "");
         collector.commit(new BilibiliPlaylistInfoItemExtractor(title, collectionUrl,
                 thumbnailUrl, uploaderName, String.valueOf(uploaderId),
-                season.getLong("total", 0)));
+                season.getLong("ep_count", season.getLong("total", 0))));
     }
 
     @SuppressWarnings("SimpleDateFormat")

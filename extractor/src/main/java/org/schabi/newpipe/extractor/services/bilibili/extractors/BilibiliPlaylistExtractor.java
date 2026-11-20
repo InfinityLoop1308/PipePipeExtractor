@@ -191,7 +191,14 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
 
         Page nextPage = null;
         long total = getStreamCount();
-        String pageParam = "seasons_archives".equals(type) ? "page_num" : "pn";
+        String pageParam;
+        if (page.getUrl().contains("page_num=")) {
+            pageParam = "page_num";
+        } else if (page.getUrl().contains("pn=")) {
+            pageParam = "pn";
+        } else {
+            pageParam = "seasons_archives".equals(type) ? "page_num" : "pn";
+        }
         int currentPageNum = 1;
         if (page.getUrl().contains(pageParam + "=")) {
             try {
