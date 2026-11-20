@@ -2452,7 +2452,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
         }
         if (reason != null && reason.contains("Sign in to confirm")) {
-            throw new AntiBotException(ServiceList.YouTube.getServiceId(), reason);
+            throw new AntiBotLoginRequiredException(ServiceList.YouTube.getServiceId(), reason);
         }
 
         if (reason != null && reason.contains("This live event will begin in")) {
@@ -2514,7 +2514,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                     final JsonObject mwebPlayerResponse = JsonUtils.toJsonObject(getValidJsonResponseBody(response));
                     if (isPlayerResponseNotValid(mwebPlayerResponse, videoId)) {
                         if (mwebPlayerResponse.toString().contains("Sign in to confirm")) {
-                            throw new AntiBotException(ServiceList.YouTube.getServiceId(), "MWEB player response is not valid");
+                            throw new AntiBotLoginRequiredException(ServiceList.YouTube.getServiceId(), "MWEB player response is not valid");
                         }
                         throw new ExtractionException("MWEB player response is not valid");
                     }
