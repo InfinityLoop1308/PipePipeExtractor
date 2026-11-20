@@ -14,9 +14,16 @@ import org.schabi.newpipe.extractor.utils.Utils;
 
 import javax.annotation.Nullable;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.MonthDay;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getTextFromObject;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getThumbnailUrlFromInfoItem;
@@ -42,6 +49,15 @@ import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
  */
 
 public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
+    // Scheduled items without upcomingEventData, e.g. YouTube Primetime channel schedules:
+    // "Bil, Nov 24 09:00" (weekday, month, day, time) or "13:50 – 17:40" (today's time slot)
+    private static final Pattern SCHEDULED_DATE_PATTERN =
+            Pattern.compile("^[^,\\d]+,\\s*(\\S+\\s+\\d{1,2})\\s+(\\d{1,2}:\\d{2})$");
+    private static final Pattern SCHEDULED_TIME_SLOT_PATTERN =
+            Pattern.compile("^(\\d{1,2}:\\d{2})\\s*[\\u2013-]\\s*\\d{1,2}:\\d{2}$");
+    private static final Locale[] SCHEDULED_DATE_LOCALES = {
+            Locale.forLanguageTag("zu"), Locale.ENGLISH};
+
     private final JsonObject videoInfo;
     private final TimeAgoParser timeAgoParser;
     private StreamType cachedStreamType;
@@ -455,7 +471,10 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
         }
 
         if (isPremiere()) {
-            return DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(getDateFromPremiere());
+            final OffsetDateTime premiereDate = getDateFromPremiere();
+            return premiereDate == null
+                    ? getTextFromObject(videoInfo.getObject("publishedTimeText"))
+                    : DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").format(premiereDate);
         }
 
         final String publishedTimeText
@@ -551,7 +570,8 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
         }
 
         if (isPremiere()) {
-            return new DateWrapper(getDateFromPremiere());
+            final OffsetDateTime premiereDate = getDateFromPremiere();
+            return premiereDate == null ? null : new DateWrapper(premiereDate);
         }
 
         final String textualUploadDate = getTextualUploadDate();
@@ -676,10 +696,24 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
     }
 
     private boolean isPremiere() {
-        return videoInfo.has("upcomingEventData");
+        if (videoInfo.has("upcomingEventData")) {
+            return true;
+        }
+        for (final Object overlay : videoInfo.getArray("thumbnailOverlays")) {
+            if (((JsonObject) overlay).getObject("thumbnailOverlayTimeStatusRenderer")
+                    .getString("style", "").equalsIgnoreCase("UPCOMING")) {
+                return true;
+            }
+        }
+        return false;
     }
 
+    @Nullable
     private OffsetDateTime getDateFromPremiere() throws ParsingException {
+        if (!videoInfo.has("upcomingEventData")) {
+            return getDateFromScheduledText(
+                    getTextFromObject(videoInfo.getObject("publishedTimeText")));
+        }
         final JsonObject upcomingEventData = videoInfo.getObject("upcomingEventData");
         final String startTime = upcomingEventData.getString("startTime");
 
@@ -689,6 +723,49 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
         } catch (final Exception e) {
             throw new ParsingException("Could not parse date from premiere: \"" + startTime + "\"");
         }
+    }
+
+    @Nullable
+    private static OffsetDateTime getDateFromScheduledText(final String text) {
+        if (!isNullOrEmpty(text)) {
+            final OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+            final String trimmed = text.trim();
+
+            final Matcher slot = SCHEDULED_TIME_SLOT_PATTERN.matcher(trimmed);
+            if (slot.matches()) {
+                try {
+                    return LocalDate.now(ZoneOffset.UTC)
+                            .atTime(LocalTime.parse(slot.group(1),
+                                    DateTimeFormatter.ofPattern("H:mm")))
+                            .atOffset(ZoneOffset.UTC);
+                } catch (final DateTimeParseException ignored) {
+                    // fall through
+                }
+            }
+
+            final Matcher date = SCHEDULED_DATE_PATTERN.matcher(trimmed);
+            if (date.matches()) {
+                for (final Locale locale : SCHEDULED_DATE_LOCALES) {
+                    try {
+                        final MonthDay monthDay = MonthDay.parse(date.group(1),
+                                DateTimeFormatter.ofPattern("MMM d", locale));
+                        final LocalTime time = LocalTime.parse(date.group(2),
+                                DateTimeFormatter.ofPattern("H:mm"));
+                        OffsetDateTime result = monthDay.atYear(now.getYear())
+                                .atTime(time).atOffset(ZoneOffset.UTC);
+                        // The text has no year; schedules only point to the near future
+                        if (result.isBefore(now.minusMonths(6))) {
+                            result = result.plusYears(1);
+                        }
+                        return result;
+                    } catch (final DateTimeParseException ignored) {
+                        // try next locale
+                    }
+                }
+            }
+        }
+        // Unknown schedule format: keep the item without an upload date
+        return null;
     }
 
     @Nullable
@@ -765,8 +842,11 @@ public class YoutubeStreamInfoItemExtractor implements StreamInfoItemExtractor {
     public boolean requiresMembership() throws ParsingException {
         final JsonArray badges = videoInfo.getArray("badges");
         for (final Object badge : badges) {
-            if (((JsonObject) badge).getObject("metadataBadgeRenderer")
-                    .getString("style", "").equals("BADGE_STYLE_TYPE_MEMBERS_ONLY")) {
+            final String style = ((JsonObject) badge).getObject("metadataBadgeRenderer")
+                    .getString("style", "");
+            // YPC: paid content such as YouTube Primetime channels
+            if (style.equals("BADGE_STYLE_TYPE_MEMBERS_ONLY")
+                    || style.equals("BADGE_STYLE_TYPE_YPC")) {
                 return true;
             }
         }
