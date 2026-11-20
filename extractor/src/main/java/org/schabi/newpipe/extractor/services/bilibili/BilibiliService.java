@@ -12,7 +12,7 @@ import org.schabi.newpipe.extractor.channel.ChannelTabExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.kiosk.KioskList;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
@@ -167,7 +167,7 @@ public class BilibiliService extends StreamingService {
         Response response;
         try {
             response = getDownloader().post(url, headers, null);
-        } catch (ReCaptchaException e) {
+        } catch (AntiBotException e) {
             throw new IOException(e);
         }
         JsonObject data = Objects.requireNonNull(JsonParser.object().from(response.responseBody()).getObject("data"), "data");
@@ -223,7 +223,7 @@ public class BilibiliService extends StreamingService {
             Response response;
             try {
                 response = getDownloader().get(FETCH_COOKIE_URL, getUserAgentHeaders(WWW_REFERER));
-            } catch (ReCaptchaException e) {
+            } catch (AntiBotException e) {
                 throw new IOException(e);
             }
             JsonObject data;

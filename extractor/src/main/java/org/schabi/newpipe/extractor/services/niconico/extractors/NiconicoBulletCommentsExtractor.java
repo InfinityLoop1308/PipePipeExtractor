@@ -9,7 +9,7 @@ import org.schabi.newpipe.extractor.bulletComments.BulletCommentsInfoItemsCollec
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 
 import javax.annotation.Nonnull;
@@ -77,7 +77,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
                         new Thread(() -> {
                             try {
                                 messages.addAll(decodeString(getDownloader().get(url).rawResponseBody()));
-                            } catch (IOException | ReCaptchaException e) {
+                            } catch (IOException | AntiBotException e) {
                                 throw new RuntimeException(e);
                             }
                         }).start();
@@ -91,7 +91,7 @@ public class NiconicoBulletCommentsExtractor extends BulletCommentsExtractor {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        } catch (IOException | ReCaptchaException e) {
+        } catch (IOException | AntiBotException e) {
             throw new RuntimeException(e);
         }
     }

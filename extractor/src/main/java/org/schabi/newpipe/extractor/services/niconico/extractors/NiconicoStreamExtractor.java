@@ -10,6 +10,7 @@ import org.jsoup.nodes.Document;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.LiveNotStartException;
@@ -19,6 +20,7 @@ import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.services.niconico.M3U8Parser;
 import org.schabi.newpipe.extractor.services.niconico.NicoWebSocketClient;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoServiceParsingHelper;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.DeliveryMethod;
@@ -248,7 +250,9 @@ public class NiconicoStreamExtractor extends StreamExtractor {
         if (ServiceList.NicoNico.hasTokens()) {
             tokens.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
         }
-        String responseBody = getDownloader().get(url, tokens).responseBody();
+        final Response livePageResponse = getDownloader().get(url, tokens);
+        NiconicoServiceParsingHelper.throwIfBlocked(livePageResponse);
+        String responseBody = livePageResponse.responseBody();
         liveResponse = Jsoup.parse(responseBody);
         String result = JsonParser.object().from(liveResponse
                         .select("script#embedded-data").attr("data-props"))
@@ -481,6 +485,7 @@ public class NiconicoStreamExtractor extends StreamExtractor {
             response = downloader.post("https://nvapi.nicovideo.jp/v1/watch/" + getId() + "/access-rights/hls?actionTrackId=" + watch.getObject("client").getString("watchTrackId"), headers, resolutionObjectString.getBytes(StandardCharsets.UTF_8));
             if (response.responseCode() / 100 != 2) {
                 niconicoWatchDataCache.invalidate();
+                NiconicoServiceParsingHelper.throwIfBlocked(response);
                 throw new ExtractionException("Token expired. Please retry.");
             }
             final String setCookie = response.getHeader("Set-Cookie");
@@ -520,6 +525,8 @@ public class NiconicoStreamExtractor extends StreamExtractor {
                 streamSources = M3U8Parser.parseMasterM3U8(utils.decompressBrotli(response.rawResponseBody()), niconicoWatchDataCache.getStreamCookie(), getLength());
             }
 
+        } catch (AntiBotException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

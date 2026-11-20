@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.*;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoServiceParsingHelper;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -67,9 +68,12 @@ public class NiconicoWatchDataCache {
                 headers.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
             }
             response = downloader.get(url, headers, NiconicoService.LOCALE);
-        } catch (final IOException | ReCaptchaException e) {
+        } catch (final AntiBotException e) {
+            throw e;
+        } catch (final IOException e) {
             throw new ExtractionException("Could not get response.", e);
         }
+        NiconicoServiceParsingHelper.throwIfBlocked(response);
         page = Jsoup.parse(response.responseBody());
         try {
             Element element = page.select("meta[name=\"server-response\"]").first();

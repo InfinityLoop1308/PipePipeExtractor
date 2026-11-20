@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getDefaultCookies;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getHeaders;
@@ -60,7 +61,8 @@ public class BilibiliSearchExtractor extends SearchExtractor{
     @Override
     public InfoItemsPage<InfoItem> getPageInternal(Page page) throws IOException, ExtractionException {
         try {
-            final String html = getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody();
+            final String html = utils.getRiskCheckedBody(
+                    getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())));
             searchCollection = JsonParser.object().from(html);
         } catch (JsonParserException e) {
             e.printStackTrace();
@@ -79,8 +81,8 @@ public class BilibiliSearchExtractor extends SearchExtractor{
     @Override
     public void onFetchPage(Downloader downloader) throws IOException, ExtractionException {
         try {
-            final String response = getDownloader().get(
-                    getLinkHandler().getUrl(), getHeaders(getOriginalUrl())).responseBody();
+            final String response = utils.getRiskCheckedBody(getDownloader().get(
+                    getLinkHandler().getUrl(), getHeaders(getOriginalUrl())));
             searchCollection = JsonParser.object().from(response);
         } catch (final JsonParserException e) {
             throw new ExtractionException("could not parse search results.");

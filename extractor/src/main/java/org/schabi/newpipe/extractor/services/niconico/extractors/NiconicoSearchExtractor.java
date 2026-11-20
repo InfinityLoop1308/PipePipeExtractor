@@ -10,12 +10,14 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
 import org.schabi.newpipe.extractor.*;
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.services.niconico.NiconicoService;
+import org.schabi.newpipe.extractor.services.niconico.NiconicoServiceParsingHelper;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -54,8 +56,10 @@ public class NiconicoSearchExtractor extends SearchExtractor {
         final Map<String, List<String>> headers = new HashMap<>();
         headers.put("User-Agent", Collections.singletonList("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"));
 
-        final String response = getDownloader().get(
-                page.getUrl(), headers, NiconicoService.LOCALE).responseBody();
+        final Response rawResponse = getDownloader().get(
+                page.getUrl(), headers, NiconicoService.LOCALE);
+        NiconicoServiceParsingHelper.throwIfBlocked(rawResponse);
+        final String response = rawResponse.responseBody();
 
         if(page.getUrl().contains(NiconicoService.SEARCH_URL)){
             Element serverResponse = Jsoup.parse(response).selectFirst("meta[name=server-response]");

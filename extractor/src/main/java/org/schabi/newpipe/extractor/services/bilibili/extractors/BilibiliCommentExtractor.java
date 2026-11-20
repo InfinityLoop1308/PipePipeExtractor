@@ -37,9 +37,9 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
             String url = getUrl();
-            String response = isRepliesOfComment(url)
-                    ? getDownloader().get(url, getUserAgentHeaders(getLinkHandler().getOriginalUrl())).responseBody()
-                    : getDownloader().get(url).responseBody();
+            String response = utils.getRiskCheckedBody(isRepliesOfComment(url)
+                    ? getDownloader().get(url, getUserAgentHeaders(getLinkHandler().getOriginalUrl()))
+                    : getDownloader().get(url));
             data = JsonParser.object().from(response);
             data = data.getObject("data");
         } catch (JsonParserException e) {
@@ -67,10 +67,10 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             results.addAll(data.getArray("replies"));
         } else { // other pages
             try {
-                final String responseJson =
+                final String responseJson = utils.getRiskCheckedBody(
                         isRepliesOfComment(pageUrl)
-                                ? getDownloader().get(pageUrl, getUserAgentHeaders(WWW_REFERER)).responseBody()
-                                : getDownloader().get(pageUrl).responseBody();
+                                ? getDownloader().get(pageUrl, getUserAgentHeaders(WWW_REFERER))
+                                : getDownloader().get(pageUrl));
                 data = JsonParser.object().from(responseJson).getObject("data");
             } catch (JsonParserException e) {
                 e.printStackTrace();

@@ -8,7 +8,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Request;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandlerFactory;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.services.bilibili.utils;
@@ -35,7 +35,7 @@ public class BilibiliStreamLinkHandlerFactory extends LinkHandlerFactory {
                 if (url == null) {
                     throw new ParsingException("Could not resolve bilibili short link.");
                 }
-            } catch (IOException | ReCaptchaException e) {
+            } catch (IOException | AntiBotException e) {
                 throw new RuntimeException(e);
             }
         }

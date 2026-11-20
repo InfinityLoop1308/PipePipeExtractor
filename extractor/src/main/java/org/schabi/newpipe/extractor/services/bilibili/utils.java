@@ -4,7 +4,9 @@ import com.grack.nanojson.*;
 
 import org.brotli.dec.BrotliInputStream;
 import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.downloader.Response;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 
 import java.io.*;
@@ -293,6 +295,42 @@ public class utils {
                 .collect(Collectors.joining("&"));
     }
 
+    //region Risk control
+    /** Codes of Bilibili's API answers when risk control rejects the request. */
+    public static boolean isRiskControlCode(final long code) {
+        return code == -352 || code == -412;
+    }
+
+    /**
+     * @return the body of {@code response}
+     * @throws AntiBotException if risk control rejected the request, which Bilibili answers
+     *                          with HTTP 412 (an HTML page) or an API code of -352/-412
+     */
+    public static String getRiskCheckedBody(final Response response) throws AntiBotException {
+        final String body = response.responseBody();
+        if (response.responseCode() == 412) {
+            throw newRiskControlException("HTTP 412", response.latestUrl());
+        }
+        if (body != null && body.startsWith("{")) {
+            try {
+                final JsonObject json = JsonParser.object().from(body);
+                if (isRiskControlCode(json.getLong("code"))) {
+                    throw newRiskControlException("code " + json.getLong("code") + " "
+                            + json.getString("message", ""), response.latestUrl());
+                }
+            } catch (final JsonParserException ignored) {
+                // left to the caller, which reports the unparseable body
+            }
+        }
+        return body;
+    }
+
+    public static AntiBotException newRiskControlException(final String reason, final String url) {
+        return new AntiBotException(ServiceList.BiliBili.getServiceId(),
+                "BiliBili risk control blocked the request: " + reason, url, null);
+    }
+    //endregion
+
     //region API validation: WBI signature
     public static String getWbiResult(String baseUrl, LinkedHashMap<String, String> params) {
         String[] wbiResults = utils.encWbi(params);
@@ -327,6 +365,9 @@ public class utils {
             LocalDate currentDate = LocalDate.now(ZoneId.of("Asia/Shanghai"));
             if (wbiMixinKey == null || wbiMixinKeyDate.isBefore(currentDate)) {
                 Response response = NewPipe.getDownloader().get(wbiImgUrl, getHeaders(WWW_REFERER));
+                // the signature is used by url builders that cannot throw checked exceptions,
+                // a block is kept as the cause so that it is still reported as one
+                getRiskCheckedBody(response);
                 if (response.responseCode() != 200) {
                     throw new RuntimeException("Failed to get wbi_img");
                 }

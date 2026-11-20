@@ -10,7 +10,7 @@ import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.services.bilibili.BilibiliService;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
@@ -99,7 +99,7 @@ public final class SponsorBlockExtractorHelper {
             final String responseBody = NewPipe.getDownloader().get(url, url.contains("bsbsb.top")? BilibiliService.getSponsorBlockHeaders(): null).responseBody();
 
             responseArray = JsonParser.array().from(responseBody);
-        } catch (ReCaptchaException | IOException | JsonParserException e) {
+        } catch (AntiBotException | IOException | JsonParserException e) {
             // ignored
         }
 
@@ -153,7 +153,7 @@ public final class SponsorBlockExtractorHelper {
             final SponsorBlockSegment segment,
             final String apiUrl,
             final String userId)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         if (segment.category == SponsorBlockCategory.PENDING) {
             return null;
         }
@@ -187,7 +187,7 @@ public final class SponsorBlockExtractorHelper {
                                                           final String apiUrl,
                                                           final int vote,
                                                           final String userId)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         final String url = apiUrl + "voteOnSponsorTime?"
                 + "UUID=" + uuid
                 + "&userID=" + userId

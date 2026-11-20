@@ -6,7 +6,7 @@ import com.grack.nanojson.JsonParserException;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.utils.Parser;
 
@@ -287,7 +287,7 @@ public final class YoutubeJavaScriptPlayerManager {
                     System.currentTimeMillis() + PLAYER_METADATA_TTL_MILLIS);
         } catch (final IOException e) {
             throw new ParsingException("Failed to fetch latest player metadata", e);
-        } catch (final ReCaptchaException e) {
+        } catch (final AntiBotException e) {
             throw new ParsingException("Failed to fetch latest player metadata", e);
         } catch (final JsonParserException e) {
             throw new ParsingException("Failed to parse latest player metadata", e);

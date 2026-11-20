@@ -730,7 +730,7 @@ YoutubeParsingHelper {
     }
 
     public static boolean isHardcodedYoutubeMusicClientVersionValid() throws IOException,
-            ReCaptchaException {
+            AntiBotException {
         final String url =
                 "https://music.youtube.com/youtubei/v1/music/get_search_suggestions?"
                         + DISABLE_PRETTY_PRINT_PARAMETER;
@@ -772,7 +772,7 @@ YoutubeParsingHelper {
     }
 
     public static String getYoutubeMusicClientVersion()
-            throws IOException, ReCaptchaException, Parser.RegexException {
+            throws IOException, AntiBotException, Parser.RegexException {
         if (!isNullOrEmpty(youtubeMusicClientVersion)) {
             return youtubeMusicClientVersion;
         }
@@ -1729,7 +1729,7 @@ YoutubeParsingHelper {
                                 if (playabilityStatus.has("desktopLegacyAgeGateReason")) {
                                     throw new AgeRestrictedContentException("This age-restricted video cannot be watched anonymously");
                                 }
-                                throw new AntiBotException(reason);
+                                throw new AntiBotLoginRequiredException(ServiceList.YouTube.getServiceId(), reason);
                             }
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");

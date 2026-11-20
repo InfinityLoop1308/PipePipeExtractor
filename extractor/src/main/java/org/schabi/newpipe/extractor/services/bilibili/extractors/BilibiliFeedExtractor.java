@@ -21,6 +21,7 @@ import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.kiosk.KioskExtractor;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
 
@@ -82,21 +83,21 @@ public class BilibiliFeedExtractor extends KioskExtractor<StreamInfoItem> {
             case "Recommended Videos":
             default:
                 try {
-                    response = JsonParser.object().from(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3", getHeaders(getOriginalUrl())).responseBody());
+                    response = JsonParser.object().from(utils.getRiskCheckedBody(getDownloader().get("https://api.bilibili.com/x/web-interface/index/top/rcmd?fresh_type=3", getHeaders(getOriginalUrl()))));
                 } catch (JsonParserException e) {
                     e.printStackTrace();
                 }
                 break;
             case "Top 100":
                 try {
-                    response = JsonParser.object().from(downloader.get(getUrl(), getHeaders(getOriginalUrl())).responseBody());
+                    response = JsonParser.object().from(utils.getRiskCheckedBody(downloader.get(getUrl(), getHeaders(getOriginalUrl()))));
                 } catch (JsonParserException e) {
                     throw new RuntimeException(e);
                 }
                 break;
             case "Recommended Lives":
                 try {
-                    response = JsonParser.object().from(downloader.get(getUrl() + "&page=1", getHeaders(getOriginalUrl())).responseBody());
+                    response = JsonParser.object().from(utils.getRiskCheckedBody(downloader.get(getUrl() + "&page=1", getHeaders(getOriginalUrl()))));
                 } catch (JsonParserException e) {
                     throw new RuntimeException(e);
                 }
