@@ -20,7 +20,7 @@ package org.schabi.newpipe.extractor.exceptions;
  * along with NewPipe.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class ReCaptchaException extends ExtractionException {
+public class ReCaptchaException extends AntiBotException {
     private final String url;
 
     public ReCaptchaException(final String message, final String url) {
