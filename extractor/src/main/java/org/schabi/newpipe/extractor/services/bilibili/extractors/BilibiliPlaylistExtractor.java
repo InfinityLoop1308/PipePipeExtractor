@@ -165,6 +165,13 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
     @Override
     public InfoItemsPage<StreamInfoItem> getPage(Page page) throws IOException, ExtractionException {
         JsonObject pageData = this.data;
+        if (type == null) {
+            type = page.getUrl().contains("seasons_archives_list") ? "seasons_archives" : "series";
+        }
+        if (currentMid.isEmpty()) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("[?&]mid=(\\d+)").matcher(page.getUrl());
+            if (m.find()) currentMid = m.group(1);
+        }
         if (!"partition".equals(type) && !page.getUrl().equals(firstPageApiUrl)) {
             try {
                 pageData = JsonParser.object().from(utils.getRiskCheckedBody(getDownloader().get(page.getUrl(), getHeaders(getRefererUrl())))).getObject("data");
@@ -175,6 +182,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         if (pageData == null) {
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
         }
+        if (this.data == null) this.data = pageData;
         JsonArray results = pageData.getArray("archives");
         if (results == null || results.isEmpty()) {
             return new InfoItemsPage<>(new StreamInfoItemsCollector(getServiceId()), null);
