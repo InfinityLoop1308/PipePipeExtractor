@@ -2395,7 +2395,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
 
     public static JsonObject checkPlayabilityStatus(@Nonnull JsonObject playabilityStatus, String videoId)
-            throws ParsingException {
+            throws ExtractionException {
         String status = playabilityStatus.getString("status");
         if (status == null || status.equalsIgnoreCase("ok")) {
             return null;
