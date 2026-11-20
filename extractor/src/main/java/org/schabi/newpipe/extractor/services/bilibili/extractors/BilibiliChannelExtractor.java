@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
 import org.schabi.newpipe.extractor.exceptions.AntiBotException;
@@ -571,11 +572,14 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         int currentTry = maxTry;
 
         String responseBody = "";
+        boolean blocked = false;
 
         while (currentTry > 0) {
-            responseBody = downloader.get(url, headers).responseBody();
-            if (responseBody.startsWith("<!DOCTYPE html>")) {
+            final Response response = downloader.get(url, headers);
+            responseBody = response.responseBody();
+            if (response.responseCode() == 412 || responseBody.startsWith("<!DOCTYPE html>")) {
                 // returns HTML, due to risk control
+                blocked = true;
                 DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
                 currentTry -= 1;
                 continue;
@@ -584,7 +588,8 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 JsonObject responseJson = JsonParser.object().from(responseBody);
                 long code = responseJson.getLong("code");
                 if (code != 0) {
-                    if (code == -352) {
+                    blocked = utils.isRiskControlCode(code);
+                    if (blocked) {
                         // blocked risk control
                         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
                     }
@@ -605,6 +610,9 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
                 + responseBody;
         rotateVideoApiMode();
         DeviceForger.regenerateRandomDevice(); // try to regenerate a new one
+        if (blocked) {
+            throw new AntiBotException(ServiceList.BiliBili.getServiceId(), msg, url, null);
+        }
         throw new ParsingException(msg);
     }
 

@@ -69,7 +69,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
 
         if ("partition".equals(type)) {
             try {
-                data = JsonParser.object().from(downloader.get(getLinkHandler().getUrl(), getHeaders(getRefererUrl())).responseBody());
+                data = JsonParser.object().from(utils.getRiskCheckedBody(downloader.get(getLinkHandler().getUrl(), getHeaders(getRefererUrl()))));
             } catch (JsonParserException e) {
                 throw new ExtractionException("Failed to parse partition response", e);
             }
@@ -86,7 +86,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         }
 
         try {
-            String responseBody = downloader.get(firstPageApiUrl, getHeaders(getRefererUrl())).responseBody();
+            String responseBody = utils.getRiskCheckedBody(downloader.get(firstPageApiUrl, getHeaders(getRefererUrl())));
             JsonObject root = JsonParser.object().from(responseBody);
             data = root.getObject("data");
             if (data != null && data.has("meta") && data.getObject("meta") != null) {
@@ -167,7 +167,7 @@ public class BilibiliPlaylistExtractor extends PlaylistExtractor {
         JsonObject pageData = this.data;
         if (!"partition".equals(type) && !page.getUrl().equals(firstPageApiUrl)) {
             try {
-                pageData = JsonParser.object().from(getDownloader().get(page.getUrl(), getHeaders(getRefererUrl())).responseBody()).getObject("data");
+                pageData = JsonParser.object().from(utils.getRiskCheckedBody(getDownloader().get(page.getUrl(), getHeaders(getRefererUrl())))).getObject("data");
             } catch (JsonParserException e) {
                 throw new ExtractionException("Failed to parse playlist page response", e);
             }

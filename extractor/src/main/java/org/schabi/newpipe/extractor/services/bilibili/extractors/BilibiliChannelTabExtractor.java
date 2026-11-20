@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
+import org.schabi.newpipe.extractor.services.bilibili.utils;
 
 import java.io.IOException;
 
@@ -48,7 +49,7 @@ public class BilibiliChannelTabExtractor extends ChannelTabExtractor {
             return (InfoItemsPage<InfoItem>) (InfoItemsPage<?>) extractor.getPage(page); // I don't want to but to support YouTube I have to...
         }
         final MultiInfoItemsCollector collector = new MultiInfoItemsCollector(getServiceId());
-        String response = getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())).responseBody();
+        String response = utils.getRiskCheckedBody(getDownloader().get(page.getUrl(), getHeaders(getOriginalUrl())));
         try {
             JsonObject data = JsonParser.object().from(response).getObject("data");
             JsonArray seasons_list = data.getObject("items_lists").getArray("seasons_list");

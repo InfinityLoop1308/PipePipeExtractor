@@ -250,13 +250,13 @@ public class BillibiliStreamExtractor extends StreamExtractor {
      * the legacy {@code room/v1/Room/playUrl} endpoint, whose {@code durl} array only ever held
      * CDN mirrors of one quality.</p>
      */
-    private void fetchLivePlaybackUrls() {
+    private void fetchLivePlaybackUrls() throws AntiBotException {
         try {
-            final String response = getDownloader().get(
+            final String response = utils.getRiskCheckedBody(getDownloader().get(
                     "https://api.live.bilibili.com/xlive/web-room/v2/index/getRoomPlayInfo"
                             + "?room_id=" + getId()
                             + "&protocol=0,1&format=0,1,2&codec=0,1&qn=10000&platform=web&dm_disabled=1",
-                    getHeaders(getOriginalUrl())).responseBody();
+                    getHeaders(getOriginalUrl())));
             final JsonArray streamArray = JsonParser.object().from(response)
                     .getObject("data")
                     .getObject("playurl_info")
@@ -283,6 +283,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                     }
                 }
             }
+        } catch (final AntiBotException e) {
+            throw e;
         } catch (final Exception e) {
             // a room may publish neither ladder at the moment: extraction then surfaces
             // empty URLs, exactly as the legacy playUrl path did when it failed
@@ -400,7 +402,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
         if (getStreamType() == StreamType.LIVE_STREAM) {
             final String roomInfoUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getRoomBaseInfo"
                     + "?room_ids=" + getId() + "&req_biz=web_room_componet";
-            String response = downloader.get(roomInfoUrl).responseBody();
+            String response = utils.getRiskCheckedBody(downloader.get(roomInfoUrl));
             try {
                 JsonObject responseJson = JsonParser.object().from(response);
                 final JsonObject responseData = responseJson.getObject("data");
@@ -442,9 +444,9 @@ public class BillibiliStreamExtractor extends StreamExtractor {
                         currentRoundTitle = responseJson.getString("title");
                         currentRoundTitle = currentRoundTitle.split("-")[1] + currentRoundTitle.split("-")[2];
                         bvid = responseJson.getString("bvid");
-                        response = getDownloader().get("https://api.bilibili.com/x/player/playurl" + "?cid="
+                        response = utils.getRiskCheckedBody(getDownloader().get("https://api.bilibili.com/x/player/playurl" + "?cid="
                                 + responseJson.getLong("cid") + "&bvid=" + bvid
-                                + "&fnval=4048&qn=120&fourk=1&try_look=1", getHeaders(getOriginalUrl())).responseBody();
+                                + "&fnval=4048&qn=120&fourk=1&try_look=1", getHeaders(getOriginalUrl())));
                         playData = JsonParser.object().from(response);
                         dataObject = playData.getObject("data").getObject("dash");
                         buildStreams();
@@ -467,8 +469,10 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             int type = getId().startsWith("ss") ? 0 : 1;
             String response;
             try {
-                response = downloader.get("https://api.bilibili.com/pgc/view/web/season?"
-                        + (type == 0 ? "season_id=" : "ep_id=") + getId().substring(2), getHeaders(getOriginalUrl())).responseBody();
+                response = utils.getRiskCheckedBody(downloader.get("https://api.bilibili.com/pgc/view/web/season?"
+                        + (type == 0 ? "season_id=" : "ep_id=") + getId().substring(2), getHeaders(getOriginalUrl())));
+            } catch (AntiBotException e) {
+                throw e;
             } catch (Exception e) {
                 throw new ContentNotAvailableException("Unknown reason");
             }
@@ -510,7 +514,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             // generated cookies is safe even when the user is logged in (unlike the account
             // tokens, which used to trigger risk control here).
             final Map<String, List<String>> metadataHeaders = getHeaders(getOriginalUrl());
-            final String response = downloader.get(metadataUrl, metadataHeaders).responseBody();
+            final String response = utils.getRiskCheckedBody(
+                    downloader.get(metadataUrl, metadataHeaders));
             watch = parseVideoMetadata(response);
 
             if (watch == null) {
@@ -603,7 +608,7 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             finalUrl = baseUrl + "?" + createQueryString(params);
         }
 
-        String response = getDownloader().get(finalUrl, headers).responseBody();
+        String response = utils.getRiskCheckedBody(getDownloader().get(finalUrl, headers));
         try {
             playData = JsonParser.object().from(response);
             switch (playData.getInt("code")) {
@@ -622,7 +627,8 @@ public class BillibiliStreamExtractor extends StreamExtractor {
             if (dataObject.size() == 0) {
                 // Risk control answers code 0 with only a captcha voucher and no stream.
                 if (!dataParentObject.getString("v_voucher", "").isEmpty()) {
-                    throw new ContentNotAvailableException("BiliBili blocked us and asked for a captcha");
+                    throw new AntiBotException(ServiceList.BiliBili.getServiceId(),
+                            "BiliBili blocked us and asked for a captcha", finalUrl, null);
                 }
                 throw new PaidContentException("Paid content");
                 //dataArray = dataParentObject.getArray("durl");
