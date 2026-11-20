@@ -23,9 +23,14 @@ package org.schabi.newpipe.extractor.exceptions;
 public class ReCaptchaException extends AntiBotException {
     private final String url;
 
-    public ReCaptchaException(final String message, final String url) {
-        super(message);
+    public ReCaptchaException(final int serviceId, final String message, final String url) {
+        super(serviceId, message);
         this.url = url;
+    }
+
+    /** For callers that do not know the service, e.g. the downloader. */
+    public ReCaptchaException(final String message, final String url) {
+        this(-1, message, url);
     }
 
     public String getUrl() {

@@ -1729,7 +1729,7 @@ YoutubeParsingHelper {
                                 if (playabilityStatus.has("desktopLegacyAgeGateReason")) {
                                     throw new AgeRestrictedContentException("This age-restricted video cannot be watched anonymously");
                                 }
-                                throw new AntiBotException(reason);
+                                throw new AntiBotException(ServiceList.YouTube.getServiceId(), reason);
                             }
                             if (isPlayerResponseNotValid(webPlayerResponse, videoId)) {
                                 throw new ExtractionException("Initial WEB player response is not valid");

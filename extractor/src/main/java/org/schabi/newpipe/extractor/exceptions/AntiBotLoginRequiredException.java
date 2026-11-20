@@ -6,11 +6,12 @@ package org.schabi.newpipe.extractor.exceptions;
  */
 public class AntiBotLoginRequiredException extends AntiBotException {
 
-    public AntiBotLoginRequiredException(String message) {
-        super(message);
+    public AntiBotLoginRequiredException(final int serviceId, final String message) {
+        super(serviceId, message);
     }
 
-    public AntiBotLoginRequiredException(String message, Throwable cause) {
-        super(message, cause);
+    public AntiBotLoginRequiredException(final int serviceId, final String message,
+                                         final Throwable cause) {
+        super(serviceId, message, cause);
     }
 }
