@@ -2,7 +2,7 @@ package org.schabi.newpipe.extractor.downloader;
 
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.localization.Localization;
 
 import javax.annotation.Nonnull;
@@ -29,11 +29,11 @@ public abstract class Downloader {
      * @return the result of the GET request
      */
     private static Localization defaultLocalization = Localization.DEFAULT;
-    public Response get(final String url) throws IOException, ReCaptchaException {
+    public Response get(final String url) throws IOException, AntiBotException {
         return get(url, null, defaultLocalization);
     }
 
-    public CancellableCall getAsync(final String url, AsyncCallback callback) throws IOException, ReCaptchaException {
+    public CancellableCall getAsync(final String url, AsyncCallback callback) throws IOException, AntiBotException {
         return getAsync(url, null, defaultLocalization, callback);
     }
 
@@ -47,7 +47,7 @@ public abstract class Downloader {
      * @return the result of the GET request
      */
     public Response get(final String url, @Nullable final Localization localization)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return get(url, null, localization);
     }
 
@@ -60,12 +60,12 @@ public abstract class Downloader {
      * @return the result of the GET request
      */
     public Response get(final String url, @Nullable final Map<String, List<String>> headers)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return get(url, headers, defaultLocalization);
     }
 
     public CancellableCall getAsync(final String url, @Nullable final Map<String, List<String>> headers, AsyncCallback callback)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return getAsync(url, headers, defaultLocalization, callback);
     }
 
@@ -83,7 +83,7 @@ public abstract class Downloader {
     public Response get(final String url,
                         @Nullable final Map<String, List<String>> headers,
                         @Nullable final Localization localization)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return execute(Request.newBuilder()
                 .get(url)
                 .headers(headers)
@@ -92,7 +92,7 @@ public abstract class Downloader {
     }
 
     public CancellableCall getAsync(final String url, @Nullable final Map<String, List<String>> headers, @Nullable final Localization localization,
-                             final AsyncCallback callback) throws IOException, ReCaptchaException {
+                             final AsyncCallback callback) throws IOException, AntiBotException {
         return executeAsync(Request.newBuilder()
                 .get(url)
                 .headers(headers)
@@ -103,7 +103,7 @@ public abstract class Downloader {
     public StreamingResponse getStreaming(final String url,
                                           @Nullable final Map<String, List<String>> headers,
                                           @Nullable final Localization localization)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         final Response response = get(url, headers, localization);
         final byte[] raw = response.rawResponseBody() == null
                 ? new byte[0] : response.rawResponseBody();
@@ -119,7 +119,7 @@ public abstract class Downloader {
                                           @Nullable final Map<String, List<String>> headers,
                                           @Nullable final Localization localization,
                                           final long timeoutMs)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return getStreaming(url, headers, localization);
     }
 
@@ -129,7 +129,7 @@ public abstract class Downloader {
      * @param url the URL that is pointing to the wanted resource
      * @return the result of the HEAD request
      */
-    public Response head(final String url) throws IOException, ReCaptchaException {
+    public Response head(final String url) throws IOException, AntiBotException {
         return head(url, null);
     }
 
@@ -142,7 +142,7 @@ public abstract class Downloader {
      * @return the result of the HEAD request
      */
     public Response head(final String url, @Nullable final Map<String, List<String>> headers)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return execute(Request.newBuilder()
                 .head(url)
                 .headers(headers)
@@ -161,7 +161,7 @@ public abstract class Downloader {
     public Response post(final String url,
                          @Nullable final Map<String, List<String>> headers,
                          @Nullable final byte[] dataToSend)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return post(url, headers, dataToSend, defaultLocalization);
     }
 
@@ -181,7 +181,7 @@ public abstract class Downloader {
                          @Nullable final Map<String, List<String>> headers,
                          @Nullable final byte[] dataToSend,
                          @Nullable final Localization localization)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return execute(Request.newBuilder()
                 .post(url, dataToSend)
                 .headers(headers)
@@ -199,7 +199,7 @@ public abstract class Downloader {
                                            @Nullable final Map<String, List<String>> headers,
                                            @Nullable final byte[] dataToSend,
                                            @Nullable final Localization localization)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         final Response response = post(url, headers, dataToSend, localization);
         final byte[] raw = response.rawResponseBody() == null
                 ? new byte[0] : response.rawResponseBody();
@@ -212,7 +212,7 @@ public abstract class Downloader {
                           @Nullable final byte[] dataToSend,
                           @Nullable final Localization localization,
                           AsyncCallback callback)
-            throws IOException, ReCaptchaException {
+            throws IOException, AntiBotException {
         return executeAsync(Request.newBuilder()
                 .post(url, dataToSend)
                 .headers(headers)
@@ -220,7 +220,7 @@ public abstract class Downloader {
                 .build(), callback);
     }
 
-    public Response options(final String url,@Nullable final Map<String, List<String>> headers) throws IOException, ReCaptchaException {
+    public Response options(final String url,@Nullable final Map<String, List<String>> headers) throws IOException, AntiBotException {
         return execute(Request.newBuilder()
                 .options(url)
                 .headers(headers)
@@ -232,9 +232,9 @@ public abstract class Downloader {
      * @return the result of the request
      */
     public abstract Response execute(@Nonnull Request request)
-            throws IOException, ReCaptchaException;
+            throws IOException, AntiBotException;
     public abstract CancellableCall executeAsync(@Nonnull Request request, AsyncCallback callback)
-            throws IOException, ReCaptchaException;
+            throws IOException, AntiBotException;
 
     public interface AsyncCallback {
         void onSuccess(Response response) throws ExtractionException;

@@ -67,7 +67,7 @@ public class NiconicoWatchDataCache {
                 headers.put("Cookie", Collections.singletonList(ServiceList.NicoNico.getTokens()));
             }
             response = downloader.get(url, headers, NiconicoService.LOCALE);
-        } catch (final IOException | ReCaptchaException e) {
+        } catch (final IOException | AntiBotException e) {
             throw new ExtractionException("Could not get response.", e);
         }
         page = Jsoup.parse(response.responseBody());

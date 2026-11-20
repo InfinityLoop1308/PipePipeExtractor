@@ -730,7 +730,7 @@ YoutubeParsingHelper {
     }
 
     public static boolean isHardcodedYoutubeMusicClientVersionValid() throws IOException,
-            ReCaptchaException {
+            AntiBotException {
         final String url =
                 "https://music.youtube.com/youtubei/v1/music/get_search_suggestions?"
                         + DISABLE_PRETTY_PRINT_PARAMETER;
@@ -772,7 +772,7 @@ YoutubeParsingHelper {
     }
 
     public static String getYoutubeMusicClientVersion()
-            throws IOException, ReCaptchaException, Parser.RegexException {
+            throws IOException, AntiBotException, Parser.RegexException {
         if (!isNullOrEmpty(youtubeMusicClientVersion)) {
             return youtubeMusicClientVersion;
         }

@@ -15,7 +15,7 @@ import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.AntiBotException;
 import org.schabi.newpipe.extractor.linkhandler.ChannelTabs;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.search.filter.Filter;
@@ -248,7 +248,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         private void fetchViaAPI(Downloader downloader, String id, long lastVideoAid, String order)
-                throws ParsingException, IOException, ReCaptchaException {
+                throws ParsingException, IOException, AntiBotException {
             Map<String, List<String>> headers = getHeaders(SPACE_REFERER);
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlClientAPI(id, lastVideoAid, order), headers);
         }
@@ -353,7 +353,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         private void fetchViaAPI(Downloader downloader, String id, String currentUrl, String order)
-                throws ParsingException, IOException, ReCaptchaException {
+                throws ParsingException, IOException, AntiBotException {
             Map<String, List<String>> headers = getHeaders(currentUrl);
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlSearchAPI(currentUrl, id, order), headers);
         }
@@ -461,7 +461,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
         }
 
         private void fetchViaAPI(Downloader downloader, String id, String currentUrl, String order)
-                throws ParsingException, IOException, ReCaptchaException {
+                throws ParsingException, IOException, AntiBotException {
             Map<String, List<String>> headers = getHeaders(currentUrl);
             userVideoData = requestUserSpaceResponse(downloader, buildUserVideosUrlWebAPI(currentUrl, id, order), headers);
         }
@@ -566,7 +566,7 @@ public class BilibiliChannelExtractor extends ChannelExtractor {
             Downloader downloader,
             String url,
             Map<String, List<String>> headers
-    ) throws ParsingException, IOException, ReCaptchaException {
+    ) throws ParsingException, IOException, AntiBotException {
         int maxTry = 2;
         int currentTry = maxTry;
 
