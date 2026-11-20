@@ -198,7 +198,12 @@ public class YoutubeSearchExtractor extends YoutubeBaseSearchExtractor {
                 }
             } else if (item.has("shortsLockupViewModel")) {
                 collector.commit(new YoutubeShortsInfoItemExtractor(
-                        item.getObject("shortsLockupViewModel")));
+                        item.getObject("shortsLockupViewModel")) {
+                    @Override
+                    public String getUploaderName() {
+                        return "YouTube Shorts";
+                    }
+                });
             } else if (item.has("gridShelfViewModel")) {
                 final JsonArray shelfContents = item.getObject("gridShelfViewModel")
                         .getArray("contents");
