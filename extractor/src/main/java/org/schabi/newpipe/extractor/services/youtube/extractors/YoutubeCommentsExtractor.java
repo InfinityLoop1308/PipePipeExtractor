@@ -427,8 +427,11 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         // @formatter:on
 
-        final String initialToken =
-                findInitialCommentsToken(getJsonPostResponse("next", body, localization));
+        // the token is in the main column, no need for the related videos
+        final String initialToken = findInitialCommentsToken(getJsonPostResponse("next",
+                Collections.singletonList(
+                        "fields=contents(twoColumnWatchNextResults(results))"),
+                body, localization));
 
         if (initialToken == null) {
             return;

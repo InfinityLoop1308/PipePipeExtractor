@@ -85,6 +85,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private String playerResponseClientVersion;
     @Nullable
     private byte[] playerResponsePoToken;
+    // the only parts of next read here
+    private static final String NEXT_RESPONSE_FIELDS = "contents,engagementPanels";
     private JsonObject nextResponse;
 
     @Nullable
@@ -2206,7 +2208,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
                 .getBytes(StandardCharsets.UTF_8);
         stageStartedAt = System.nanoTime();
         final CancellableCall nextDataCall = getJsonPostResponseAsync(
-                NEXT, body, localization, new Downloader.AsyncCallback() {
+                NEXT, NEXT_RESPONSE_FIELDS, body, localization, new Downloader.AsyncCallback() {
                     @Override
                     public void onSuccess(final Response response) throws ExtractionException {
                         try {

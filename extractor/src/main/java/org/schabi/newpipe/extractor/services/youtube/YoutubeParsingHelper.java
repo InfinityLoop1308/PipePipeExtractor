@@ -1328,11 +1328,24 @@ YoutubeParsingHelper {
                                                 final Localization localization,
                                                 final Downloader.AsyncCallback callback)
             throws IOException, ExtractionException {
+        return getJsonPostResponseAsync(endpoint, null, body, localization, callback);
+    }
+
+    // fields: partial response, like the fields parameter of Google APIs
+    public static CancellableCall getJsonPostResponseAsync(final String endpoint,
+                                                @Nullable final String fields,
+                                                final byte[] body,
+                                                final Localization localization,
+                                                final Downloader.AsyncCallback callback)
+            throws IOException, ExtractionException {
         final Map<String, List<String>> headers = new HashMap<>();
         addYoutubeHeaders(headers);
         headers.put("Content-Type", singletonList("application/json"));
 
-        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?" + DISABLE_PRETTY_PRINT_PARAMETER, headers, body, localization, callback);
+        return getDownloader().postAsync(YOUTUBEI_V1_URL + endpoint + "?"
+                + DISABLE_PRETTY_PRINT_PARAMETER
+                + (fields == null ? "" : "&fields=" + fields),
+                headers, body, localization, callback);
     }
 
 
