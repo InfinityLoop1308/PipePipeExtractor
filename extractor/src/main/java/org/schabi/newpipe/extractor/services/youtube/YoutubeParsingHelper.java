@@ -27,6 +27,7 @@ import com.grack.nanojson.JsonParser;
 import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
 
+import org.jsoup.Jsoup;
 import org.jsoup.nodes.Entities;
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.MetaInfo;
@@ -1185,7 +1186,7 @@ YoutubeParsingHelper {
 
     @Nonnull
     public static String getValidJsonResponseBody(@Nonnull final Response response)
-            throws ParsingException, MalformedURLException {
+            throws ParsingException, MalformedURLException, AntiBotException {
         if (response.responseCode() == 404) {
             throw new ContentNotAvailableException("Not found"
                     + " (\"" + response.responseCode() + " " + response.responseMessage() + "\")");
@@ -1207,7 +1208,16 @@ YoutubeParsingHelper {
 
         final String responseContentType = response.getHeader("Content-Type");
         if (responseContentType != null
-                && responseContentType.toLowerCase().contains("text/html")) {
+                && responseContentType.toLowerCase(Locale.ROOT).contains("text/html")) {
+            // Google can return its block page directly from an API endpoint, without a
+            // redirect to /sorry or a CAPTCHA. Do not classify unrelated 403 pages as blocks.
+            if (response.responseCode() == 403 && Jsoup.parse(responseBody).text()
+                    .toLowerCase(Locale.ROOT)
+                    .contains("your computer or network may be sending automated queries")) {
+                throw new AntiBotException(ServiceList.YouTube.getServiceId(),
+                        "YouTube blocked automated requests (HTTP 403)",
+                        response.latestUrl(), null);
+            }
             throw new ParsingException("Got HTML document, expected JSON response "
                     + describeHtmlResponse(response));
         }
