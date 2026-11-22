@@ -24,7 +24,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.*;
 import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
@@ -44,6 +46,11 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
      */
     private JsonObject ajaxJson;
     private JSONObject ajaxJsonSafe;
+    private final List<String> sortOrders = new ArrayList<>();
+    private final List<String> sortTokens = new ArrayList<>();
+    private int requestedSortOrder = -1;
+    private int sortOrder = -1;
+    private int initialSortOrder = -1;
 
     public YoutubeCommentsExtractor(
             final StreamingService service,
@@ -60,7 +67,17 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
             return getInfoItemsPageForDisabledComments();
         }
 
-        return extractComments(ajaxJson, ajaxJsonSafe);
+        if (sortOrder >= 0 && sortOrder != initialSortOrder) {
+            return getPage(getNextPage(sortTokens.get(sortOrder)));
+        }
+
+        final InfoItemsPage<CommentsInfoItem> initialPage =
+                extractComments(ajaxJson, ajaxJsonSafe);
+        // Some responses contain only the header; use the selected menu's continuation.
+        if (initialPage.getItems().isEmpty() && sortOrder >= 0) {
+            return getPage(getNextPage(sortTokens.get(sortOrder)));
+        }
+        return initialPage;
     }
 
     /**
@@ -76,6 +93,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
 
         // For videos where comments are unavailable, this would be null
         if (contents == null) {
+            commentsDisabled = true;
             return null;
         }
 
@@ -171,22 +189,6 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
         // Prevent ArrayIndexOutOfBoundsException
         if (onResponseReceivedEndpoints.isEmpty()) {
             return null;
-        }
-
-        if(jsonObjectSafe == null) {
-            return getNextPage(onResponseReceivedEndpoints
-                    .getObject(0)
-                    .getObject("reloadContinuationItemsCommand")
-                    .getArray("continuationItems")
-                    .getObject(0)
-                    .getObject("commentsHeaderRenderer")
-                    .getObject("sortMenu")
-                    .getObject("sortFilterSubMenuRenderer")
-                    .getArray("subMenuItems")
-                    .getObject(0)
-                    .getObject("serviceEndpoint")
-                    .getObject("continuationCommand")
-                    .getString("token"));
         }
 
         final JsonArray continuationItemsArray;
@@ -444,6 +446,7 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
 
         String resp = getJsonPostResponseRaw("next", ajaxBody, localization);
         ajaxJson = JsonUtils.toJsonObject(resp);
+        extractSortOrders(ajaxJson);
         try {
             ajaxJsonSafe = new JSONObject(resp);
         } catch (JSONException e) {
@@ -451,6 +454,73 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
         }
     }
 
+
+    private void extractSortOrders(final JsonObject response) throws ParsingException {
+        sortOrders.clear();
+        sortTokens.clear();
+        initialSortOrder = -1;
+        for (final Object endpointObject : response.getArray("onResponseReceivedEndpoints")) {
+            if (!(endpointObject instanceof JsonObject)) {
+                continue;
+            }
+            final JsonObject endpoint = (JsonObject) endpointObject;
+            final JsonArray items = endpoint.getObject("reloadContinuationItemsCommand",
+                    endpoint.getObject("appendContinuationItemsAction"))
+                    .getArray("continuationItems");
+            for (final Object itemObject : items) {
+                if (!(itemObject instanceof JsonObject)) {
+                    continue;
+                }
+                final JsonArray menuItems = ((JsonObject) itemObject)
+                        .getObject("commentsHeaderRenderer")
+                        .getObject("sortMenu")
+                        .getObject("sortFilterSubMenuRenderer")
+                        .getArray("subMenuItems");
+                for (final Object menuItemObject : menuItems) {
+                    if (!(menuItemObject instanceof JsonObject)) {
+                        continue;
+                    }
+                    final JsonObject menuItem = (JsonObject) menuItemObject;
+                    final String title = menuItem.getString("title");
+                    final String token = menuItem.getObject("serviceEndpoint")
+                            .getObject("continuationCommand").getString("token");
+                    if (isNullOrEmpty(title) || isNullOrEmpty(token)) {
+                        continue;
+                    }
+                    if (menuItem.getBoolean("selected")) {
+                        initialSortOrder = sortOrders.size();
+                    }
+                    sortOrders.add(title);
+                    sortTokens.add(token);
+                }
+            }
+        }
+        if (initialSortOrder < 0 && !sortOrders.isEmpty()) {
+            initialSortOrder = 0;
+        }
+        sortOrder = requestedSortOrder < 0 ? initialSortOrder : requestedSortOrder;
+        if (requestedSortOrder >= sortOrders.size()) {
+            throw new ParsingException("Requested comment sort order is unavailable");
+        }
+    }
+
+    @Override
+    public List<String> getSortOrders() {
+        return Collections.unmodifiableList(sortOrders);
+    }
+
+    @Override
+    public int getSortOrder() {
+        return sortOrder;
+    }
+
+    @Override
+    public void setSortOrder(final int requestedOrder) {
+        if (requestedOrder < -1) {
+            throw new IllegalArgumentException("Invalid comment sort order");
+        }
+        requestedSortOrder = requestedOrder;
+    }
 
     @Override
     public boolean isCommentsDisabled() {

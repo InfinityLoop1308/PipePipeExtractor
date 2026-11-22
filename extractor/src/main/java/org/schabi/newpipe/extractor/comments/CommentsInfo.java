@@ -11,6 +11,8 @@ import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.utils.ExtractorHelper;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
 
@@ -27,7 +29,17 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
 
     public static CommentsInfo getInfo(final StreamingService service, final String url)
             throws ExtractionException, IOException {
-        return getInfo(service.getCommentsExtractor(url));
+        return getInfo(service, url, -1);
+    }
+
+    public static CommentsInfo getInfo(final StreamingService service, final String url,
+                                       final int sortOrder)
+            throws ExtractionException, IOException {
+        final CommentsExtractor extractor = service.getCommentsExtractor(url);
+        if (extractor != null) {
+            extractor.setSortOrder(sortOrder);
+        }
+        return getInfo(extractor);
     }
 
     public static CommentsInfo getInfo(final CommentsExtractor commentsExtractor)
@@ -48,6 +60,8 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
         final InfoItemsPage<CommentsInfoItem> initialCommentsPage =
                 ExtractorHelper.getItemsPageOrLogError(commentsInfo, commentsExtractor);
         commentsInfo.setCommentsDisabled(commentsExtractor.isCommentsDisabled());
+        commentsInfo.sortOrders = List.copyOf(commentsExtractor.getSortOrders());
+        commentsInfo.sortOrder = commentsExtractor.getSortOrder();
         commentsInfo.setRelatedItems(initialCommentsPage.getItems());
         commentsInfo.setNextPage(initialCommentsPage.getNextPage());
 
@@ -85,6 +99,16 @@ public final class CommentsInfo extends ListInfo<CommentsInfoItem> {
 
     private transient CommentsExtractor commentsExtractor;
     private boolean commentsDisabled = false;
+    private List<String> sortOrders = Collections.emptyList();
+    private int sortOrder = -1;
+
+    public List<String> getSortOrders() {
+        return sortOrders;
+    }
+
+    public int getSortOrder() {
+        return sortOrder;
+    }
 
     public CommentsExtractor getCommentsExtractor() {
         return commentsExtractor;
