@@ -19,7 +19,10 @@ import org.schabi.newpipe.extractor.services.bilibili.utils;
 import javax.annotation.Nonnull;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.FETCH_COMMENTS_URL;
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.WWW_REFERER;
@@ -27,7 +30,10 @@ import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.get
 import static org.schabi.newpipe.extractor.services.bilibili.BilibiliService.getUserAgentHeaders;
 
 public class BilibiliCommentExtractor extends CommentsExtractor {
+    private static final List<String> SORT_ORDERS = Arrays.asList("Top", "Newest");
+
     JsonObject data = new JsonObject();
+    private int sortOrder = 0;
 
     public BilibiliCommentExtractor(StreamingService service, ListLinkHandler uiHandler) {
         super(service, uiHandler);
@@ -37,6 +43,9 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
     public void onFetchPage(@Nonnull Downloader downloader) throws IOException, ExtractionException {
         try {
             String url = getUrl();
+            if (!isRepliesOfComment(url) && sortOrder == 1) {
+                url = buildFetchUrl(url, sortOrder, "");
+            }
             String response = utils.getRiskCheckedBody(isRepliesOfComment(url)
                     ? getDownloader().get(url, getUserAgentHeaders(getLinkHandler().getOriginalUrl()))
                     : getDownloader().get(url));
@@ -61,10 +70,16 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         JsonArray results;
         if (pageUrl.equals(initialUrl)) { // first page with top comments
             results = data.getArray("top_replies");
+            if (results == null) {
+                results = new JsonArray();
+            }
             for (int i = 0; i < results.size(); i++) {
                 results.getObject(i).put("isTop", true);
             }
-            results.addAll(data.getArray("replies"));
+            final JsonArray replies = data.getArray("replies");
+            if (replies != null) {
+                results.addAll(replies);
+            }
         } else { // other pages
             try {
                 final String responseJson = utils.getRiskCheckedBody(
@@ -93,7 +108,7 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
             }
             //data.cursor.pagination_reply.next_offset
             String offset = data.getObject("cursor").getObject("pagination_reply").getString("next_offset");
-            return new InfoItemsPage<>(collector, new Page(utils.getWbiResult(FETCH_COMMENTS_URL, buildNextPageParam(initialUrl, offset)), getDefaultCookies()));
+            return new InfoItemsPage<>(collector, new Page(buildFetchUrl(initialUrl, sortOrder, offset), getDefaultCookies()));
         } else { //replies
             if (9 > results.size() && pageUrl.contains("pn=1")) {
                 return new InfoItemsPage<>(collector, null);
@@ -111,15 +126,34 @@ public class BilibiliCommentExtractor extends CommentsExtractor {
         return !requestUrl.contains(FETCH_COMMENTS_URL);
     }
 
-    private static LinkedHashMap<String, String> buildNextPageParam(String url, String offset) {
-        return new LinkedHashMap<String, String>() {{
-            put("oid", url.split("oid=")[1].split("&")[0]);
-            put("type", "1");
-            put("mode", "3");
-            put("pagination_str", "{\"offset\":\"" + StringEscapeUtils.escapeJson(offset) + "\"}");
-            put("plat", "1");
-            put("web_location", "1315875");
-        }};
+    private static String buildFetchUrl(String url, int sortOrder, String offset) {
+        final LinkedHashMap<String, String> params = new LinkedHashMap<>();
+        params.put("oid", url.split("oid=")[1].split("&")[0]);
+        params.put("type", "1");
+        params.put("mode", sortOrder == 1 ? "2" : "3");
+        params.put("pagination_str", "{\"offset\":\"" + StringEscapeUtils.escapeJson(offset) + "\"}");
+        params.put("plat", "1");
+        params.put("web_location", "1315875");
+        return utils.getWbiResult(FETCH_COMMENTS_URL, params);
     }
 
+    @Override
+    public List<String> getSortOrders() {
+        return Collections.unmodifiableList(SORT_ORDERS);
+    }
+
+    @Override
+    public int getSortOrder() {
+        return sortOrder;
+    }
+
+    @Override
+    public void setSortOrder(final int requestedSortOrder) {
+        if (requestedSortOrder < -1 || requestedSortOrder >= SORT_ORDERS.size()) {
+            throw new IllegalArgumentException("Invalid comment sort order");
+        }
+        if (requestedSortOrder >= 0) {
+            sortOrder = requestedSortOrder;
+        }
+    }
 }
