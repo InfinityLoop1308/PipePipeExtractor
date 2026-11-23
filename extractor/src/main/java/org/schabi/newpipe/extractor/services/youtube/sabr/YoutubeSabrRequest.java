@@ -72,6 +72,15 @@ public final class YoutubeSabrRequest {
     public static YoutubeSabrRequest preparation(
             final long playerTimeMs,
             @Nonnull final Collection<YoutubeSabrInfo.Format> preferredFormats) {
+        return preparation(playerTimeMs, preferredFormats, 0L);
+    }
+
+    /** Same as {@link #preparation(long, Collection)} with a per-track buffer byte budget hint. */
+    @Nonnull
+    public static YoutubeSabrRequest preparation(
+            final long playerTimeMs,
+            @Nonnull final Collection<YoutubeSabrInfo.Format> preferredFormats,
+            final long bufferByteBudget) {
         if (playerTimeMs < 0) {
             throw new IllegalArgumentException("SABR player time must not be negative");
         }
@@ -80,7 +89,8 @@ public final class YoutubeSabrRequest {
         for (final YoutubeSabrInfo.Format format : preferredFormats) {
             tracks.add(Track.of(format, null, 0));
         }
-        return new YoutubeSabrRequest(tracks, new PlaybackState(playerTimeMs, 1.0f), false, 0L);
+        return new YoutubeSabrRequest(tracks, new PlaybackState(playerTimeMs, 1.0f), false,
+                bufferByteBudget);
     }
 
     /** Requests media for the active tracks in their preferred response order. */
