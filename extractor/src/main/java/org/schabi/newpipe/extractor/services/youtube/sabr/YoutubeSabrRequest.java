@@ -15,10 +15,16 @@ public final class YoutubeSabrRequest {
     @Nonnull
     private final PlaybackState playbackState;
     private final boolean selectedTracks;
+    /** Per-track buffer byte budget; zero leaves the server read-ahead policy unchanged. */
+    private final long bufferByteBudget;
 
     private YoutubeSabrRequest(@Nonnull final Collection<Track> tracks,
                                @Nonnull final PlaybackState playbackState,
-                               final boolean selectedTracks) {
+                               final boolean selectedTracks,
+                               final long bufferByteBudget) {
+        if (bufferByteBudget < 0) {
+            throw new IllegalArgumentException("SABR buffer byte budget must not be negative");
+        }
         Objects.requireNonNull(tracks, "tracks");
         if (tracks.isEmpty()) {
             throw new IllegalArgumentException("SABR request must contain at least one track");
@@ -55,6 +61,7 @@ public final class YoutubeSabrRequest {
         this.tracks = Collections.unmodifiableList(copy);
         this.playbackState = Objects.requireNonNull(playbackState, "playbackState");
         this.selectedTracks = selectedTracks;
+        this.bufferByteBudget = bufferByteBudget;
     }
 
     /**
@@ -73,7 +80,7 @@ public final class YoutubeSabrRequest {
         for (final YoutubeSabrInfo.Format format : preferredFormats) {
             tracks.add(Track.of(format, null, 0));
         }
-        return new YoutubeSabrRequest(tracks, new PlaybackState(playerTimeMs, 1.0f), false);
+        return new YoutubeSabrRequest(tracks, new PlaybackState(playerTimeMs, 1.0f), false, 0L);
     }
 
     /** Requests media for the active tracks in their preferred response order. */
@@ -82,6 +89,19 @@ public final class YoutubeSabrRequest {
             final long playerTimeMs,
             final float playbackRate,
             @Nonnull final Collection<Track> tracks) {
+        return playback(playerTimeMs, playbackRate, tracks, 0L);
+    }
+
+    /**
+     * Requests media with a per-track buffer byte budget hint. A positive budget constrains
+     * server-selected read-ahead, not the exact response size or segment count. Zero omits it.
+     */
+    @Nonnull
+    public static YoutubeSabrRequest playback(
+            final long playerTimeMs,
+            final float playbackRate,
+            @Nonnull final Collection<Track> tracks,
+            final long bufferByteBudget) {
         if (playerTimeMs < 0) {
             throw new IllegalArgumentException("SABR player time must not be negative");
         }
@@ -89,7 +109,11 @@ public final class YoutubeSabrRequest {
             throw new IllegalArgumentException("SABR playback rate must be positive");
         }
         return new YoutubeSabrRequest(tracks,
-                new PlaybackState(playerTimeMs, playbackRate), true);
+                new PlaybackState(playerTimeMs, playbackRate), true, bufferByteBudget);
+    }
+
+    public long getBufferByteBudget() {
+        return bufferByteBudget;
     }
 
     @Nonnull
