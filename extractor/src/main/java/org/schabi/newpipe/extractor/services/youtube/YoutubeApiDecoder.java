@@ -28,7 +28,8 @@ import java.util.Map;
  * </p>
  */
 public final class YoutubeApiDecoder {
-
+    // Third-party projects: Please deploy your own instance instead of using our public instance.
+    // Source code available at https://github.com/InfinityLoop1308/PipePipeEJS
     private static final String API_BASE_URL = "https://api.pipepipe.dev/decoder/decode";
     private static final String USER_AGENT = "PipePipe/4.9.0";
 
