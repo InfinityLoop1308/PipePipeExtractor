@@ -164,7 +164,7 @@ public final class YoutubeSabrRequestHelper {
         final SabrProto.Writer request = new SabrProto.Writer();
         request.writeMessage(1, buildClientAbrState(audioFormat, videoFormat, playerTimeMs,
                 followUp || includePlaybackState, trackMode,
-                session.getBandwidthEstimate(), playbackRate));
+                session.getBandwidthEstimate(), playbackRate, sabrRequest.getBufferByteBudget()));
         if (includePlaybackState) {
             if (includeSelectedTracks) {
                 for (final YoutubeSabrRequest.Track track : sabrRequest.getTracks()) {
@@ -189,7 +189,8 @@ public final class YoutubeSabrRequestHelper {
                                                final boolean includeFollowUpState,
                                                final int enabledTrackTypesBitfield,
                                                final long requestedBandwidthEstimate,
-                                               final float playbackRate) {
+                                               final float playbackRate,
+                                               final long bufferByteBudget) {
         final SabrProto.Writer state = new SabrProto.Writer();
         if (includeFollowUpState && videoFormat != null) {
             state.writeInt32(18, Math.max(videoFormat.getWidth(), 640));
@@ -217,6 +218,15 @@ public final class YoutubeSabrRequestHelper {
         state.writeUInt64(28, playerTimeMs);
         if (audioFormat != null) {
             state.writeStringIfNotEmpty(69, audioFormat.getAudioTrackId());
+        }
+        if (bufferByteBudget > 0) {
+            // Server read-ahead hints, not hard response byte limits.
+            if (audioFormat != null) {
+                state.writeUInt64(74, bufferByteBudget);
+            }
+            if (videoFormat != null) {
+                state.writeUInt64(75, bufferByteBudget);
+            }
         }
         return state.toByteArray();
     }
